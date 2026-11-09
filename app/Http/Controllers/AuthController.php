@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Libraries\RememberLogin;
+use App\Models\AuthModel;
+use App\Models\LogModel;
+use App\Models\SettingsModel;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\AuthModel;
-use App\Models\User;
-use App\Models\LogModel;
-use App\Models\SettingsModel;
 
 /**
  * Auth Controller - Migrated from CI3 Auth controller
@@ -17,14 +18,15 @@ use App\Models\SettingsModel;
 class AuthController extends BaseController
 {
     protected LogModel $logModel;
+
     protected SettingsModel $settingsModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->authModel = new AuthModel();
-        $this->logModel = new LogModel();
-        $this->settingsModel = new SettingsModel();
+        $this->authModel = new AuthModel;
+        $this->logModel = new LogModel;
+        $this->settingsModel = new SettingsModel;
     }
 
     /**
@@ -37,6 +39,7 @@ class AuthController extends BaseController
         // siswa -> siswa/presensi, guru -> presensi, lainnya -> dashboard).
         if ($this->session->get('is_login')) {
             $this->loginGuard((int) $this->session->get('user_id'));
+
             return redirect()->to($this->determineRedirect(
                 (object) [
                     'role_name' => $this->session->get('role_name'),
@@ -47,6 +50,7 @@ class AuthController extends BaseController
         }
 
         $data['setting'] = $this->getSettingRow();
+
         return view('backend.login', $data);
     }
 
@@ -66,7 +70,7 @@ class AuthController extends BaseController
     {
 
         // Check if setup is complete
-        if (!function_exists('database_connected') || !database_connected() || is_database_empty() || is_setting_empty()) {
+        if (! function_exists('database_connected') || ! database_connected() || is_database_empty() || is_setting_empty()) {
             return redirect()->to('install');
         }
 
@@ -74,6 +78,7 @@ class AuthController extends BaseController
         if ($this->session->get('is_login')) {
             $user = $this->findUserById((int) $this->session->get('user_id'));
             $redirectUrl = $this->determineRedirect($user, false);
+
             return redirect()->to($redirectUrl);
         }
 
@@ -88,7 +93,7 @@ class AuthController extends BaseController
                 'placeholder' => 'Username',
                 'autofocus' => 'autofocus',
                 'class' => 'form-control',
-                'autocomplete' => 'off'
+                'autocomplete' => 'off',
             ],
             'username' => [
                 'name' => 'username',
@@ -97,7 +102,7 @@ class AuthController extends BaseController
                 'placeholder' => 'Username',
                 'autofocus' => 'autofocus',
                 'class' => 'form-control',
-                'autocomplete' => 'off'
+                'autocomplete' => 'off',
             ],
             'password' => [
                 'name' => 'password',
@@ -134,8 +139,8 @@ class AuthController extends BaseController
             $dataUser = null;
             $errors = [];
 
-            $cbtOnly      = $this->request->input('cbt-only') === '1';
-            $redirectUrl  = url('dashboard');
+            $cbtOnly = $this->request->input('cbt-only') === '1';
+            $redirectUrl = url('dashboard');
 
             if (strtolower($this->request->method()) === 'post') {
                 // Validation — tidak perlu login_variant lagi
@@ -144,13 +149,14 @@ class AuthController extends BaseController
                     'password' => 'required|min_length[4]|max_length[50]',
                 ];
 
-                if (!$this->validate($rules)) {
+                if (! $this->validate($rules)) {
                     $validation = $this->validation();
                     $message = 'Username atau Password salah!';
-                    $errors  = [
+                    $errors = [
                         'username' => $validation->getError('username'),
                         'password' => $validation->getError('password'),
                     ];
+
                     return $this->respond(false, $message, null, $errors);
                 }
 
@@ -162,6 +168,7 @@ class AuthController extends BaseController
                 $percobaan = $this->cekErrorLogin($username, $detikKunci);
                 if (count($percobaan) >= 3) {
                     $message = 'Anda sudah 3x melakukan percobaan login. Silakan tunggu 5 menit atau hubungi Administrator.';
+
                     return $this->respond(false, $message);
                 }
 
@@ -173,13 +180,15 @@ class AuthController extends BaseController
 
                     // Cek apakah siswa aktif (hanya untuk role siswa)
                     $dataUser = $this->findSiswaAktif($username);
-                    $isSiswa  = $dataUser !== null;
+                    $isSiswa = $dataUser !== null;
 
-                    if ($isSiswa && isset($dataUser->status) && $dataUser->status !== '1') {
+                    // PDO mengembalikan kolom integer sebagai int, bukan string
+                    // seperti MySQLi di CI4 — bandingkan sebagai string.
+                    if ($isSiswa && isset($dataUser->status) && (string) $dataUser->status !== '1') {
                         return $this->respond(false, 'Akun Anda dinonaktifkan!');
                     }
 
-                    if ($user->active === '1') {
+                    if ((string) $user->active === '1') {
                         // Verify password
                         if (password_verify($password, $user->password)) {
                             $role = $user->role;
@@ -187,30 +196,31 @@ class AuthController extends BaseController
                             // Set session data
                             $idGuru = 0;
                             try {
-                                $dbConn = \Illuminate\Support\Facades\DB::connection();
-                                if (\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+                                $dbConn = DB::connection();
+                                if (Schema::hasTable('master_guru')) {
                                     $guruRow = $dbConn->table('master_guru')->where('id_user', $user->id)->first();
-                                    if ($guruRow && !empty($guruRow->id_guru)) {
+                                    if ($guruRow && ! empty($guruRow->id_guru)) {
                                         $idGuru = (int) $guruRow->id_guru;
                                     }
                                 }
-                            } catch (\Throwable $e) {}
+                            } catch (\Throwable $e) {
+                            }
 
                             // Cegah session fixation: pakai ID sesi baru
                             // sebelum data login ditulis.
                             $this->session->regenerate(true);
 
                             $this->session->set([
-                                'user_id'     => $user->id,
-                                'id_guru'     => $idGuru,
-                                'username'    => $user->username,
-                                'nama'        => $user->first_name . ($user->last_name ? ' ' . $user->last_name : ''),
-                                'email'       => $user->email,
-                                'role'        => $user->group_id,
-                                'role_name'   => $user->role_name,
-                                'foto'        => $user->foto,
+                                'user_id' => $user->id,
+                                'id_guru' => $idGuru,
+                                'username' => $user->username,
+                                'nama' => $user->first_name.($user->last_name ? ' '.$user->last_name : ''),
+                                'email' => $user->email,
+                                'role' => $user->group_id,
+                                'role_name' => $user->role_name,
+                                'foto' => $user->foto,
                                 'school_uuid' => $user->company ?? null,
-                                'is_login'    => true,
+                                'is_login' => true,
                                 'login_variant' => $roleName === 'siswa' ? 'siswa' : 'staff',
                             ]);
 
@@ -226,7 +236,7 @@ class AuthController extends BaseController
                             // PWA "tetap login" 30 hari — hanya guru & siswa
                             // (admin/panitia dikecualikan demi keamanan)
                             if (in_array($roleName, ['guru', 'siswa'], true)) {
-                                \App\Libraries\RememberLogin::issue((int) $user->id);
+                                RememberLogin::issue((int) $user->id);
                             }
 
                             // Log with explicit userId since session might not be committed yet
@@ -252,13 +262,14 @@ class AuthController extends BaseController
                 'role' => $role,
                 'user' => $dataUser,
                 'url' => 'dashboard',
-                'redirect' => $redirectUrl
+                'redirect' => $redirectUrl,
             ];
 
             return $this->respond($success, $message, $respData, $errors);
 
         } catch (\Throwable $th) {
-            Log::error('[Auth::login] ' . $th->getMessage() . ' di ' . $th->getFile() . ':' . $th->getLine());
+            Log::error('[Auth::login] '.$th->getMessage().' di '.$th->getFile().':'.$th->getLine());
+
             return $this->respond(false, 'Terjadi kesalahan pada server. Silakan coba lagi.');
         }
     }
@@ -270,12 +281,12 @@ class AuthController extends BaseController
     {
         $default = url('dashboard');
 
-        if (!$user) {
+        if (! $user) {
             return $default;
         }
 
         // Admin Sekolah redirect
-        if (!empty($user->company)) {
+        if (! empty($user->company)) {
             return url('sekolahpanel');
         }
 
@@ -307,9 +318,10 @@ class AuthController extends BaseController
      */
     public function logout()
     {
-        \App\Libraries\RememberLogin::clear();
+        RememberLogin::clear();
         $this->saveAuditLog(2, 'Logout');
         $this->session->destroy();
+
         return redirect()->to('auth')->with('success', 'Anda telah berhasil keluar.');
     }
 
@@ -331,7 +343,8 @@ class AuthController extends BaseController
                 ->where('a.username', $username)
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('[Auth::findUserForLogin] ' . $e->getMessage());
+            Log::error('[Auth::findUserForLogin] '.$e->getMessage());
+
             return null;
         }
     }
@@ -370,16 +383,18 @@ class AuthController extends BaseController
     private function cekErrorLogin(string $username, ?int $dalamDetik = null): array
     {
         try {
-            if (!Schema::hasTable('login_attempts')) {
+            if (! Schema::hasTable('login_attempts')) {
                 return [];
             }
             $q = DB::table('login_attempts')->where('login', $username);
             if ($dalamDetik !== null && $dalamDetik > 0) {
                 $q->where('time', '>=', time() - $dalamDetik);
             }
+
             return $q->orderBy('time', 'ASC')->get()->all();
         } catch (\Throwable $e) {
-            Log::error('[Auth::cekErrorLogin] ' . $e->getMessage());
+            Log::error('[Auth::cekErrorLogin] '.$e->getMessage());
+
             return [];
         }
     }
@@ -390,9 +405,10 @@ class AuthController extends BaseController
     private function recordErrorLogin(array $data): bool
     {
         try {
-            if (!Schema::hasTable('login_attempts')) {
+            if (! Schema::hasTable('login_attempts')) {
                 return false;
             }
+
             return DB::table('login_attempts')->insert($data);
         } catch (\Throwable $e) {
             return false;
@@ -405,9 +421,10 @@ class AuthController extends BaseController
     private function resetErrorLogin(string $username): bool
     {
         try {
-            if (!Schema::hasTable('login_attempts')) {
+            if (! Schema::hasTable('login_attempts')) {
                 return false;
             }
+
             return (bool) DB::table('login_attempts')->where('login', $username)->delete();
         } catch (\Throwable $e) {
             return false;
@@ -431,7 +448,7 @@ class AuthController extends BaseController
                 auth()->login($user);
             }
         } catch (\Throwable $e) {
-            Log::error('[Auth::loginGuard] ' . $e->getMessage());
+            Log::error('[Auth::loginGuard] '.$e->getMessage());
         }
     }
 }
