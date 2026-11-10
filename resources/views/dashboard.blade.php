@@ -559,12 +559,15 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                         return '--:--';
                     };
                     $resolveFoto = function ($foto) {
-                        if (empty($foto)) return asset('assets/img/user.png');
+                        $fallback = asset('assets/img/user.png');
+                        if (empty($foto)) return $fallback;
                         $foto = trim((string)$foto);
                         if (preg_match('#^https?://#i', $foto)) return $foto;
-                        if (str_starts_with($foto, 'uploads/') || str_starts_with($foto, 'assets/')) return url($foto);
-                        if (str_contains($foto, '/')) return url(ltrim($foto, '/'));
-                        return url('uploads/profiles/' . $foto);
+                        // Foto bisa menunjuk file yang sudah hilang (mis. sisa import lama):
+                        // jangan hasilkan URL yang pasti 404, pakai avatar bawaan.
+                        $relatif = str_contains($foto, '/') ? ltrim($foto, '/') : 'uploads/profiles/' . $foto;
+                        if (! file_exists(public_path($relatif))) return $fallback;
+                        return url($relatif);
                     };
                     ?>
                     <div class="divide-y divide-slate-100 checkin-scroll max-h-[460px] overflow-y-auto -mx-1 px-1">
@@ -715,7 +718,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                     <div id="dashboardLogsBody">
                         <?php foreach ($recentLogs as $idx => $log):
                             $uNama = trim(($log->first_name ?? '') . ' ' . ($log->last_name ?? '')) ?: 'Pengguna';
-                            $fotoLog = !empty($log->foto) ? url(ltrim($log->foto, '/')) : asset('assets/img/user.png');
+                            $fotoLog = \App\Services\AvatarService::url($log->foto) ?? asset('assets/img/user.png');
                             $ts = !empty($log->waktu) ? strtotime($log->waktu) : false;
                             $dateKey = $ts ? date('Y-m-d', $ts) : '';
                             $waktuLog = $ts ? date('H:i', $ts) : '';

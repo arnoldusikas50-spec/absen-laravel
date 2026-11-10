@@ -106,7 +106,7 @@
         </div>
         <div class="ms-auto">
              <div class="bg-white bg-opacity-25 rounded-full p-2">
-                 <img src="{{ url($guru->foto ? $guru->foto : 'assets/img/guru.png') }}" class="rounded-full" width="32" height="32" style="object-fit: cover;">
+                 <img src="{{ \App\Services\AvatarService::url($guru->foto) ?? url('assets/img/guru.png') }}" class="rounded-full" width="32" height="32" style="object-fit: cover;">
              </div>
         </div>
     </div>

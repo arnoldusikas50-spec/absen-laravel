@@ -864,7 +864,7 @@ const KAL = {
     holidayDelete:{!! json_encode(url('admin/kalender/holiday/delete'), $jsonFlags) !!},
     holidaySync:  {!! json_encode(url('admin/kalender/holiday/sync'), $jsonFlags) !!},
     csrfName:     {!! json_encode('_token', $jsonFlags) !!},
-    csrfHash:     {!! json_encode('_token', $jsonFlags) !!},
+    csrfHash:     {!! json_encode(csrf_token(), $jsonFlags) !!},
     initialDate:  {!! json_encode(sprintf('%04d-%02d-01', $tahun, $bulan), $jsonFlags) !!},
     liburIso:     {!! json_encode(array_values($liburIso), $jsonFlags) !!},
     bulanNama:    {!! json_encode(array_slice($namaBulanId, 1), $jsonFlags) !!},

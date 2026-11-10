@@ -3,24 +3,26 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-
+use App\Http\Controllers\CiForge;
+use App\Models\AuditLogModel;
+use App\Models\DashboardModel;
+use App\Models\LemburModel;
+use App\Models\PoinHistoryModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\AuditLogModel;
-use App\Models\LemburModel;
-use App\Models\PoinHistoryModel;
 
 class LemburController extends BaseController
 {
     protected $lemburModel;
+
     protected $db;
 
     public function __construct()
     {
         parent::__construct();
-        $this->lemburModel = new LemburModel();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->lemburModel = new LemburModel;
+        $this->db = DB::connection();
     }
 
     /**
@@ -41,20 +43,20 @@ class LemburController extends BaseController
         }
 
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('presensi_lembur', 'catatan_admin')) {
-                $forge = (new \App\Http\Controllers\CiForge());
+            if (! Schema::hasColumn('presensi_lembur', 'catatan_admin')) {
+                $forge = (new CiForge);
                 $forge->addColumn('presensi_lembur', [
                     'catatan_admin' => ['type' => 'TEXT', 'null' => true, 'after' => 'keterangan'],
                 ]);
             }
-            $tersedia = (bool) \Illuminate\Support\Facades\Schema::hasColumn('presensi_lembur', 'catatan_admin');
+            $tersedia = (bool) Schema::hasColumn('presensi_lembur', 'catatan_admin');
             if ($tersedia) {
                 self::$catatanDipastikan = true;
             }
 
             return $tersedia;
         } catch (\Throwable $e) {
-            Log::error('ensureCatatanAdmin: ' . $e->getMessage());
+            Log::error('ensureCatatanAdmin: '.$e->getMessage());
 
             return false;
         }
@@ -68,6 +70,7 @@ class LemburController extends BaseController
         } catch (\Throwable $e) {
             $rate = 5;
         }
+
         return max(0, min(50, $rate));
     }
 
@@ -82,8 +85,8 @@ class LemburController extends BaseController
      */
     private function ambilUntukDikunci(int $id): ?object
     {
-        $sql = 'SELECT * FROM ' . 'presensi_lembur'
-             . ' WHERE id = ? AND status = ? FOR UPDATE';
+        $sql = 'SELECT * FROM '.'presensi_lembur'
+             .' WHERE id = ? AND status = ? FOR UPDATE';
 
         try {
             $hasil = $this->db->select($sql, [$id, 'PENDING']);
@@ -94,7 +97,7 @@ class LemburController extends BaseController
 
             return is_object($row) ? $row : null;
         } catch (\Throwable $e) {
-            Log::warning('[Lembur] FOR UPDATE tidak tersedia, kembali ke baca biasa: ' . $e->getMessage());
+            Log::warning('[Lembur] FOR UPDATE tidak tersedia, kembali ke baca biasa: '.$e->getMessage());
 
             $row = $this->db->table('presensi_lembur')
                 ->where('id', $id)->where('status', 'PENDING')
@@ -106,7 +109,7 @@ class LemburController extends BaseController
 
     public function index()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -115,8 +118,12 @@ class LemburController extends BaseController
         $bulan = str_pad((int) ($this->request->query('bulan') ?? date('m')), 2, '0', STR_PAD_LEFT);
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         $curYear = (int) date('Y');
-        if ((int) $bulan < 1 || (int) $bulan > 12) $bulan = date('m');
-        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) $tahun = $curYear;
+        if ((int) $bulan < 1 || (int) $bulan > 12) {
+            $bulan = date('m');
+        }
+        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
+            $tahun = $curYear;
+        }
 
         $pending = $this->lemburModel->getPending();
         $rekap = $this->lemburModel->getRekap($bulan, $tahun);
@@ -129,13 +136,17 @@ class LemburController extends BaseController
             'jam_disetujui' => 0.0,
             'guru_lembur' => count($rekap),
         ];
-        foreach ($pending as $p) $summary['jam_pending'] += (float) $p->total_jam;
-        foreach ($rekap as $r) $summary['jam_disetujui'] += (float) ($r->jam_disetujui ?? 0);
+        foreach ($pending as $p) {
+            $summary['jam_pending'] += (float) $p->total_jam;
+        }
+        foreach ($rekap as $r) {
+            $summary['jam_disetujui'] += (float) ($r->jam_disetujui ?? 0);
+        }
         $summary['poin_bulan'] = (int) round($summary['jam_disetujui'] * $pointPerJam);
 
-        $dashboardModel = new \App\Models\DashboardModel();
+        $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
@@ -151,14 +162,14 @@ class LemburController extends BaseController
             'pointPerJam' => $pointPerJam,
             'setting' => $setting,
             'user' => $this->getUser(),
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
         ]);
     }
 
     public function approve($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -168,17 +179,18 @@ class LemburController extends BaseController
         }
 
         $this->ensureCatatanAdmin();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             // Kunci baris: hanya PENDING yang bisa diproses (cegah double-approve)
             $lembur = $this->ambilUntukDikunci($id);
-            if (!$lembur) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $lembur) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Data tidak ditemukan atau sudah diproses admin lain');
             }
 
-            $this->db->table('presensi_lembur')
+            $diperbarui = $this->db->table('presensi_lembur')
                 ->where('id', $id)->where('status', 'PENDING')
                 ->update([
                     'status' => 'APPROVED',
@@ -187,8 +199,9 @@ class LemburController extends BaseController
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
 
-            if (1 !== 1) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if ($diperbarui < 1) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Lembur ini sudah diproses admin lain. Muat ulang halaman.');
             }
 
@@ -198,7 +211,7 @@ class LemburController extends BaseController
 
             if ($poinLembur > 0) {
                 // 1) Akumulasi ke kolom points absensi_harian (sumber rekap semester)
-                if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'points')) {
+                if (Schema::hasColumn('absensi_harian', 'points')) {
                     $absensi = $this->db->table('absensi_harian')
                         ->where('user_id', $lembur->user_id)
                         ->where('tgl', $lembur->tgl)
@@ -207,14 +220,14 @@ class LemburController extends BaseController
                     if ($absensi) {
                         $tertulis = $this->db->table('absensi_harian')
                             ->where('id', $absensi->id)
-                            ->set('points', 'COALESCE(points, 0) + ' . $poinLembur, false)
-                            ->update();
-                        if ($tertulis === false) {
+                            ->update(['points' => DB::raw('COALESCE(points, 0) + '.(int) $poinLembur)]);
+                        if ($tertulis < 1) {
                             // Poin harian gagal: lebih baik seluruh persetujuan
                             // dibatalkan daripada status APPROVED tanpa poin.
-                            Log::error('[approveLembur] gagal menambah points absensi ' . $absensi->id
-                                . ': ' . json_encode(['code' => 0, 'message' => '']));
-                            \Illuminate\Support\Facades\DB::rollBack();
+                            Log::error('[approveLembur] gagal menambah points absensi '.$absensi->id
+                                .': '.json_encode(['code' => 0, 'message' => '']));
+                            DB::rollBack();
+
                             return $this->respond(false, 'Poin lembur gagal dibukukan. Persetujuan dibatalkan, silakan coba lagi.');
                         }
                     }
@@ -223,60 +236,65 @@ class LemburController extends BaseController
                 // 2) Ledger poin_history (sumber SALDO guru) — ref unik per lembur agar idempotent.
                 //    Tidak memakai syncAttendancePoint agar tidak menimpa rincian harian yang sudah ada.
                 $exists = $this->db->table('poin_history')
-                    ->where('ref_id', 'lembur-' . $lembur->id)
+                    ->where('ref_id', 'lembur-'.$lembur->id)
                     ->where('user_id', $lembur->user_id)
                     ->first();
-                if (!$exists) {
+                if (! $exists) {
                     $tercatat = $this->db->table('poin_history')->insert([
                         'user_id' => $lembur->user_id,
                         'poin' => $poinLembur,
                         'tipe' => 'BONUS',
-                        'keterangan' => 'Lembur ' . $lembur->tgl . ' (' . rtrim(rtrim(number_format((float) $lembur->total_jam, 2), '0'), '.') . ' jam)',
-                        'ref_id' => 'lembur-' . $lembur->id,
+                        'keterangan' => 'Lembur '.$lembur->tgl.' ('.rtrim(rtrim(number_format((float) $lembur->total_jam, 2), '0'), '.').' jam)',
+                        'ref_id' => 'lembur-'.$lembur->id,
                         'created_at' => date('Y-m-d H:i:s'),
                     ]);
                     if ($tercatat === false) {
-                        Log::error('[approveLembur] gagal menulis poin_history lembur ' . $lembur->id
-                            . ': ' . json_encode(['code' => 0, 'message' => '']));
-                        \Illuminate\Support\Facades\DB::rollBack();
+                        Log::error('[approveLembur] gagal menulis poin_history lembur '.$lembur->id
+                            .': '.json_encode(['code' => 0, 'message' => '']));
+                        DB::rollBack();
+
                         return $this->respond(false, 'Poin lembur gagal dibukukan. Persetujuan dibatalkan, silakan coba lagi.');
                     }
                     $poinDitambah = $poinLembur;
-                    (new PoinHistoryModel())->updateTotalPoin($lembur->user_id);
+                    (new PoinHistoryModel)->updateTotalPoin($lembur->user_id);
                 } else {
                     $poinDitambah = (int) $exists->poin;
                 }
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                $auditTertulis = (new AuditLogModel())->log('presensi_lembur', (int) $lembur->id, 'APPROVE',
+                $auditTertulis = (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'APPROVE',
                     (int) $lembur->user_id, $this->getUserId(),
                     ['status' => 'PENDING', 'total_jam' => (float) $lembur->total_jam],
                     ['status' => 'APPROVED', 'poin' => $poinDitambah, 'tarif_poin_per_jam' => $pointPerJam],
-                    'Persetujuan lembur ' . $lembur->tgl);
+                    'Persetujuan lembur '.$lembur->tgl);
                 if ($auditTertulis === false) {
-                    Log::error('[approveLembur] jejak audit lembur ' . $lembur->id . ' gagal ditulis');
+                    Log::error('[approveLembur] jejak audit lembur '.$lembur->id.' gagal ditulis');
                 }
             } catch (\Throwable $ex) {
-                Log::error('Audit approveLembur gagal: ' . $ex->getMessage());
+                Log::error('Audit approveLembur gagal: '.$ex->getMessage());
             }
 
-            $msg = 'Lembur disetujui. Poin +' . $poinDitambah . ' masuk ke saldo guru.';
-            if ($poinDitambah === 0) $msg = 'Lembur disetujui (tarif poin 0, tidak ada poin ditambahkan).';
+            $msg = 'Lembur disetujui. Poin +'.$poinDitambah.' masuk ke saldo guru.';
+            if ($poinDitambah === 0) {
+                $msg = 'Lembur disetujui (tarif poin 0, tidak ada poin ditambahkan).';
+            }
+
             return $this->respond(true, $msg, ['poin' => $poinDitambah]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             // Pesan exception (isi DB, nama tabel, path) tidak dikirim ke klien.
-            Log::error('Approve Lembur Error (id ' . $id . '): ' . $e->getMessage());
+            Log::error('Approve Lembur Error (id '.$id.'): '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyetujui lembur. Perubahan dibatalkan, silakan coba lagi atau periksa log server.', null, null, 500);
         }
     }
 
     public function reject($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -291,12 +309,13 @@ class LemburController extends BaseController
         }
 
         $kolomCatatan = $this->ensureCatatanAdmin();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             $lembur = $this->ambilUntukDikunci($id);
-            if (!$lembur) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $lembur) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Data tidak ditemukan atau sudah diproses admin lain');
             }
 
@@ -310,28 +329,29 @@ class LemburController extends BaseController
                 $update['catatan_admin'] = $alasan;
             }
 
-            $this->db->table('presensi_lembur')
+            $diperbarui = $this->db->table('presensi_lembur')
                 ->where('id', $id)->where('status', 'PENDING')
                 ->update($update);
 
-            if (1 !== 1) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if ($diperbarui < 1) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Lembur ini sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                $auditTertulis = (new AuditLogModel())->log('presensi_lembur', (int) $lembur->id, 'REJECT',
+                $auditTertulis = (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'REJECT',
                     (int) $lembur->user_id, $this->getUserId(),
                     ['status' => 'PENDING'],
                     ['status' => 'REJECTED', 'catatan_admin' => $kolomCatatan ? $alasan : null],
-                    'Penolakan lembur ' . $lembur->tgl);
+                    'Penolakan lembur '.$lembur->tgl);
                 if ($auditTertulis === false) {
-                    Log::error('[rejectLembur] jejak audit lembur ' . $lembur->id . ' gagal ditulis');
+                    Log::error('[rejectLembur] jejak audit lembur '.$lembur->id.' gagal ditulis');
                 }
             } catch (\Throwable $ex) {
-                Log::error('Audit rejectLembur gagal: ' . $ex->getMessage());
+                Log::error('Audit rejectLembur gagal: '.$ex->getMessage());
             }
 
             // Penolakannya sendiri berhasil, jadi status tetap true; hanya
@@ -341,8 +361,9 @@ class LemburController extends BaseController
                     ? 'Lembur ditolak dengan alasan tercatat'
                     : 'Lembur ditolak, tetapi kolom catatan admin tidak tersedia sehingga alasannya tidak tersimpan.');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Reject Lembur Error (id ' . $id . '): ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Reject Lembur Error (id '.$id.'): '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak lembur. Perubahan dibatalkan, silakan coba lagi atau periksa log server.', null, null, 500);
         }
     }

@@ -356,7 +356,7 @@ $avatarSrc = \App\Services\AvatarService::url($user->foto ?? '')
     ?? \App\Services\AvatarService::inisial($namaGuru, 128, \App\Libraries\Theme::metaColor('primary'));
 
 $csrfField = '_token';
-$csrfHash  = '_token';
+$csrfHash  = csrf_token();
 ?>
 
 <!-- ═══════════════════════════════════════════════ -->

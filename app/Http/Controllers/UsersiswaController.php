@@ -6,6 +6,7 @@ use App\Models\AuthModel;
 use App\Models\DashboardModel;
 use App\Models\MasterModel;
 use App\Models\UsersModel;
+use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -119,7 +120,8 @@ class UsersiswaController extends BaseController
         $lists = $this->users->getUserSiswaPage($tp->id_tp, $smt->id_smt, $offset, $limit, $search, null, null, $reset);
 
         foreach ($lists as $list) {
-            $list->foto = ($list->foto != null && $list->foto != '' && file_exists($list->foto)) ? url($list->foto) : url('assets/img/siswa_sm.png');
+            $list->foto = AvatarService::url($list->foto, AvatarService::DIREKTORI_SISWA)
+                ?? url('assets/img/siswa_sm.png');
         }
         $this->redactPasswords($lists);
 

@@ -896,7 +896,7 @@ $fotoUrl = function ($path) {
                             </td>
 
                             <td class="px-3 py-3 text-center">
-                                {{ $keteranganHtml }}
+                                {!! $keteranganHtml !!}
                             </td>
 
                             <td class="px-3 py-3 text-center">

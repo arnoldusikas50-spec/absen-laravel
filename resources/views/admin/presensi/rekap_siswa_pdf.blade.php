@@ -331,7 +331,7 @@
                             $val = '&mdash;';
                     }
                 ?>
-                <td class="{{ $bg }}" style="font-size:7px;">{{ $val }}</td>
+                <td class="{{ $bg }}" style="font-size:7px;">{!! $val !!}</td>
                 <?php endfor; ?>
 
                 <?php

@@ -1080,7 +1080,7 @@ class AttendanceController extends BaseController
                         return $this->respond(false, "Peringatan Keras: Anda tidak hadir selama {$consecutiveAlpha} hari kerja berturut-turut. Mohon perbaiki tingkat kehadiran Anda. Lanjutkan absen?", [
                             'warning_level' => 'consecutive',
                             'require_confirm' => true,
-                            '_token' => '_token',
+                            '_token' => csrf_token(),
                         ]);
                     }
                 }
@@ -1095,7 +1095,7 @@ class AttendanceController extends BaseController
                         return $this->respond(false, "Peringatan Tingkat III: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Absensi ini MEMERLUKAN VERIFIKASI sebelum tercatat. Lanjutkan?", [
                             'warning_level' => 10,
                             'require_confirm' => true,
-                            '_token' => '_token',
+                            '_token' => csrf_token(),
                         ]);
                     }
                     // If confirmed, proceed but set status
@@ -1108,7 +1108,7 @@ class AttendanceController extends BaseController
                         return $this->respond(false, "Peringatan Tingkat II: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Harap tingkatkan kehadiran Anda. Lanjutkan?", [
                             'warning_level' => 7,
                             'require_confirm' => true,
-                            '_token' => '_token',
+                            '_token' => csrf_token(),
                         ]);
                     }
                 }
@@ -1119,7 +1119,7 @@ class AttendanceController extends BaseController
                         return $this->respond(false, "Peringatan Tingkat I: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Lanjutkan?", [
                             'warning_level' => 3,
                             'require_confirm' => true,
-                            '_token' => '_token',
+                            '_token' => csrf_token(),
                         ]);
                     }
                 }
@@ -8413,7 +8413,7 @@ class AttendanceController extends BaseController
             ->setJSON([
                 'status' => true,
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
     }
 

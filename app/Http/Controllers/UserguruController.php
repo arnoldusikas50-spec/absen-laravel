@@ -2,35 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthModel;
+use App\Models\DashboardModel;
+use App\Models\MasterModel;
+use App\Models\UsersModel;
+use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\UsersModel;
-use App\Models\DashboardModel;
-use App\Models\AuthModel;
-use App\Models\MasterModel;
 
 class UserguruController extends BaseController
 {
     protected $users;
+
     protected $dashboard;
+
     protected $auth;
+
     protected $master;
 
     public function __construct()
     {
         parent::__construct();
-        $this->users = new UsersModel();
-        $this->dashboard = new DashboardModel();
-        $this->auth = new AuthModel();
-        $this->master = new MasterModel();
+        $this->users = new UsersModel;
+        $this->dashboard = new DashboardModel;
+        $this->auth = new AuthModel;
+        $this->master = new MasterModel;
     }
 
     public function index()
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
-        if (!$this->isAdmin() && !$this->inGroup('guru')) {
+        }
+        if (! $this->isAdmin() && ! $this->inGroup('guru')) {
             abort(404, 'Akses Terlarang');
         }
 
@@ -41,54 +46,59 @@ class UserguruController extends BaseController
             'subjudul' => 'Data User Guru',
             'profile' => null,
             'setting' => $this->getSettingRow(),
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first()
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt' => DB::table('master_smt')->get(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
         ];
 
         if ($this->isAdmin()) {
             return view('users.guru.data', $data);
         } else {
             $guru = $this->users->getGuruByUsername($user->username);
-            if (!$guru) {
+            if (! $guru) {
                 return redirect()->to('presensi')->with('error', 'Data guru tidak ditemukan');
             }
-            return redirect()->to('userguru/edit/' . $guru->id_guru);
+
+            return redirect()->to('userguru/edit/'.$guru->id_guru);
         }
     }
 
     public function data()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->response->setJSON([]);
         }
         $data = $this->users->getUserGuru($tp->id_tp, $smt->id_smt);
         foreach ($data as $list) {
-            $list->foto = ($list->foto != null && $list->foto != "" && file_exists($list->foto)) ? url($list->foto) : url('assets/img/siswa_sm.png');
+            $list->foto = AvatarService::url($list->foto, AvatarService::DIREKTORI_GURU)
+                ?? url('assets/img/guru.png');
         }
+
         return $this->response->setJSON($data);
     }
 
     public function edit($id)
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
+        }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return redirect()->to('dashboard')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
         $guru = $this->users->getDetailGuru($id);
 
-        if (!$guru)
+        if (! $guru) {
             return redirect()->to('userguru');
+        }
 
         $users = $this->users->getUsers($guru->username);
         $user = $this->getUser();
@@ -100,11 +110,11 @@ class UserguruController extends BaseController
             'setting' => $this->getSettingRow(),
             'users' => $users,
             'guru' => $guru,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
             'tp_active' => $tp,
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'smt_active' => $smt,
-            'is_admin' => $this->isAdmin()
+            'is_admin' => $this->isAdmin(),
         ];
 
         if ($this->isAdmin()) {
@@ -112,20 +122,22 @@ class UserguruController extends BaseController
             $data['kelass'] = $this->users->getKelas($tp->id_tp, $smt->id_smt);
             $data['mapels'] = $this->users->getMapel();
             $data['levels'] = $this->users->getLevelGuru();
+
             return view('users.guru.edit', $data);
         }
         // Non-admin: hanya boleh buka data miliknya sendiri (anti-IDOR horizontal)
         $me = $this->getUser();
         $ownGuru = $me ? $this->users->getGuruByUsername($me->username) : null;
-        if (!$me || !$ownGuru || (int) $ownGuru->id_guru !== (int) $guru->id_guru) {
+        if (! $me || ! $ownGuru || (int) $ownGuru->id_guru !== (int) $guru->id_guru) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak.');
         }
+
         return view('users.guru.edit', $data);
     }
 
     public function activate()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
@@ -139,7 +151,7 @@ class UserguruController extends BaseController
         }
 
         $guru = $this->users->getDataGuru($id_guru);
-        if (!$guru) {
+        if (! $guru) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Data guru tidak ditemukan']);
         }
         $usernames = $this->users->usernameCheck($guru->username ?? '-', 'master_guru');
@@ -147,15 +159,15 @@ class UserguruController extends BaseController
         if (count($usernames) > 1 && $is_active == 'aktifkan') {
             return $this->response->setJSON([
                 'status' => false,
-                'msg' => 'ada ' . count($usernames) . ' username menggunakan ' . $guru->username . ', silahkan ganti username',
-                'users' => $usernames
+                'msg' => 'ada '.count($usernames).' username menggunakan '.$guru->username.', silahkan ganti username',
+                'users' => $usernames,
             ]);
         }
 
         $active = false;
 
         if ($id_user) {
-            if (!$this->authUser($id_user)) {
+            if (! $this->authUser($id_user)) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
             }
             // Toggle active status in users table
@@ -171,21 +183,23 @@ class UserguruController extends BaseController
                 return $this->response->setJSON(['status' => false, 'msg' => 'Username guru kosong — lengkapi data guru dulu']);
             }
             if ($this->authIsExist($username)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Username ' . $username . ' sudah dipakai akun lain']);
+                return $this->response->setJSON(['status' => false, 'msg' => 'Username '.$username.' sudah dipakai akun lain']);
             }
             $nama = preg_split('/\s+/', trim($guru->nama_guru ?? ''), -1, PREG_SPLIT_NO_EMPTY);
             $first_name = $nama[0] ?? 'Guru';
             $last_name = count($nama) > 1 ? implode(' ', array_slice($nama, 1)) : '';
 
             $plainPassword = trim((string) ($guru->password ?? ''));
-            if ($plainPassword === '') $plainPassword = '123456';
+            if ($plainPassword === '') {
+                $plainPassword = '123456';
+            }
 
             $user = [
                 'username' => $username,
                 'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
                 'first_name' => $first_name,
                 'last_name' => $last_name,
-                'email' => $username . '@guru.sekolah' // Mock email
+                'email' => $username.'@guru.sekolah', // Mock email
             ];
 
             $id_user = $this->authRegister($user, '2'); // 2 for guru group
@@ -194,7 +208,7 @@ class UserguruController extends BaseController
                 // menabrak duplikat dan guru tetap tanpa akun.
                 return $this->response->setJSON([
                     'status' => false,
-                    'msg' => 'Guru ' . $nama_guru . ' gagal: akun login tidak berhasil dibuat (lihat log aplikasi)'
+                    'msg' => 'Guru '.$nama_guru.' gagal: akun login tidak berhasil dibuat (lihat log aplikasi)',
                 ]);
             }
 
@@ -205,13 +219,13 @@ class UserguruController extends BaseController
 
         return $this->response->setJSON([
             'status' => (bool) $active,
-            'msg' => $active ? 'Guru ' . $nama_guru . $msg : 'Guru ' . $nama_guru . ' gagal' . $msg
+            'msg' => $active ? 'Guru '.$nama_guru.$msg : 'Guru '.$nama_guru.' gagal'.$msg,
         ]);
     }
 
     public function reset_login()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
@@ -223,10 +237,11 @@ class UserguruController extends BaseController
         }
 
         if ($this->authResetErrorLogin($username)) {
-            $data = ['status' => true, 'msg' => 'User ' . $nama . ' berhasil direset'];
+            $data = ['status' => true, 'msg' => 'User '.$nama.' berhasil direset'];
         } else {
-            $data = ['status' => false, 'msg' => 'User ' . $nama . ' gagal direset (Mungkin tidak ada error login)'];
+            $data = ['status' => false, 'msg' => 'User '.$nama.' gagal direset (Mungkin tidak ada error login)'];
         }
+
         return $this->response->setJSON($data);
     }
 
@@ -240,7 +255,7 @@ class UserguruController extends BaseController
      */
     public function reset_password()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
@@ -249,52 +264,55 @@ class UserguruController extends BaseController
             return $this->response->setJSON(['status' => false, 'msg' => 'Username kosong']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $account = $db->table('users')->where('username', $username)->first();
-        if (!$account) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akun login "' . $username . '" belum ada — aktifkan akun dulu']);
+        if (! $account) {
+            return $this->response->setJSON(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
         }
 
         $default = '123456';
         // users (hash) dan master_guru (cermin plaintext) adalah satu kesatuan:
         // tulis separuh membuat guru bisa login dengan password lama lewat
         // jalur yang masih membaca master_guru.
-        $dibuka = \Illuminate\Support\Facades\DB::beginTransaction();
+        $dibuka = DB::beginTransaction();
         try {
             $hasilUsers = $db->table('users')->where('id', (int) $account->id)->update([
                 'password' => password_hash($default, PASSWORD_BCRYPT),
             ]);
             $hasilMaster = true;
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            if (Schema::hasTable('master_guru')) {
                 $hasilMaster = $db->table('master_guru')->where('username', $username)->update(['password' => $default]);
             }
 
             if ($hasilUsers === false || $hasilMaster === false) {
                 if ($dibuka) {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                    DB::rollBack();
                 }
-                Log::error('[Userguru::reset_password] update gagal untuk "' . $username . '" (users='
-                    . var_export($hasilUsers, true) . ', master=' . var_export($hasilMaster, true) . ')');
+                Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'" (users='
+                    .var_export($hasilUsers, true).', master='.var_export($hasilMaster, true).')');
+
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
             }
 
             if ($dibuka && true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('[Userguru::reset_password] transaksi gagal untuk "' . $username . '"');
+                DB::rollBack();
+                Log::error('[Userguru::reset_password] transaksi gagal untuk "'.$username.'"');
+
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
             }
             if ($dibuka) {
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
             }
         } catch (\Throwable $e) {
             if ($dibuka) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
             }
-            Log::error('[Userguru::reset_password] ' . $e->getMessage());
+            Log::error('[Userguru::reset_password] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'msg' => 'Terjadi kesalahan sistem — periksa log aplikasi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => 'Password "' . $username . '" berhasil direset ke password default.']);
+        return $this->response->setJSON(['status' => true, 'msg' => 'Password "'.$username.'" berhasil direset ke password default.']);
     }
 
     public function aktifkan_all()
@@ -304,20 +322,21 @@ class UserguruController extends BaseController
 
     public function aktifkansemua()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Unauthorized']);
+        }
 
         try {
             $is_active = $this->request->input('is_active');
             $status = ($is_active == 'aktifkan') ? 1 : 0;
 
-            $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
 
-            if (!$tp || !isset($tp->id_tp)) {
+            if (! $tp || ! isset($tp->id_tp)) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Tahun Pelajaran aktif tidak ditemukan']);
             }
-            if (!$smt || !isset($smt->id_smt)) {
+            if (! $smt || ! isset($smt->id_smt)) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Semester aktif tidak ditemukan']);
             }
 
@@ -339,19 +358,20 @@ class UserguruController extends BaseController
                             $lastName = implode(' ', $nama);
                         }
 
-                        // Ensure unique username if empty? 
+                        // Ensure unique username if empty?
                         // Assuming username is valid from master data.
                         $username = trim($guru->username ?? '');
-                        if (empty($username))
+                        if (empty($username)) {
                             continue;
+                        }
 
                         $user = [
                             'username' => $username,
                             'password' => password_hash(trim($guru->password ?? '123456'), PASSWORD_BCRYPT),
                             'first_name' => $firstName,
                             'last_name' => $lastName,
-                            'email' => $username . '@guru.sekolah',
-                            'active' => 1
+                            'email' => $username.'@guru.sekolah',
+                            'active' => 1,
                         ];
 
                         try {
@@ -370,7 +390,7 @@ class UserguruController extends BaseController
                             }
                         } catch (\Exception $e) {
                             $fail_count++;
-                            Log::error('Error registering user: ' . $username . ' - ' . $e->getMessage());
+                            Log::error('Error registering user: '.$username.' - '.$e->getMessage());
                         }
                     } else {
                         // Activate
@@ -386,15 +406,17 @@ class UserguruController extends BaseController
                 }
             }
 
-            $msg = $success_count . ' guru berhasil ' . ($status ? 'diaktifkan' : 'dinonaktifkan');
+            $msg = $success_count.' guru berhasil '.($status ? 'diaktifkan' : 'dinonaktifkan');
             if ($fail_count > 0) {
-                $msg .= ', ' . $fail_count . ' gagal (lihat log aplikasi)';
+                $msg .= ', '.$fail_count.' gagal (lihat log aplikasi)';
             }
+
             return $this->response->setJSON(['status' => $fail_count === 0, 'msg' => $msg]);
 
         } catch (\Throwable $th) {
             // Pesan exception mentah tidak dikirim ke klien.
-            Log::error('[Userguru::aktifkansemua] ' . $th->getMessage());
+            Log::error('[Userguru::aktifkansemua] '.$th->getMessage());
+
             return $this->response->setJSON(['status' => false, 'msg' => 'Terjadi kesalahan sistem — periksa log aplikasi.']);
         }
     }
@@ -407,12 +429,12 @@ class UserguruController extends BaseController
      */
     public function update_iduser()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('master_guru')) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Tabel master_guru tidak ditemukan.']);
         }
 
@@ -429,7 +451,8 @@ class UserguruController extends BaseController
                  WHERE mg.id_user IS NOT NULL AND mg.id_user <> 0 AND u.id IS NULL AND mg.deleted_at IS NULL'
             )[0] ?? null->jumlah;
         } catch (\Throwable $e) {
-            Log::error('[Userguru::update_iduser] ' . $e->getMessage());
+            Log::error('[Userguru::update_iduser] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'msg' => 'Status tautan akun gagal diperiksa — periksa log aplikasi.']);
         }
 
@@ -439,19 +462,21 @@ class UserguruController extends BaseController
 
         $catatan = [];
         if ($belum > 0) {
-            $catatan[] = $belum . ' guru belum punya akun login';
+            $catatan[] = $belum.' guru belum punya akun login';
         }
         if ($yatim > 0) {
-            $catatan[] = $yatim . ' guru menunjuk akun yang sudah tidak ada';
+            $catatan[] = $yatim.' guru menunjuk akun yang sudah tidak ada';
         }
-        $msg = 'Tautan akun belum lengkap: ' . implode(', ', $catatan) . '. Aktifkan akun per guru atau gunakan Aktifkan Semua.';
+        $msg = 'Tautan akun belum lengkap: '.implode(', ', $catatan).'. Aktifkan akun per guru atau gunakan Aktifkan Semua.';
+
         return $this->response->setJSON(['status' => false, 'msg' => $msg]);
     }
 
     public function editlogin()
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Login required']);
+        }
 
         $id = $this->request->input('id'); // guru id? or user id? View passes $guru->id (master_guru id likely? Or user id?)
         // In View: form_open(..., ['id' => $guru->id])
@@ -473,28 +498,30 @@ class UserguruController extends BaseController
         $new = $this->request->input('new');
 
         // Resolusi akun yang diedit: utamakan id_guru, fallback username lama / username aktif
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $guruRow = null;
-        if ($idGuru > 0 && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+        if ($idGuru > 0 && Schema::hasTable('master_guru')) {
             $guruRow = $db->table('master_guru')->where('id_guru', $idGuru)->first();
         }
-        if (!$guruRow && $oldUsername !== '' && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+        if (! $guruRow && $oldUsername !== '' && Schema::hasTable('master_guru')) {
             $guruRow = $db->table('master_guru')->where('username', $oldUsername)->first();
         }
         $currentUsername = $guruRow->username ?? ($oldUsername !== '' ? $oldUsername : $username);
-        if ($username === '') $username = $currentUsername;
+        if ($username === '') {
+            $username = $currentUsername;
+        }
 
         // Non-admin hanya boleh mengubah login miliknya sendiri
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             $me = $this->getUser();
-            if (!$me || strcasecmp((string) $me->username, (string) $currentUsername) !== 0) {
+            if (! $me || strcasecmp((string) $me->username, (string) $currentUsername) !== 0) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
             }
         }
 
         // Akun users milik username lama
         $account = $this->authIsExist($currentUsername);
-        if (!$account) {
+        if (! $account) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
         }
 
@@ -532,7 +559,7 @@ class UserguruController extends BaseController
                 'status' => false,
                 'msg' => $renamed
                     ? 'Username sudah berganti, tapi password gagal diubah — ulangi ubah password.'
-                    : 'Gagal mengubah password (password lama salah?)'
+                    : 'Gagal mengubah password (password lama salah?)',
             ]);
         }
 
@@ -550,22 +577,23 @@ class UserguruController extends BaseController
             if ($email !== '' && (! filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 100)) {
                 return $this->response->setJSON([
                     'status' => false,
-                    'msg' => 'Format email tidak valid (max 100 karakter).'
+                    'msg' => 'Format email tidak valid (max 100 karakter).',
                 ]);
             }
             $data = [
                 'first_name' => $first_name,
                 'last_name' => $last_name !== '' ? $last_name : null,
-                'email' => $email !== '' ? $email : null
+                'email' => $email !== '' ? $email : null,
             ];
             $tersimpan = $this->updateMasterData('users', $data, 'id', (int) $account->id);
             if ($tersimpan === false) {
-                Log::error('[Userguru::editlogin] simpan profil users#' . (int) $account->id . ' gagal');
+                Log::error('[Userguru::editlogin] simpan profil users#'.(int) $account->id.' gagal');
+
                 return $this->response->setJSON([
                     'status' => false,
                     'msg' => ($renamed || $wantPassword)
                         ? 'Login sudah diperbarui, tapi nama/email gagal disimpan — ulangi simpan profil.'
-                        : 'Nama/email gagal disimpan — periksa log aplikasi.'
+                        : 'Nama/email gagal disimpan — periksa log aplikasi.',
                 ]);
             }
         }

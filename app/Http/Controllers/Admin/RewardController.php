@@ -9,6 +9,7 @@ use App\Models\PoinHistoryModel;
 use App\Models\RewardModel;
 use App\Models\RewardRedemptionModel;
 use App\Models\RewardTierModel;
+use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -104,7 +105,7 @@ class RewardController extends BaseController
                 'nama' => $nama,
                 'nip' => $t->nip ?? '-',
                 'username' => $t->username,
-                'foto' => $t->foto,
+                'foto' => AvatarService::tampilan($t->foto, $nama),
                 'saldo' => $saldo,
                 'poin_tahunan' => $poinTahunan,
                 'tier' => $currentTier,

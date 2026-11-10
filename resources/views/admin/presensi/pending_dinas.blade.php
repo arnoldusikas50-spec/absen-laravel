@@ -509,7 +509,7 @@ $labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = '_token'; ?>
+<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
 $(document).ready(function() {
     var currentDinasTab = 'pending';

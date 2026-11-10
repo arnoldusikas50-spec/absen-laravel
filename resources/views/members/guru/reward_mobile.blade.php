@@ -509,7 +509,7 @@ $labelBulanSingkat = ($namaBulanSingkatId[(int) date('n')] ?? date('M')) . ' ' .
 
 @endsection
 
-<?php $csrfName = '_token'; $csrfHash = '_token'; ?>
+<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 @section('scripts')
 <script>
 // ── CSRF helper ────────────────────────────────────

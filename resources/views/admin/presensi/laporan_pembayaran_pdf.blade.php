@@ -96,7 +96,7 @@
                 <tr>
                     <td class="center">{{ $no++ }}</td>
                     <td>{{ $tglBayar ? date('d/m/Y', strtotime($tglBayar)) : '-' }}</td>
-                    <td>{{ $p->nama_guru ?? '-' }}{{ !empty($p->nip) ? '<br><small>' . esc($p->nip) . '</small>' : '' }}</td>
+                    <td>{!! ($p->nama_guru ?? '-') . (!empty($p->nip) ? '<br><small>' . e($p->nip) . '</small>' : '') !!}</td>
                     <td class="center">{{ ($namaBulan[(int)$p->bulan] ?? $p->bulan) }} {{ $p->tahun }}</td>
                     <td class="right">{{ number_format($nominal, 0, ',', '.') }}</td>
                     <td class="center">{{ $p->metode_bayar ?? 'TUNAI' }}</td>

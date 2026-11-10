@@ -221,7 +221,7 @@ class DapodikController extends BaseController
             'message' => $result['message'] ?? 'Gagal menghubungi endpoint Dapodik.',
             'code' => $result['code'] ?? null,
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -278,7 +278,7 @@ class DapodikController extends BaseController
             }
 
             $res['csrfName'] = '_token';
-            $res['csrfHash'] = '_token';
+            $res['csrfHash'] = csrf_token();
 
             return $this->response->setJSON($res);
         } catch (\Throwable $e) {
@@ -288,7 +288,7 @@ class DapodikController extends BaseController
                 'status' => false,
                 'message' => 'Sinkronisasi Dapodik berhenti karena galat sistem. Detail sudah dicatat di log; data yang sudah masuk tidak diurut ulang.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
     }
@@ -312,7 +312,7 @@ class DapodikController extends BaseController
                 'status' => false,
                 'message' => 'Tabel riwayat Dapodik tidak ditemukan, jadi tidak ada yang dibersihkan.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -327,7 +327,7 @@ class DapodikController extends BaseController
                 'status' => false,
                 'message' => 'Riwayat log gagal dibersihkan ('.$sisa.' baris masih tersisa).',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -338,7 +338,7 @@ class DapodikController extends BaseController
                 : 'Riwayat log sudah kosong, tidak ada yang dibersihkan.',
             'dihapus' => $jumlahSebelum,
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 }

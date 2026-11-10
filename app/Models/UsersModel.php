@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AvatarService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -169,7 +170,7 @@ class UsersModel extends Model
 
         $result = $builder->get()->all();
         foreach ($result as $row) {
-            $row->foto = ($row->foto && file_exists($row->foto)) ? url($row->foto) : url('assets/img/profile-default.png');
+            $row->foto = AvatarService::url($row->foto) ?? url('assets/img/profile-default.png');
         }
 
         return $result;

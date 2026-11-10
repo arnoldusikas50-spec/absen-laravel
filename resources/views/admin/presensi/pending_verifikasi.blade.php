@@ -120,7 +120,7 @@ $fmtJam = function ($v) {
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = '_token'; ?>
+<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
 $(document).ready(function () {
     var CSRF = {};

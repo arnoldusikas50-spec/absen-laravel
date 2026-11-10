@@ -80,7 +80,7 @@ class SiswaDendaService
                     ->orderBy('id', 'ASC')
                     ->first();
             } catch (\Throwable $e) {
-                Log::error('[SiswaDendaService::setting] ' . $e->getMessage());
+                Log::error('[SiswaDendaService::setting] '.$e->getMessage());
                 $row = null;
             }
             $this->setting = $row ?: (object) [];
@@ -120,12 +120,12 @@ class SiswaDendaService
         }
 
         return [
-            'tgl'               => $tgl,
-            'id_kelas'          => $idKelas,
-            'is_libur'          => isset(AttendancePolicy::liburNasional()[$tgl]),
+            'tgl' => $tgl,
+            'id_kelas' => $idKelas,
+            'is_libur' => isset(AttendancePolicy::liburNasional()[$tgl]),
             'is_libur_mingguan' => $this->isLiburMingguan($tgl),
-            'is_bdr'            => $idKelas > 0 && isset($this->kelasBdr($tgl)[$idKelas]),
-            'batas_masuk'       => $this->batasMasuk($tgl),
+            'is_bdr' => $idKelas > 0 && isset($this->kelasBdr($tgl)[$idKelas]),
+            'batas_masuk' => $this->batasMasuk($tgl),
         ];
     }
 
@@ -145,7 +145,7 @@ class SiswaDendaService
         try {
             $peta = $this->bdrService()->kelasTerdampak($tgl);
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::kelasBdr] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::kelasBdr] '.$e->getMessage());
             $peta = [];
         }
 
@@ -154,7 +154,7 @@ class SiswaDendaService
 
     private function bdrService(): PresensiBdrService
     {
-        return $this->bdr ??= new PresensiBdrService();
+        return $this->bdr ??= new PresensiBdrService;
     }
 
     /**
@@ -183,9 +183,9 @@ class SiswaDendaService
     /** @return array<int, array<string, bool>> */
     private function bangunPetaTercatat(string $bulanKey): array
     {
-        $awal  = $bulanKey . '-01';
+        $awal = $bulanKey.'-01';
         $akhir = date('Y-m-t', strtotime($awal));
-        $peta  = [];
+        $peta = [];
 
         try {
             $rows = DB::table('presensi_siswa')
@@ -197,7 +197,7 @@ class SiswaDendaService
                 $peta[(int) ($r->id_kelas ?? 0)][substr((string) $r->tgl, 0, 10)] = true;
             }
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::bangunPetaTercatat] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::bangunPetaTercatat] '.$e->getMessage());
         }
 
         return $peta;
@@ -238,8 +238,8 @@ class SiswaDendaService
      * keduanya disamakan, mematikan tarif sesaat lalu menjalankan sinkron
      * menghapus seluruh tagihan historis siswa diam-diam.
      *
-     * @param object|null $rec  baris presensi hari itu; null = tidak ada baris
-     * @param array       $hari konteksHari() untuk tanggal yang sama
+     * @param  object|null  $rec  baris presensi hari itu; null = tidak ada baris
+     * @param  array  $hari  konteksHari() untuk tanggal yang sama
      * @return 'alpha'|'bolos'|null
      */
     public function pelanggaranSel(?object $rec, array $hari): ?string
@@ -268,6 +268,7 @@ class SiswaDendaService
                 // hari itu sudah dinyatakan, tagih apa adanya.
                 return 'alpha';
             }
+
             // Tidak ada baris sama sekali. Hari yang masih berjalan jangan
             // ditagih: siswa boleh jadi belum scan. Seperti sisi guru, alpha
             // jenis ini baru mulai tertagih setelah tanggal berganti.
@@ -339,14 +340,14 @@ class SiswaDendaService
      * tidak menghapus riwayat. Yang ditulis ulang hanya baris yang jenis
      * pelanggarannya berubah atau yang belum pernah tertagih.
      *
-     * @param string|null $jenis hasil penilaian sel, bila sudah tersedia
+     * @param  string|null  $jenis  hasil penilaian sel, bila sudah tersedia
      * @return array{denda:float, jenis:string, keterangan:?string}
      */
     public function nilaiBaris(object $row, ?string $jenis = null): array
     {
         $jenis ??= $this->pelanggaran($row);
-        $tgl     = substr((string) ($row->tgl ?? ''), 0, 10);
-        $lama    = round((float) ($row->denda ?? 0), 2);
+        $tgl = substr((string) ($row->tgl ?? ''), 0, 10);
+        $lama = round((float) ($row->denda ?? 0), 2);
 
         if ($jenis === null) {
             return ['denda' => 0.0, 'jenis' => '', 'keterangan' => null];
@@ -394,19 +395,20 @@ class SiswaDendaService
             DB::table('presensi_siswa')
                 ->where('id', $presensiId)
                 ->update([
-                    'denda'            => $nilai['denda'],
-                    'denda_jenis'      => $nilai['jenis'],
+                    'denda' => $nilai['denda'],
+                    'denda_jenis' => $nilai['jenis'],
                     'keterangan_denda' => $nilai['keterangan'],
                 ]);
 
             return [
-                'status'  => true,
+                'status' => true,
                 'message' => $nilai['keterangan'] ?? 'Denda dihapus (tidak ada pelanggaran)',
-                'denda'   => $nilai['denda'],
-                'diubah'  => true,
+                'denda' => $nilai['denda'],
+                'diubah' => true,
             ];
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::recalc#' . $presensiId . '] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::recalc#'.$presensiId.'] '.$e->getMessage());
+
             return $this->hasil('Gagal menghitung denda', 0.0);
         }
     }
@@ -440,7 +442,7 @@ class SiswaDendaService
             return $kosong + ['message' => 'Kolom denda siswa belum siap — jalankan migrasi AddDendaSiswaSettings'];
         }
 
-        $awal  = substr(trim($awal), 0, 10);
+        $awal = substr(trim($awal), 0, 10);
         $akhir = substr(trim($akhir), 0, 10);
         if ($awal === '' || $akhir === '' || $awal > $akhir) {
             return $kosong + ['message' => 'Rentang tanggal tidak valid'];
@@ -456,12 +458,13 @@ class SiswaDendaService
                 ->where('tgl', '<=', $akhir)
                 ->get()->all();
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::recalcRentang] baca gagal: ' . $e->getMessage());
+            Log::error('[SiswaDendaService::recalcRentang] baca gagal: '.$e->getMessage());
+
             return $kosong + ['message' => 'Gagal membaca presensi siswa — periksa log aplikasi'];
         }
 
         $tertagih = 0;
-        $total    = 0.0;
+        $total = 0.0;
         // Baris dengan nilai yang sama persis ditulis dalam satu UPDATE.
         $kelompok = [];
         foreach ($rows as $r) {
@@ -474,10 +477,10 @@ class SiswaDendaService
                 continue;
             }
 
-            $kunci = $nilai['denda'] . '|' . $nilai['jenis'] . '|' . (string) $nilai['keterangan'];
+            $kunci = $nilai['denda'].'|'.$nilai['jenis'].'|'.(string) $nilai['keterangan'];
             $kelompok[$kunci]['update'] = [
-                'denda'            => $nilai['denda'],
-                'denda_jenis'      => $nilai['jenis'],
+                'denda' => $nilai['denda'],
+                'denda_jenis' => $nilai['jenis'],
                 'keterangan_denda' => $nilai['keterangan'],
             ];
             $kelompok[$kunci]['ids'][] = (int) $r->id;
@@ -489,16 +492,16 @@ class SiswaDendaService
                 DB::table('presensi_siswa')->whereIn('id', $grup['ids'])->update($grup['update']);
                 $tertulis += count($grup['ids']);
             } catch (\Throwable $e) {
-                Log::error('[SiswaDendaService::recalcRentang] tulis gagal: ' . $e->getMessage());
+                Log::error('[SiswaDendaService::recalcRentang] tulis gagal: '.$e->getMessage());
             }
         }
 
         return [
-            'teriksa'  => count($rows),
-            'diubah'   => $tertulis,
+            'teriksa' => count($rows),
+            'diubah' => $tertulis,
             'tertagih' => $tertagih,
-            'total'    => round($total, 2),
-            'message'  => count($rows) . ' baris diperiksa, ' . $tertulis . ' diperbarui',
+            'total' => round($total, 2),
+            'message' => count($rows).' baris diperiksa, '.$tertulis.' diperbarui',
         ];
     }
 
@@ -544,14 +547,14 @@ class SiswaDendaService
         $bulan = $bulan !== null && $bulan >= 1 && $bulan <= 12 ? $bulan : (int) date('n');
         $tahun = $tahun !== null && $tahun >= 2000 && $tahun <= 2100 ? $tahun : (int) date('Y');
 
-        $awal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $hasil = $this->recalcRentang($awal, date('Y-m-t', strtotime($awal)));
 
         $ringkas = [];
         try {
             $ringkas = $this->ringkasBulan($this->konteksBulan($bulan, $tahun));
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::recalcBulanBerjalan] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::recalcBulanBerjalan] '.$e->getMessage());
         }
 
         $totalRekap = 0.0;
@@ -564,10 +567,10 @@ class SiswaDendaService
         return $hasil + [
             'total_rekap' => round($totalRekap, 2),
             'tanpa_baris' => $tanpaBaris,
-            'siswa'       => count($ringkas),
-            'bulan'       => $bulan,
-            'tahun'       => $tahun,
-            'message'     => sprintf(
+            'siswa' => count($ringkas),
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'message' => sprintf(
                 'Denda siswa %02d/%d: %s; %s hari alpha tanpa baris presensi (hanya terlihat di rekap), total tagihan Rp %s',
                 $bulan,
                 $tahun,
@@ -587,10 +590,10 @@ class SiswaDendaService
      */
     public function konteksBulan(int $bulan, int $tahun): array
     {
-        $awal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $awal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $akhir = date('Y-m-t', strtotime($awal));
 
-        $tp  = DB::table('master_tp')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $q = DB::table('master_siswa as ms')
@@ -603,9 +606,9 @@ class SiswaDendaService
             // Hanya AKTIF, seperti rekap; baris tanpa buku_induk (data lama)
             // tetap dianggap aktif.
             $q->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ms.id_siswa')
-              ->where(function ($g) {
-                  $g->where('bi.status', '1')->orWhereNull('bi.id_siswa');
-              });
+                ->where(function ($g) {
+                    $g->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                });
         }
         $students = $q->get()->all();
 
@@ -616,8 +619,8 @@ class SiswaDendaService
         $mapBySiswa = [];
         $tercatatByKelas = [];
         foreach (DB::table('presensi_siswa')->select($kolom)
-                   ->where('tgl', '>=', $awal)->where('tgl', '<=', $akhir)
-                   ->get()->all() as $r) {
+            ->where('tgl', '>=', $awal)->where('tgl', '<=', $akhir)
+            ->get()->all() as $r) {
             $mapBySiswa[(int) $r->id_siswa][(string) $r->tgl] = $r;
             $tercatatByKelas[(int) ($r->id_kelas ?? 0)][substr((string) $r->tgl, 0, 10)] = true;
         }
@@ -631,9 +634,9 @@ class SiswaDendaService
         }
 
         return [
-            'bulan'      => $bulan,
-            'tahun'      => $tahun,
-            'students'   => $students,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'students' => $students,
             'mapBySiswa' => $mapBySiswa,
             'bdrByKelas' => $bdrByKelas,
             'tercatatByKelas' => $tercatatByKelas,
@@ -653,14 +656,18 @@ class SiswaDendaService
      * bisa dilihat per hari). Alpha tanpa baris memakai tarif yang berlaku
      * sekarang, sebab tidak ada baris tempat menyimpannya.
      *
-     * @param array{bulan?:int, tahun?:int, students?:iterable, mapBySiswa?:array, bdrByKelas?:array} $ctx
+     * @param  array{bulan?:int, tahun?:int, students?:iterable, mapBySiswa?:array, bdrByKelas?:array}  $ctx
      * @return array<int, array{brutto:float, netto:float, perBulan:array<string,float>, cap:?float, alpha:int, bolos:int, tanpa_baris:int}>
      */
     public function ringkasBulan(array $ctx): array
     {
-        $bulan      = (int) ($ctx['bulan'] ?? date('n'));
-        $tahun      = (int) ($ctx['tahun'] ?? date('Y'));
-        $students   = (array) ($ctx['students'] ?? []);
+        $bulan = (int) ($ctx['bulan'] ?? date('n'));
+        $tahun = (int) ($ctx['tahun'] ?? date('Y'));
+        $students = $ctx['students'] ?? [];
+        if ($students instanceof \Traversable) {
+            $students = iterator_to_array($students);
+        }
+        $students = array_values((array) $students);
         $mapBySiswa = (array) ($ctx['mapBySiswa'] ?? []);
         // Peta BDR milik view dipakai bila pemanggil menyediakannya; tanpa itu
         // (jalur spark/cron) peta dibangun sendiri per tanggal.
@@ -678,16 +685,16 @@ class SiswaDendaService
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
             $kalender[$d] = [
-                'tgl'               => $tgl,
-                'is_libur'          => isset(AttendancePolicy::liburNasional()[$tgl]),
+                'tgl' => $tgl,
+                'is_libur' => isset(AttendancePolicy::liburNasional()[$tgl]),
                 'is_libur_mingguan' => $this->isLiburMingguan($tgl),
-                'batas_masuk'       => $this->batasMasuk($tgl),
+                'batas_masuk' => $this->batasMasuk($tgl),
             ];
         }
 
         $out = [];
         foreach ($students as $siswa) {
-            $siswa   = (object) $siswa;
+            $siswa = (object) $siswa;
             $idSiswa = (int) ($siswa->id_siswa ?? 0);
             $idKelas = (int) ($siswa->id_kelas ?? 0);
             if ($idSiswa <= 0) {
@@ -695,7 +702,7 @@ class SiswaDendaService
             }
 
             $hariSiswa = $mapBySiswa[$idSiswa] ?? [];
-            $bdrSiswa  = $bdrByKelas !== null ? ($bdrByKelas[$idKelas] ?? []) : null;
+            $bdrSiswa = $bdrByKelas !== null ? ($bdrByKelas[$idKelas] ?? []) : null;
 
             $tertagih = [];
             foreach ($kalender as $d => $hari) {
@@ -724,10 +731,10 @@ class SiswaDendaService
                 }
 
                 $tertagih[] = [
-                    'tgl'         => $tgl,
-                    'denda'       => $rp,
+                    'tgl' => $tgl,
+                    'denda' => $rp,
                     'denda_jenis' => $jenis,
-                    'tersimpan'   => $rec !== null,
+                    'tersimpan' => $rec !== null,
                 ];
             }
 
@@ -745,7 +752,7 @@ class SiswaDendaService
      * pembacaan (bukan saat penulisan baris), jadi menggantinya tidak mengubah
      * riwayat yang sudah tersimpan di presensi_siswa.denda.
      *
-     * @param iterable<object|array> $baris hari ber-denda milik SATU siswa
+     * @param  iterable<object|array>  $baris  hari ber-denda milik SATU siswa
      * @return array{brutto:float, netto:float, perBulan:array<string,float>, cap:?float, alpha:int, bolos:int, tanpa_baris:int}
      */
     public function terapkanCap(iterable $baris, ?float $cap = null): array
@@ -760,7 +767,7 @@ class SiswaDendaService
         foreach ($baris as $b) {
             $b = (object) $b;
             $tgl = substr((string) ($b->tgl ?? ''), 0, 10);
-            $rp  = round((float) ($b->denda ?? 0), 2);
+            $rp = round((float) ($b->denda ?? 0), 2);
             if ($tgl === '' || $rp <= 0) {
                 continue;
             }
@@ -790,12 +797,12 @@ class SiswaDendaService
         }
 
         return [
-            'brutto'      => round($brutto, 2),
-            'netto'       => round($netto, 2),
-            'perBulan'    => $perBulan,
-            'cap'         => $cap > 0 ? $cap : null,
-            'alpha'       => $alpha,
-            'bolos'       => $bolos,
+            'brutto' => round($brutto, 2),
+            'netto' => round($netto, 2),
+            'perBulan' => $perBulan,
+            'cap' => $cap > 0 ? $cap : null,
+            'alpha' => $alpha,
+            'bolos' => $bolos,
             'tanpa_baris' => $tanpaBaris,
         ];
     }
@@ -817,7 +824,7 @@ class SiswaDendaService
                 && Schema::hasColumn('presensi_siswa', 'denda_jenis')
                 && Schema::hasColumn('presensi_siswa', 'keterangan_denda');
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::siap] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::siap] '.$e->getMessage());
             $ada = false;
         }
 
@@ -842,14 +849,14 @@ class SiswaDendaService
     public static function sinkron(?int $presensiId = null, ?string $tanggal = null): void
     {
         try {
-            $svc = new self();
+            $svc = new self;
             if ($presensiId !== null && $presensiId > 0) {
                 $svc->recalc($presensiId);
             } elseif ($tanggal !== null && trim($tanggal) !== '') {
                 $svc->recalcHari($tanggal);
             }
         } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::sinkron] ' . $e->getMessage());
+            Log::error('[SiswaDendaService::sinkron] '.$e->getMessage());
         }
     }
 }

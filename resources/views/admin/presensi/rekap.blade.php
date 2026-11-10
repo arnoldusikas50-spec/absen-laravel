@@ -420,7 +420,7 @@ thead .sticky-col-2 { z-index: 5; background: #f8fafc; }
                 }
             ?>
             <td class="col-day {{ $bgClass }}" style="height:38px;">
-                {{ $cellInner }}
+                {!! $cellInner !!}
             </td>
             <?php endfor; ?>
 
@@ -467,7 +467,7 @@ thead .sticky-col-2 { z-index: 5; background: #f8fafc; }
             </td>
             <td class="col-denda" style="padding:3px 6px; text-align:right;">
                 <span class="font-semibold text-orange-700" style="font-size:0.7rem;">
-                    {{ $totalDendaRekap > 0 ? 'Rp&nbsp;' . number_format($totalDendaRekap, 0, ',', '.') : '<span style="color:#cbd5e1;">—</span>' }}
+                    {!! $totalDendaRekap > 0 ? 'Rp&nbsp;' . number_format($totalDendaRekap, 0, ',', '.') : '<span style="color:#cbd5e1;">—</span>' !!}
                 </span>
             </td>
             <td class="col-rekomendasi">

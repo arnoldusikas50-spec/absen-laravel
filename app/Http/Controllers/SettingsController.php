@@ -272,7 +272,7 @@ class SettingsController extends BaseController
                         'status' => false,
                         'message' => 'Gambar gagal disimpan ke server. Logo lama belum diganti — coba lagi, dan bila berulang periksa izin folder public/uploads/settings.',
                         'csrfName' => '_token',
-                        'csrfHash' => '_token',
+                        'csrfHash' => csrf_token(),
                     ]);
                 }
 
@@ -295,7 +295,7 @@ class SettingsController extends BaseController
                         'message' => 'Gambar sudah tersimpan tapi penamaan di pengaturan gagal diperbarui. Logo yang tampil bisa masih yang lama — simpan ulang.',
                         'src' => url($relativePath),
                         'csrfName' => '_token',
-                        'csrfHash' => '_token',
+                        'csrfHash' => csrf_token(),
                     ]);
                 }
 
@@ -318,7 +318,7 @@ class SettingsController extends BaseController
         }
 
         $data['csrfName'] = '_token';
-        $data['csrfHash'] = '_token';
+        $data['csrfHash'] = csrf_token();
 
         return $this->response->setJSON($data);
     }
@@ -340,7 +340,7 @@ class SettingsController extends BaseController
                 'status' => false,
                 'message' => 'Field media tidak valid',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -379,7 +379,7 @@ class SettingsController extends BaseController
                 : 'File di server sudah dihapus, tapi datanya di pengaturan gagal dibersihkan. Isi form pengaturan lalu simpan lagi untuk membereskan.',
             'fileDeleted' => $deletedFile,
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -617,7 +617,7 @@ class SettingsController extends BaseController
             'message' => $pesan,
             'notifSync' => $syncNotif,
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -888,7 +888,7 @@ class SettingsController extends BaseController
                 'file' => $filename,
                 'dilewati' => $dilewati,
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -898,7 +898,7 @@ class SettingsController extends BaseController
             'file' => $filename,
             'size' => filesize($filepath),
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -960,7 +960,7 @@ class SettingsController extends BaseController
                 'status' => false,
                 'message' => 'Backup file gagal ditutup/dirusak — arsip tidak disimpan. Periksa ruang disk folder writable.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -969,7 +969,7 @@ class SettingsController extends BaseController
                 'status' => false,
                 'message' => 'Tidak ada file di public/uploads — backup tidak dibuat.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -980,7 +980,7 @@ class SettingsController extends BaseController
             'jumlah_file' => $dimasukkan,
             'size' => filesize($filepath),
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -999,7 +999,7 @@ class SettingsController extends BaseController
         $backupPath = storage_path('app').'/'.'backups/';
         if (! is_dir($backupPath)) {
             return $this->response->setJSON(['status' => true, 'message' => 'Folder backup tidak ada',
-                'csrfName' => '_token', 'csrfHash' => '_token']);
+                'csrfName' => '_token', 'csrfHash' => csrf_token()]);
         }
 
         // Hanya sapu file yang endpoint ini buat sendiri. Sebelumnya glob '*.*'
@@ -1036,7 +1036,7 @@ class SettingsController extends BaseController
                     .(empty($dilindungi) ? '' : '. '.count($dilindungi).' file arsip otomatis dipertahankan.'),
                 'dilindungi' => $dilindungi,
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -1055,7 +1055,7 @@ class SettingsController extends BaseController
             'gagal' => $gagalHapus,
             'dilindungi' => $dilindungi,
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -1094,7 +1094,7 @@ class SettingsController extends BaseController
             'status' => true,
             'message' => 'File backup dihapus',
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 
@@ -1216,7 +1216,7 @@ class SettingsController extends BaseController
                 'status' => false,
                 'message' => 'Hanya file .sql yang bisa direstore dari halaman ini. File terkompresi (.gz/.zip) harus di-ekstrak dulu di server.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -1233,7 +1233,7 @@ class SettingsController extends BaseController
                 'status' => false,
                 'message' => 'File ini ditandai sebagai backup TIDAK lengkap saat dibuat. Buat backup baru dulu, lalu restore yang lengkap.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -1274,7 +1274,7 @@ class SettingsController extends BaseController
                 'message' => 'Restore TIDAK lengkap: '.$berhasil.' statement berjalan, '.$gagal
                     .' gagal. Periksa log server sebelum mengandalkan data ini.',
                 'csrfName' => '_token',
-                'csrfHash' => '_token',
+                'csrfHash' => csrf_token(),
             ]);
         }
 
@@ -1282,7 +1282,7 @@ class SettingsController extends BaseController
             'status' => true,
             'message' => 'Restore database berhasil ('.$berhasil.' statement)',
             'csrfName' => '_token',
-            'csrfHash' => '_token',
+            'csrfHash' => csrf_token(),
         ]);
     }
 

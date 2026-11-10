@@ -1,5 +1,5 @@
 @extends('layouts.main')
-@section('title')Lembur / Overtime@endsection
+@section('title', 'Lembur / Overtime')
 
 @section('styles')
 <style>
@@ -74,6 +74,38 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
         <div>Ada <strong>{{ count($pending) }} pengajuan ({{ $fmtJam($summary['jam_pending'] ?? 0) }} jam)</strong> menunggu persetujuan. Menyetujui akan menambah poin ke saldo guru (+{{ (int) $pointPerJam }} poin/jam).</div>
     </div>
     <?php endif; ?>
+
+    <!-- Ringkasan -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ count($pending) }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="bi bi-clock text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Jam Menunggu</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_pending'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Jam Disetujui</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_disetujui'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="bi bi-star text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Poin Bulan Ini</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">+{{ number_format((int) round(($summary['jam_disetujui'] ?? 0) * (int) $pointPerJam)) }}</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Pending Approvals -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-4">
@@ -288,7 +320,10 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
             <div class="modal-body-tw">
                 <input type="hidden" id="reject_id">
                 <p class="text-sm text-slate-500 mb-3">Pengajuan milik <strong id="reject_nama" class="text-slate-800">–</strong> akan ditolak. Alasan tercatat dan dapat dilihat guru.</p>
-                <label class="form-label-tw" for="reject_alasan">Alasan penolakan <span class="text-red-500">*</span></label>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="form-label-tw mb-0" for="reject_alasan">Alasan penolakan <span class="text-red-500">*</span></label>
+                    <span class="text-xs text-slate-400" id="reject_counter">0/500</span>
+                </div>
                 <input type="text" class="form-control-tw" id="reject_alasan" minlength="5" maxlength="500" required placeholder="Contoh: Kebutuhan dinas tidak mendesak / bukti kurang">
             </div>
             <div class="modal-footer-tw">
@@ -301,10 +336,14 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = '_token'; ?>
+<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
 $(document).ready(function () {
     var CSRF = { '{{ $csrfName }}': '{{ $csrfHash }}' };
+
+    $('#reject_alasan').on('input', function () {
+        $('#reject_counter').text(this.value.length + '/500');
+    });
 
     function initTable(sel, opts) {
         if (!window.jQuery || !$.fn.DataTable || !$(sel).length) return null;
@@ -367,7 +406,9 @@ $(document).ready(function () {
         $('#reject_id').val($(this).data('id'));
         $('#reject_nama').text($(this).data('nama') || '-');
         $('#reject_alasan').val('');
+        $('#reject_counter').text('0/500');
         $('#rejectModal').appModal('show');
+        setTimeout(function () { $('#reject_alasan').trigger('focus'); }, 50);
     });
 
     window.submitReject = function (e) {

@@ -67,6 +67,12 @@ thead .sticky-col-2 { z-index: 5; background: #f8fafc; }
     font-weight: 700;
     padding: 3px 4px;
 }
+.col-denda {
+    min-width: 96px;
+    width: 96px;
+    font-weight: 700;
+    padding: 3px 6px;
+}
 
 /* Day columns */
 .col-day {
@@ -278,7 +284,7 @@ $dayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
                 <th class="col-summary bg-red-50 text-red-600 py-2" title="Alpa">A</th>
                 <th class="col-summary bg-teal-50 text-teal-700 py-2" title="Belajar dari Rumah">R</th>
                 <th class="col-persen bg-indigo-50 text-indigo-700 py-2" title="Persentase Kehadiran">%</th>
-                <th class="col-summary bg-rose-50 text-rose-700 py-2" title="Total denda alpha &amp; bolos (sudah dipotong batas denda siswa per bulan)">Denda</th>
+                <th class="col-denda bg-rose-50 text-rose-700 py-2" title="Total denda alpha &amp; bolos (sudah dipotong batas denda siswa per bulan)">Denda</th>
             </tr>
             <!-- Row 2: day headers -->
             <tr>
@@ -447,7 +453,7 @@ $dayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
                 }
             ?>
             <td class="col-day {{ $bgClass }}" style="height:38px;">
-                {{ $cellInner }}
+                {!! $cellInner !!}
             </td>
             <?php endfor; ?>
 
@@ -480,9 +486,9 @@ $dayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
             <td class="col-summary bg-red-50 text-red-600 font-bold">{{ $cntA }}</td>
             <td class="col-summary bg-teal-50 text-teal-700 font-bold">{{ $cntB }}</td>
             <td class="col-persen bg-indigo-50 text-indigo-700 font-bold">{{ $persen }}%</td>
-            <td class="col-summary bg-rose-50 text-rose-700 font-bold text-right" style="font-size:0.7rem; padding:2px 6px; white-space:nowrap;"
+            <td class="col-denda bg-rose-50 text-rose-700 font-bold text-right" style="font-size:0.7rem; padding:2px 6px; white-space:nowrap;"
                 title="Alpha ber-denda: {{ $dendaAlpha }} hari · Bolos ber-denda: {{ $dendaBolos }} hari">
-                {{ $dendaNetto > 0 ? 'Rp&nbsp;' . number_format($dendaNetto, 0, ',', '.') : '<span style="color:#cbd5e1;">—</span>' }}
+                {!! $dendaNetto > 0 ? 'Rp&nbsp;' . number_format($dendaNetto, 0, ',', '.') : '<span style="color:#cbd5e1;">—</span>' !!}
             </td>
         </tr>
         <?php endforeach; ?>
@@ -503,8 +509,8 @@ $dayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
                 $grandPersen = $grandEfektif > 0 ? round(($grandH / $grandEfektif) * 100, 1) : 0;
                 ?>
                 <td class="col-persen bg-indigo-100 text-indigo-800">{{ $grandPersen }}%</td>
-                <td class="col-summary bg-rose-100 text-rose-800 text-right" style="font-size:0.7rem; padding:2px 6px; white-space:nowrap;">
-                    {{ $grandDenda > 0 ? 'Rp&nbsp;' . number_format($grandDenda, 0, ',', '.') : '—' }}
+                <td class="col-denda bg-rose-100 text-rose-800 text-right" style="font-size:0.7rem; padding:2px 6px; white-space:nowrap;">
+                    {!! $grandDenda > 0 ? 'Rp&nbsp;' . number_format($grandDenda, 0, ',', '.') : '—' !!}
                 </td>
             </tr>
         </tfoot>

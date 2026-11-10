@@ -260,7 +260,7 @@
                             }
                             ?>
                             <td class="bg-gray text-bold" style="{{ $style }}">
-                                {{ $char }}
+                                {!! $char !!}
                             </td>
                             <?php
                             continue;
@@ -345,7 +345,7 @@
                         }
                         ?>
                         <td class="{{ $bg }}" style="font-size: {{ $fontSize }}; line-height: 1.1;">
-                            {{ $val }}
+                            {!! $val !!}
                         </td>
                     <?php endfor; ?>
 
