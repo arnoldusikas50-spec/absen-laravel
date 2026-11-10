@@ -70,7 +70,7 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
         $tanggal = $this->normalizeDate($tanggal);
 
         try {
-            $peminat = $this->guruTerawal($db, $tanggal);
+            $peminat = $this->guruTerawal(null, $tanggal);
         } catch (\Throwable $e) {
             Log::error('[GuruTerawal] gagal menghitung guru terawal: ' . $e->getMessage());
 

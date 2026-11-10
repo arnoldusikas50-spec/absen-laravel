@@ -21,23 +21,23 @@ migrasi Laravel:
 | | Jumlah |
 |---|---|
 | Tabel di dump | **91** |
-| Tabel di migrasi Laravel (nama `Schema::create` berbeda) | **57** (54 file: file cache membuat 2 tabel, file jobs membuat 3) |
-| Di dump DAN di migrasi | **38** |
-| Hanya di dump | **53** |
-| Hanya di migrasi | **19** |
-| Cek konsistensi | 38 + 53 = 91 ✔; 38 + 19 = 57 ✔ |
+| Tabel di migrasi Laravel (nama `Schema::create` berbeda) | **54** (51 file: file cache membuat 2 tabel, file jobs membuat 3) |
+| Di dump DAN di migrasi | **37** |
+| Hanya di dump | **54** |
+| Hanya di migrasi | **17** |
+| Cek konsistensi | 37 + 54 = 91 ✔; 37 + 17 = 54 ✔ |
 
 Koreksi atas `PORTING.md`: tertulis "Database — 52 tabel aplikasi". Migrasi
-Laravel sebenarnya memuat **51 tabel aplikasi + 6 infra = 57 tabel**. Daftar
+Laravel sebenarnya memuat **48 tabel aplikasi + 6 infra = 54 tabel**. Daftar
 "±12 tabel inti" tanpa skema di `PORTING.md` juga tidak lengkap — kenyataannya
-53 tabel dump belum punya migrasi.
+54 tabel dump belum punya migrasi.
 
 Catatan sumber skema: ekstraksi CREATE TABLE hanya berisi daftar kolom —
 PRIMARY KEY, KEY/INDEX, dan AUTO_INCREMENT diambil dari bagian `ALTER TABLE`
 dump (177 pernyataan `ALTER TABLE`, 91 `ADD PRIMARY KEY`, 121 baris `KEY`).
 Nilai `AUTO_INCREMENT=n` tidak dicantumkan (itu membocorkan jumlah baris).
 
-### 1.1 Tabel hanya di dump (53) — verdict referensi kode
+### 1.1 Tabel hanya di dump (54) — verdict referensi kode
 
 "Ref" = jumlah hit konteks-tabel (`DB::table('x')`, `->table('x')`,
 `join('x',…)`, `Schema::hasTable('x')`, `tableExists('x')`, `from('x')`,
@@ -49,6 +49,7 @@ karena sebagian besar hit adalah nama kolom/variabel, bukan tabel.
 |---|---|---|
 | absensi_jadwal_kerja | 58 / 63 | DIREERENSIKAN |
 | activity_log | 0 / 0 | TIDAK DIREERENSIKAN |
+| alumni | 0 / 0 | TIDAK DIREERENSIKAN (dihapus 10 Nov 2026 — tracer study) |
 | api_setting | 0 / 0 | TIDAK DIREERENSIKAN |
 | api_token | 0 / 0 | TIDAK DIREERENSIKAN |
 | buku_induk | 48 / 50 | DIREERENSIKAN |
@@ -215,22 +216,28 @@ kode Laravel, mis. `Models/MasterModel.php:610` dan
 `Models/ElearningModel.php:26`, `Models/KelasModel.php:62,266,288,316,353`.
 Semua tabel yang disebut di TODO itu ada di dump.
 
-### 1.2 Tabel hanya di migrasi (19)
+### 1.2 Tabel hanya di migrasi (17)
 
 - **6 infra Laravel:** `cache`, `cache_locks`, `jobs`, `job_batches`,
   `failed_jobs`, `sessions`.
-- **13 tabel aplikasi:** `cbt_rekap_siswa`, `chat_messages`,
+- **11 tabel aplikasi:** `cbt_rekap_siswa`, `chat_messages`,
   `chat_participants`, `chat_read_receipts`, `chat_rooms`, `ppdb_setting`,
   `siswa_beasiswa`, `siswa_berkas`, `siswa_biodata`, `siswa_ortu`,
-  `siswa_prestasi`, `tracer_study_responses`, `tracer_study_settings` —
-  semuanya didefinisikan oleh migrasi CI4 (sebagian besar tertanggal
-  2026-01-17), tidak ada satu pun di dump produksi, dan tidak ada satu pun
-  yang dirujuk kode aplikasi (controller/model/service/library/helper) di
+  `siswa_prestasi` — semuanya didefinisikan oleh migrasi CI4 (sebagian besar
+  tertanggal 2026-01-17), tidak ada satu pun di dump produksi, dan tidak ada
+  satu pun yang dirujuk kode aplikasi (controller/model/service/library/helper) di
   kedua repo. Penjelasan paling masuk akal: migrasi-migrasi 17 Jan 2026 itu
   tidak pernah dijalankan di database produksi (atau tabelnya kemudian
   dihapus), sementara porting Laravel menyalin skema final dari repo CI4 apa
   adanya. Keputusan mempertahankan/menghapus migrasi Laravel-nya adalah
   keputusan produk, bukan kebutuhan migrasi dari dump.
+
+**Catatan penghapusan 2026-11-10:** dua tabel aplikasi lain yang semula ada
+di daftar ini — `tracer_study_responses` dan `tracer_study_settings` —
+dihapus beserta migrasinya (fitur tracer study tidak pernah dipakai, tabelnya
+kosong). Migrasi `2026_11_09_000017_create_alumni_table.php` juga dihapus;
+sehingga tabel `alumni` kini hanya ada di dump produksi, tidak di port lagi
+(lihat §1.1).
 
 ### 1.3 Empat tabel "hantu" lain
 
@@ -695,10 +702,14 @@ belakangan).
 `json()` di migrasi Laravel (mis. `absensi_setting.hari_kerja`/
 `libur_kalender`) adalah kesalahan terjemahan dari `varchar`/`tinyint`.
 
+> Inventaris ini masih menghitung tabel `alumni` (18 kolom) yang ada di dump
+> produksi, padahal tabel tersebut sudah tidak di-port sejak 10 Nov 2026
+> (lihat §1.1) — dump produksi adalah sumber skema, bukan cermin port ini.
+
 ### 7.3 Enum (16 tabel, 22 kolom) — pakai `$table->enum()` dengan nilai persis
 - `absensi_koreksi.status`: pending, approved, rejected
 - `absensi_rekap_semester.status_kelayakan`: layak, perhatian, tidak_layak
-- `alumni.jenis_kelamin`: L, P
+- `alumni.jenis_kelamin`: L, P (tidak lagi di-port — tracer study dihapus 10 Nov 2026)
 - `dapodik_log.entitas`: all, sekolah, gtk, siswa, rombel, mapel,
   pembelajaran, nilai, ruang; `.metode`: api, offline_json, offline_excel;
   `.status`: sukses, gagal, parsial
@@ -776,7 +787,8 @@ kolom `timestamp`, bukan `datetime`).
   hanya `absensi_qr_log.lat/lng`; `blob` hanya `ci_sessions.data` (tabel tak
   direferensikan); `char(30)` hanya `master_guru.nip` (jangan jadi
   `string(30)` — `char` vs `varchar` berbeda di padding/perbandingan);
-  `year(4)` hanya `alumni.tahun_lulus` (→ `$table->year()`).
+  `year(4)` hanya `alumni.tahun_lulus` (→ `$table->year()`; tabel `alumni`
+  sendiri sudah tidak di-port sejak 10 Nov 2026).
 
 ### 7.7 Text/mediumtext/longtext — jangan turunkan ke `string(255)`
 - `mediumtext` (14 kolom): `api_token.address/agent/device/token`,

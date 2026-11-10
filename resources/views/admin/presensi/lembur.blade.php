@@ -4,6 +4,27 @@
 @section('styles')
 <style>
     .num-tabular { font-variant-numeric: tabular-nums; }
+    /* ── Icon box centering ──────────────────────────────────────────
+       Bootstrap Icons menggunakan <i> yang secara default bersifat
+       inline dengan vertical-align: -0.125em (untuk alignment teks).
+       Di dalam container flex [items-center justify-center], nilai itu
+       justru membuat ikon TIDAK tepat tengah secara visual.
+       Solusi: set vertical-align: 0 dan line-height: 1 pada semua <i>
+       dalam container ikon kotak (class .ic-box). ─────────────────── */
+    .ic-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ic-box i,
+    .ic-box .bi {
+        vertical-align: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 /* ── Filter chips (pola izin) ── */
 .filter-chip {
     display: inline-flex; align-items: center; gap: 0.3rem;
@@ -78,28 +99,28 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
     <!-- Ringkasan -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
+            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
             <div>
                 <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
                 <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ count($pending) }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
             </div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="bi bi-clock text-lg"></i></span>
+            <span class="ic-box w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 shrink-0"><i class="bi bi-clock text-lg"></i></span>
             <div>
                 <div class="text-xs text-slate-500 font-semibold">Jam Menunggu</div>
                 <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_pending'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
             </div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
+            <span class="ic-box w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
             <div>
                 <div class="text-xs text-slate-500 font-semibold">Jam Disetujui</div>
                 <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_disetujui'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
             </div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="bi bi-star text-lg"></i></span>
+            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-star text-lg"></i></span>
             <div>
                 <div class="text-xs text-slate-500 font-semibold">Poin Bulan Ini</div>
                 <div class="text-lg font-extrabold text-slate-900 num-tabular">+{{ number_format((int) round(($summary['jam_disetujui'] ?? 0) * (int) $pointPerJam)) }}</div>
@@ -111,7 +132,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-4">
         <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
             <div class="flex items-center gap-2">
-                <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                <span class="ic-box w-8 h-8 rounded-xl bg-amber-50 text-amber-500 shrink-0">
                     <i class="bi bi-hourglass-split text-sm"></i>
                 </span>
                 <h2 class="text-sm font-extrabold text-slate-900">Perlu Persetujuan ({{ count($pending) }})</h2>
@@ -178,7 +199,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-4">
         <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
             <div class="flex items-center gap-2">
-                <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <span class="ic-box w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
                     <i class="bi bi-bar-chart text-sm"></i>
                 </span>
                 <h2 class="text-sm font-extrabold text-slate-900">Rekap Lembur — {{ $labelPeriode }}</h2>
@@ -247,7 +268,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
             <div class="flex items-center gap-2">
-                <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                <span class="ic-box w-8 h-8 rounded-xl bg-slate-100 text-slate-500 shrink-0">
                     <i class="bi bi-clock-history text-sm"></i>
                 </span>
                 <h2 class="text-sm font-extrabold text-slate-900">Riwayat Pengajuan — {{ $labelPeriode }}</h2>

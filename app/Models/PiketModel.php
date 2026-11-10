@@ -2054,9 +2054,9 @@ class PiketModel extends Model
         // dengan label pengganti, bukan hilang diam-diam dari monitoring.
         $builder = DB::table('guru_jurnal as j')
             ->select('j.*')
-            ->select(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
-            ->select(DB::raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
-            ->select(DB::raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
+            ->addSelect(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
+            ->addSelect(DB::raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
+            ->addSelect(DB::raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
             ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
             ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel')
             ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')
@@ -2104,7 +2104,7 @@ class PiketModel extends Model
     {
         return DB::table('absensi_harian as a')
             ->select('a.id_guru', 'a.user_id', 'a.tgl', 'a.jam_masuk', 'a.jam_pulang', 'a.status_masuk', 'a.status_pulang')
-            ->select(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) as nama_guru'))
+            ->addSelect(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) as nama_guru'))
             ->leftJoin('master_guru as g', function ($join) {
                 $join->on('g.id_guru', '=', 'a.id_guru')
                     ->where('a.id_guru', '<>', 0)
@@ -2173,10 +2173,10 @@ class PiketModel extends Model
         // label pengganti, sama seperti getJurnalHarian().
         return DB::table('guru_jurnal as j')
             ->select('j.*')
-            ->select(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
-            ->select(DB::raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
-            ->select(DB::raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
-            ->select(DB::raw('jm.dari as jam_mulai_slot, jm.sampai as jam_selesai_slot'))
+            ->addSelect(DB::raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
+            ->addSelect(DB::raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
+            ->addSelect(DB::raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
+            ->addSelect(DB::raw('jm.dari as jam_mulai_slot, jm.sampai as jam_selesai_slot'))
             ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
             ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel')
             ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')

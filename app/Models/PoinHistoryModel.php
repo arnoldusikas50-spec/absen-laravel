@@ -168,7 +168,7 @@ class PoinHistoryModel extends Model
                 'tipe' => $tipe,
                 'keterangan' => $ket,
                 'ref_id' => $refId,
-                'created_at' => $attendance->tgl.' '.($attendance->jam_masuk ?? '00:00:00'),
+                'created_at' => substr($attendance->tgl, 0, 10).' '.($attendance->jam_masuk ?? '00:00:00'),
             ]);
 
             // Auto update master_guru

@@ -65,7 +65,7 @@ Filter CI4 → middleware: `auth` → `auth`; `auth:guru` →
 (`auth/login`, `presensi/auth`, `scanner/scan`, ...) memakai
 `withoutMiddleware(VerifyCsrfToken::class)`.
 
-## Database — 95 tabel aplikasi
+## Database — 92 tabel aplikasi
 
 Skema dipertahankan identik dengan database produksi (nama tabel, kolom,
 tipe, index) supaya database MySQL yang sudah ada tetap bisa dipakai.
@@ -77,7 +77,7 @@ absensi_hari_libur, absensi_harian, absensi_izin, absensi_koreksi,
 absensi_lokasi, absensi_pembayaran_denda, absensi_pengumuman_harian,
 absensi_qr, absensi_qr_log, absensi_rekap_semester, absensi_saldo_denda,
 absensi_setting, absensi_shift, absensi_shift_anggota,
-absensi_surat_panggilan, absensi_surat_teguran, alumni, audit_logs,
+absensi_surat_panggilan, absensi_surat_teguran, audit_logs,
 cbt_rekap_siswa, chat_messages, chat_participants, chat_read_receipts,
 chat_rooms, cron_notifikasi_log, dapodik_log, dapodik_settings,
 disiplin_kategori, face_registration_requests, kalender_akademik,
@@ -85,7 +85,7 @@ notif_channel_config, poin_history, poin_siswa_history, post_likes,
 ppdb_setting, presensi_bdr, presensi_lembur, presensi_siswa,
 reward_redemptions, reward_tiers, rewards, siswa_beasiswa, siswa_berkas,
 siswa_biodata, siswa_ortu, siswa_prestasi, sync_jobs, sync_log,
-sync_settings, tracer_study_responses, tracer_study_settings,
+sync_settings,
 user_notifikasi, users, groups, users_groups, setting, level_kelas,
 master_kelas, master_siswa, master_guru, level_guru, master_mapel,
 master_kelompok_mapel, master_jurusan, master_tp, master_smt,
@@ -101,6 +101,13 @@ post_reply — plus tabel `sessions` standar Laravel (dibutuhkan karena
 
 ### Yang belum / tidak di-port di sisi database
 
+0. **Fitur tracer study dibuang** (10 Nov 2026, atas permintaan pengguna).
+   Tabel `alumni`, `tracer_study_responses`, dan `tracer_study_settings`
+   beserta migrasinya dihapus; 5 method alumni di `MasterModel` juga
+   dihapus karena tidak pernah dipanggil. Tabel-tabel itu kosong (0 baris)
+   dan tidak pernah punya route/controller/view, jadi tidak ada data yang
+   hilang. Dump produksi asli masih memuat `alumni`; salinan skemanya di
+   repo (`absen.sql`) sudah dibersihkan.
 1. **Tabel inti kini lengkap dari database produksi** (9 Nov 2026):
    44 tabel yang sebelumnya tidak punya definisi skema di repo CI4
    (`users`, `master_siswa`, `master_guru`, `setting`, `post`, `logs`,

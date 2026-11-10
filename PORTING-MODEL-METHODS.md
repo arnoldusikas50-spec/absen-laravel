@@ -13,6 +13,13 @@ di `app/` + `routes/` Laravel pada 2026-11-09.
 `e_tujuan_pembelajaran`) memang tidak dipakai. Bagian per-model di bawah ini
 tetap dipertahankan sebagai arsip inventarisasi.
 
+**Catatan penghapusan 2026-11-10:** fitur tracer study dihapus atas
+permintaan pengguna. Tabel `alumni`, `tracer_study_responses`, dan
+`tracer_study_settings` beserta migrasinya dibuang, dan 5 method alumni di
+`MasterModel` (`getDistinctTahunLulus`, `getDistinctKelasAkhir`,
+`getAlumniByTahun`, `getAlumniFilter`, `getAlumniById`) ikut dihapus —
+semuanya tanpa pemanggil dan tabelnya kosong (0 baris).
+
 ## Pengecualian cakupan (keputusan pengguna 2026-11-09)
 
 **`CbtModel` (93 method), `RaporModel` (70 method), `CbtSiswaModel` (10 method), dan
@@ -54,7 +61,7 @@ Method berikut namanya sama dengan method bawaan Eloquent/CI4 Model — jangan o
 
 ---
 
-## MasterModel — 69 method (dipanggil 32, terhalang tabel 57)
+## MasterModel — 64 method (dipanggil 32, terhalang tabel 57)
 
 Tabel model: `-`. File CI4: `app/Models/MasterModel.php`. File Laravel: `app/Models/MasterModel.php`.
 
@@ -124,11 +131,7 @@ Tabel model: `-`. File CI4: `app/Models/MasterModel.php`. File Laravel: `app/Mod
 | `getAllJabatanGuru(int $id_guru): array` | 0 | jabatan_guru | jabatan_guru | - | ret:getResult |
 | `getKodeKelompokMapel(): array` | 0 | master_kelompok_mapel | master_kelompok_mapel | - | ret:getResult |
 | `getAllStatusMapel(?array $arrKelompok = null, ?string $arrMapel = null): array` | 0 | master_mapel | master_mapel | - | ret:getResult |
-| `getDistinctTahunLulus(): array` | 0 | buku_induk | buku_induk | - | ret:getResult |
-| `getDistinctKelasAkhir(): array` | 0 | buku_induk | buku_induk | - | ret:getResult |
-| `getAlumniByTahun(string $tahun, ?string $kelas = null): array` | 0 | buku_induk, master_siswa | buku_induk, master_siswa | - | ret:getResult |
-| `getAlumniFilter(string $filter): array` | 0 | buku_induk, master_siswa | buku_induk, master_siswa | - | ret:getResult |
-| `getAlumniById(int $id)` | 0 | buku_induk, master_siswa | buku_induk, master_siswa | - | ret:getRow |
+| _(5 method alumni/tracer dihapus 10 Nov 2026: `getDistinctTahunLulus`, `getDistinctKelasAkhir`, `getAlumniByTahun`, `getAlumniFilter`, `getAlumniById` — tidak pernah dipanggil)_ | - | - | - | - | - |
 
 ## PiketModel — 49 method (dipanggil 40, terhalang tabel 36)
 

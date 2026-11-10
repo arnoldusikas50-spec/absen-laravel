@@ -89,8 +89,8 @@ class JurnalController extends BaseController
         $guruMengajar = [];
         $kelasTercakup = [];
         foreach ($jurnals as $j) {
-            $guruMengajar[(int) $j->id_guru] = true;
-            $kelasTercakup[(int) $j->id_kelas] = true;
+            $guruMengajar[(int) ($j->id_guru ?? 0)] = true;
+            $kelasTercakup[(int) ($j->id_kelas ?? 0)] = true;
         }
         $totalSesi = count($jurnals);
         $totalGuruMengajar = count($guruMengajar);
@@ -622,10 +622,10 @@ class JurnalController extends BaseController
         $db = DB::connection();
         $builder = $db->table('guru_jurnal as j')
             ->select('j.*')
-            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru')
-            ->select('g.nip')
-            ->selectRaw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas')
-            ->selectRaw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel')
+            ->addSelect($db->raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
+            ->addSelect('g.nip')
+            ->addSelect($db->raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
+            ->addSelect($db->raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
             ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
             ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')
             ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel');
@@ -723,10 +723,13 @@ class JurnalController extends BaseController
     {
         $db = DB::connection();
 
+        // Penting: select() menimpa kolom yang sudah dipilih, jadi kolom
+        // tambahan harus memakai addSelect(). Kalau tidak, hasil query hanya
+        // berisi `g.nip` dan kolom `tgl`/`id_guru` tidak tersedia.
         return $db->table('absensi_harian as a')
             ->select('a.id_guru', 'a.tgl', 'a.status_masuk', 'a.jam_masuk')
-            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) AS nama_guru')
-            ->select('g.nip')
+            ->addSelect($db->raw('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) AS nama_guru'))
+            ->addSelect('g.nip')
             ->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.tgl', '>=', $mulai)
             ->where('a.tgl', '<=', $selesai)
@@ -792,7 +795,8 @@ class JurnalController extends BaseController
         $jurnals = $this->monitoringBuilder($idTp, $idSmt, $p)
             ->orderBy('j.tanggal', 'ASC')
             ->orderBy('j.jam_ke', 'ASC')
-            ->get();
+            ->get()
+            ->all();
 
         $mulai = $p['mode_bulanan']
             ? sprintf('%04d-%02d-01', $p['tahun'], $p['bulan'])
@@ -945,10 +949,10 @@ class JurnalController extends BaseController
         $db = DB::connection();
         $jurnal = $db->table('guru_jurnal as j')
             ->select('j.*')
-            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru')
-            ->select('g.nip')
-            ->selectRaw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas')
-            ->selectRaw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel')
+            ->addSelect($db->raw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru'))
+            ->addSelect('g.nip')
+            ->addSelect($db->raw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas'))
+            ->addSelect($db->raw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel'))
             ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
             ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')
             ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel')

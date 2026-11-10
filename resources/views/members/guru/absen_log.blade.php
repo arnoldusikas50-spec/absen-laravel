@@ -244,20 +244,52 @@
 
         let html = '';
         data.forEach(item => {
-            const d   = new Date(item.tgl + 'T00:00:00');
-            const day = d.getDate();
-            const dow = dayNames[d.getDay()];
+            // ── Ambil tanggal secara aman ─────────────────────
+            // item.tgl bisa berupa string "YYYY-MM-DD", objek Carbon serialized,
+            // atau null — normalisasi ke string "YYYY-MM-DD" lebih dulu.
+            const tglRaw = (() => {
+                const v = item.tgl;
+                if (!v) return '';
+                // Jika sudah string dengan format YYYY-MM-DD (atau lebih panjang)
+                const s = String(v);
+                if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substr(0, 10);
+                // Jika objek Carbon serialized sebagai { date: "YYYY-MM-DD ..." }
+                if (typeof v === 'object' && v !== null && v.date) {
+                    return String(v.date).substr(0, 10);
+                }
+                return '';
+            })();
+            const d   = tglRaw ? new Date(tglRaw + 'T00:00:00') : null;
+            const day = d ? d.getDate() : '?';
+            const dow = d ? dayNames[d.getDay()] : '?';
 
             // ── Jam (abaikan NULL / '0000-00-00 00:00:00') ──
             const cleanTime = (v) => {
-                if (!v || String(v).startsWith('0000-00-00')) return null;
-                return String(v).includes(' ') ? String(v).split(' ')[1].substr(0,5) : String(v).substr(0,5);
+                if (!v) return null;
+                // Jika objek Carbon serialized: { date: "2026-11-08 07:30:00", ... }
+                if (typeof v === 'object' && v !== null && v.date) {
+                    const parts = String(v.date).split(' ');
+                    return parts.length > 1 ? parts[1].substr(0, 5) : null;
+                }
+                const s = String(v);
+                if (!s || s === 'null' || s === 'undefined') return null;
+                if (s.startsWith('0000-00-00')) return null;
+                // Format ISO: "2026-11-08T07:30:00.000000Z" atau "2026-11-08T07:30:00+07:00"
+                if (s.includes('T')) {
+                    const timePart = s.split('T')[1];
+                    return timePart ? timePart.substr(0, 5) : null;
+                }
+                // Format dengan spasi: "2026-11-08 07:30:00"
+                if (s.includes(' ')) return s.split(' ')[1].substr(0, 5);
+                // Sudah berupa "HH:MM" atau "HH:MM:SS"
+                if (s.match(/^\d{2}:\d{2}/)) return s.substr(0, 5);
+                return null;
             };
             const inTime  = cleanTime(item.jam_masuk);
             const outTime = cleanTime(item.jam_pulang);
 
             // ── Belum absen pulang? (masuk ada, pulang kosong) ──
-            const tglStr = String(item.tgl ?? '').substr(0, 10);
+            const tglStr = tglRaw;
             const todayStr = `${today.getFullYear()}-${padZero(today.getMonth() + 1)}-${padZero(today.getDate())}`;
             const missingOut = !!inTime && !outTime;
             const isTodayRow = tglStr === todayStr;
@@ -301,8 +333,9 @@
             else if (!inTime)              { iconBg = 'bg-slate-50 text-slate-400'; }
 
             // ── Poin & Denda ───────────────────────────────
-            const poin  = parseInt(item.points ?? 0);
-            const denda = parseInt(item.denda ?? 0);
+            // Gunakan Number() lalu fallback ke 0 agar string kosong / null / NaN aman
+            const poin  = (Number(item.points) || 0) > 0 ? Math.round(Number(item.points)) : 0;
+            const denda = (Number(item.denda)  || 0) > 0 ? Math.round(Number(item.denda))  : 0;
             let extraHtml = '';
             if (poin > 0) {
                 extraHtml += `<span class="text-[10px] font-semibold text-emerald-600"><i class="bi bi-star-fill text-[9px]"></i> +${poin} poin</span>`;
@@ -357,7 +390,7 @@
                 <div class="flex items-center gap-3 px-3 py-3 flex-1 min-w-0">
                     <!-- Date icon -->
                     <div class="flex-shrink-0 w-12 h-12 rounded-xl ${iconBg} flex flex-col items-center justify-center leading-none border border-current border-opacity-10">
-                        <span class="text-lg font-extrabold leading-none">${padZero(day)}</span>
+                        <span class="text-lg font-extrabold leading-none">${typeof day === 'number' ? padZero(day) : day}</span>
                         <span class="text-[9px] font-bold uppercase mt-1 opacity-80">${dow}</span>
                     </div>
 

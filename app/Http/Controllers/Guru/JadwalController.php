@@ -149,7 +149,7 @@ class JadwalController extends BaseController
         }
     }
 
-    public function get_jadwal($hari)
+    public function get_jadwal(?string $hari = null)
     {
         $user = $this->getUser();
         if (!$user) {
@@ -167,6 +167,8 @@ class JadwalController extends BaseController
         $idGuru = $guru ? (int) $guru->id_guru : 0;
 
         $jadwal_kbm = $this->elearningModel->getJadwalKbm($tp, $smt);
+        // Ambil hari dari URL atau dari body/query request (POST tanpa segment path).
+        $hari = trim((string) ($hari ?? request()->input('hari', request()->input('day', ''))));
         $jadwal_mapel = $this->elearningModel->getJadwalHarian($tp, $smt, (int) $hari);
 
         // Hanya tampilkan jadwal kelas yang benar-benar diajar guru ini.

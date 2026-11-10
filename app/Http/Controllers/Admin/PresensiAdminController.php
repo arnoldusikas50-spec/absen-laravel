@@ -10180,7 +10180,10 @@ class PresensiAdminController extends BaseController
                         return "`$k`";
                     }, array_keys($row));
                     $insertVals = array_map(function ($v) use ($db) {
-                        return $db->escape($v);
+                        if ($v === null) {
+                            return 'NULL';
+                        }
+                        return $db->getPdo()->quote((string) $v);
                     }, array_values($row));
                     $sql .= "INSERT INTO `$table` (".implode(', ', $insertKeys).') VALUES ('.implode(', ', $insertVals).");\n";
                 }
@@ -11387,7 +11390,7 @@ class PresensiAdminController extends BaseController
             // Hanya surat milik siswa AKTIF (buku_induk.status = '1').
             // Surat siswa LULUS/PINDAH/KELUAR tidak ditampilkan di daftar
             // (arsip fisiknya tetap tersimpan di tabel).
-            $lq = $db->table(SuratPanggilanService::TABEL.' as p')
+            $lq = DB::table(SuratPanggilanService::TABEL.' as p')
                 ->select('p.*', 's.nama', 's.nis', 's.nisn', 's.kelas_awal')
                 ->join('master_siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->where('p.bulan', $bulan)

@@ -35,6 +35,7 @@
     .checkin-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
     .checkin-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
     .tabular { font-variant-numeric: tabular-nums; }
+
     /* ── Pulse dot ──────────────────────────────── */
     .pulse-live::after {
         content: ''; position: absolute;
@@ -43,6 +44,25 @@
         animation: pulseLive 1.8s ease-out infinite;
     }
     @keyframes pulseLive { 75%,100% { transform: scale(2.4); opacity: 0; } }
+
+    /* ── Icon box centering ─────────────────────────
+       Bootstrap Icons punya vertical-align: -0.125em bawaan yang
+       mendorong ikon ke bawah di dalam container flex centered.
+       Class .ic-box menetapkan display:inline-flex + reset vertical-align
+       sehingga ikon selalu tepat tengah secara optis. ──────────────── */
+    .ic-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ic-box i, .ic-box .bi {
+        vertical-align: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 @endsection
 
@@ -243,7 +263,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
     <div class="px-6 mt-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 shadow-sm">
             <div class="flex items-start gap-3">
-                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white ic-box shrink-0 shadow-sm mt-0.5">
                     <i class="bi bi-exclamation-octagon-fill"></i>
                 </div>
                 <div>
@@ -317,7 +337,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                class="kpi-card group block rounded-2xl bg-white border border-slate-200/80 shadow-sm p-4 no-underline transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 {{ $accent['ring'] }}">
                 <!-- Indikator kategori -->
                 <div class="flex items-start justify-between gap-2 mb-3">
-                    <div class="w-10 h-10 rounded-xl {{ $accent['icon'] }} flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+                    <div class="w-10 h-10 rounded-xl {{ $accent['icon'] }} ic-box shrink-0 transition-transform duration-200 group-hover:scale-105">
                         <i class="bi bi-{{ $biIcon }} text-base"></i>
                     </div>
                     <i class="bi bi-arrow-up-right text-slate-300 text-[11px] transition-colors group-hover:text-slate-500"></i>
@@ -354,7 +374,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                 <!-- Header -->
                 <div class="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 ic-box">
                             <i class="bi bi-clipboard2-pulse-fill text-xl"></i>
                         </div>
                         <div>
@@ -450,7 +470,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                 <?php else: ?>
                 <div class="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-slate-50 p-6 sm:p-7">
                     <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-                        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 ic-box shrink-0">
                             <i class="bi bi-calendar-x text-2xl"></i>
                         </div>
                         <div class="min-w-0 flex-1">
@@ -490,7 +510,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
             <!-- ── Quick Actions (1/3) ───────────────── -->
             <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
                 <div class="flex items-center gap-3 pb-4 mb-4 border-b border-slate-100">
-                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 ic-box">
                         <i class="bi bi-grid-fill text-xl"></i>
                     </div>
                     <div>
@@ -512,7 +532,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                     foreach ($qaLinks as $qa): ?>
                     <a href="{{ url($qa['url']) }}"
                         class="qa-tile flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 {{ $qa['hover'] }} border border-slate-200/70 no-underline group">
-                        <div class="w-9 h-9 rounded-xl {{ $qa['bg'] }} {{ $qa['ic'] }} flex items-center justify-center shrink-0">
+                        <div class="w-9 h-9 rounded-xl {{ $qa['bg'] }} {{ $qa['ic'] }} ic-box shrink-0">
                             <i class="bi {{ $qa['icon'] }} text-sm"></i>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -534,7 +554,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
             <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col">
                 <div class="flex items-center justify-between gap-3 pb-4 mb-1 border-b border-slate-100">
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 ic-box shrink-0">
                             <i class="bi bi-fingerprint text-xl"></i>
                         </div>
                         <div class="min-w-0">
@@ -642,7 +662,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                     </div>
                     <?php else: ?>
                     <div class="flex flex-col items-center justify-center py-10 text-center">
-                        <div class="w-12 h-12 rounded-2xl {{ $isHariSekolah ? 'bg-slate-100 text-slate-300' : 'bg-amber-50 text-amber-400' }} flex items-center justify-center mb-3">
+                        <div class="w-12 h-12 rounded-2xl {{ $isHariSekolah ? 'bg-slate-100 text-slate-300' : 'bg-amber-50 text-amber-400' }} ic-box mb-3">
                             <i class="bi {{ $isHariSekolah ? 'bi-inbox' : 'bi-calendar-x' }} text-2xl"></i>
                         </div>
                         <p class="text-sm font-semibold text-slate-600">
@@ -692,7 +712,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
             <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 flex flex-col">
                 <div class="flex items-center justify-between pb-4 mb-1 border-b border-slate-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-600 ic-box">
                             <i class="bi bi-activity text-xl"></i>
                         </div>
                         <div>
@@ -800,7 +820,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                     </div>
                     <?php else: ?>
                     <div class="flex flex-col items-center justify-center py-10 text-center">
-                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-300 flex items-center justify-center mb-3">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-300 ic-box mb-3">
                             <i class="bi bi-clock-history text-2xl"></i>
                         </div>
                         <p class="text-sm font-semibold text-slate-600">Belum ada aktivitas tercatat</p>
