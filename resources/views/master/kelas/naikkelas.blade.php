@@ -242,8 +242,8 @@ $searchId = array_search('1', array_column($tp, 'active'));
 @section('scripts')
 <script>
     const base_url = '{{ url('/') . '/' }}/';
-    const klsSelected = '{{ $kelas_selected ?? '' }}';
-    let currentMode = '{{ $type_selected ?? 'persiswa' }}';
+    const klsSelected = @json($kelas_selected ?? '');
+    let currentMode = @json($type_selected ?? 'persiswa');
 
     $(document).ready(function () {
         $('.select2').select2({ theme: 'bootstrap-5' });

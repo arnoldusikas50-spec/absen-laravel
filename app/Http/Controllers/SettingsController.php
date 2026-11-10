@@ -185,7 +185,7 @@ class SettingsController extends BaseController
         if ($src === null || $src === '') {
             return null;
         }
-        $rel = ltrim(str_replace(url(), '', $src), '/');
+        $rel = ltrim(str_replace(url('/'), '', $src), '/');
         $rel = str_replace('\\', '/', $rel);
         if (preg_match('#^https?://#i', $rel)) {
             return null;
@@ -402,7 +402,7 @@ class SettingsController extends BaseController
             return '';
         }
 
-        $normalized = str_replace(url(), '', $path);
+        $normalized = str_replace(url('/'), '', $path);
 
         return ltrim($normalized, '/');
     }

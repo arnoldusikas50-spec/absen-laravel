@@ -224,7 +224,7 @@
 
         </div>
 <script>
-    const csrfToken = '{{ '_token' }}';
+    const csrfToken = '{{ csrf_token() }}';
 
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', async function (e) {

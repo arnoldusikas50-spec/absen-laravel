@@ -307,7 +307,7 @@
             var id = $(this).data('id');
 
             $.ajax({
-                url: '{{ url('datajurusan/get_data/') }}' + id,
+                url: '{{ route('datajurusan.get_data', ['id' => '__ID__']) }}'.replace('__ID__', id),
                 type: 'GET',
                 dataType: 'json',
                 beforeSend: function () {
@@ -382,7 +382,7 @@
                         url: '{{ url('datajurusan/delete') }}',
                         type: 'POST',
                         data: {
-                            {{ '_token' }}: '{{ '_token' }}',
+                            '_token': '{{ csrf_token() }}',
                             id_jurusan: id
                         },
                         dataType: 'json',

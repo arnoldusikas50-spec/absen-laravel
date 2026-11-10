@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QR Presensi — {{ $qr ? esc($qr->nama_acara) : 'Tidak Valid' }}</title>
-    <link href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
     <style type="text/css">
         body {
@@ -115,8 +115,8 @@
         const JURNAL_CREATE_URL = '{{ url('guru/jurnal/create') }}';
         const JURNAL_DETAIL_URL = '{{ url('guru/jurnal/detail') }}';
         const JURNAL_LIST_URL = '{{ url('guru/jurnal') }}';
-        const CSRF_NAME = '{{ '_token' }}';
-        let CSRF_HASH = '{{ '_token' }}';
+        const CSRF_NAME = '_token';
+        let CSRF_HASH = '{{ csrf_token() }}';
 
         let gpsFix = null;          // {lat, lng, accuracy}
 

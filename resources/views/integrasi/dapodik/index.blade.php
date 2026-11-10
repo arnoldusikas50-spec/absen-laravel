@@ -417,7 +417,7 @@ $(document).ready(function() {
             $btn.prop('disabled', false).html(orig);
             if (res && res.status) {
                 setBadge('ok', '<i class="bi bi-check-circle-fill"></i>Terhubung (200 OK)');
-                Swal.fire({ title: 'Koneksi Berhasil', text: res.message || 'Terhubung ke Dapodik.', icon: 'success', confirmButtonColor: '#2563eb' });
+                Swal.fire({ title: 'Koneksi Berhasil', text: res.message || 'Terhubung ke Dapodik.', icon: 'success', confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}' });
             } else {
                 setBadge('fail', '<i class="bi bi-x-circle-fill"></i>Koneksi Gagal');
                 Swal.fire({ title: 'Koneksi Gagal', text: (res && res.message) || 'Gagal menghubungi Dapodik.', icon: 'error', confirmButtonColor: '#ef4444' });
@@ -461,7 +461,7 @@ $(document).ready(function() {
             text: 'Data terbaru akan ditarik dari Web Service Dapodik lokal.',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#2563eb',
+            confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Ya, Jalankan Sync',
             cancelButtonText: 'Batal'
@@ -486,7 +486,7 @@ $(document).ready(function() {
                     const judul = info.gagal > 0 ? 'Sinkronisasi Selesai, Sebagian Gagal' : 'Sinkronisasi Berhasil!';
                     const html = '<p class="text-sm">' + escHtml(pesan) + '</p>'
                         + (info.teks ? '<p class="text-xs text-slate-500 mt-2">' + escHtml(info.teks) + '</p>' : '');
-                    Swal.fire({ title: judul, html: html, icon: icon, confirmButtonColor: '#2563eb' })
+                    Swal.fire({ title: judul, html: html, icon: icon, confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}' })
                         .then(() => location.reload());
                 } else {
                     Swal.fire({ title: 'Gagal Sinkronisasi', text: pesan, icon: 'error', confirmButtonColor: '#ef4444' });
@@ -527,7 +527,7 @@ $(document).ready(function() {
                 segarkanCsrf(res);
                 $btn.prop('disabled', false).html(orig);
                 const pesan = (res && res.message) ? res.message : 'Tidak ada keterangan dari server.';
-                Swal.fire({ title: res && res.status ? 'Log dibersihkan' : 'Log tidak dibersihkan', text: pesan, icon: res && res.status ? 'success' : 'error', confirmButtonColor: res && res.status ? '#2563eb' : '#ef4444' })
+                Swal.fire({ title: res && res.status ? 'Log dibersihkan' : 'Log tidak dibersihkan', text: pesan, icon: res && res.status ? 'success' : 'error', confirmButtonColor: res && res.status ? '{{ \App\Libraries\Theme::metaColor('primary') }}' : '#ef4444' })
                     .then(() => { if (res && res.status) location.reload(); });
             }).fail(function(xhr) {
                 $btn.prop('disabled', false).html(orig);

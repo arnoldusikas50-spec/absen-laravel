@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 
     <!-- Tailwind CSS -->
     <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
@@ -774,7 +774,7 @@
         // ── Avatar cadangan: semuanya lokal, tidak bergantung server eksternal ──
         const FOTO_CADANGAN = {!! json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
         const FOTO_STANDBY = {!! json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
-        const FOTO_PERINGATAN = {!! json_encode(\App\Services\AvatarService::inisial('Alert', 128, '#e11d48'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
+        const FOTO_PERINGATAN = {!! json_encode(\App\Services\AvatarService::inisial('Alert', 128, \App\Libraries\Theme::metaColor('primary')), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
 
         // ── STATE VARIABLES ──────────────────────────
         const MODE_TAB = {

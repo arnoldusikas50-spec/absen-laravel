@@ -552,7 +552,7 @@ $jamSelesaiLembur = $tsMulaiLembur ? date('H:i', $tsMulaiLembur + 2 * 3600) : '1
                 if (!res.isConfirmed) return;
                 Swal.fire({ title: 'Membatalkan...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
                 $.post(`{{ url('guru/lembur/delete') }}/${id}`, {
-                    {{ '_token' }}: '{{ '_token' }}'
+                    '_token': '{{ csrf_token() }}'
                 }, function(response) {
                     if (response && response.status) {
                         Swal.fire({

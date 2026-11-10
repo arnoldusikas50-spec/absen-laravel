@@ -353,7 +353,7 @@ $schoolName = $setting->nama_sekolah ?? ($setting->sekolah ?? 'Madrasah / Sekola
 // Avatar info
 $avatarSrc = \App\Services\AvatarService::url($user->foto ?? '')
     ?? \App\Services\AvatarService::url($setting->logo ?? '')
-    ?? \App\Services\AvatarService::inisial($namaGuru, 128, '#e11d48');
+    ?? \App\Services\AvatarService::inisial($namaGuru, 128, \App\Libraries\Theme::metaColor('primary'));
 
 $csrfField = '_token';
 $csrfHash  = '_token';

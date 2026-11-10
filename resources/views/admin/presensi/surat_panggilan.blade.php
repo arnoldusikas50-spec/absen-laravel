@@ -385,8 +385,8 @@
 (function () {
     'use strict';
 
-    const csrfName  = '{{ '_token' }}';
-    const csrfHash  = '{{ '_token' }}';
+    const csrfName  = '_token';
+    const csrfHash  = '{{ csrf_token() }}';
     const bulan     = '{{ (int) $bulan }}';
     const tahun     = '{{ (int) $tahun }}';
 

@@ -58,7 +58,7 @@
         /* ── Avatar ── */
         $nama = trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? ''));
         if (trim($nama) === '') $nama = $p->username ?? 'Guru';
-        $avatarSrc = \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), $nama, '#e11d48');
+        $avatarSrc = \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), $nama, \App\Libraries\Theme::metaColor('primary'));
 
         /* ── Jenis badge ── */
         $jenis = strtoupper(trim((string)($p->jenis ?? 'IZIN')));
@@ -321,7 +321,7 @@
         $btn.prop('disabled', true)
             .html('<div class="inline-flex items-center gap-1.5"><div class="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div> Memproses...</div>');
 
-        $.post(url, { catatan, '{{ '_token' }}': '{{ '_token' }}' }, function (res) {
+        $.post(url, { catatan, '_token': '{{ csrf_token() }}' }, function (res) {
             if (res && res.status) {
                 twModalHide('#verifModal');
                 Swal.fire({

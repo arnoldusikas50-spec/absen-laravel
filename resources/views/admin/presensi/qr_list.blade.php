@@ -274,7 +274,7 @@ $(document).ready(function() {
             if (!r.isConfirmed) return;
             $.post('{{ url('admin/presensi/qr/delete') }}', {
                 id: id,
-                '{{ '_token' }}': '{{ '_token' }}'
+                '_token': '{{ csrf_token() }}'
             }, function (res) {
                 if (res && res.status) {
                     Swal.fire({ icon: 'success', title: 'Terhapus!', text: res.message, timer: 1300, showConfirmButton: false })
@@ -307,7 +307,7 @@ $(document).ready(function() {
         $.ajax({
             url: '{{ url('admin/presensi/qr/generate') }}',
             type: 'POST',
-            data: $(this).serialize() + '&{{ '_token' }}={{ '_token' }}',
+            data: $(this).serialize() + '&_token={{ csrf_token() }}',
             dataType: 'json',
             success: function(res) {
                 if (res && res.status) {
@@ -329,7 +329,7 @@ $(document).ready(function() {
         $.post('{{ url('admin/presensi/qr/toggle') }}', {
             id: $cb.data('id'),
             active: $cb.is(':checked') ? 1 : 0,
-            '{{ '_token' }}': '{{ '_token' }}'
+            '_token': '{{ csrf_token() }}'
         }, function(res) {
             if (res && res.status) {
                 Swal.fire({ icon: 'success', title: res.message || 'Status diubah', timer: 1200, showConfirmButton: false });

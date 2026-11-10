@@ -179,7 +179,7 @@
 
         @section('scripts')
         <script>
-            const csrfToken = '{{ '_token' }}';
+            const csrfToken = '{{ csrf_token() }}';
             let table;
 
             $(document).ready(function () {

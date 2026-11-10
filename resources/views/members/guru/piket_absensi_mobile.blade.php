@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         : 'Hanya mengisi yang masih kosong dan bukan hasil scan, pada daftar yang tampil.')
                     + '</p>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('accent') }}',
                 confirmButtonText: 'Isi',
                 cancelButtonText: 'Batal',
                 preConfirm: () => (document.getElementById('bulkJamInput') || {}).value || ''

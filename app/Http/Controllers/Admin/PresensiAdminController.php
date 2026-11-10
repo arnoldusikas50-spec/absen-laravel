@@ -1660,7 +1660,7 @@ class PresensiAdminController extends BaseController
         // Lazy check table
         $adaTabel = Schema::hasTable('absensi_surat_teguran');
 
-        $letters = [];
+        $letters = collect([]);
         $kandidat = [];
 
         if ($adaTabel) {
@@ -1678,7 +1678,7 @@ class PresensiAdminController extends BaseController
         $data = [
             'title' => 'Surat Teguran',
             'judul' => 'Surat Teguran Guru',
-            'letters' => $letters,
+            'letters' => $letters->all(),
             'kandidat' => $kandidat,
             'bulan' => $bulan,
             'tahun' => $tahun,
@@ -1703,7 +1703,7 @@ class PresensiAdminController extends BaseController
      *
      * @return list<array{id_guru:int,nama_guru:string,nip:string,alpha:int,level:int}>
      */
-    private function kandidatSuratTeguran($db, array $letters, int $bulan, int $tahun): array
+    private function kandidatSuratTeguran($db, $letters, int $bulan, int $tahun): array
     {
         if (! Schema::hasTable('master_guru')) {
             return [];
@@ -1716,7 +1716,7 @@ class PresensiAdminController extends BaseController
                 ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
-                ->groupBy('u.id')
+                ->groupBy('u.id', 'g.id_guru', 'g.nama_guru', 'g.nip')
                 ->get();
 
             // Guru yang sudah punya surat di periode ini tidak perlu

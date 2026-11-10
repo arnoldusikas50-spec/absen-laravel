@@ -5663,11 +5663,11 @@ class AttendanceController extends BaseController
         // Map by date
         $mapWeek = [];
         foreach ($recordsWeek as $r) {
-            $mapWeek[$r->tgl] = $r;
+            $mapWeek[(string) $r->tgl] = $r;
         }
         $mapMonth = [];
         foreach ($recordsMonth as $r) {
-            $mapMonth[$r->tgl] = $r;
+            $mapMonth[(string) $r->tgl] = $r;
         }
 
         // count absent days in last 7 days
@@ -8188,7 +8188,8 @@ class AttendanceController extends BaseController
             return $builder->orderBy('level', 'ASC')
                 ->orderBy('nomor_urut', 'ASC')
                 ->limit(10)
-                ->get();
+                ->get()
+                ->all();
         } catch (\Throwable $e) {
             Log::error('[pendingTeguranGate] '.$e->getMessage());
 

@@ -8,6 +8,16 @@
     .btn-action-icon:hover {
         transform: scale(1.08);
     }
+    .stat-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px -4px rgb(0 0 0 / 0.06);
+    }
+    .empty-state {
+        opacity: 0.7;
+    }
 </style>
 @endsection
 
@@ -16,6 +26,7 @@
 <?php
 $tpActiveYear = $tp_active ? $tp_active->tahun : 'Belum Diatur';
 $smtActiveName = $smt_active ? $smt_active->smt : 'Belum Diatur';
+$periodeAktif = $tp_active && $smt_active ? $tp_active->tahun.' / '.$smt_active->smt : 'Belum Lengkap';
 
 // Build safe JSON payloads for AJAX activation
 $tpJsonData = json_encode(collect($tp)->map(function ($t) {
@@ -38,7 +49,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                 <div>
                     <h1 class="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight">Tahun Pelajaran & Semester</h1>
                     <p class="text-xs md:text-sm text-slate-500 font-medium">
-                        Kelola periode kalender akademik aktif dan jumlah hari efektif pembelajaran
+                        Kelola periode akademik aktif yang mengatur jadwal, presensi, dan pelaporan semester
                     </p>
                 </div>
             </div>
@@ -50,7 +61,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                         <li class="text-slate-300">/</li>
                         <li class="text-slate-400">Data Umum</li>
                         <li class="text-slate-300">/</li>
-                        <li class="text-blue-600">Tahun Pelajaran</li>
+                        <li class="text-blue-600">Periode Akademik</li>
                     </ol>
                 </nav>
             </div>
@@ -59,19 +70,72 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
 
     <!-- Info Notice Box -->
     <div class="px-6 pt-4">
-        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <div class="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <i class="bi bi-info-circle-fill text-sm"></i>
                 </div>
                 <div class="text-xs text-slate-600 leading-relaxed">
-                    <b class="text-blue-950">Petunjuk Penting:</b> Mengubah tahun pelajaran atau semester aktif akan mempengaruhi data kelas, jadwal pelajaran, presensi harian, dan pelaporan semester yang tampil di sistem. Periode yang sedang aktif dilindungi dan tidak dapat dihapus.
+                    <b class="text-amber-950">Petunjuk Penting:</b>
+                    Mengubah tahun pelajaran atau semester aktif akan mempengaruhi data kelas, jadwal pelajaran,
+                    presensi harian, dan pelaporan semester. Periode yang sedang aktif dilindungi dan tidak dapat
+                    dihapus. Pastikan satu TP dan satu SMT selalu aktif untuk operasional absensi.
                 </div>
             </div>
             <div class="shrink-0">
                 <button type="button" onclick="location.reload()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-700 text-xs font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-2xs">
                     <i class="bi bi-arrow-clockwise"></i> Segarkan Halaman
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistik Cepat -->
+    <div class="px-6 pb-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Total Tahun Pelajaran</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $stats['total_tp'] }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold {{ $stats['aktif_tp'] === 1 ? 'text-emerald-600' : 'text-rose-600' }}">
+                        {{ $stats['aktif_tp'] }} Aktif
+                    </span>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Total Semester</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $stats['total_smt'] }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold {{ $stats['aktif_smt'] === 1 ? 'text-emerald-600' : 'text-rose-600' }}">
+                        {{ $stats['aktif_smt'] }} Aktif
+                    </span>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Periode Aktif</p>
+                    <p class="text-lg font-bold text-slate-800">{{ $periodeAktif }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold {{ $tp_active && $smt_active ? 'text-emerald-600' : 'text-rose-600' }}">
+                        {{ $tp_active && $smt_active ? 'Lengkap' : 'Belum Lengkap' }}
+                    </span>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Hari Efektif</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ (int) $stats['heb'] }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold {{ $stats['heb'] > 0 ? 'text-emerald-600' : 'text-rose-600' }}">
+                        {{ $stats['heb'] > 0 ? 'Disetel' : 'Belum' }}
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -95,7 +159,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                             </div>
                         </div>
 
-                        <button type="button" data-from="add" data-ui-toggle="modal" data-ui-target="#createTahunModal"
+                        <button type="button" data-from="add" data-tabel="master_tp" data-ui-toggle="modal" data-ui-target="#createPeriodeModal"
                                 class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
                             <i class="bi bi-plus-lg text-sm"></i> Tambah Periode
                         </button>
@@ -109,73 +173,85 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                                     <th class="px-4 py-3.5 text-center" style="width: 50px;">No</th>
                                     <th class="px-4 py-3.5">Tahun Pelajaran</th>
                                     <th class="px-4 py-3.5 text-center" style="width: 140px;">Status</th>
-                                    <th class="px-4 py-3.5 text-center" style="width: 110px;">Aksi</th>
+                                    <th class="px-4 py-3.5 text-center" style="width: 120px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 text-xs bg-white">
-                                <?php foreach ($tp as $key => $value): ?>
-                                    <tr class="hover:bg-slate-50/80 transition-colors {{ $value->active ? 'bg-blue-50/20' : '' }}">
-                                        <td class="px-4 py-3.5 text-center font-bold text-slate-400">
-                                            {{ $key + 1 }}
+                                <?php if ($tp->isEmpty()): ?>
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-8 text-center text-slate-400 empty-state">
+                                            <i class="bi bi-inbox text-2xl mb-2 opacity-40"></i><br>
+                                            Belum ada data tahun pelajaran. Silakan tambahkan periode baru.
                                         </td>
-                                        <td class="px-4 py-3.5">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-extrabold text-sm text-slate-800 tracking-tight">
-                                                    {{ $value->tahun }}
-                                                </span>
-                                                <?php if ($value->active): ?>
-                                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">
-                                                        Aktif
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($tp as $key => $value): ?>
+                                        <tr class="hover:bg-slate-50/80 transition-colors {{ $value->active ? 'bg-blue-50/20' : '' }}">
+                                            <td class="px-4 py-3.5 text-center font-bold text-slate-400">
+                                                {{ $key + 1 }}
+                                            </td>
+                                            <td class="px-4 py-3.5">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-extrabold text-sm text-slate-800 tracking-tight">
+                                                        {{ $value->tahun }}
                                                     </span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3.5 text-center">
-                                            <?php if ($value->active): ?>
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                    <i class="bi bi-check-circle-fill text-emerald-600"></i> Aktif
-                                                </span>
-                                            <?php else: ?>
-                                                <button type="button" 
-                                                        data-id="{{ $value->id_tp }}" 
-                                                        data-name="{{ $value->tahun }}"
-                                                        class="btn-aktif-tp inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white transition-all border border-slate-200 hover:border-blue-600 shadow-2xs">
-                                                    <i class="bi bi-check2"></i> Aktifkan
-                                                </button>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="px-4 py-3.5 text-center">
-                                            <div class="inline-flex items-center gap-1.5">
-                                                <!-- Edit button -->
-                                                <button type="button" 
-                                                        data-id="{{ $value->id_tp }}"
-                                                        data-tahun="{{ $value->tahun }}" 
-                                                        data-from="edit"
-                                                        data-ui-toggle="modal" 
-                                                        data-ui-target="#createTahunModal"
-                                                        class="btn-action-icon w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center transition-colors shadow-2xs"
-                                                        title="Edit Periode">
-                                                    <i class="bi bi-pencil-fill text-xs"></i>
-                                                </button>
-
-                                                <!-- Delete button -->
+                                                    <?php if ($value->active): ?>
+                                                        <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">
+                                                            Aktif
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-center">
                                                 <?php if ($value->active): ?>
-                                                    <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center cursor-not-allowed" title="Tahun aktif tidak dapat dihapus">
-                                                        <i class="bi bi-trash text-xs"></i>
+                                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                        <i class="bi bi-check-circle-fill text-emerald-600"></i> Aktif
                                                     </span>
                                                 <?php else: ?>
                                                     <button type="button" 
                                                             data-id="{{ $value->id_tp }}" 
                                                             data-name="{{ $value->tahun }}"
-                                                            class="btn-hapus-tp btn-action-icon w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors shadow-2xs"
-                                                            title="Hapus Periode">
-                                                        <i class="bi bi-trash-fill text-xs"></i>
+                                                            data-tabel="master_tp"
+                                                            class="btn-aktif-periode inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white transition-all border border-slate-200 hover:border-blue-600 shadow-2xs">
+                                                        <i class="bi bi-check2"></i> Aktifkan
                                                     </button>
                                                 <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-center">
+                                                <div class="inline-flex items-center gap-1.5">
+                                                    <!-- Edit button -->
+                                                    <button type="button" 
+                                                            data-id="{{ $value->id_tp }}"
+                                                            data-label="{{ $value->tahun }}"
+                                                            data-tabel="master_tp"
+                                                            data-from="edit"
+                                                            data-ui-toggle="modal" 
+                                                            data-ui-target="#createPeriodeModal"
+                                                            class="btn-action-icon w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center transition-colors shadow-2xs"
+                                                            title="Edit Periode">
+                                                        <i class="bi bi-pencil-fill text-xs"></i>
+                                                    </button>
+
+                                                    <!-- Delete button -->
+                                                    <?php if ($value->active): ?>
+                                                        <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center cursor-not-allowed" title="Tahun aktif tidak dapat dihapus">
+                                                            <i class="bi bi-trash text-xs"></i>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <button type="button" 
+                                                                data-id="{{ $value->id_tp }}" 
+                                                                data-name="{{ $value->tahun }}"
+                                                                data-tabel="master_tp"
+                                                                class="btn-hapus-periode btn-action-icon w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors shadow-2xs"
+                                                                title="Hapus Periode">
+                                                            <i class="bi bi-trash-fill text-xs"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -199,6 +275,10 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                             <h2 class="text-base font-bold text-slate-800">Daftar Semester</h2>
                             <p class="text-xs text-slate-400">Pilih semester berjalan (Ganjil / Genap)</p>
                         </div>
+                        <button type="button" data-from="add" data-tabel="master_smt" data-ui-toggle="modal" data-ui-target="#createPeriodeModal"
+                                class="ml-auto inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                            <i class="bi bi-plus-lg text-sm"></i> Tambah
+                        </button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -208,35 +288,76 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                                     <th class="px-4 py-3.5 text-center" style="width: 50px;">No</th>
                                     <th class="px-4 py-3.5">Nama Semester</th>
                                     <th class="px-4 py-3.5 text-center" style="width: 140px;">Status</th>
+                                    <th class="px-4 py-3.5 text-center" style="width: 120px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 text-xs bg-white">
-                                <?php foreach ($smt as $key => $value): ?>
-                                    <tr class="hover:bg-slate-50/80 transition-colors {{ $value->active ? 'bg-indigo-50/20' : '' }}">
-                                        <td class="px-4 py-3.5 text-center font-bold text-slate-400">
-                                            {{ $key + 1 }}
-                                        </td>
-                                        <td class="px-4 py-3.5">
-                                            <span class="font-extrabold text-sm text-slate-800 tracking-tight">
-                                                {{ $value->smt }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3.5 text-center">
-                                            <?php if ($value->active): ?>
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                                    <i class="bi bi-check-circle-fill text-emerald-600"></i> Aktif
-                                                </span>
-                                            <?php else: ?>
-                                                <button type="button" 
-                                                        data-id="{{ $value->id_smt }}" 
-                                                        data-name="{{ $value->smt }}"
-                                                        class="btn-aktif-smt inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white transition-all border border-slate-200 hover:border-indigo-600 shadow-2xs">
-                                                    <i class="bi bi-check2"></i> Aktifkan
-                                                </button>
-                                            <?php endif; ?>
+                                <?php if ($smt->isEmpty()): ?>
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-8 text-center text-slate-400 empty-state">
+                                            <i class="bi bi-inbox text-2xl mb-2 opacity-40"></i><br>
+                                            Belum ada data semester. Silakan tambahkan semester baru.
                                         </td>
                                     </tr>
-                                <?php endforeach; ?>
+                                <?php else: ?>
+                                    <?php foreach ($smt as $key => $value): ?>
+                                        <tr class="hover:bg-slate-50/80 transition-colors {{ $value->active ? 'bg-indigo-50/20' : '' }}">
+                                            <td class="px-4 py-3.5 text-center font-bold text-slate-400">
+                                                {{ $key + 1 }}
+                                            </td>
+                                            <td class="px-4 py-3.5">
+                                                <span class="font-extrabold text-sm text-slate-800 tracking-tight">
+                                                    {{ $value->smt }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-center">
+                                                <?php if ($value->active): ?>
+                                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                        <i class="bi bi-check-circle-fill text-emerald-600"></i> Aktif
+                                                    </span>
+                                                <?php else: ?>
+                                                    <button type="button" 
+                                                            data-id="{{ $value->id_smt }}" 
+                                                            data-name="{{ $value->smt }}"
+                                                            data-tabel="master_smt"
+                                                            class="btn-aktif-periode inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white transition-all border border-slate-200 hover:border-indigo-600 shadow-2xs">
+                                                        <i class="bi bi-check2"></i> Aktifkan
+                                                    </button>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-center">
+                                                <div class="inline-flex items-center gap-1.5">
+                                                    <button type="button" 
+                                                            data-id="{{ $value->id_smt }}"
+                                                            data-label="{{ $value->smt }}"
+                                                            data-tabel="master_smt"
+                                                            data-from="edit"
+                                                            data-ui-toggle="modal" 
+                                                            data-ui-target="#createPeriodeModal"
+                                                            class="btn-action-icon w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center transition-colors shadow-2xs"
+                                                            title="Edit Semester">
+                                                        <i class="bi bi-pencil-fill text-xs"></i>
+                                                    </button>
+
+                                                    <?php if ($value->active): ?>
+                                                        <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center cursor-not-allowed" title="Semester aktif tidak dapat dihapus">
+                                                            <i class="bi bi-trash text-xs"></i>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <button type="button" 
+                                                                data-id="{{ $value->id_smt }}" 
+                                                                data-name="{{ $value->smt }}"
+                                                                data-tabel="master_smt"
+                                                                class="btn-hapus-periode btn-action-icon w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors shadow-2xs"
+                                                                title="Hapus Semester">
+                                                            <i class="bi bi-trash-fill text-xs"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -256,6 +377,8 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
 
                     <form id="formHeb">
                         @csrf
+                        <input type="hidden" name="tp_id" value="{{ $tp_active ? $tp_active->id_tp : '' }}">
+                        <input type="hidden" name="smt_id" value="{{ $smt_active ? $smt_active->id_smt : '' }}">
                         <div class="space-y-3">
                             <div>
                                 <label for="inputJmlHari" class="block text-xs font-bold text-slate-700 mb-1">
@@ -266,8 +389,8 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                                            id="inputJmlHari" 
                                            name="jml_hari" 
                                            value="{{ (int)($jml_hari ?? 0) }}" 
-                                           min="1" 
-                                           max="365"
+                                           min="0" 
+                                           max="366"
                                            required 
                                            class="w-full pl-4 pr-14 py-2.5 text-sm font-extrabold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all">
                                     <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -292,8 +415,8 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
     </div>
 </div>
 
-<!-- Modal Tambah / Edit Tahun Pelajaran -->
-<div id="createTahunModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" role="dialog" aria-labelledby="createModalLabel" aria-hidden="true">
+<!-- Modal Tambah / Edit Periode (Tahun Pelajaran & Semester) -->
+<div id="createPeriodeModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" role="dialog" aria-labelledby="createModalLabel" aria-hidden="true">
     <div class="modal-box-tw max-w-md" role="document">
         <div class="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100">
             <form id="createForm">
@@ -312,30 +435,31 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                 </div>
 
                 <div class="p-6 space-y-4">
+                    <input type="hidden" id="editId" name="id">
+                    <input type="hidden" id="editTabel" name="tabel" value="master_tp">
+                    <input type="hidden" id="method" name="method" value="add">
+
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1.5" for="createtahun">
-                            Periode Tahun Pelajaran <span class="text-rose-500">*</span>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5" for="periodeLabel">
+                            Periode <span class="text-rose-500">*</span>
                         </label>
                         <input type="text" 
-                               id="createtahun" 
-                               name="tahun" 
+                               id="periodeLabel" 
+                               name="label" 
                                class="w-full px-4 py-2.5 text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:text-slate-400" 
                                required
-                               placeholder="Format: YYYY/YYYY (contoh: 2025/2026)">
-                        <p class="text-[11px] text-slate-400 mt-1">
-                            Gunakan format 4 digit tahun garis miring 4 digit tahun berikutnya.
+                               placeholder="Masukkan label periode">
+                        <p class="text-[11px] text-slate-400 mt-1" id="periodeHint">
+                            Gunakan format 4 digit tahun garis miring 4 digit tahun berikutnya (contoh: 2025/2026).
                         </p>
                     </div>
                 </div>
 
                 <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2">
-                    <input type="hidden" id="editIdTahun" name="id_tahun">
-                    <input type="hidden" id="method" name="method" value="add">
-                    
                     <button type="button" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors" data-ui-dismiss="modal">
                         Batal
                     </button>
-                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm inline-flex items-center gap-1.5" id="submit-tp">
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm inline-flex items-center gap-1.5" id="submit-periode">
                         <i class="bi bi-check-lg"></i> Simpan
                     </button>
                 </div>
@@ -353,17 +477,22 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
     const rawSmtData = {!! $smtJsonData !!};
 
     $(document).ready(function () {
-        // Ganti Tahun Pelajaran Aktif
-        $(document).on("click", ".btn-aktif-tp", function () {
-            let id = $(this).data("id");
-            let name = $(this).data("name");
+
+        // --- Ganti Periode Aktif (TP & Semester) ---
+        $(document).on("click", ".btn-aktif-periode", function () {
+            let id     = $(this).data("id");
+            let name   = $(this).data("name");
+            let tabel  = $(this).data("tabel");
+            let route  = tabel === 'master_tp' ? "datatahun/gantitahun" : "datatahun/gantisemester";
+            let field  = tabel === 'master_tp' ? "tahun" : "semester";
+            let raw    = tabel === 'master_tp' ? rawTpData : rawSmtData;
 
             Swal.fire({
-                title: "Ganti Tahun Pelajaran?",
-                text: "Aktifkan tahun pelajaran " + name + " sebagai periode berjalan?",
+                title: "Ganti " + (tabel === 'master_tp' ? "Tahun Pelajaran" : "Semester") + "?",
+                text: "Aktifkan " + name + " sebagai periode berjalan?",
                 icon: "question",
                 showCancelButton: true,
-                confirmButtonColor: "#2563eb",
+                confirmButtonColor: "{{ \App\Libraries\Theme::metaColor('primary') }}",
                 cancelButtonColor: "#64748b",
                 confirmButtonText: "Ya, Aktifkan",
                 cancelButtonText: "Batal"
@@ -375,9 +504,9 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    $.post(base_url + "datatahun/gantitahun", {
+                    $.post(base_url + route, {
                         active: id,
-                        tahun: JSON.stringify(rawTpData),
+                        [field]: JSON.stringify(raw),
                         [CSRF_NAME]: CSRF_HASH
                     }, function (res) {
                         Swal.fire({
@@ -392,75 +521,42 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
             });
         });
 
-        // Ganti Semester Aktif
-        $(document).on("click", ".btn-aktif-smt", function () {
-            let id = $(this).data("id");
-            let name = $(this).data("name");
-
-            Swal.fire({
-                title: "Ganti Semester Aktif?",
-                text: "Aktifkan " + name + " sebagai semester berjalan?",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonColor: "#4f46e5",
-                cancelButtonColor: "#64748b",
-                confirmButtonText: "Ya, Aktifkan",
-                cancelButtonText: "Batal"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        text: "Menyimpan perubahan...",
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-
-                    $.post(base_url + "datatahun/gantisemester", {
-                        active: id,
-                        semester: JSON.stringify(rawSmtData),
-                        [CSRF_NAME]: CSRF_HASH
-                    }, function (res) {
-                        Swal.fire({
-                            title: res.status ? "Berhasil" : "Gagal",
-                            text: res.msg,
-                            icon: res.status ? "success" : "error"
-                        }).then(() => { if (res.status) location.reload(); });
-                    }).fail(function() {
-                        Swal.fire("Gagal", "Terjadi kesalahan pada server", "error");
-                    });
-                }
-            });
-        });
-
-        // Modal Create / Edit Tahun Pelajaran
-        $('#createTahunModal').on('show.bs.modal', function (e) {
+        // --- Modal Create / Edit Periode ---
+        $('#createPeriodeModal').on('show.bs.modal', function (e) {
             let btn = $(e.relatedTarget);
             let method = btn.data('from') || 'add';
+            let tabel  = btn.data('tabel') || 'master_tp';
+            let isSmt  = tabel === 'master_smt';
+
             $('#method').val(method);
+            $('#editTabel').val(tabel);
+            $('#editId').val(isSmt ? (btn.data('id') || '') : (btn.data('id') || ''));
 
             if (method === 'edit') {
                 $('#modalIcon').html('<i class="bi bi-pencil-fill text-sm"></i>');
-                $('#createModalLabel').text('Edit Tahun Pelajaran');
-                $('#editIdTahun').val(btn.data('id'));
-                $('#createtahun').val(btn.data('tahun'));
+                $('#createModalLabel').text(isSmt ? 'Edit Semester' : 'Edit Tahun Pelajaran');
+                $('#periodeLabel').val(btn.data('label') || '');
+                $('#periodeHint').text(isSmt ? 'Masukkan nama semester (contoh: Ganjil, Genap).' : 'Gunakan format YYYY/YYYY (contoh: 2025/2026).');
             } else {
                 $('#modalIcon').html('<i class="bi bi-calendar-plus-fill text-sm"></i>');
-                $('#createModalLabel').text('Tambah Tahun Pelajaran');
-                $('#editIdTahun').val('');
-                $('#createtahun').val('');
+                $('#createModalLabel').text(isSmt ? 'Tambah Semester' : 'Tambah Tahun Pelajaran');
+                $('#editId').val('');
+                $('#periodeLabel').val('');
+                $('#periodeHint').text(isSmt ? 'Masukkan nama semester (contoh: Ganjil, Genap).' : 'Gunakan format YYYY/YYYY (contoh: 2025/2026).');
             }
         });
 
-        // Submit Form Tambah / Edit Tahun
+        // --- Submit Form Tambah / Edit Periode ---
         $('#createForm').on('submit', function (e) {
             e.preventDefault();
-            let submitBtn = $('#submit-tp');
+            let submitBtn = $('#submit-periode');
             submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Menyimpan...');
 
             $.post(base_url + "datatahun/add", $(this).serialize(), function (res) {
                 if (res.status) {
                     location.reload();
                 } else {
-                    Swal.fire("Gagal", "Gagal memproses data tahun pelajaran", "error");
+                    Swal.fire("Gagal", res.msg || 'Gagal memproses data periode', "error");
                     submitBtn.prop('disabled', false).html('<i class="bi bi-check-lg"></i> Simpan');
                 }
             }).fail(function() {
@@ -469,13 +565,16 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
             });
         });
 
-        // Hapus Tahun Pelajaran
-        $(document).on("click", ".btn-hapus-tp", function () {
-            let id = $(this).data("id");
-            let name = $(this).data("name");
+        // --- Hapus Periode (TP & Semester) ---
+        $(document).on("click", ".btn-hapus-periode", function () {
+            let id     = $(this).data("id");
+            let name   = $(this).data("name");
+            let tabel  = $(this).data("tabel");
+            let route  = tabel === 'master_tp' ? "datatahun/hapustahun" : "datatahun/hapussemester";
+            let nama   = tabel === 'master_tp' ? "Tahun Pelajaran" : "Semester";
 
             Swal.fire({
-                title: 'Hapus Tahun Pelajaran?',
+                title: 'Hapus ' + nama + '?',
                 text: 'Hapus periode ' + name + '? Data yang berhubungan akan ikut terpengaruh.',
                 icon: 'warning',
                 showCancelButton: true,
@@ -491,7 +590,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    $.post(base_url + "datatahun/hapustahun", { 
+                    $.post(base_url + route, { 
                         hapus: id, 
                         [CSRF_NAME]: CSRF_HASH 
                     }, function (res) {
@@ -504,7 +603,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
             });
         });
 
-        // Simpan Hari Efektif Belajar (HEB)
+        // --- Simpan Hari Efektif Belajar (HEB) ---
         $('#formHeb').on('submit', function (e) {
             e.preventDefault();
             let btn = $('#btnSaveHeb');
@@ -516,13 +615,13 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                 if (res.status) {
                     Swal.fire({
                         title: "Tersimpan",
-                        text: "Jumlah hari efektif pembelajaran berhasil diperbarui",
+                        text: res.msg || 'Jumlah hari efektif pembelajaran berhasil diperbarui',
                         icon: "success",
                         timer: 1500,
                         showConfirmButton: false
                     }).then(() => { location.reload(); });
                 } else {
-                    Swal.fire("Gagal", "Gagal menyimpan hari efektif", "error");
+                    Swal.fire("Gagal", res.msg || 'Gagal menyimpan hari efektif', "error");
                 }
             }).fail(function() {
                 btn.prop('disabled', false).html(origHtml);

@@ -101,11 +101,11 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
             <div class="absolute right-40 -top-20 w-40 h-40 rounded-full bg-white/5 pointer-events-none"></div>
             <div class="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-blue-800/40 to-transparent pointer-events-none"></div>
 
-            <div class="relative z-10 flex flex-col md:flex-row md:items-center gap-6 p-6 md:p-8">
-                <!-- Left -->
-                <div class="flex-1 min-w-0">
-                    <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-[11px] font-semibold text-blue-200 border border-white/15 backdrop-blur-sm">
+            <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 md:p-7">
+                <!-- Left: greeting + meta -->
+                <div class="lg:col-span-7 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-4">
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-[11px] font-semibold text-blue-100 border border-white/15 backdrop-blur-sm">
                             <i class="bi bi-calendar3"></i>
                             <span>{{ $todayLabel }}</span>
                             <?php if (isset($tp_active) && $tp_active): ?>
@@ -113,7 +113,8 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                                 <span>TP {{ $tp_active->tahun }}</span>
                             <?php endif; ?>
                             <?php if (isset($smt_active) && $smt_active): ?>
-                                <span>Semester {{ $smt_active->nama_smt }}</span>
+                                <span class="text-white/40">·</span>
+                                <span>Smt {{ $smt_active->nama_smt }}</span>
                             <?php endif; ?>
                         </span>
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border backdrop-blur-sm {{ $isHariSekolah ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/30' : 'bg-amber-300/15 text-amber-100 border-amber-200/30' }}">
@@ -121,45 +122,72 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                             {{ $isHariSekolah ? 'Hari Sekolah' : $liburLabel }}
                         </span>
                     </div>
-                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-                        {{ $salamTampil }}, {{ $namaUser }}! 👋
+
+                    <h1 class="text-2xl md:text-[2rem] font-extrabold tracking-tight leading-[1.15]">
+                        {{ $salamTampil }}, {{ $namaUser }}! <span aria-hidden="true">👋</span>
                     </h1>
-                    <p class="text-sm text-blue-100/80 mt-1.5 max-w-lg">
+                    <p class="text-sm text-blue-100/80 mt-2 max-w-xl leading-relaxed">
                         {{ $sapaan }}
                     </p>
+
+                    <!-- Ringkasan cepat di dalam hero -->
+                    <?php if ($isHariSekolah): ?>
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 mt-5 pt-5 border-t border-white/10">
+                        <div>
+                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Tepat Waktu</p>
+                            <p class="text-lg font-extrabold text-emerald-300 leading-none mt-1 tabular">{{ (int)($ph['ontime'] ?? 0) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Terlambat</p>
+                            <p class="text-lg font-extrabold text-amber-300 leading-none mt-1 tabular">{{ (int)($ph['telat'] ?? 0) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Belum Absen</p>
+                            <p class="text-lg font-extrabold text-rose-300 leading-none mt-1 tabular">{{ (int)($ph['belum_absen'] ?? 0) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Total Guru</p>
+                            <p class="text-lg font-extrabold text-white leading-none mt-1 tabular">{{ (int)$ph['total_guru'] }}</p>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Right: live attendance pill + action -->
-                <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                <div class="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch lg:justify-end gap-3 shrink-0">
                     <?php if ($isHariSekolah): ?>
                         <!-- Live attendance mini pill -->
-                        <div class="flex items-center gap-2.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3">
+                        <div class="flex-1 flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3.5">
                             <div class="relative w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-live flex-shrink-0"></div>
-                            <div>
+                            <div class="min-w-0">
                                 <p class="text-[10px] text-white/60 font-semibold uppercase tracking-wider leading-none">Hadir Hari Ini</p>
-                                <p class="text-xl font-extrabold text-white leading-none mt-0.5">
+                                <p class="text-2xl font-extrabold text-white leading-none mt-1 tabular">
                                     {{ (int)$ph['hadir'] }}
                                     <span class="text-sm font-semibold text-white/50">/ {{ (int)$ph['total_guru'] }}</span>
                                 </p>
                             </div>
+                            <div class="ml-auto text-right shrink-0 hidden sm:block">
+                                <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Tingkat</p>
+                                <p class="text-lg font-extrabold text-emerald-300 leading-none mt-1 tabular">{{ $persen }}%</p>
+                            </div>
                         </div>
 
                         <a href="{{ url('admin/presensi') }}"
-                            class="inline-flex items-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
+                            class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
                             <i class="bi bi-speedometer2"></i>
-                            <span>Monitoring</span>
+                            <span>Monitoring Presensi</span>
                         </a>
                     <?php else: ?>
-                        <div class="flex items-center gap-2.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3">
-                            <i class="bi bi-calendar-x text-2xl text-amber-200"></i>
-                            <div>
+                        <div class="flex-1 flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3.5">
+                            <i class="bi bi-calendar-x text-2xl text-amber-200 shrink-0"></i>
+                            <div class="min-w-0">
                                 <p class="text-[10px] text-white/60 font-semibold uppercase tracking-wider leading-none">{{ $liburLabel }}</p>
                                 <p class="text-sm font-extrabold text-white leading-none mt-1">Tidak ada presensi</p>
                             </div>
                         </div>
 
                         <a href="{{ url('admin/presensi/rekap') }}"
-                            class="inline-flex items-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
+                            class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
                             <i class="bi bi-file-earmark-bar-graph"></i>
                             <span>Rekap Presensi</span>
                         </a>
@@ -168,13 +196,16 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
             </div>
 
             <!-- Bottom bar inside hero -->
-            <div class="relative z-10 px-6 md:px-8 pb-5">
+            <div class="relative z-10 px-6 md:px-7 pb-5">
                 <?php if ($isHariSekolah): ?>
-                    <div class="flex items-center justify-between text-[11px] text-white/70 mb-1.5">
-                        <span>Tingkat Kehadiran Hari Ini</span>
-                        <span class="font-extrabold text-white">{{ $persen }}%</span>
+                    <div class="flex items-center justify-between text-[11px] text-white/70 mb-2">
+                        <span class="inline-flex items-center gap-1.5">
+                            <i class="bi bi-graph-up-arrow text-emerald-300"></i>
+                            Tingkat Kehadiran Guru Hari Ini
+                        </span>
+                        <span class="font-extrabold text-white tabular">{{ $persen }}%</span>
                     </div>
-                    <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div class="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                         <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700"
                             style="width: {{ $persen }}%"></div>
                     </div>
@@ -239,53 +270,60 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
          KPI CARDS — Master Data
     ══════════════════════════════════════════════════ -->
     <div class="px-6 pt-6">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <?php
-            $gradients = [
-                'from-blue-500 to-indigo-600',
-                'from-emerald-500 to-teal-600',
-                'from-violet-500 to-purple-600',
-                'from-amber-500 to-orange-500',
-                'from-brand-500 to-brand-700',
-                'from-cyan-500 to-sky-600',
+            // Peta warna semantik per kartu. Warna berasal dari key 'box'
+            // yang sudah disediakan controller, bukan dari urutan array —
+            // sehingga warna kartu selalu konsisten dengan makna metrik.
+            $kpiAccent = [
+                'teal'    => ['icon' => 'bg-teal-50 text-teal-600',     'dot' => 'bg-teal-500',    'ring' => 'group-hover:border-teal-200'],
+                'blue'    => ['icon' => 'bg-blue-50 text-blue-600',     'dot' => 'bg-blue-500',    'ring' => 'group-hover:border-blue-200'],
+                'success' => ['icon' => 'bg-emerald-50 text-emerald-600','dot' => 'bg-emerald-500', 'ring' => 'group-hover:border-emerald-200'],
+                'indigo'  => ['icon' => 'bg-indigo-50 text-indigo-600',  'dot' => 'bg-indigo-500',  'ring' => 'group-hover:border-indigo-200'],
+                'fuchsia' => ['icon' => 'bg-fuchsia-50 text-fuchsia-600','dot' => 'bg-fuchsia-500', 'ring' => 'group-hover:border-fuchsia-200'],
+                'amber'   => ['icon' => 'bg-amber-50 text-amber-600',    'dot' => 'bg-amber-500',   'ring' => 'group-hover:border-amber-200'],
             ];
-            $iconMap = [
+            $biIconMap = [
                 'users'           => 'people-fill',
                 'bell'            => 'building',
                 'user-circle'     => 'person-video3',
                 'user-o'          => 'person-badge',
                 'book'            => 'book-half',
                 'user-clock'      => 'calendar-check-fill',
+                'user-check'      => 'person-check-fill',
                 'chalkboard-teacher' => 'person-video3',
                 'school'          => 'building',
                 'clock'           => 'clock-fill',
                 'folder'          => 'folder-fill',
             ];
-            $i = 0;
             foreach ($info_box as $box):
-                $grad = $gradients[$i % count($gradients)];
-                $biIcon = $iconMap[$box['icon']] ?? 'star-fill';
-                $i++;
+                $accent = $kpiAccent[$box['box'] ?? ''] ?? $kpiAccent['blue'];
+                $biIcon = $biIconMap[$box['icon']] ?? 'star-fill';
+                $isLiveMetric = in_array($box['title'], ['Guru Hadir', 'Siswa Hadir', 'Jurnal KBM'], true);
+                $nilai = (! $isHariSekolah && $isLiveMetric) ? '&mdash;' : $box['total'];
             ?>
-            <a href="{{ url($box['url']) }}" class="kpi-card no-underline group">
-                <div class="bg-gradient-to-br {{ $grad }} rounded-2xl p-4 text-white relative overflow-hidden shadow-sm">
-                    <div class="absolute -right-4 -bottom-4 w-20 h-20 rounded-full bg-white/8 pointer-events-none"></div>
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm shrink-0">
-                            <i class="bi bi-{{ $biIcon }} text-base"></i>
-                        </div>
-                        <i class="bi bi-arrow-up-right text-white/40 text-xs group-hover:text-white/80 transition-colors"></i>
+            <a href="{{ url($box['url']) }}"
+               class="kpi-card group block rounded-2xl bg-white border border-slate-200/80 shadow-sm p-4 no-underline transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 {{ $accent['ring'] }}">
+                <!-- Indikator kategori -->
+                <div class="flex items-start justify-between gap-2 mb-3">
+                    <div class="w-10 h-10 rounded-xl {{ $accent['icon'] }} flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+                        <i class="bi bi-{{ $biIcon }} text-base"></i>
                     </div>
-                    <p class="text-2xl lg:text-3xl font-extrabold leading-none tracking-tight">
-                        <?php
-                        $metricHariIni = in_array($box['title'], ['Guru Hadir', 'Siswa Hadir', 'Jurnal KBM'], true);
-                        echo !$isHariSekolah && $metricHariIni ? '&mdash;' : $box['total'];
-                        ?>
-                    </p>
-                    <p class="text-[11px] font-semibold uppercase tracking-wider opacity-80 mt-1.5">{{ $box['title'] }}</p>
-                    <?php if (!empty($box['hint'])): ?>
-                        <p class="text-[10px] font-medium opacity-65 mt-1">{{ $box['hint'] }}</p>
-                    <?php endif; ?>
+                    <i class="bi bi-arrow-up-right text-slate-300 text-[11px] transition-colors group-hover:text-slate-500"></i>
+                </div>
+
+                <p class="text-[26px] leading-none font-extrabold tracking-tight text-slate-800 tabular">
+                    {!! $nilai !!}
+                </p>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-2 leading-none truncate">
+                    {{ $box['title'] }}
+                </p>
+
+                <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                    <span class="w-1.5 h-1.5 rounded-full {{ $accent['dot'] }} shrink-0"></span>
+                    <span class="text-[10px] font-medium text-slate-400 truncate">
+                        {{ $box['hint'] ?? '' }}
+                    </span>
                 </div>
             </a>
             <?php endforeach; ?>

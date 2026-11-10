@@ -367,7 +367,7 @@
         const origText = btn.html();
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm mr-1"></span> Menyimpan...');
 
-        const data = $(this).serialize() + '&{{ '_token' }}={{ '_token' }}';
+        const data = $(this).serialize() + '&_token={{ csrf_token() }}';
 
         $.post('{{ url('admin/presensi/libur/save') }}', data, function (res) {
             if (res.status) {
@@ -402,7 +402,7 @@
             if (result.isConfirmed) {
                 $.post('{{ url('admin/presensi/libur/delete') }}', {
                     id: id,
-                    {{ '_token' }}: '{{ '_token' }}'
+                    '_token': '{{ csrf_token() }}'
                 }, function (res) {
                     if (res.status) {
                         Swal.fire({
@@ -436,7 +436,7 @@
             showLoaderOnConfirm: true,
             preConfirm: () => {
                 return $.post('{{ url('admin/presensi/libur/sync') }}', {
-                    {{ '_token' }}: '{{ '_token' }}',
+                    '_token': '{{ csrf_token() }}',
                     year: year
                 }).catch(error => {
                     Swal.showValidationMessage(`Gagal: ${error.statusText || 'Koneksi error'}`);

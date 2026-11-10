@@ -473,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('id', id);
         formData.append('status', status);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/update_kejadian_status', {
@@ -524,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('id', id);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/delete_kejadian', {

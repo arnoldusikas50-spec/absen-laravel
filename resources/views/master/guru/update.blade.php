@@ -375,7 +375,7 @@
                     data: {
                         guru: payload,
                         ids: JSON.stringify(ids),
-                        {{ '_token' }}: '{{ '_token' }}'
+                        '_token': '{{ csrf_token() }}'
                     },
                     success: (res) => {
                         if (res.status) {

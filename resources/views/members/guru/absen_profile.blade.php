@@ -234,7 +234,7 @@
 @section('content')
 
 <?php
-$finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama_guru ?? '', '#e11d48');
+$finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama_guru ?? '', \App\Libraries\Theme::metaColor('primary'));
 ?>
 
 <!-- ── Hero ──────────────────────────────────────────────── -->
@@ -631,7 +631,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         if (input.files && input.files[0]) {
             const formData = new FormData();
             formData.append('foto', input.files[0]);
-            formData.append('{{ '_token' }}', '{{ '_token' }}');
+            formData.append('_token', '{{ csrf_token() }}');
 
             Swal.fire({ title: 'Mengunggah...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -670,7 +670,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 return;
             }
         }
-        const data = $(this).serialize() + '&{{ '_token' }}={{ '_token' }}';
+        const data = $(this).serialize() + '&_token={{ csrf_token() }}';
         $.post('{{ url('presensi/update-profile') }}', data, function (res) {
             if (res.status) Swal.fire('Tersimpan', res.message, 'success').then(() => location.reload());
             else Swal.fire('Gagal', res.message, 'error');
@@ -701,7 +701,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         st.textContent = '';
 
         $.post('{{ url('presensi/telegram-test') }}', {
-            '{{ '_token' }}': '{{ '_token' }}'
+            '_token': '{{ csrf_token() }}'
         }, function (res) {
             btn.prop('disabled', false).html('<i class="bi bi-send"></i> Cek Kirim Pesan');
             if (res && res.status) {
@@ -745,7 +745,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         st.textContent = '';
 
         $.post('{{ url('presensi/wa-test') }}', {
-            '{{ '_token' }}': '{{ '_token' }}'
+            '_token': '{{ csrf_token() }}'
         }, function (res) {
             btn.prop('disabled', false).html('<i class="bi bi-send"></i> Cek Kirim Pesan');
             if (res && res.status) {
@@ -769,7 +769,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
     $('#formEditLogin').on('submit', function (e) {
         e.preventDefault();
         const formData = new FormData(this);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
         $.ajax({
             url: '{{ url('presensi/update-login') }}',
             type: 'POST', data: formData, processData: false, contentType: false,
@@ -978,8 +978,8 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             }
 
             const descriptor = JSON.stringify(Array.from(fullDesc.descriptor));
-            const csrf = '{{ '_token' }}';
-            const hash = '{{ '_token' }}';
+            const csrf = '_token';
+            const hash = '{{ csrf_token() }}';
 
             $('#regFaceStatus').html('<i class="bi bi-cloud-arrow-up me-1"></i> Menyimpan data...');
 
@@ -1072,7 +1072,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 icon: 'info',
                 title: 'Menunggu Persetujuan',
                 text: 'Pengajuan ulang wajah Anda sedang diperiksa admin. Tunggu keputusan sebelum mengajukan lagi.',
-                confirmButtonColor: '#e11d48'
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}'
             });
             return;
         }
@@ -1085,7 +1085,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 showCancelButton: true,
                 confirmButtonText: 'Ya, Ajukan Ulang',
                 cancelButtonText: 'Batal',
-                confirmButtonColor: '#e11d48',
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                 reverseButtons: true
             });
             if (!res.isConfirmed) return;

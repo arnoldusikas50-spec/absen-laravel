@@ -754,7 +754,7 @@ $(function () {
                 data: {
                     id_guru: {{ (int) $id_guru }},
                     confirm_nama: expected,
-                    '{{ '_token' }}': '{{ '_token' }}'
+                    '_token': '{{ csrf_token() }}'
                 },
                 success: function (res) {
                     if (res && res.status) {

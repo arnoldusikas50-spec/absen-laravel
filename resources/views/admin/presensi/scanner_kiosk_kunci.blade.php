@@ -41,12 +41,12 @@ $judul    = (string) ($judul ?? 'Scanner QR Terkunci');
             width: 100%; padding: 12px 14px; font-size: 15px; font-family: ui-monospace, monospace;
             border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;
         }
-        input[type=password]:focus { outline: 2px solid #2563eb; outline-offset: 1px; background: #fff; }
+        input[type=password]:focus { outline: 2px solid var(--primary-600); outline-offset: 1px; background: #fff; }
         button {
             margin-top: 14px; width: 100%; padding: 12px 16px; font-size: 14px; font-weight: 700;
-            color: #fff; background: #2563eb; border: 0; border-radius: 12px; cursor: pointer;
+            color: #fff; background: var(--primary-600); border: 0; border-radius: 12px; cursor: pointer;
         }
-        button:hover { background: #1d4ed8; }
+        button:hover { background: var(--primary-700); }
         .error {
             font-size: 13px; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca;
             border-radius: 12px; padding: 10px 12px; margin: 0 0 16px;

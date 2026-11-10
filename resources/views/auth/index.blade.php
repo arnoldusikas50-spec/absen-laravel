@@ -15,7 +15,7 @@
 		content="ANBK, Ujian, Ujian Nasional, Ulangan Harian, Ulangan Semester, Mid Semester, Asesmen Nasional, Ujian Sekolah">
 	<meta name="google" content="nositelinkssearchbox" />
 	<meta name="robots" content="index, follow">
-	<link rel="stylesheet" href="{{ url('/') . '/' }}/assets/plugins/bootstrap-icon/bootstrap-icons.css">
+	<link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 	<link rel="stylesheet" href="{{ url('/') . '/' }}/assets/plugins/sweetalert2/sweetalert2.min.css">
 
 	<script src="{{ url('/') . '/' }}/assets/plugins/jquery/jquery.min.js"></script>

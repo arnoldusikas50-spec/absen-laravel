@@ -620,7 +620,7 @@ function markAllStatus(status) {
             title: 'Tandai Semua?',
             html: `<strong>${filled} siswa</strong> sudah punya status (termasuk izin/sakit) dan akan ikut tertimpa.`,
             icon: 'warning', showCancelButton: true,
-            confirmButtonColor: '#2563eb', confirmButtonText: 'Ya, Timpa Semua', cancelButtonText: 'Batal'
+            confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}', confirmButtonText: 'Ya, Timpa Semua', cancelButtonText: 'Batal'
         }).then(r => { if (r.isConfirmed) apply(); });
         return;
     }
@@ -752,7 +752,7 @@ function savePresensi() {
         html:  `Menyimpan absensi <strong>${presensi.length} siswa</strong> pada <strong>${tgl}</strong>`,
         icon:  'question',
         showCancelButton: true,
-        confirmButtonColor: '#2563eb',
+        confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
         cancelButtonColor:  '#94a3b8',
         confirmButtonText:  '<i class="bi bi-check2-circle mr-1"></i> Simpan',
         cancelButtonText:   'Batal',

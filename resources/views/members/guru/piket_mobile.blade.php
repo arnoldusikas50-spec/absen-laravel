@@ -41,11 +41,11 @@
         font-size: 11px; font-weight: 800; color: var(--brand-600);
         text-decoration: none; white-space: nowrap;
     }
-    @media (hover: hover) { .section-link:hover { color: #9f1239; } }
+    @media (hover: hover) { .section-link:hover { color: var(--brand-800); } }
 
     /* ── Action card ────────────────────────────── */
     .action-card { transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease; }
-    @media (hover: hover) { .action-card:hover { border-color: #fecdd3; box-shadow: 0 4px 12px rgb(var(--brand-600-rgb) / 0.08); } }
+    @media (hover: hover) { .action-card:hover { border-color: var(--brand-200); box-shadow: 0 4px 12px rgb(var(--brand-600-rgb) / 0.08); } }
     .action-card:active { transform: scale(0.95); }
     .action-card:focus-visible { outline: 2px solid var(--brand-600); outline-offset: 2px; }
 

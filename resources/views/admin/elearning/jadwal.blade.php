@@ -529,7 +529,7 @@ $totalKelas = count($kelas ?? []);
                     $.ajax({
                         url: '{{ url('admin/jadwal/delete_mapel') }}',
                         type: 'POST',
-                        data: { id_jadwal: idJadwal, {{ '_token' }}: '{{ '_token' }}' },
+                        data: { id_jadwal: idJadwal, '_token': '{{ csrf_token() }}' },
                         dataType: 'json',
                         success: function (res) {
                             AdminUI.modal.close(modalEl);
@@ -1240,7 +1240,7 @@ $totalKelas = count($kelas ?? []);
             text: "Susunan slot garis waktu harian akan diformat ulang dan disesuaikan.",
             icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: "#2563eb",
+            confirmButtonColor: "{{ \App\Libraries\Theme::metaColor('primary') }}",
             cancelButtonColor: "#64748b",
             confirmButtonText: "Format Ulang",
             cancelButtonText: "Batal",
@@ -1252,7 +1252,7 @@ $totalKelas = count($kelas ?? []);
                 $.ajax({
                     url: '{{ url('admin/jadwal/reformat_jadwal') }}',
                     type: "POST",
-                    data: { {{ '_token' }}: '{{ '_token' }}' },
+                    data: { '_token': '{{ csrf_token() }}' },
                     dataType: 'json',
                     success: function (data) {
                         if (data.status) {
@@ -1296,7 +1296,7 @@ $totalKelas = count($kelas ?? []);
                    Jadwal hanya tersalin jika <b>kode kelas</b> sesuai.`,
             icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: "#e11d48",
+            confirmButtonColor: "{{ \App\Libraries\Theme::metaColor('primary') }}",
             cancelButtonColor: "#64748b",
             confirmButtonText: "Ya, Copy Jadwal",
             cancelButtonText: "Batal",
@@ -1311,7 +1311,7 @@ $totalKelas = count($kelas ?? []);
                     data: {
                         thnLalu: thnLalu,
                         smtLalu: smtLalu,
-                        {{ '_token' }}: '{{ '_token' }}'
+                        '_token': '{{ csrf_token() }}'
                     },
                     dataType: 'json',
                     success: function (data) {
@@ -1341,7 +1341,7 @@ $totalKelas = count($kelas ?? []);
 
         const formData = new FormData();
         formData.append('jadwal_file', file);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         Swal.fire({
             title: "Mengimpor Jadwal...",

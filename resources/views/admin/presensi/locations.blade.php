@@ -1300,7 +1300,7 @@
             data: {
                 id: id,
                 aktif: aktif,
-                {{ '_token' }}: '{{ '_token' }}'
+                '_token': '{{ csrf_token() }}'
             },
             dataType: 'json',
             success: function (res) {
@@ -1339,7 +1339,7 @@
                     type: 'POST',
                     data: {
                         id: id,
-                        {{ '_token' }}: '{{ '_token' }}'
+                        '_token': '{{ csrf_token() }}'
                     },
                     dataType: 'json',
                     success: function (res) {

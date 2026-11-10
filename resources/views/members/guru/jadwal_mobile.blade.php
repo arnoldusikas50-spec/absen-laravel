@@ -909,7 +909,7 @@
                 Swal.fire({ title: 'Menghapus...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
                 $.post('{{ url('guru/jadwal/pribadi/delete') }}', {
                     id: id,
-                    {{ '_token' }}: '{{ '_token' }}'
+                    '_token': '{{ csrf_token() }}'
                 }, function(res) {
                     if (res && res.status) {
                         Swal.fire({

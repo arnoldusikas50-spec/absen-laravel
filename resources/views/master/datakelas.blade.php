@@ -127,7 +127,7 @@
 
 @section('scripts')
 <script>
-    const csrfToken = '{{ '_token' }}';
+    const csrfToken = '{{ csrf_token() }}';
 
     $(document).ready(function () {
         $('#tableKelas').DataTable({

@@ -3,6 +3,78 @@
    Digunakan bersama Tailwind CDN di layouts/main.php
    ================================================================ */
 
+/* ================================================================
+   SEMANTIC THEME UTILITIES
+   ------------------------------------------------------------
+   Utility Tailwind untuk token semantik dari Theme::cssVars()
+   (--surface, --border, --text-*, --primary, --accent, ...).
+
+   Token ini hanya tersedia sebagai CSS variable runtime (diumpan
+   lewat {!! Theme::styleTag() !!}), sehingga Vite/Tailwind tidak
+   bisa mem-bake utility -->text-text-primary / bg-surface-muted
+   ke dalam build statis. Tanpa blok di bawah ini, utility tersebut
+   tidak punya aturan sama sekali dan elemen jatuh ke nilai default.
+
+   Blok ini sengaja memakai CSS variable (bukan hex tetap) agar
+   perubahan tema di Pengaturan langsung ikut ter-apply.
+   ================================================================ */
+
+.bg-surface        { background-color: var(--surface, #ffffff); }
+.bg-surface-hover  { background-color: var(--surface-hover, #f8fafc); }
+.bg-surface-muted  { background-color: var(--surface-muted, #f4f6fb); }
+.bg-surface-inverse { background-color: var(--surface-inverse, #0f172a); }
+
+.text-text-primary   { color: var(--text-primary, #0f1729); }
+.text-text-secondary { color: var(--text-secondary, #475569); }
+.text-text-muted     { color: var(--text-muted, #94a3b8); }
+.text-text-inverse   { color: var(--text-inverse, #ffffff); }
+.text-text-success   { color: var(--text-success, #047857); }
+.text-text-warning   { color: var(--text-warning, #c2410c); }
+.text-text-error     { color: var(--text-error, #dc2626); }
+.text-text-info      { color: var(--text-info, #1d4ed8); }
+
+.border-border        { border-color: var(--border, #e2e8f0); }
+.border-border-focus  { border-color: var(--border-focus, #3b82f6); }
+.border-border-muted  { border-color: var(--border-muted, #cbd5e1); }
+
+.bg-primary         { background-color: var(--primary, #e11d48); }
+.bg-primary-hover   { background-color: var(--primary-hover, #be123c); }
+.bg-primary-active  { background-color: var(--primary-active, #9f1239); }
+.bg-primary-subtle  { background-color: var(--primary-subtle, #fff1f2); }
+.bg-accent          { background-color: var(--accent, #4f46e5); }
+.bg-accent-subtle   { background-color: var(--accent-subtle, #eef2ff); }
+
+.text-primary    { color: var(--primary, #e11d48); }
+.text-accent     { color: var(--accent, #4f46e5); }
+
+/* ── Brand palette (alias primary) ── */
+.bg-brand-50      { background-color: var(--brand-50); }
+.bg-brand-100     { background-color: var(--brand-100); }
+.bg-brand-500     { background-color: var(--brand-500); }
+.bg-brand-600     { background-color: var(--brand-600); }
+.bg-brand-700     { background-color: var(--brand-700); }
+.text-brand-500   { color: var(--brand-500); }
+.text-brand-600   { color: var(--brand-600); }
+.text-brand-700   { color: var(--brand-700); }
+.border-brand-500 { border-color: var(--brand-500); }
+.border-brand-600 { border-color: var(--brand-600); }
+
+/* ── Overlay putih transparan (dipakai sidebar & hero) ──
+   Tailwind v4 hanya menghasilkan step opacity resmi (10/15/20/...),
+   sehingga nilai custom seperti /8 tidak ter-bake ke build statis. */
+.bg-white\/8  { background-color: rgb(255 255 255 / 0.08); }
+.bg-white\/12 { background-color: rgb(255 255 255 / 0.12); }
+.bg-white\/20 { background-color: rgb(255 255 255 / 0.20); }
+.hover\:bg-white\/8:hover  { background-color: rgb(255 255 255 / 0.08); }
+.hover\:bg-white\/12:hover { background-color: rgb(255 255 255 / 0.12); }
+.hover\:bg-white\/20:hover { background-color: rgb(255 255 255 / 0.20); }
+
+/* ── Opsionalitas teks (dipakai footer layout) ── */
+.text-text-secondary\/80 { color: rgb(from var(--text-secondary, #475569) r g b / 0.8); }
+
+/* ── Layout ── */
+.h-screen { height: 100vh; }
+
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; }
 body {

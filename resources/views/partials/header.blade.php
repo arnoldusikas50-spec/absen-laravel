@@ -18,7 +18,7 @@
     <link rel="shortcut icon" href="{{ $logo_app }}" type="image/x-icon">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 
     <!-- Tailwind CSS CDN -->
     <script>
@@ -205,8 +205,8 @@
     <script>
         let base_url = '{{ rtrim(url('/') . '/', '/') }}/';
         let globalToken;
-        let CSRF_NAME = '{{ '_token' }}';
-        let CSRF_HASH = '{{ '_token' }}';
+        let CSRF_NAME = '_token';
+        let CSRF_HASH = '{{ csrf_token() }}';
 
         let tp_active  = '{{ isset($tp_active)  ? $tp_active->tahun  : "" }}';
         let smt_active = '{{ isset($smt_active) ? $smt_active->smt   : "" }}';
@@ -243,7 +243,7 @@
 
         function ajaxcsrf() {
             var csrf = {};
-            csrf['{{ '_token' }}'] = '{{ '_token' }}';
+            csrf['{{ '_token' }}'] = '{{ csrf_token() }}';
             $.ajaxSetup({ "data": csrf });
         }
 

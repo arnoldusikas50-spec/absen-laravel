@@ -501,13 +501,13 @@
         document.querySelectorAll('#prefList .pref-toggle').forEach(function (cb) {
             body.append('prefs[' + cb.dataset.key + ']', cb.checked ? '1' : '0');
         });
-        body.append('{{ '_token' }}', '{{ '_token' }}');
+        body.append('_token', '{{ csrf_token() }}');
 
         fetch('{{ url('presensi/notif/prefs/save') }}', {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '{{ '_token' }}',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
             },
             body: body,
         })

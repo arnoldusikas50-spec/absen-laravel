@@ -1,8 +1,8 @@
 <?php
-$page      = uri_string();
-$userRole  = session('role');
-$isWali    = (isset($guru) && isset($guru->id_jabatan) && $guru->id_jabatan == '4');
-$logo_app  = ($setting->logo_kiri ?? null)
+$page = uri_string();
+$userRole = session('role');
+$isWali = (isset($guru) && isset($guru->id_jabatan) && $guru->id_jabatan == '4');
+$logo_app = ($setting->logo_kiri ?? null)
     ? url(ltrim($setting->logo_kiri, '/'))
     : asset('assets/img/favicon.png');
 
@@ -10,7 +10,7 @@ $logo_app  = ($setting->logo_kiri ?? null)
 // function_exists supaya tidak fatal kalau sidebar ter-render dua kali
 // dalam satu request (mis. render ulang lewat FeatureTest, atau halaman
 // yang menyisipkan layout utama di dalam layout lain).
-if (!function_exists('isActive')) {
+if (! function_exists('isActive')) {
     function isActive(string $link, string $current): bool
     {
         $cur = trim(explode('?', $current)[0], '/');
@@ -27,12 +27,13 @@ if (!function_exists('isActive')) {
         if (in_array($lnk, ['admin/presensi', 'presensi', 'admin', 'settings'])) {
             return $cur === $lnk;
         }
-        return str_starts_with('/' . $cur . '/', '/' . $lnk . '/');
+
+        return str_starts_with('/'.$cur.'/', '/'.$lnk.'/');
     }
 }
 
 $currUserId = (int) (session('user_id') ?? 0);
-$hashParam  = $currUserId > 0 ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash($currUserId) : '';
+$hashParam = $currUserId > 0 ? '?h='.\App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash($currUserId) : '';
 
 $menus = [];
 
@@ -43,9 +44,9 @@ if ($userRole == '1') {
             'items' => [
                 ['name' => 'Dashboard',             'link' => 'dashboard',                  'icon' => 'bi-grid-1x2-fill'],
                 ['name' => 'Monitoring Guru',       'link' => 'admin/presensi',             'icon' => 'bi-speedometer2'],
-                ['name' => 'Monitoring Siswa',      'link' => 'admin/presensi/siswa/harian','icon' => 'bi-people-fill'],
+                ['name' => 'Monitoring Siswa',      'link' => 'admin/presensi/siswa/harian', 'icon' => 'bi-people-fill'],
                 ['name' => 'Kalender & Libur',      'link' => 'admin/kalender',             'icon' => 'bi-calendar3'],
-            ]
+            ],
         ],
         [
             'header' => 'PRESENSI & KBM',
@@ -58,17 +59,17 @@ if ($userRole == '1') {
                         ['name' => 'QR Event / Acara',     'link' => 'admin/presensi/qr',          'icon' => 'bi-qr-code-scan'],
                         ['name' => 'Shift Kerja',          'link' => 'admin/presensi/shift',       'icon' => 'bi-clock-history'],
                         ['name' => 'Cetak Kartu QR Guru',  'link' => 'admin/presensi/guru/kartu',  'icon' => 'bi-card-heading'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Presensi Siswa',
                     'icon' => 'bi-people-fill',
                     'sub' => [
-                        ['name' => 'Scanner QR',   'link' => 'scanner','icon' => 'bi-display'],
-                        ['name' => 'Input Presensi Rombel','link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],
-                        ['name' => 'Jadwal BDR (Belajar dari Rumah)','link' => 'admin/bdr',          'icon' => 'bi-house-door'],
+                        ['name' => 'Scanner QR',   'link' => 'scanner', 'icon' => 'bi-display'],
+                        ['name' => 'Input Presensi Rombel', 'link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],
+                        ['name' => 'Jadwal BDR (Belajar dari Rumah)', 'link' => 'admin/bdr',          'icon' => 'bi-house-door'],
                         ['name' => 'Cetak Kartu QR Siswa', 'link' => 'admin/presensi/siswa/kartu', 'icon' => 'bi-card-heading'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Jurnal Mengajar',
@@ -76,7 +77,7 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Monitoring Jurnal',    'link' => 'admin/jurnal',               'icon' => 'bi-journal-text'],
                         ['name' => 'Rekap Jurnal Guru',    'link' => 'admin/jurnal/rekap',         'icon' => 'bi-file-earmark-check'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Piket Guru',
@@ -84,9 +85,9 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Jadwal Petugas Piket', 'link' => 'admin/piket',                'icon' => 'bi-calendar-range'],
                         ['name' => 'Monitoring Piket',     'link' => 'admin/piket/monitoring',     'icon' => 'bi-shield-shaded'],
-                    ]
+                    ],
                 ],
-            ]
+            ],
         ],
         [
             'header' => 'PERSETUJUAN & VERIFIKASI',
@@ -98,7 +99,7 @@ if ($userRole == '1') {
                         ['name' => 'Izin / Cuti',     'link' => 'admin/presensi/izin',    'icon' => 'bi-envelope-paper-fill'],
                         ['name' => 'Dinas Luar',      'link' => 'admin/presensi/dinas',   'icon' => 'bi-briefcase-fill'],
                         ['name' => 'Lembur',          'link' => 'admin/presensi/lembur',  'icon' => 'bi-clock-fill'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Koreksi & Verifikasi',
@@ -107,32 +108,32 @@ if ($userRole == '1') {
                         ['name' => 'Koreksi Absen',   'link' => 'admin/presensi/koreksi', 'icon' => 'bi-pencil-square'],
                         ['name' => 'Verifikasi Hadir', 'link' => 'admin/presensi/verifikasi', 'icon' => 'bi-person-check-fill'],
                         ['name' => 'Pengajuan Wajah', 'link' => 'admin/presensi/wajah',   'icon' => 'bi-camera-fill'],
-                    ]
+                    ],
                 ],
-            ]
+            ],
         ],
         [
             'header' => 'LAPORAN & REKAP',
             'items' => [
                 ['name' => 'Rekap Bulanan Guru', 'link' => 'admin/presensi/rekap',          'icon' => 'bi-file-earmark-spreadsheet-fill'],
-                ['name' => 'Rekap Semester Guru','link' => 'admin/presensi/rekap-semester', 'icon' => 'bi-file-earmark-bar-graph-fill'],
+                ['name' => 'Rekap Semester Guru', 'link' => 'admin/presensi/rekap-semester', 'icon' => 'bi-file-earmark-bar-graph-fill'],
                 ['name' => 'Rekap Denda',        'link' => 'admin/presensi/denda',          'icon' => 'bi-receipt-cutoff'],
-                ['name' => 'Rekap Bulanan Siswa','link' => 'admin/presensi/siswa/rekap',    'icon' => 'bi-file-earmark-spreadsheet'],
-            ]
+                ['name' => 'Rekap Bulanan Siswa', 'link' => 'admin/presensi/siswa/rekap',    'icon' => 'bi-file-earmark-spreadsheet'],
+            ],
         ],
         [
             'header' => 'KINERJA & DISIPLIN',
             'items' => [
                 ['name' => 'Poin & Reward Guru', 'link' => 'admin/reward', 'icon' => 'bi-gift-fill'],
                 ['name' => 'Poin Disiplin Siswa', 'link' => 'admin/poin-siswa', 'icon' => 'bi-exclamation-diamond-fill'],
-            ]
+            ],
         ],
         [
             'header' => 'SURAT & TINDAKAN',
             'items' => [
                 ['name' => 'Surat Teguran Guru',         'link' => 'admin/presensi/surat-teguran',   'icon' => 'bi-envelope-exclamation'],
                 ['name' => 'Surat Panggilan Orang Tua',  'link' => 'admin/presensi/surat-panggilan', 'icon' => 'bi-envelope-open'],
-            ]
+            ],
         ],
         [
             'header' => 'DATA MASTER',
@@ -143,7 +144,7 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Data Guru & GTK',  'link' => 'dataguru',      'icon' => 'bi-person-video3'],
                         ['name' => 'Data Siswa',       'link' => 'datasiswa',     'icon' => 'bi-people-fill'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Data Akademik',
@@ -154,14 +155,14 @@ if ($userRole == '1') {
                         ['name' => 'Kelas / Rombel',   'link' => 'datakelas',      'icon' => 'bi-building'],
                         ['name' => 'Mata Pelajaran',   'link' => 'datamapel',      'icon' => 'bi-book'],
                         ['name' => 'Jadwal Pelajaran', 'link' => 'admin/jadwal',   'icon' => 'bi-calendar-week'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Integrasi Dapodik',
                     'icon' => 'bi-cloud-arrow-down-fill',
                     'link' => 'integrasi/dapodik',
                 ],
-            ]
+            ],
         ],
         [
             'header' => 'PENGATURAN',
@@ -172,7 +173,7 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Pengaturan Aplikasi', 'link' => 'settings',               'icon' => 'bi-gear-fill'],
                         ['name' => 'Lokasi Kantor',       'link' => 'admin/presensi/lokasi',  'icon' => 'bi-geo-alt-fill'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Notifikasi',
@@ -182,14 +183,14 @@ if ($userRole == '1') {
                         ['name' => 'Status Pengiriman',  'link' => 'admin/presensi/notifikasi-status',  'icon' => 'bi-activity'],
                         ['name' => 'Tautan Telegram',    'link' => 'admin/presensi/telegram',           'icon' => 'bi-telegram'],
                         ['name' => 'Tautan WhatsApp',    'link' => 'admin/presensi/whatsapp',           'icon' => 'bi-whatsapp'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Manajemen Pengguna',
                     'icon' => 'bi-person-gear',
                     'link' => 'admin/users',
                 ],
-            ]
+            ],
         ],
     ];
 } elseif ($userRole == '2') {
@@ -199,9 +200,9 @@ if ($userRole == '1') {
             'items' => [
                 ['name' => 'Dashboard',         'link' => 'dashboard',     'icon' => 'bi-grid-1x2-fill'],
                 ['name' => 'Presensi Saya',     'link' => 'guru/absensi',  'icon' => 'bi-calendar-check-fill'],
-                ['name' => 'Kartu QR Saya',     'link' => 'guru/kartu-saya','icon' => 'bi-qr-code'],
+                ['name' => 'Kartu QR Saya',     'link' => 'guru/kartu-saya', 'icon' => 'bi-qr-code'],
                 ['name' => 'Kalender Akademik', 'link' => 'guru/kalender', 'icon' => 'bi-calendar3'],
-            ]
+            ],
         ],
         [
             'header' => 'KBM & JURNAL',
@@ -212,14 +213,14 @@ if ($userRole == '1') {
                     'name' => 'Presensi Siswa',
                     'icon' => 'bi-people-fill',
                     'sub' => [
-                        ['name' => 'Scanner QR Desktop',   'link' => 'scanner','icon' => 'bi-display'],
-                        ['name' => 'Scan QR Siswa',        'link' => 'guru/presensi-siswa' . $hashParam, 'icon' => 'bi-qr-code-scan'],
+                        ['name' => 'Scanner QR Desktop',   'link' => 'scanner', 'icon' => 'bi-display'],
+                        ['name' => 'Scan QR Siswa',        'link' => 'guru/presensi-siswa'.$hashParam, 'icon' => 'bi-qr-code-scan'],
                         ['name' => 'Presensi Harian',      'link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],
                         ['name' => 'Rekap Presensi Siswa', 'link' => 'admin/presensi/siswa/rekap', 'icon' => 'bi-file-earmark-spreadsheet-fill'],
                         ['name' => 'Cetak Kartu QR',       'link' => 'guru/presensi-siswa/kartu',  'icon' => 'bi-card-heading'],
-                    ]
+                    ],
                 ],
-            ]
+            ],
         ],
         [
             'header' => 'PIKET & TUGAS',
@@ -233,7 +234,7 @@ if ($userRole == '1') {
                         ['name' => 'Catatan Kejadian',  'link' => 'guru/piket/kejadian',   'icon' => 'bi-exclamation-triangle'],
                         ['name' => 'Pemantauan Kelas',  'link' => 'guru/piket/absensi',    'icon' => 'bi-eye-fill'],
                         ['name' => 'Laporan Piket',     'link' => 'guru/piket/laporan',    'icon' => 'bi-file-earmark-text-fill'],
-                    ]
+                    ],
                 ],
                 [
                     'name' => 'Pengajuan & Lembur',
@@ -241,11 +242,11 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Pengajuan Lembur',  'link' => 'guru/lembur',   'icon' => 'bi-clock-fill'],
                         ['name' => 'Izin / Cuti Guru',  'link' => 'presensi',      'icon' => 'bi-send-fill'],
-                    ]
+                    ],
                 ],
                 ['name' => 'Poin & Reward',     'link' => 'guru/reward',   'icon' => 'bi-gift-fill'],
                 ['name' => 'Disiplin Siswa',    'link' => 'guru/poin-siswa', 'icon' => 'bi-exclamation-diamond-fill'],
-            ]
+            ],
         ],
     ];
 
@@ -256,7 +257,7 @@ if ($userRole == '1') {
             'items' => [
                 ['name' => 'Monitoring Jurnal', 'link' => 'admin/jurnal',       'icon' => 'bi-journal-text'],
                 ['name' => 'Rekap Jurnal Guru', 'link' => 'admin/jurnal/rekap', 'icon' => 'bi-file-earmark-check'],
-            ]
+            ],
         ];
     }
 } elseif ($userRole == '4') {
@@ -266,13 +267,13 @@ if ($userRole == '1') {
             'items' => [
                 ['name' => 'Dashboard',           'link' => 'dashboard',                  'icon' => 'bi-grid-1x2-fill'],
                 ['name' => 'Presensi Guru',       'link' => 'admin/presensi',             'icon' => 'bi-speedometer2'],
-                ['name' => 'Presensi Siswa',      'link' => 'admin/presensi/siswa/harian','icon' => 'bi-people-fill'],
-                ['name' => 'Jurnal Mengajar Guru','link' => 'admin/jurnal',               'icon' => 'bi-journal-check'],
+                ['name' => 'Presensi Siswa',      'link' => 'admin/presensi/siswa/harian', 'icon' => 'bi-people-fill'],
+                ['name' => 'Jurnal Mengajar Guru', 'link' => 'admin/jurnal',               'icon' => 'bi-journal-check'],
                 ['name' => 'Piket & Tamu',        'link' => 'guru/piket/laporan',      'icon' => 'bi-shield-check'],
                 ['name' => 'Rekap Presensi Guru', 'link' => 'admin/presensi/rekap',       'icon' => 'bi-file-earmark-spreadsheet-fill'],
-                ['name' => 'Rekap Presensi Siswa','link' => 'admin/presensi/siswa/rekap', 'icon' => 'bi-file-earmark-spreadsheet'],
-            ]
-        ]
+                ['name' => 'Rekap Presensi Siswa', 'link' => 'admin/presensi/siswa/rekap', 'icon' => 'bi-file-earmark-spreadsheet'],
+            ],
+        ],
     ];
 } elseif ($userRole == '3') {
     $menus = [
@@ -280,7 +281,7 @@ if ($userRole == '1') {
             'header' => 'UTAMA',
             'items' => [
                 ['name' => 'Presensi Saya', 'link' => 'siswa/presensi', 'icon' => 'bi-calendar-check-fill'],
-            ]
+            ],
         ],
     ];
 }
@@ -291,7 +292,7 @@ if ($userRole == '1') {
 $menuLinks = [];
 foreach ($menus as $group) {
     foreach ($group['items'] as $item) {
-        if (!empty($item['sub'])) {
+        if (! empty($item['sub'])) {
             foreach ($item['sub'] as $s) {
                 $menuLinks[] = trim(explode('?', $s['link'])[0], '/');
             }
@@ -308,9 +309,15 @@ foreach (array_unique($menuLinks) as $lnk) {
 }
 
 $defaultAvatar = asset('assets/img/user.png');
-$avatar        = !empty($user->foto) ? url(ltrim($user->foto, '/')) : $defaultAvatar;
-$userName      = !empty($user->nama_lengkap) ? $user->nama_lengkap : 'User';
-$userRoleName  = session('role_name') ?? 'Admin';
+// Foto user bisa berisi path file yang sudah tidak ada (mis. hasil import
+// lama). Cek keberadaan file agar sidebar tidak/request 404 avatar.
+/** @var string|null $userFoto */
+$userFoto = trim((string) ($user->foto ?? ''));
+$avatar = ($userFoto !== '' && strpos($userFoto, '..') === false && file_exists(public_path().'/'.ltrim($userFoto, '/')))
+    ? url(ltrim($userFoto, '/'))
+    : $defaultAvatar;
+$userName = ! empty($user->nama_lengkap) ? $user->nama_lengkap : 'User';
+$userRoleName = session('role_name') ?? 'Admin';
 
 // Badge notifikasi pending untuk menu verifikasi (khusus admin).
 // Dihitung sekali per request dengan COUNT ringan + guard Schema::hasTable
@@ -337,23 +344,27 @@ if ($userRole == '1') {
             $badgePending['wajah'] = (int) \Illuminate\Support\Facades\DB::table('face_registration_requests')->where('status', 'pending')->count();
         }
     } catch (\Throwable $e) {
-        \Illuminate\Support\Facades\Log::error('[sidebar badge] ' . $e->getMessage());
+        \Illuminate\Support\Facades\Log::error('[sidebar badge] '.$e->getMessage());
     }
 }
 $badgeByLink = [
-    'admin/presensi/izin'    => $badgePending['izin'],
-    'admin/presensi/dinas'   => $badgePending['dinas'],
-    'admin/presensi/lembur'  => $badgePending['lembur'],
+    'admin/presensi/izin' => $badgePending['izin'],
+    'admin/presensi/dinas' => $badgePending['dinas'],
+    'admin/presensi/lembur' => $badgePending['lembur'],
     'admin/presensi/koreksi' => $badgePending['koreksi'],
     'admin/presensi/verifikasi' => $badgePending['verifikasi'],
-    'admin/presensi/wajah'   => $badgePending['wajah'],
+    'admin/presensi/wajah' => $badgePending['wajah'],
 ];
-if (!function_exists('sidebarBadge')) {
-    function sidebarBadge($count): string {
+if (! function_exists('sidebarBadge')) {
+    function sidebarBadge($count): string
+    {
         $count = (int) $count;
-        if ($count <= 0) return '';
+        if ($count <= 0) {
+            return '';
+        }
         $label = $count > 99 ? '99+' : (string) $count;
-        return '<span class="sidebar-label inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shrink-0">' . $label . '</span>';
+
+        return '<span class="sidebar-label inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shrink-0">'.$label.'</span>';
     }
 }
 ?>
@@ -376,19 +387,21 @@ if (!function_exists('sidebarBadge')) {
 
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-        <?php foreach ($menus as $group): ?>
+        <?php foreach ($menus as $group) { ?>
         <div>
             <p class="sidebar-label px-2 mb-1.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500 select-none">
                 {{ $group['header'] }}
             </p>
             <ul class="space-y-0.5">
-                <?php foreach ($group['items'] as $item): ?>
-                <?php if (!empty($item['sub'])): ?>
+                <?php foreach ($group['items'] as $item) { ?>
+                <?php if (! empty($item['sub'])) { ?>
                     <?php
                     $anyActive = false;
                     $subBadgeTotal = 0;
                     foreach ($item['sub'] as $s) {
-                        if (trim(explode('?', $s['link'])[0], '/') === $activeLink) { $anyActive = true; }
+                        if (trim(explode('?', $s['link'])[0], '/') === $activeLink) {
+                            $anyActive = true;
+                        }
                         $subBadgeTotal += (int) ($badgeByLink[trim($s['link'], '/')] ?? 0);
                     }
                     ?>
@@ -398,36 +411,36 @@ if (!function_exists('sidebarBadge')) {
                                    font-medium transition-all duration-150 select-none
                                    {{ $anyActive
                                        ? 'bg-white/10 text-white'
-                                       : 'text-slate-400 hover:bg-white/8 hover:text-white' }}">
+                                       : 'text-slate-400 hover:text-white hover:bg-white/8' }}">
                             <i class="bi {{ $item['icon'] }} text-base shrink-0 w-4 text-center
                                          {{ $anyActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300' }}"></i>
                             <span class="sidebar-label flex-1 text-left truncate">{{ $item['name'] }}</span>
-                            {{ sidebarBadge($subBadgeTotal) }}
+                            {!! sidebarBadge($subBadgeTotal) !!}
                             <i class="bi bi-chevron-right treeview-arrow sidebar-label text-[10px] shrink-0
                                       text-slate-600 transition-transform duration-200
                                       {{ $anyActive ? 'rotate-90 text-blue-400' : '' }}"></i>
                         </button>
                         <div class="sidebar-submenu overflow-hidden {{ $anyActive ? '' : 'hidden' }}">
                             <ul class="mt-0.5 ml-3 pl-3.5 border-l border-white/10 space-y-0.5 py-1">
-                                <?php foreach ($item['sub'] as $s):
+                                <?php foreach ($item['sub'] as $s) {
                                     $active = trim(explode('?', $s['link'])[0], '/') === $activeLink; ?>
                                 <li>
                                     <a href="{{ url($s['link']) }}"
                                        class="{{ $active ? 'active-link bg-blue-500/20 text-blue-300 font-semibold shadow-xs' : 'text-slate-400 hover:text-white hover:bg-white/8' }} group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150">
-                                        <?php if ($active): ?>
+                                        <?php if ($active) { ?>
                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] shrink-0"></span>
-                                        <?php else: ?>
+                                        <?php } else { ?>
                                         <span class="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-slate-400 shrink-0 transition-colors"></span>
-                                        <?php endif; ?>
+                                        <?php } ?>
                                         <span class="sidebar-label flex-1 truncate">{{ $s['name'] }}</span>
-                                        {{ sidebarBadge($badgeByLink[trim($s['link'], '/')] ?? 0) }}
+                                        {!! sidebarBadge($badgeByLink[trim($s['link'], '/')] ?? 0) !!}
                                     </a>
                                 </li>
-                                <?php endforeach; ?>
+                                <?php } ?>
                             </ul>
                         </div>
                     </li>
-                <?php else:
+                <?php } else {
                     $active = trim(explode('?', $item['link'])[0], '/') === $activeLink; ?>
                     <li>
                         <a href="{{ url($item['link']) }}"
@@ -435,20 +448,20 @@ if (!function_exists('sidebarBadge')) {
                                   transition-all duration-150 relative
                                   {{ $active
                                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
-                                      : 'text-slate-400 hover:bg-white/8 hover:text-white' }}">
-                            <?php if ($active): ?>
+                                      : 'text-slate-400 hover:text-white hover:bg-white/8' }}">
+                            <?php if ($active) { ?>
                             <span class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-300 rounded-r-full"></span>
-                            <?php endif; ?>
+                            <?php } ?>
                             <i class="bi {{ $item['icon'] }} text-base shrink-0 w-4 text-center
                                          {{ $active ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}"></i>
                             <span class="sidebar-label truncate">{{ $item['name'] }}</span>
                         </a>
                     </li>
-                <?php endif; ?>
-                <?php endforeach; ?>
+                <?php } ?>
+                <?php } ?>
             </ul>
         </div>
-        <?php endforeach; ?>
+        <?php } ?>
     </nav>
 
     <!-- User Footer -->

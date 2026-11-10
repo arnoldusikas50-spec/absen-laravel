@@ -805,7 +805,7 @@ $(document).ready(function () {
         formData.set(CSRF_NAME, CSRF_HASH);
         spinBtn($btn, true);
         $.ajax({
-            url: '{{ url('dataguru/uploadFile/') }}' + idGuru,
+            url: '{{ route('dataguru.uploadFile.upload_file', ['id' => '__ID__']) }}'.replace('__ID__', idGuru),
             type: 'POST',
             data: formData,
             processData: false,
@@ -838,7 +838,7 @@ $(document).ready(function () {
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: '{{ url('dataguru/delete_foto/') }}' + idGuru,
+                    url: '{{ route('dataguru.delete_foto', ['id' => '__ID__']) }}'.replace('__ID__', idGuru),
                     type: 'POST',
                     data: csrf(),
                     dataType: 'json',

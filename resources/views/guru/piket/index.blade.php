@@ -46,7 +46,7 @@
     }
 
     .card-tamu {
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        background: linear-gradient(135deg, var(--accent-500) 0%, var(--accent-600) 100%);
         color: white;
     }
 
@@ -96,7 +96,7 @@
     }
 
     .sc-tamu:hover .icon-wrapper {
-        background: #6366f1;
+        background: var(--accent-500);
         color: white !important;
     }
 

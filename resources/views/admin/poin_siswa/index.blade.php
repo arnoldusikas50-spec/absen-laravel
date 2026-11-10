@@ -462,7 +462,7 @@ $(document).ready(function () {
         $('#hist-list').html('<p class="text-center text-slate-400 text-xs py-6">Memuat...</p>');
         $('#modalHistory').appModal('show');
         $.ajax({
-            url: '{{ url('admin/poin-siswa/history/') }}' + idSiswa, type: 'GET', dataType: 'json',
+            url: '{{ route('admin.poin-siswa.history.get_history', ['id' => '__ID__']) }}'.replace('__ID__', idSiswa), type: 'GET', dataType: 'json',
             success: (res) => {
                 if (!(res && res.status)) { $('#hist-list').html('<p class="text-center text-red-500 text-xs py-6">Gagal memuat.</p>'); return; }
                 $('#hist-skor').text(res.data.skor ?? 100);

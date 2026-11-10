@@ -58,6 +58,10 @@ class DataguruController extends BaseController
         $smt = DB::table('master_smt')->where('active', 1)->first();
         $mode = $this->request->query('mode') ?? '1';
 
+        if (! $tp || ! $smt) {
+            return redirect()->to('datatahun')->with('error', 'Tahun Pelajaran atau Semester aktif belum ditentukan. Silakan atur terlebih dahulu.');
+        }
+
         // Prepare data kelas [id => nama]
         $rawKelass = $this->masterModel->getAllKelas($tp->id_tp, $smt->id_smt);
         $kelass = [];
@@ -1798,7 +1802,7 @@ class DataguruController extends BaseController
         if ($src === null || $src === '') {
             return null;
         }
-        $rel = ltrim(str_replace(url(), '', $src), '/');
+        $rel = ltrim(str_replace(url('/'), '', $src), '/');
         // Tolak URL absolut luar, traversal, dan file di luar uploads/
         if (preg_match('#^https?://#i', $rel)) {
             return null;

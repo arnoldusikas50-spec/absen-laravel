@@ -28,8 +28,8 @@
 
     .sort-btn { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 0.25rem; }
     .sort-btn .sort-icon { opacity: 0.35; font-size: 10px; }
-    .sort-btn:hover { color: #2563eb; }
-    .sort-btn.active { color: #2563eb; }
+    .sort-btn:hover { color: var(--primary-600); }
+    .sort-btn.active { color: var(--primary-600); }
     .sort-btn.active .sort-icon { opacity: 1; }
 
     .teacher-row { transition: background 0.1s; }
@@ -712,7 +712,7 @@ $fotoUrl = function ($path) {
                             elseif ($filterCategory === 'IZIN_SAKIT') $dotClass = 'bg-sky-500';
                             elseif ($filterCategory === 'ALPHA' || $filterCategory === 'DITOLAK') $dotClass = 'bg-rose-500';
 
-                            $userAvatar = \App\Services\AvatarService::tampilan($guruRow->foto ?? '', $guruRow->nama_guru ?? '', '#3b82f6');
+                            $userAvatar = \App\Services\AvatarService::tampilan($guruRow->foto ?? '', $guruRow->nama_guru ?? '', \App\Libraries\Theme::metaColor('primary'));
                             $avatarFallback = \App\Services\AvatarService::cadangan();
 
                             $detailData = [
@@ -1626,7 +1626,7 @@ $fotoUrl = function ($path) {
         window.recalculateDayStatus = function () {
             var url = @json(url('admin/presensi/recalculate-day'));
             var payload = new URLSearchParams({
-                '{{ '_token' }}': '{{ '_token' }}',
+                '_token': '{{ csrf_token() }}',
                 'date': MON_DATE
             });
 
@@ -1647,7 +1647,7 @@ $fotoUrl = function ($path) {
                 html: 'Sistem akan mengevaluasi ulang status kehadiran serta denda seluruh guru pada <strong>{{ date('d/m/Y', strtotime($date)) }}</strong> sesuai toleransi dan jadwal aktif.',
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#3b82f6',
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: '<i class="bi bi-arrow-repeat mr-1"></i> Ya, Hitung Ulang',
                 cancelButtonText: 'Batal'

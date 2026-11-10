@@ -8,12 +8,16 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <?php
+    $theme = $theme ?? \App\Libraries\Theme::current();
+    ?>
+    <meta name="theme-color" content="{{ $theme['primary']['600'] ?? '#e11d48' }}">
     <title>{{ $judul ?? 'Dashboard' }} | {{ $setting->nama_sekolah ?? 'Presensi & KBM' }}</title>
 
     <?php
-    $setting = $setting ?? new \stdClass();
+    $setting = $setting ?? new \stdClass;
     $setting->logo_kiri = $setting->logo_kiri ?? null;
-    $logo_app = ($setting->logo_kiri == null) ? asset('assets/img/favicon.png') : url('' . $setting->logo_kiri);
+    $logo_app = ($setting->logo_kiri == null) ? asset('assets/img/favicon.png') : url(''.$setting->logo_kiri);
     ?>
     <link rel="shortcut icon" href="{{ $logo_app }}" type="image/x-icon">
 
@@ -23,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 
     <!-- Tailwind CSS (build lokal — npm run build) -->
     <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
@@ -79,17 +83,23 @@
         #main-sidebar.collapsed li a,
         #main-sidebar.collapsed li button { justify-content: center; padding-left: 0; padding-right: 0; }
         #main-sidebar.collapsed .sidebar-submenu { display: none !important; }
-        /* Sidebar bg gradient */
+        /* Sidebar bg gradient — SELALU gelap, tidak mengikuti preset tema */
         #main-sidebar {
-            background: linear-gradient(160deg, #0f1729 0%, #111827 50%, #0c1322 100%);
+            background: linear-gradient(160deg, #1e293b 0%, #0f172a 55%, #0c1322 100%) !important;
+        }
+        /* Pastikan tidak ada konten theme yang menimpa warna sidebar */
+        #main-sidebar,
+        #main-sidebar * {
+            --surface-inverse: #0f172a;
+            --surface-inverse-hover: #1e293b;
         }
         #main-content  { transition: margin-left 0.3s ease; }
 
-        /* Scrollbar slim */
+        /* Scrollbar slim — ikuti tema */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        ::-webkit-scrollbar-track { background: var(--surface-muted); }
+        ::-webkit-scrollbar-thumb { background: var(--border-muted); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         /* Print page */
         page { background: white; display: block; margin: 0 auto; margin-bottom: 0.5cm; }
@@ -241,8 +251,8 @@
     <script>
         let base_url = '{{ rtrim(url('/') . '/', '/') }}/';
         let globalToken;
-        let CSRF_NAME = '{{ '_token' }}';
-        let CSRF_HASH = '{{ '_token' }}';
+        let CSRF_NAME = '_token';
+        let CSRF_HASH = '{{ csrf_token() }}';
 
         let tp_active  = '{{ isset($tp_active)  ? $tp_active->tahun  : "" }}';
         let smt_active = '{{ isset($smt_active) ? $smt_active->smt   : "" }}';
@@ -279,7 +289,7 @@
 
         function ajaxcsrf() {
             var csrf = {};
-            csrf['{{ '_token' }}'] = '{{ '_token' }}';
+            csrf['{{ '_token' }}'] = '{{ csrf_token() }}';
             $.ajaxSetup({ "data": csrf });
         }
 
@@ -308,7 +318,7 @@
     {!! \App\Libraries\Theme::styleTag() !!}
 </head>
 
-<body class="bg-[#f4f6fb] font-sans text-slate-800 h-full antialiased" onload="startTime()">
+<body class="bg-surface-muted font-sans text-text-primary h-full antialiased" onload="startTime()">
 
     <!-- Sidebar overlay (mobile) -->
     <div id="sidebar-overlay"
@@ -328,8 +338,8 @@
         <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
 
             <!-- Topbar -->
-            <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md
-                           border-b border-slate-200/80 shadow-sm shadow-slate-200/50 shrink-0">
+            <header class="sticky top-0 z-20 bg-surface/95 backdrop-blur-md
+                           border-b border-border/80 shadow-sm shadow-surface/50 shrink-0">
                 @include('partials.navbar')
             </header>
 
@@ -339,8 +349,8 @@
             </main>
 
             <!-- Footer -->
-            <footer class="shrink-0 bg-white border-t border-slate-200 px-6 py-2.5
-                           flex items-center justify-between text-xs text-slate-400">
+            <footer class="shrink-0 bg-surface border-t border-border/80 px-6 py-2.5
+                           flex items-center justify-between text-xs text-text-secondary">
                 <div class="flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span><strong class="font-semibold text-slate-600">Absen Online</strong>
@@ -728,12 +738,12 @@
             });
 
             // Flash messages
-            <?php if (session('success')): ?>
+            <?php if (session('success')) { ?>
                 showSuccessToast('{{ addslashes(session('success')) }}');
-            <?php endif; ?>
-            <?php if (session('error')): ?>
+            <?php } ?>
+            <?php if (session('error')) { ?>
                 showDangerToast('{{ addslashes(session('error')) }}');
-            <?php endif; ?>
+            <?php } ?>
         });
     </script>
 

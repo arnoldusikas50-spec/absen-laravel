@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.catatTamuKeluar = async function(id) {
         const formData = new FormData();
         formData.append('id', id);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/tamu_keluar', {
@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('id', id);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/delete_tamu', {

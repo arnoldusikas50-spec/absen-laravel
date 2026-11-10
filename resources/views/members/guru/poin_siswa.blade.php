@@ -141,7 +141,7 @@ document.getElementById('form-catat').addEventListener('submit', function (e) {
     const btn = document.getElementById('btn-catat');
     btn.disabled = true;
     const fd = new FormData(this);
-    fd.append('{{ '_token' }}', '{{ '_token' }}');
+    fd.append('_token', '{{ csrf_token() }}');
     fetch('{{ url('guru/poin-siswa/record') }}', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {

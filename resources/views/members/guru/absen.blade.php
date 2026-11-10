@@ -79,7 +79,7 @@
     const settingFotoWajib = {{ isset($setting) && $setting->foto_wajib ? 'true' : 'false' }};
     const radiusMeter = {{ $setting->radius_meter ?? 100 }};
     const csrfTokenName = '{{ '_token' }}';
-    let csrfTokenValue = '{{ '_token' }}';
+    let csrfTokenValue = '{{ csrf_token() }}';
 
     let currentAction = null; // 'checkin' or 'checkout'
     let fotoBase64 = '';

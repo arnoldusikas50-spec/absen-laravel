@@ -532,7 +532,7 @@
                             icon: 'warning',
                             title: 'Akses Ditolak',
                             text: '{{ addslashes($flashError) }}',
-                            confirmButtonColor: '#e11d48',
+                            confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                             confirmButtonText: 'Mengerti'
                         });
                     } else {

@@ -78,7 +78,7 @@
     }
     .mon-tile-link:hover { background: #f8fafc; }
     .mon-tile-link:active { background: #eef2ff; }
-    .mon-tile-link:focus-visible { outline: 2px solid #6366f1; outline-offset: -2px; }
+    .mon-tile-link:focus-visible { outline: 2px solid var(--accent-500); outline-offset: -2px; }
 
     @media (prefers-reduced-motion: reduce) {
         .chev, .report-class-card, .date-nav-chip, .mon-tile-link { transition: none; }
@@ -985,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const fd = new FormData();
         fd.append('tanggal', '{{ $tanggal }}');
         fd.append('id_siswa', idSiswa);
-        fd.append('{{ '_token' }}', '{{ '_token' }}');
+        fd.append('_token', '{{ csrf_token() }}');
         try {
             const res = await fetch(BASE + 'guru/piket/selaras_divergensi', {
                 method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -1110,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const formData = new FormData();
             formData.append('tanggal', '{{ $tanggal }}');
-            const csrfInput = document.querySelector('#filterToolbarForm input[name="{{ '_token' }}"]');
+            const csrfInput = document.querySelector('#filterToolbarForm input[name="_token"]');
             if (csrfInput) formData.append(csrfInput.name, csrfInput.value);
 
             try {
@@ -1155,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('tanggal', '{{ $tanggal }}');
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/laporan/autofill', {

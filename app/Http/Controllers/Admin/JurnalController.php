@@ -108,8 +108,9 @@ class JurnalController extends BaseController
         $guruHadirMap = [];
         $guruHadirList = [];
         foreach ($presensiRows as $ph) {
-            $gid = (int) $ph->id_guru;
-            $guruHadirMap[$ph->tgl.'|'.$gid] = $ph;
+            $gid = (int) ($ph->id_guru ?? 0);
+            $tgl = (string) ($ph->tgl ?? '');
+            $guruHadirMap[$tgl.'|'.$gid] = $ph;
 
             if (! $modeBulanan && $this->hasCheckIn($ph) && $gid > 0 && ! isset($guruHadirList[$gid])) {
                 $guruHadirList[$gid] = $ph;

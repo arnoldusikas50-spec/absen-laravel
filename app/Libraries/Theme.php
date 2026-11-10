@@ -15,6 +15,11 @@ class Theme
     public const DEFAULT_PRESET = 'default';
 
     /**
+     * Geseran hue (derajat) untuk aksen tema kustom.
+     */
+    public const CUSTOM_ACCENT_HUE_SHIFT = 32.0;
+
+    /**
      * Palet dasar Tailwind (50-900). Source: tailwindcss.com/docs/colors.
      */
     protected static array $palettes = [
@@ -26,19 +31,27 @@ class Theme
         'orange' => ['50' => '#fff7ed', '100' => '#ffedd5', '200' => '#fed7aa', '300' => '#fdba74', '400' => '#fb923c', '500' => '#f97316', '600' => '#ea580c', '700' => '#c2410c', '800' => '#9a3412', '900' => '#7c2d12'],
         'indigo' => ['50' => '#eef2ff', '100' => '#e0e7ff', '200' => '#c7d2fe', '300' => '#a5b4fc', '400' => '#818cf8', '500' => '#6366f1', '600' => '#4f46e5', '700' => '#4338ca', '800' => '#3730a3', '900' => '#312e81'],
         'purple' => ['50' => '#faf5ff', '100' => '#f3e8ff', '200' => '#e9d5ff', '300' => '#d8b4fe', '400' => '#c084fc', '500' => '#a855f7', '600' => '#9333ea', '700' => '#7e22ce', '800' => '#6b21a8', '900' => '#581c87'],
+        'fuchsia' => ['50' => '#fdf4ff', '100' => '#fae8ff', '200' => '#f5d0fe', '300' => '#f0abfc', '400' => '#e879f9', '500' => '#d946ef', '600' => '#c026d3', '700' => '#a21caf', '800' => '#86198f', '900' => '#701a75'],
+        'teal' => ['50' => '#f0fdfa', '100' => '#ccfbf1', '200' => '#99f6e4', '300' => '#5eead4', '400' => '#2dd4bf', '500' => '#14b8a6', '600' => '#0d9488', '700' => '#0f766e', '800' => '#115e59', '900' => '#134e4a'],
+        'pink' => ['50' => '#fdf2f8', '100' => '#fce7f3', '200' => '#fbcfe8', '300' => '#f9a8d4', '400' => '#f472b6', '500' => '#ec4899', '600' => '#db2777', '700' => '#be185d', '800' => '#9d174d', '900' => '#831843'],
+        'cyan' => ['50' => '#ecfeff', '100' => '#cffafe', '200' => '#a5f3fc', '300' => '#67e8f9', '400' => '#22d3ee', '500' => '#06b6d4', '600' => '#0891b2', '700' => '#0e7490', '800' => '#155e75', '900' => '#164e63'],
     ];
 
     /**
      * Definisi preset: [label, desc, primary, accent].
      */
+    /**
+     * Setiap preset memasangkan dua hue bertetangga (jarak <= 60 derajat) agar
+     * gradien primary -> accent tetap mulus dan tidak keruh di tengah.
+     */
     protected static array $presets = [
-        'default' => ['label' => 'Standar (Rose + Indigo)', 'desc' => 'Hangat dan profesional, cocok untuk penggunaan harian.', 'primary' => 'rose', 'accent' => 'indigo'],
-        'ocean' => ['label' => 'Samudra (Sky + Blue)', 'desc' => 'Nuansa biru yang segar dan menenangkan.', 'primary' => 'sky', 'accent' => 'blue'],
-        'emerald' => ['label' => 'Zamrud (Emerald + Sky)', 'desc' => 'Hijau natural yang segar dan ramah mata.', 'primary' => 'emerald', 'accent' => 'sky'],
-        'royal' => ['label' => 'Kerajaan (Violet + Purple)', 'desc' => 'Ungu elegan untuk tampilan yang berwibawa.', 'primary' => 'violet', 'accent' => 'purple'],
-        'sunset' => ['label' => 'Senja (Orange + Rose)', 'desc' => 'Oranye hangat yang energik dan bersemangat.', 'primary' => 'orange', 'accent' => 'rose'],
-        'rose' => ['label' => 'Merah Muda (Rose + Violet)', 'desc' => 'Merah muda lembut dengan aksen ungu modern.', 'primary' => 'rose', 'accent' => 'violet'],
-        'custom' => ['label' => 'Kustom (warna manual)', 'desc' => 'Pilih warna dasar sendiri; palet dibuat otomatis.', 'primary' => 'rose', 'accent' => 'indigo'],
+        'default' => ['label' => 'Standar (Rose + Fuchsia)', 'desc' => 'Merah muda ke magenta; hangat, modern, dan profesional.', 'primary' => 'rose', 'accent' => 'fuchsia'],
+        'ocean' => ['label' => 'Samudra (Sky + Indigo)', 'desc' => 'Biru terang ke indigo; segar dan menenangkan.', 'primary' => 'sky', 'accent' => 'indigo'],
+        'emerald' => ['label' => 'Zamrud (Emerald + Cyan)', 'desc' => 'Hijau ke aqua; natural dan ramah mata.', 'primary' => 'emerald', 'accent' => 'cyan'],
+        'royal' => ['label' => 'Kerajaan (Violet + Blue)', 'desc' => 'Ungu ke biru; elegan dan berwibawa.', 'primary' => 'violet', 'accent' => 'blue'],
+        'sunset' => ['label' => 'Senja (Orange + Rose)', 'desc' => 'Oranye hangat ke merah muda; energik dan bersemangat.', 'primary' => 'orange', 'accent' => 'rose'],
+        'rose' => ['label' => 'Merah Muda (Pink + Violet)', 'desc' => 'Merah muda lembut ke ungu; gradien blush yang modern.', 'primary' => 'pink', 'accent' => 'violet'],
+        'custom' => ['label' => 'Kustom (warna manual)', 'desc' => 'Pilih warna dasar sendiri; palet dan gradien dibuat otomatis.', 'primary' => 'rose', 'accent' => 'fuchsia'],
     ];
 
     protected static ?array $cache = null;
@@ -155,12 +168,17 @@ class Theme
             if ($customHex !== null) {
                 $palette = self::paletteFromHex($customHex);
                 if ($palette !== null) {
+                    // Aksen digeser hue-nya agar gradien primary -> accent tetap
+                    // dua nada (bukan warna kembar yang terlihat datar).
+                    $accent = self::paletteFromHex(self::shiftHue($customHex, self::CUSTOM_ACCENT_HUE_SHIFT))
+                        ?? $palette;
+
                     return [
                         'preset' => 'custom',
                         'label' => $def['label'],
                         'custom' => $customHex,
                         'primary' => $palette,
-                        'accent' => $palette,
+                        'accent' => $accent,
                     ];
                 }
             }
@@ -176,12 +194,58 @@ class Theme
     }
 
     /**
+     * Warna semantik untuk UI. Diambil dari shade palet primary/accent agar
+     * konsisten dengan tema yang dipilih (bukan hardcoded).
+     */
+    protected static function semanticColors(array $theme): array
+    {
+        $p = $theme['primary'];
+        $a = $theme['accent'];
+
+        return [
+            // ── Background / surface ──
+            'surface' => '#ffffff',
+            'surface-hover' => $p['50'],
+            'surface-muted' => '#f8fafc',
+            'surface-inverse' => '#0f172a',
+            'surface-inverse-hover' => '#1e293b',
+
+            // ── Border ──
+            'border' => '#e2e8f0',
+            'border-focus' => $p['500'],
+            'border-muted' => '#cbd5e1',
+
+            // ── Text ──
+            'text-primary' => '#0f1729',
+            'text-secondary' => '#475569',
+            'text-muted' => '#94a3b8',
+            'text-inverse' => '#ffffff',
+            'text-success' => $p['700'] ?? '#047857',
+            'text-warning' => $a['700'] ?? '#c2410c',
+            'text-error' => '#dc2626',
+            'text-info' => $p['700'] ?? '#1d4ed8',
+
+            // ── Interactive ──
+            'primary' => $p['600'],
+            'primary-hover' => $p['700'],
+            'primary-active' => $p['800'],
+            'primary-subtle' => $p['50'],
+            'accent' => $a['600'],
+            'accent-hover' => $a['700'],
+            'accent-active' => $a['800'],
+            'accent-subtle' => $a['50'],
+        ];
+    }
+
+    /**
      * CSS variables (:root) untuk dipakai di layout.
      *
      * Menghasilkan keluarga --primary-*, --accent-*, --indigo-*, --purple-*
      * (plus varian -rgb untuk utility Tailwind) agar nilainya sama dengan
      * pratinjau tema di halaman pengaturan, serta alias --theme-primary-* dan
-     * --theme-accent-* untuk kompatibilitas.
+     * --theme-accent-* untuk kompatibilitas. Ditambahkan variabel semantik
+     * (--surface-*, --border-*, --text-*, --primary-*, --accent-*) agar layout
+     * dapat mengikuti tema yang dipilih tanpa hardcoded warna.
      */
     public static function cssVars(?array $theme = null): string
     {
@@ -204,6 +268,13 @@ class Theme
                     $out[] = "--theme-{$role}-{$shade}: {$hex};";
                 }
             }
+        }
+
+        // ── Variabel semantik untuk UI layout ──
+        $semantic = self::semanticColors($theme);
+        foreach ($semantic as $name => $hex) {
+            $out[] = "--{$name}: {$hex};";
+            $out[] = '--'.$name.'-rgb: '.implode(' ', self::hexToRgb($hex)).';';
         }
 
         return implode(' ', $out);
@@ -304,6 +375,7 @@ class Theme
             'primary' => $theme['primary'],
             'accent' => $theme['accent'],
             'presets' => self::clientPresets(),
+            'semantic' => self::semanticColors($theme),
         ];
     }
 
@@ -335,6 +407,13 @@ class Theme
             $primary = self::$palettes[$def['primary']];
             $accent = self::$palettes[$def['accent']];
 
+            // Variabel semantik agar pratinjau klien identik dengan CSS server.
+            $semantic = self::semanticColors([
+                'preset' => $key,
+                'primary' => $primary,
+                'accent' => $accent,
+            ]);
+
             $out[$key] = [
                 'brand' => $primary,
                 'primary' => $primary,
@@ -343,6 +422,7 @@ class Theme
                 'purple' => self::$palettes['purple'],
                 'secondary' => $primary['400'],
                 'tertiary' => $primary['700'],
+                'semantic' => $semantic,
             ];
         }
 
@@ -370,21 +450,52 @@ class Theme
         [$r, $g, $b] = self::hexToRgb($hex);
         [$h, $s, $l] = self::rgbToHsl($r, $g, $b);
 
-        $shades = [
-            '50' => 0.97, '100' => 0.94, '200' => 0.88, '300' => 0.78, '400' => 0.65,
-            '500' => 0.50, '600' => 0.40, '700' => 0.32, '800' => 0.25, '900' => 0.19,
+        // Ramp dibangun relatif terhadap lightness warna asli (500) supaya
+        // langkah antar-shade tetap merata dan gradasinya halus, bukan
+        // melompat ke lightness absolut yang membuat palet terlihat berat.
+        $lightest = 0.97;
+        $darkest = 0.06;
+        $towardLight = ['50' => 0.94, '100' => 0.80, '200' => 0.60, '300' => 0.35, '400' => 0.15];
+        $towardDark = ['600' => 0.14, '700' => 0.26, '800' => 0.42, '900' => 0.55];
+
+        // Saturasi ditahan di shade terang, lalu diredupkan bertahap di shade
+        // gelap (pola palet Tailwind) agar tidak terlalu menyala.
+        $saturation = [
+            '50' => 0.98, '100' => 1.0, '200' => 1.0, '300' => 1.0, '400' => 1.0,
+            '500' => 1.0, '600' => 0.97, '700' => 0.90, '800' => 0.82, '900' => 0.74,
         ];
 
         $out = [];
-        foreach ($shades as $shade => $targetL) {
-            // Pertahankan saturasi dasar, geser lightness ke target.
-            $out[$shade] = self::hslToHex($h, $s, $targetL);
+        foreach ($towardLight as $shade => $ratio) {
+            $out[$shade] = self::hslToHex($h, min(1.0, $s * $saturation[$shade]), $l + ($lightest - $l) * $ratio);
         }
 
         // Shade 500 sedekat mungkin dengan warna asli.
         $out['500'] = $hex;
 
+        foreach ($towardDark as $shade => $ratio) {
+            $out[$shade] = self::hslToHex($h, min(1.0, $s * $saturation[$shade]), $l - ($l - $darkest) * $ratio);
+        }
+
+        ksort($out, SORT_NUMERIC);
+
         return $out;
+    }
+
+    /**
+     * Geser hue sebuah warna (derajat) tanpa mengubah saturasi/lightness.
+     */
+    public static function shiftHue(string $hex, float $degrees): string
+    {
+        [$r, $g, $b] = self::hexToRgb($hex);
+        [$h, $s, $l] = self::rgbToHsl($r, $g, $b);
+
+        $h = fmod($h + $degrees / 360, 1.0);
+        if ($h < 0) {
+            $h += 1.0;
+        }
+
+        return self::hslToHex($h, $s, $l);
     }
 
     /**

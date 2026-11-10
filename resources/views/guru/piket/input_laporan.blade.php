@@ -11,7 +11,7 @@
         transition: all 0.2s;
         cursor: pointer;
     }
-    .status-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+    .status-select:focus { border-color: var(--accent-500); box-shadow: 0 0 0 3px rgb(var(--accent-500-rgb) / 0.1); }
     .status-H { background-color: #ecfdf5; color: #059669; border-color: #10b981 !important; }
     .status-S { background-color: var(--primary-50); color: var(--primary-600); border-color: var(--primary-500) !important; }
     .status-I { background-color: #fffbeb; color: #d97706; border-color: #f59e0b !important; }
@@ -151,7 +151,7 @@ function saveAttendance(el, idKelas, jamKe, idMapel, idGuru) {
     formData.append('id_guru', idGuru);
     formData.append('status', status);
     formData.append('keterangan', keterangan);
-    formData.append('{{ '_token' }}', '{{ '_token' }}');
+    formData.append('_token', '{{ csrf_token() }}');
 
     fetch('{{ url('guru/piket/save_laporan_guru') }}', {
         method: 'POST',

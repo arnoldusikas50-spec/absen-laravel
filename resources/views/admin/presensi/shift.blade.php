@@ -186,7 +186,7 @@
 
 @section('scripts')
 <script>
-    const csrfPair = () => ({ ['{{ '_token' }}']: '{{ '_token' }}' });
+    const csrfPair = () => ({ '_token': '{{ csrf_token() }}' });
 
     // ── Buka modal tambah / ubah (delegated) ──
     $(document).on('click', '.btn-add-shift', function () { openShiftModal(); });
@@ -236,7 +236,7 @@
         $btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menyimpan...');
 
         $.post('{{ url('admin/presensi/shift/save') }}',
-            $('#formShift').serialize() + '&{{ '_token' }}={{ '_token' }}',
+            $('#formShift').serialize() + '&_token={{ csrf_token() }}',
             function(res) {
                 if (res.status) {
                     Swal.fire({ icon: 'success', title: 'Tersimpan!', text: res.message, timer: 1000, showConfirmButton: false });
@@ -299,7 +299,7 @@
         $btn.prop('disabled', true).html('<span class="spinner-tw spinner-tw-dark mr-1"></span> Menyimpan...');
 
         $.post('{{ url('admin/presensi/shift/assign') }}',
-            $form.serialize() + '&shift_id=' + shiftId + '&{{ '_token' }}={{ '_token' }}',
+            $form.serialize() + '&shift_id=' + shiftId + '&_token={{ csrf_token() }}',
             function(res) {
                 if (res.status) location.reload();
                 else {

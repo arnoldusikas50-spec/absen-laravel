@@ -163,7 +163,7 @@
             customClass: { confirmButton: 'btn-tw btn-danger rounded-pill px-4', cancelButton: 'btn-tw btn-light rounded-pill px-4' }
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post('{{ url('guru/piket/delete_tamu') }}', { id: id, {{ '_token' }}: '{{ '_token' }}' }, function (res) {
+                $.post('{{ url('guru/piket/delete_tamu') }}', { id: id, '_token': '{{ csrf_token() }}' }, function (res) {
                     if (res.status) {
                         Swal.fire('Terhapus!', res.message, 'success').then(() => location.reload());
                     }

@@ -796,7 +796,7 @@
 
     .s-qr-hint {
         font-size: 0.7rem;
-        color: #4f46e5;
+        color: var(--accent-600);
         font-weight: 600;
         margin-top: 0.4rem;
         text-align: center;
@@ -949,12 +949,12 @@ $todayJamKeluar = ($today && !empty($today->jam_keluar)) ? substr($today->jam_ke
             <div class="s-mini-box box-masuk">
                 <span class="box-title"><i class="bi bi-arrow-down-left"></i>Jam Masuk</span>
                 <span class="box-value">{{ $todayJamMasuk ?? '--:--' }}</span>
-                {{ $masukBadge }}
+                {!! $masukBadge !!}
             </div>
             <div class="s-mini-box box-pulang">
                 <span class="box-title"><i class="bi bi-arrow-up-right"></i>Jam Pulang</span>
                 <span class="box-value">{{ $todayJamKeluar ?? '--:--' }}</span>
-                {{ $pulangBadge }}
+                {!! $pulangBadge !!}
             </div>
         </div>
     </div>

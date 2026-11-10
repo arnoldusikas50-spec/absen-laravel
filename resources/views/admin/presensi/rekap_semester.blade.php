@@ -401,7 +401,7 @@ $(document).ready(function () {
             });
             // Generate = mutasi DB → POST agar CSRF global berlaku (bukan navigasi GET).
             var $f = $('<form method="post" action="' + url + '">'
-                + '<input type="hidden" name="{{ '_token' }}" value="{{ '_token' }}">'
+                + '<input type="hidden" name="_token" value="{{ csrf_token() }}">'
                 + '</form>');
             $('body').append($f);
             $f.trigger('submit');

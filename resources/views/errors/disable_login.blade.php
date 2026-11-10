@@ -8,7 +8,7 @@
         {{ $setting->nama_sekolah ?? 'absensi by ikasmedia' }}
     </title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}" rel="stylesheet">
     <style>
         * {
             margin: 0;

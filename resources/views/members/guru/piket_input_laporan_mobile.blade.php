@@ -122,7 +122,7 @@
         -webkit-tap-highlight-color: transparent;
     }
     .val-btn:disabled { opacity: 0.5; cursor: wait; }
-    .val-btn:focus-visible { outline: 2px solid #6366f1; outline-offset: 1px; }
+    .val-btn:focus-visible { outline: 2px solid var(--accent-500); outline-offset: 1px; }
     .val-btn-approve { background: #10b981; color: #ffffff; }
     .val-btn-approve:hover { background: #059669; }
     .val-btn-reject { background: #ffffff; border-color: #fdba74; color: #c2410c; }
@@ -184,8 +184,8 @@
         transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
     .issue-chip.is-active {
-        background: #4f46e5;
-        border-color: #4f46e5;
+        background: var(--accent-600);
+        border-color: var(--accent-600);
         color: #ffffff;
     }
     .set-all-more { display: none; }
@@ -824,7 +824,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('id_guru', idGuru);
         formData.append('status', status);
         formData.append('keterangan', note);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         return fetch(BASE + 'guru/piket/save_laporan_guru', {
             method: 'POST',
@@ -1080,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('id_jurnal', idJurnal);
         formData.append('aksi', aksi);
         formData.append('catatan', catatan);
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const r = await fetch(BASE + 'guru/piket/validasi_jurnal', {
@@ -1326,7 +1326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 text: 'Data guru yang sudah mengisi Jurnal KBM atau Presensi Masuk akan disinkronkan ke jadwal mengajar hari ini.',
                 icon: 'info',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('accent') }}',
                 confirmButtonText: 'Ya, Sinkronkan',
                 cancelButtonText: 'Batal'
             });
@@ -1337,7 +1337,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('tanggal', '{{ $tanggal }}');
-        formData.append('{{ '_token' }}', '{{ '_token' }}');
+        formData.append('_token', '{{ csrf_token() }}');
 
         try {
             const res = await fetch(BASE + 'guru/piket/laporan/autofill', {

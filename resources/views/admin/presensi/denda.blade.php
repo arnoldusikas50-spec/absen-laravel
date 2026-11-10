@@ -1500,8 +1500,8 @@
         if (typeof Swal === 'undefined') {
             if (confirm('Hitung ulang denda presensi periode ' + bulanText + ' ' + tahun + '?')) {
                 var postData = { bulan: bulan, tahun: tahun };
-                var csrfName = '{{ '_token' }}';
-                var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ '_token' }}';
+                var csrfName = '_token';
+                var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ csrf_token() }}';
                 postData[csrfName] = csrfHash;
 
                 window.__recalcDendaRunning = true;
@@ -1542,8 +1542,8 @@
                     bulan: bulan,
                     tahun: tahun
                 };
-                var csrfName = '{{ '_token' }}';
-                var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ '_token' }}';
+                var csrfName = '_token';
+                var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ csrf_token() }}';
                 postData[csrfName] = csrfHash;
 
                 $.ajax({
@@ -1612,8 +1612,8 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Mengirim…';
 
-        var csrfName = '{{ '_token' }}';
-        var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ '_token' }}';
+        var csrfName = '_token';
+        var csrfHash = $('input[name="' + csrfName + '"]').val() || '{{ csrf_token() }}';
 
         function selesai() {
             window.__kirimRekapRunning = false;

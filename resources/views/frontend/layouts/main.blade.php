@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

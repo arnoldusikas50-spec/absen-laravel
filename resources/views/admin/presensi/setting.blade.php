@@ -247,12 +247,12 @@
                 <!-- ==================================================== -->
                 <div class="tab-pane tab-pane-tw show active" id="profil" role="tabpanel">
                     <?php
-                    $satuanList = ["1" => ["SD", "MI"], "2" => ["SMP", "MTs"], "3" => ["SMA", "MA", "SMK"]];
-                    $curJenjang = (string)($setting->jenjang ?? '3');
-                    $activeSatuan = $satuanList[$curJenjang] ?? ["SMA", "MA", "SMK"];
+                    $satuanList = ['1' => ['SD', 'MI'], '2' => ['SMP', 'MTs'], '3' => ['SMA', 'MA', 'SMK']];
+                    $curJenjang = (string) ($setting->jenjang ?? '3');
+                    $activeSatuan = $satuanList[$curJenjang] ?? ['SMA', 'MA', 'SMK'];
 
                     $bankSoalDateTime = '';
-                    if (!empty($setting->ba_waktu) && $setting->ba_waktu !== '0000-00-00 00:00:00') {
+                    if (! empty($setting->ba_waktu) && $setting->ba_waktu !== '0000-00-00 00:00:00') {
                         $dtObj = DateTime::createFromFormat('Y-m-d H:i:s', (string) $setting->ba_waktu);
                         if ($dtObj instanceof DateTime) {
                             $bankSoalDateTime = $dtObj->format('Y-m-d\TH:i');
@@ -316,12 +316,12 @@
                                         <div>
                                             <label class="form-label-tw">Satuan Pendidikan <span class="text-red-500">*</span></label>
                                             <select id="satuanSelect" class="form-select-tw" name="satuan_pendidikan" required>
-                                                <?php foreach ($activeSatuan as $idx => $label): 
+                                                <?php foreach ($activeSatuan as $idx => $label) {
                                                     $val = $idx + 1;
-                                                    $selected = ((string)($setting->satuan_pendidikan ?? '')) === (string)$val ? 'selected' : '';
-                                                ?>
+                                                    $selected = ((string) ($setting->satuan_pendidikan ?? '')) === (string) $val ? 'selected' : '';
+                                                    ?>
                                                     <option value="{{ $val }}" {{ $selected }}>{{ $label }}</option>
-                                                <?php endforeach; ?>
+                                                <?php } ?>
                                             </select>
                                         </div>
                                     </div>
@@ -469,10 +469,12 @@
                                             <label class="form-label-tw">Jumlah Digit Nomor Urut</label>
                                             <select name="surat_teguran_padding" id="teguranPaddingInput" class="form-select-tw">
                                                 <?php $curPad = (int) ($setting->surat_teguran_padding ?? \App\Libraries\SuratNomor::DEFAULT_PADDING);
-                                                if ($curPad < 1 || $curPad > 6) { $curPad = \App\Libraries\SuratNomor::DEFAULT_PADDING; } ?>
-                                                <?php for ($p = 1; $p <= 6; $p++): ?>
+                    if ($curPad < 1 || $curPad > 6) {
+                        $curPad = \App\Libraries\SuratNomor::DEFAULT_PADDING;
+                    } ?>
+                                                <?php for ($p = 1; $p <= 6; $p++) { ?>
                                                     <option value="{{ $p }}" {{ $curPad === $p ? 'selected' : '' }}>{{ $p }} digit{{ $p === 3 ? ' (standar)' : '' }}</option>
-                                                <?php endfor; ?>
+                                                <?php } ?>
                                             </select>
                                             <span class="text-xs text-slate-400 mt-1 block">Contoh: 3 digit menghasilkan 001, 002, 003.</span>
                                         </div>
@@ -493,10 +495,10 @@
                                     <div>
                                         <label class="form-label-tw">Placeholder yang Tersedia</label>
                                         <div class="flex flex-wrap gap-2">
-                                            <?php foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc): ?>
+                                            <?php foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc) { ?>
                                                 <button type="button" class="teguran-ph-btn px-2.5 py-1 rounded-lg text-[11px] font-mono bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200 transition-colors"
                                                     title="{{ $desc }}" data-ph="{{ $ph }}">{{ $ph }}</button>
-                                            <?php endforeach; ?>
+                                            <?php } ?>
                                         </div>
                                         <span class="text-xs text-slate-400 mt-2 block">Klik placeholder untuk menyisipkannya ke field format. Perubahan berlaku untuk surat yang terbit setelah disimpan.</span>
                                     </div>
@@ -531,23 +533,23 @@
                             $dropifyUploads = [
                                 ['field' => 'logo_kiri',     'label' => 'Logo Kiri / Aplikasi', 'desc' => 'Logo sidebar & navbar'],
                                 ['field' => 'logo_kanan',    'label' => 'Logo Kanan / Yayasan', 'desc' => 'Logo instansi pembina'],
-                                ['field' => 'stampel',       'label' => 'Cap / Stempel Sekolah','desc' => 'Stempel resmi dokumen (PNG)'],
+                                ['field' => 'stampel',       'label' => 'Cap / Stempel Sekolah', 'desc' => 'Stempel resmi dokumen (PNG)'],
                                 ['field' => 'tanda_tangan',  'label' => 'TTD Kepala Sekolah',   'desc' => 'Tanda tangan digital kepsek'],
                                 ['field' => 'kopsekolah',    'label' => 'Kop Surat Sekolah',    'desc' => 'Kop resmi cetak rapor & surat'],
                             ];
-                            ?>
+                    ?>
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                                <?php foreach ($dropifyUploads as $item):
+                                <?php foreach ($dropifyUploads as $item) {
                                     // Tampilkan preview hanya bila file benar-benar ada di disk.
                                     // Path basi di DB (file sudah hilang) dirender kosong, bukan overlay gelap rusak.
                                     $rawPath = trim((string) ($setting->{$item['field']} ?? ''));
-                                    $relPath = ltrim(str_replace(url('/') . '/', '', $rawPath), '/');
+                                    $relPath = ltrim(str_replace(url('/').'/', '', $rawPath), '/');
                                     $fileVal = ($rawPath !== '' && strpos($relPath, '..') === false
                                         && strpos($relPath, 'uploads/') === 0
-                                        && is_file(public_path() . '/' . $relPath))
+                                        && is_file(public_path().'/'.$relPath))
                                         ? url($relPath)
                                         : '';
-                                ?>
+                                    ?>
                                 <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between hover:border-slate-300 transition-colors">
                                     <div class="mb-2.5">
                                         <label class="font-bold text-xs text-slate-800 block mb-0.5">{{ $item['label'] }}</label>
@@ -557,7 +559,7 @@
                                            data-max-file-size="5M" data-allowed-file-extensions="jpg jpeg png webp"
                                            data-default-file="{{ $fileVal }}">
                                 </div>
-                                <?php endforeach; ?>
+                                <?php } ?>
                             </div>
                         </div>
                     </div>
@@ -602,19 +604,22 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-slate-100">
-                                                    <?php 
-                                                    $days = [1=>'Senin', 2=>'Selasa', 3=>'Rabu', 4=>'Kamis', 5=>'Jumat', 6=>'Sabtu', 7=>'Minggu'];
-                                                    foreach($days as $k => $dayName): 
-                                                        $row = null;
-                                                        if(isset($jadwal)) {
-                                                            foreach($jadwal as $j) {
-                                                                if($j->hari == $k) { $row = $j; break; }
-                                                            }
-                                                        }
-                                                        $jamMasuk = $row ? $row->jam_masuk : '07:30';
-                                                        $jamPulang = $row ? $row->jam_pulang : '15:00';
-                                                        $isLibur = $row ? $row->is_libur : ($k==7?1:0);
-                                                    ?>
+                                                    <?php
+                                                        $days = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
+                    foreach ($days as $k => $dayName) {
+                        $row = null;
+                        if (isset($jadwal)) {
+                            foreach ($jadwal as $j) {
+                                if ($j->hari == $k) {
+                                    $row = $j;
+                                    break;
+                                }
+                            }
+                        }
+                        $jamMasuk = $row ? $row->jam_masuk : '07:30';
+                        $jamPulang = $row ? $row->jam_pulang : '15:00';
+                        $isLibur = $row ? $row->is_libur : ($k == 7 ? 1 : 0);
+                        ?>
                                                     <tr class="hover:bg-slate-50/80 transition-colors">
                                                         <td class="font-semibold text-slate-800 flex items-center gap-2">
                                                             <span class="w-2 h-2 rounded-full {{ $k == 7 ? 'bg-red-500' : 'bg-blue-500' }}"></span>
@@ -635,7 +640,7 @@
                                                             </label>
                                                         </td>
                                                     </tr>
-                                                    <?php endforeach; ?>
+                                                    <?php } ?>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -848,7 +853,7 @@
                                     </div>
 
                                     <!-- Sensitivitas / Threshold -->
-                                    <?php $currentThreshold = (float)($absenSetting->face_threshold ?? 0.72); ?>
+                                    <?php $currentThreshold = (float) ($absenSetting->face_threshold ?? 0.72); ?>
                                     <div>
                                         <div class="flex justify-between items-center mb-2">
                                             <label class="form-label-tw mb-0">Toleransi Kemiripan (Match Threshold)</label>
@@ -1557,12 +1562,12 @@
                                             <input type="password" class="form-control-tw font-mono" name="qr_kiosk_token" value=""
                                                 placeholder="{{ $tokenKioskAktif ? 'Tidak diubah — isi hanya untuk mengganti token' : 'Isi token untuk mengunci kiosk' }}"
                                                 maxlength="64" autocomplete="new-password">
-                                            <?php if ($tokenKioskAktif): ?>
+                                            <?php if ($tokenKioskAktif) { ?>
                                             <label class="flex items-center gap-2 text-[12px] text-slate-500 mt-2">
                                                 <input type="checkbox" name="qr_kiosk_token_hapus" value="1" class="form-check-input">
                                                 Hapus token (buka kembali /scanner untuk umum)
                                             </label>
-                                            <?php endif; ?>
+                                            <?php } ?>
                                             <p class="text-[11px] text-slate-400 mt-1">Bila terpasang, <b>seluruh</b> jalur publik <code>/scanner</code> — halaman kiosk, <code>/scanner/scan</code>, dan <code>/scanner/history</code> — menolak permintaan tanpa token. Daftarkan perangkat kiosk sekali lewat <code>/scanner?k=TOKEN</code> atau kolom buka-kunci di halaman itu; setelahnya perangkat dikenali sendiri. Kolom ini write-only: nilai token tidak pernah ditampilkan kembali, dan menyimpan form tanpa mengisi kolom tidak mengubahnya.</p>
                                         </div>
                                     </div>
@@ -1633,11 +1638,11 @@
                                             <select class="form-control-tw" name="wa_gateway_mode" id="waGatewayMode">
                                                 <?php
                                                 $waMode = strtolower(trim((string) ($absenSetting->wa_gateway_mode ?? '')));
-                                                if ($waMode === '') {
-                                                    // Instalasi lama hanya punya Fonnte — jangan diam-diam jadi "off".
-                                                    $waMode = (!empty($absenSetting->wa_token) && !empty($absenSetting->wa_target_number)) ? 'fonnte' : 'off';
-                                                }
-                                                ?>
+                    if ($waMode === '') {
+                        // Instalasi lama hanya punya Fonnte — jangan diam-diam jadi "off".
+                        $waMode = (! empty($absenSetting->wa_token) && ! empty($absenSetting->wa_target_number)) ? 'fonnte' : 'off';
+                    }
+                    ?>
                                                 <option value="off" {{ $waMode === 'off' ? 'selected' : '' }}>Nonaktif</option>
                                                 <option value="openwa" {{ $waMode === 'openwa' ? 'selected' : '' }}>OpenWA (self-hosted)</option>
                                                 <option value="fonnte" {{ $waMode === 'fonnte' ? 'selected' : '' }}>Fonnte</option>
@@ -1796,7 +1801,7 @@
                 <div class="tab-pane tab-pane-tw" id="tampilan" role="tabpanel">
                     <?php
                     $curPreset = $theme['preset'] ?? 'default';
-                    $curCustom = !empty($theme['custom']) ? $theme['custom'] : '#2563eb';
+                    $curCustom = ! empty($theme['custom']) ? $theme['custom'] : '#2563eb';
                     $customPalette = \App\Libraries\Theme::paletteFromHex($curCustom);
                     $themeJson = json_encode(
                         \App\Libraries\Theme::clientConfig(),
@@ -1820,7 +1825,7 @@
                                 </div>
 
                                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="themePresetGrid">
-                                    <?php foreach ($themePresets as $key => $preset): ?>
+                                    <?php foreach ($themePresets as $key => $preset) { ?>
                                         <button type="button" class="theme-card {{ $curPreset === $key ? 'selected' : '' }}" data-theme-preset="{{ $key }}">
                                             <span class="theme-check"><i class="bi bi-check-lg"></i></span>
                                             <span class="grid grid-cols-3 gap-1.5 mb-3">
@@ -1831,17 +1836,17 @@
                                             <span class="block text-sm font-bold text-slate-800">{{ $preset['label'] }}</span>
                                             <span class="block text-[11px] leading-snug text-slate-500 mt-0.5">{{ $preset['desc'] }}</span>
                                         </button>
-                                    <?php endforeach; ?>
+                                    <?php } ?>
 
                                     <button type="button" class="theme-card {{ $curPreset === 'custom' ? 'selected' : '' }}" data-theme-preset="custom">
                                         <span class="theme-check"><i class="bi bi-check-lg"></i></span>
                                         <span class="grid grid-cols-3 gap-1.5 mb-3">
-                                            <?php foreach ([50, 500, 700] as $shade): ?>
+                                            <?php foreach ([50, 500, 700] as $shade) { ?>
                                                 <span class="theme-swatch" data-custom-swatch="{{ $shade }}" style="background: {{ $customPalette[$shade] }}"></span>
-                                            <?php endforeach; ?>
+                                            <?php } ?>
                                         </span>
                                         <span class="block text-sm font-bold text-slate-800">Custom</span>
-                                        <span class="block text-[11px] leading-snug text-slate-500 mt-0.5">Pilih warna dasar sendiri; palet dibuat otomatis.</span>
+                                        <span class="block text-[11px] leading-snug text-slate-500 mt-0.5">Pilih warna dasar sendiri; palet dan aksen gradien dibuat otomatis.</span>
                                     </button>
                                 </div>
 
@@ -1881,20 +1886,20 @@
                                     <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Live</span>
                                 </div>
 
-                                <div class="rounded-xl overflow-hidden border border-slate-200">
+                                <div class="rounded-xl overflow-hidden border border-border p-3">
                                     <div class="flex">
-                                        <div class="w-20 bg-slate-900 p-2.5 space-y-1.5">
-                                            <div class="h-2 w-8 rounded-full" style="background: var(--brand-400)"></div>
+                                        <div class="w-20 p-2.5 space-y-1.5" style="background: linear-gradient(160deg, #1e293b 0%, #0f172a 55%, #0c1322 100%)">
+                                            <div class="h-2 w-8 rounded-full" style="background: var(--primary-400)"></div>
                                             <div class="h-1.5 w-12 rounded-full bg-white/25"></div>
-                                            <div class="h-1.5 w-12 rounded-full" style="background: var(--brand-500)"></div>
+                                            <div class="h-1.5 w-12 rounded-full" style="background: var(--primary-500)"></div>
                                             <div class="h-1.5 w-12 rounded-full bg-white/25"></div>
                                             <div class="h-1.5 w-9 rounded-full bg-white/25"></div>
                                         </div>
-                                        <div class="flex-1 bg-slate-50 p-3 space-y-2">
-                                            <div class="h-2 w-16 rounded-full" style="background: var(--brand-500)"></div>
-                                            <div class="h-1.5 w-24 rounded-full bg-slate-200"></div>
+                                        <div class="flex-1 bg-surface-muted p-3 space-y-2">
+                                            <div class="h-2 w-16 rounded-full" style="background: var(--primary-500)"></div>
+                                            <div class="h-1.5 w-24 rounded-full bg-border"></div>
                                             <div class="flex gap-1.5 pt-1">
-                                                <div class="h-6 w-16 rounded-lg" style="background: var(--brand-600)"></div>
+                                                <div class="h-6 w-16 rounded-lg" style="background: var(--primary-600)"></div>
                                                 <div class="h-6 w-16 rounded-lg" style="background: var(--primary-600)"></div>
                                                 <div class="h-6 w-6 rounded-lg" style="background: var(--accent-500)"></div>
                                             </div>
@@ -2233,7 +2238,7 @@
 
                 const formData = new FormData();
                 formData.append('logo', input.files[0]);
-                formData.append('{{ '_token' }}', '{{ '_token' }}');
+                formData.append('_token', '{{ csrf_token() }}');
 
                 $.ajax({
                     url: '{{ url('settings/uploadFile') }}/' + fieldKey,
@@ -2286,7 +2291,7 @@
             drEvent.on('dropify.afterClear', function(event, element) {
                 const fieldKey = $(element.element).data('field');
                 if (fieldKey) {
-                    const payload = { field: fieldKey, '{{ '_token' }}': '{{ '_token' }}' };
+                    const payload = { field: fieldKey, '_token': '{{ csrf_token() }}' };
                     if (pendingDeleteSrc) payload.src = pendingDeleteSrc;
                     pendingDeleteSrc = '';
                     $.ajax({
@@ -2326,7 +2331,7 @@
             btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menyimpan...');
 
             const formData = new FormData(this);
-            formData.append('{{ '_token' }}', '{{ '_token' }}');
+            formData.append('_token', '{{ csrf_token() }}');
 
             $.ajax({
                 url: '{{ url('settings/saveSetting') }}',
@@ -2421,7 +2426,7 @@
             btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menyimpan...');
 
             const formData = new FormData(this);
-            formData.append('{{ '_token' }}', '{{ '_token' }}');
+            formData.append('_token', '{{ csrf_token() }}');
 
             $.ajax({
                 url: '{{ url('admin/presensi/setting/save') }}',
@@ -2460,7 +2465,7 @@
                 url: '{{ url('admin/presensi/test-notification') }}',
                 type: 'POST',
                 data: {
-                    {{ '_token' }}: '{{ '_token' }}',
+                    '_token': '{{ csrf_token() }}',
                     channel: 'telegram',
                     telegram_bot_token: $('input[name="telegram_bot_token"]').val() || '',
                     telegram_chat_id: $('input[name="telegram_chat_id"]').val() || ''
@@ -2486,7 +2491,7 @@
                 url: '{{ url('admin/presensi/test-notification') }}',
                 type: 'POST',
                 data: {
-                    {{ '_token' }}: '{{ '_token' }}',
+                    '_token': '{{ csrf_token() }}',
                     channel: 'whatsapp',
                     // Kirim nilai yang sedang diketik agar bisa diuji tanpa
                     // Save dulu; panel tersembunyi tidak boleh membuat test
@@ -2541,7 +2546,7 @@
                         url: '{{ url('admin/presensi/clean-photos') }}',
                         type: 'POST',
                         data: {
-                            {{ '_token' }}: '{{ '_token' }}'
+                            '_token': '{{ csrf_token() }}'
                         },
                         dataType: 'json',
                         success: function(res) {
@@ -2633,14 +2638,36 @@
             function paletteFromHex(hex) {
                 const rgb = hexToRgb(hex);
                 const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-                const lightness = { 50: 0.97, 100: 0.94, 200: 0.88, 300: 0.78, 400: 0.65, 500: 0.50, 600: 0.40, 700: 0.32, 800: 0.25, 900: 0.19 };
+                const h = hsl[0];
+                const s = hsl[1];
+                const l = hsl[2];
+                // Ramp relatif terhadap lightness warna asli, sama seperti
+                // Theme::paletteFromHex(): langkah antar-shade merata.
+                const lightest = 0.97;
+                const darkest = 0.06;
+                const towardLight = { 50: 0.94, 100: 0.80, 200: 0.60, 300: 0.35, 400: 0.15 };
+                const towardDark = { 600: 0.14, 700: 0.26, 800: 0.42, 900: 0.55 };
+                // Saturasi ditahan di shade terang, diredupkan bertahap di gelap.
+                const saturation = { 50: 0.98, 100: 1.0, 200: 1.0, 300: 1.0, 400: 1.0, 500: 1.0, 600: 0.97, 700: 0.90, 800: 0.82, 900: 0.74 };
                 const out = {};
-                shades.forEach(function (s) {
-                    out[s] = hslToHex(hsl[0], hsl[1], lightness[s]);
+                Object.keys(towardLight).forEach(function (shade) {
+                    out[shade] = hslToHex(h, Math.min(1, s * saturation[shade]), l + (lightest - l) * towardLight[shade]);
                 });
                 // Shade 500 = warna asli, sama seperti Theme::paletteFromHex().
                 out[500] = String(hex).toLowerCase();
+                Object.keys(towardDark).forEach(function (shade) {
+                    out[shade] = hslToHex(h, Math.min(1, s * saturation[shade]), l - (l - darkest) * towardDark[shade]);
+                });
                 return out;
+            }
+
+            // Sama seperti Theme::shiftHue().
+            function shiftHue(hex, degrees) {
+                const rgb = hexToRgb(hex);
+                const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+                let h = hsl[0] + degrees / 360;
+                h = h - Math.floor(h);
+                return hslToHex(h, hsl[1], hsl[2]);
             }
 
             function resolveTheme(preset, hex) {
@@ -2648,20 +2675,62 @@
 
                 if (preset === 'custom') {
                     const p = paletteFromHex(hex);
-                    // Sama seperti Theme::resolve(): palet kustom dipakai untuk
-                    // primary + accent, sedangkan indigo/purple tetap statis.
+                    // Sama seperti Theme::resolve(): aksen digeser hue-nya
+                    // (Theme::CUSTOM_ACCENT_HUE_SHIFT) agar gradien tidak monoton,
+                    // sedangkan indigo/purple tetap statis.
+                    const accent = paletteFromHex(shiftHue(hex, {{ \App\Libraries\Theme::CUSTOM_ACCENT_HUE_SHIFT }}));
+                    // Bangun semantic colors dari palet custom yang dihasilkan.
+                    const sem = buildSemantic(p, accent);
                     return {
                         brand: p,
                         primary: p,
-                        accent: p,
+                        accent: accent,
                         indigo: fallback.indigo || p,
                         purple: fallback.purple || p,
                         secondary: p[400],
-                        tertiary: p[700]
+                        tertiary: p[700],
+                        semantic: sem
                     };
                 }
 
-                return cfg.presets && cfg.presets[preset] ? cfg.presets[preset] : fallback;
+                const p = cfg.presets && cfg.presets[preset] ? cfg.presets[preset] : fallback;
+                const sem = cfg.semantic || buildSemantic(p.primary || p.brand, p.accent || p.brand);
+                return {
+                    ...p,
+                    semantic: sem
+                };
+            }
+
+            // Bangun semantic colors (mirip Theme::semanticColors di PHP) agar
+            // preview klien konsisten dengan CSS yang dirender server.
+            function buildSemantic(primary, accent) {
+                const get = (palette, shade) => palette && palette[shade] ? palette[shade] : '#000000';
+                return {
+                    surface: '#ffffff',
+                    'surface-hover': get(primary, '50'),
+                    'surface-muted': '#f8fafc',
+                    'surface-inverse': '#0f172a',
+                    'surface-inverse-hover': '#1e293b',
+                    border: '#e2e8f0',
+                    'border-focus': get(primary, '500'),
+                    'border-muted': '#cbd5e1',
+                    'text-primary': '#0f1729',
+                    'text-secondary': '#475569',
+                    'text-muted': '#94a3b8',
+                    'text-inverse': '#ffffff',
+                    'text-success': get(primary, '700'),
+                    'text-warning': get(accent, '700'),
+                    'text-error': '#dc2626',
+                    'text-info': get(primary, '700'),
+                    primary: get(primary, '600'),
+                    'primary-hover': get(primary, '700'),
+                    'primary-active': get(primary, '800'),
+                    'primary-subtle': get(primary, '50'),
+                    accent: get(accent, '600'),
+                    'accent-hover': get(accent, '700'),
+                    'accent-active': get(accent, '800'),
+                    'accent-subtle': get(accent, '50'),
+                };
             }
 
             // Menulis variabel yang sama persis dengan Theme::cssVars() +
@@ -2711,6 +2780,15 @@
 
                 root.style.setProperty('--primary', t.brand[600]);
                 root.style.setProperty('--primary-rgb', hexToRgb(t.brand[600]).join(', '));
+
+                // ── Variabel semantik untuk UI layout ──
+                const sem = t.semantic || {};
+                Object.keys(sem).forEach(function (key) {
+                    const value = sem[key];
+                    if (!value) return;
+                    root.style.setProperty('--' + key, value);
+                    root.style.setProperty('--' + key + '-rgb', hexToRgb(value).join(' '));
+                });
 
                 const meta = document.querySelector('meta[name="theme-color"]');
                 if (meta) meta.setAttribute('content', t.brand[600]);
@@ -2799,7 +2877,7 @@
                     saveBtn.innerHTML = '<span class="spinner-tw mr-1"></span> Menyimpan...';
 
                     const payload = { preset: selected, custom: customHex };
-                    payload['{{ '_token' }}'] = '{{ '_token' }}';
+                    payload['_token'] = '{{ csrf_token() }}';
 
                     $.ajax({
                         url: '{{ url('settings/saveTheme') }}',

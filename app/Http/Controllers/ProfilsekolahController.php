@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use App\Models\AttendanceSettingModel;
+use App\Models\AuditLogModel;
 use App\Models\DashboardModel;
 use App\Models\SettingsModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * ProfilSekolah Controller - Migrated from CI3
@@ -15,13 +16,14 @@ use App\Models\SettingsModel;
 class ProfilsekolahController extends BaseController
 {
     protected DashboardModel $dashboardModel;
+
     protected SettingsModel $settingsModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->settingsModel = new SettingsModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->settingsModel = new SettingsModel;
     }
 
     /**
@@ -29,7 +31,7 @@ class ProfilsekolahController extends BaseController
      */
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
 
@@ -37,7 +39,7 @@ class ProfilsekolahController extends BaseController
         // school_uuid (session) dulu dipakai sebagai jalan masuk alternatif,
         // padahal Auth.php menyetaknya untuk SEMUA role dari users.company —
         // begitu kolom itu terisi, guru/siswa bisa mengubah profil sekolah.
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->showError('Hanya Admin Sekolah yang dapat mengakses halaman ini.', 403);
         }
 
@@ -47,7 +49,7 @@ class ProfilsekolahController extends BaseController
         // Tampilkan konfigurasi notifikasi AKTIF (sumber tunggal: absensi_setting)
         // agar form tidak terlihat kosong padahal pengirim memakai nilai lain.
         try {
-            $absen = (new \App\Models\AttendanceSettingModel())->first();
+            $absen = (new AttendanceSettingModel)->first();
             if ($setting && $absen) {
                 foreach (['telegram_bot_token', 'telegram_chat_id', 'wa_gateway_url', 'wa_token', 'wa_target_number'] as $k) {
                     if (isset($absen->$k)) {
@@ -58,8 +60,8 @@ class ProfilsekolahController extends BaseController
         } catch (\Throwable $e) {
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $data = [
             'user' => $user,
@@ -67,9 +69,9 @@ class ProfilsekolahController extends BaseController
             'subjudul' => 'Pengaturan Data Sekolah',
             'profile' => null,
             'setting' => $setting,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
             'tp_active' => $tp,
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'smt_active' => $smt,
         ];
 
@@ -86,12 +88,12 @@ class ProfilsekolahController extends BaseController
         }
         $file = $this->request->file('logo');
 
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             return $this->respond(false, 'File tidak valid');
         }
 
         $allowedTypes = ['image/gif', 'image/jpg', 'image/jpeg', 'image/png'];
-        if (!in_array($file->getMimeType(), $allowedTypes)) {
+        if (! in_array($file->getMimeType(), $allowedTypes)) {
             return $this->respond(false, 'Tipe file tidak diizinkan');
         }
 
@@ -99,21 +101,21 @@ class ProfilsekolahController extends BaseController
         // $logo datang dari segmen URL (:segment) yang masih boleh berisi
         // backslash; di Windows '\' menyelesaikan path, jadi nama field dibersihkan
         // agar file tidak pernah bisa ditulis di luar uploads/settings/.
-        $logo    = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $logo);
-        $newName = $logo . '_' . $school_uuid . '.' . $file->getClientOriginalExtension();
+        $logo = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $logo);
+        $newName = $logo.'_'.$school_uuid.'.'.$file->getClientOriginalExtension();
 
-        $uploadPath = public_path() . '/' . 'uploads/settings/';
-        if (!is_dir($uploadPath)) {
+        $uploadPath = public_path().'/'.'uploads/settings/';
+        if (! is_dir($uploadPath)) {
             mkdir($uploadPath, 0777, true);
         }
 
         if ($file->move($uploadPath, $newName, true)) {
             return $this->respond(true, 'File berhasil diupload', [
-                'src' => url('uploads/settings/' . $newName),
+                'src' => url('uploads/settings/'.$newName),
                 'filename' => pathinfo($newName, PATHINFO_FILENAME),
-                'relative_path' => 'uploads/settings/' . $newName,
+                'relative_path' => 'uploads/settings/'.$newName,
                 'type' => $file->getMimeType(),
-                'size' => $file->getSize()
+                'size' => $file->getSize(),
             ]);
         }
 
@@ -129,13 +131,13 @@ class ProfilsekolahController extends BaseController
             return $deny;
         }
         $src = $this->request->input('src');
-        $file_name = str_replace(url(), '', $src ?? '');
+        $file_name = str_replace(url('/'), '', $src ?? '');
         $file_name = ltrim($file_name, '/');
         // Batasi hanya di uploads/settings/ agar tidak bisa hapus file sembarang
-        if (!str_starts_with($file_name, 'uploads/settings/') || str_contains($file_name, '..')) {
+        if (! str_starts_with($file_name, 'uploads/settings/') || str_contains($file_name, '..')) {
             return $this->respond(false, 'Path tidak diizinkan');
         }
-        $file_path = public_path() . '/' . $file_name;
+        $file_path = public_path().'/'.$file_name;
 
         if (file_exists($file_path) && unlink($file_path)) {
             return $this->respond(true, 'File berhasil dihapus');
@@ -154,7 +156,8 @@ class ProfilsekolahController extends BaseController
             return '';
         }
 
-        $normalized = str_replace(url(), '', $path);
+        $normalized = str_replace(url('/'), '', $path);
+
         return ltrim($normalized, '/');
     }
 
@@ -165,46 +168,46 @@ class ProfilsekolahController extends BaseController
     {
         // sama seperti index(): school_uuid bukan pembatas yang sah karena
         // semua role login mendapatkannya dari users.company.
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses Sekolah tidak valid', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Peta kolom => [nama field POST, batas panjang, jenis].
         // Divalidasi di sini karena sql_mode produksi tidak strict: nilai
         // yang terlalu panjang dipotong diam-diam dan kolom int yang
         // dikirimi teks menjadi 0 tanpa suara.
         $peta = [
-            'nama_aplikasi'      => ['nama_aplikasi', 100, 'teks'],
-            'web'                => ['web', 50, 'teks'],
-            'fax'                => ['fax', 20, 'digit'],
-            'email'              => ['email', 50, 'teks'],
-            'telp'               => ['tlp', 20, 'digit'],
-            'kepsek'             => ['kepsek', 50, 'teks'],
-            'nip'                => ['nip', 30, 'teks'],
-            'proktor'            => ['proktor', 50, 'teks'],
-            'nip_proktor'        => ['nip_proktor', 30, 'teks'],
-            'tkn_siswa'          => ['tkn_siswa', 11, 'pilih12'],
-            'mode_app'           => ['mode_app', 11, 'pilih12'],
-            'ba_aktif'           => ['ba_aktif', 20, 'angkaPendek'],
-            'jenjang'            => ['jenjang', 3, 'jenjang'],
-            'satuan_pendidikan'  => ['satuan_pendidikan', 1, 'pilih123'],
-            'sekolah'            => ['nama_sekolah', 50, 'teks'],
-            'nss'                => ['nss', 20, 'digit'],
-            'npsn'               => ['npsn', 10, 'digit'],
-            'alamat'             => ['alamat', 2000, 'teks'],
-            'desa'               => ['desa', 100, 'teks'],
-            'kecamatan'          => ['kec', 50, 'teks'],
-            'kota'               => ['kota', 30, 'teks'],
-            'provinsi'           => ['provinsi', 100, 'teks'],
-            'kode_pos'           => ['kode_pos', 11, 'digit'],
-            'api_key'            => ['api_key', 100, 'kunci'],
+            'nama_aplikasi' => ['nama_aplikasi', 100, 'teks'],
+            'web' => ['web', 50, 'teks'],
+            'fax' => ['fax', 20, 'digit'],
+            'email' => ['email', 50, 'teks'],
+            'telp' => ['tlp', 20, 'digit'],
+            'kepsek' => ['kepsek', 50, 'teks'],
+            'nip' => ['nip', 30, 'teks'],
+            'proktor' => ['proktor', 50, 'teks'],
+            'nip_proktor' => ['nip_proktor', 30, 'teks'],
+            'tkn_siswa' => ['tkn_siswa', 11, 'pilih12'],
+            'mode_app' => ['mode_app', 11, 'pilih12'],
+            'ba_aktif' => ['ba_aktif', 20, 'angkaPendek'],
+            'jenjang' => ['jenjang', 3, 'jenjang'],
+            'satuan_pendidikan' => ['satuan_pendidikan', 1, 'pilih123'],
+            'sekolah' => ['nama_sekolah', 50, 'teks'],
+            'nss' => ['nss', 20, 'digit'],
+            'npsn' => ['npsn', 10, 'digit'],
+            'alamat' => ['alamat', 2000, 'teks'],
+            'desa' => ['desa', 100, 'teks'],
+            'kecamatan' => ['kec', 50, 'teks'],
+            'kota' => ['kota', 30, 'teks'],
+            'provinsi' => ['provinsi', 100, 'teks'],
+            'kode_pos' => ['kode_pos', 11, 'digit'],
+            'api_key' => ['api_key', 100, 'kunci'],
         ];
 
-        $insert    = [];
-        $salah     = [];
-        $labelWps  = [
+        $insert = [];
+        $salah = [];
+        $labelWps = [
             'nama_aplikasi' => 'Nama aplikasi', 'web' => 'Website', 'fax' => 'Fax',
             'email' => 'Email', 'telp' => 'Telepon', 'kepsek' => 'Nama kepala sekolah',
             'nip' => 'NIP kepala sekolah', 'proktor' => 'Nama proktor',
@@ -225,14 +228,15 @@ class ProfilsekolahController extends BaseController
             $nilai = $this->bersihkanNilai((string) $raw, $jenis, $maks);
             if ($nilai === null) {
                 $salah[] = $labelWps[$kolom] ?? $kolom;
+
                 continue;
             }
             $insert[$kolom] = $nilai;
         }
 
         if ($salah !== []) {
-            return $this->respond(false, 'Periksa lagi isian ini: ' . implode(', ', $salah)
-                . '. Nilai di luar batas kolom tidak disimpan.');
+            return $this->respond(false, 'Periksa lagi isian ini: '.implode(', ', $salah)
+                .'. Nilai di luar batas kolom tidak disimpan.');
         }
 
         // Hanya update media fields if explicitly submitted
@@ -246,7 +250,7 @@ class ProfilsekolahController extends BaseController
 
         // Handle ba_waktu datetime
         $ba_waktu_input = $this->request->input('ba_waktu');
-        if (!empty($ba_waktu_input)) {
+        if (! empty($ba_waktu_input)) {
             $dt = \DateTime::createFromFormat('Y-m-d\TH:i', $ba_waktu_input);
             if ($dt instanceof \DateTime) {
                 $insert['ba_waktu'] = $dt->format('Y-m-d H:i:s');
@@ -277,14 +281,16 @@ class ProfilsekolahController extends BaseController
             }
 
             if ($updated === false) {
-                Log::error('[Profilsekolah] tulis setting ditolak DB (' . implode(', ', array_keys($insert)) . ')');
+                Log::error('[Profilsekolah] tulis setting ditolak DB ('.implode(', ', array_keys($insert)).')');
+
                 return $this->respond(false, 'Profil sekolah gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
             }
 
             $this->catatAuditProfil($sebelum, $insert);
         } catch (\Throwable $e) {
             // Pesan exception bisa memuat potongan SQL; hanya ke log.
-            Log::error('[Profilsekolah] saveSetting: ' . $e->getMessage());
+            Log::error('[Profilsekolah] saveSetting: '.$e->getMessage());
+
             return $this->respond(false, 'Profil sekolah gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
 
@@ -313,22 +319,22 @@ class ProfilsekolahController extends BaseController
             case 'jenjang':
                 // kolom int(11): teks apa pun akan jadi 0 dan daftar level
                 // kelas ikut salah.
-                if (!in_array($nilai, ['1', '2', '3'], true)) {
+                if (! in_array($nilai, ['1', '2', '3'], true)) {
                     return null;
                 }
                 break;
             case 'pilih12':
-                if ($nilai !== '' && !in_array($nilai, ['1', '2'], true)) {
+                if ($nilai !== '' && ! in_array($nilai, ['1', '2'], true)) {
                     return null;
                 }
                 break;
             case 'pilih123':
-                if ($nilai !== '' && !in_array($nilai, ['1', '2', '3'], true)) {
+                if ($nilai !== '' && ! in_array($nilai, ['1', '2', '3'], true)) {
                     return null;
                 }
                 break;
             case 'angkaPendek':
-                if ($nilai !== '' && !preg_match('/^\d{1,20}$/', $nilai)) {
+                if ($nilai !== '' && ! preg_match('/^\d{1,20}$/', $nilai)) {
                     return null;
                 }
                 break;
@@ -349,7 +355,7 @@ class ProfilsekolahController extends BaseController
         try {
             // api_key tidak boleh ikut tertulis ke audit log.
             unset($sesudah['api_key'], $sebelum['api_key']);
-            (new \App\Models\AuditLogModel())->log(
+            (new AuditLogModel)->log(
                 'setting',
                 null,
                 'Mengubah profil sekolah',
@@ -360,7 +366,7 @@ class ProfilsekolahController extends BaseController
                 null
             );
         } catch (\Throwable $e) {
-            Log::error('[Profilsekolah] gagal tulis audit profil sekolah: ' . $e->getMessage());
+            Log::error('[Profilsekolah] gagal tulis audit profil sekolah: '.$e->getMessage());
         }
     }
 }

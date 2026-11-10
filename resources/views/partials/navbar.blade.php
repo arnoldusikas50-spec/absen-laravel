@@ -1,6 +1,12 @@
 <?php
 $defaultAvatar = asset('assets/img/user.png');
-$avatar        = !empty($user->foto) ? url(ltrim($user->foto, '/')) : $defaultAvatar;
+// Sama seperti sidebar: abaikan path foto yang filenya sudah hilang agar
+// tidak ada request avatar 404.
+/** @var string|null $userFoto */
+$userFoto      = trim((string) ($user->foto ?? ''));
+$avatar        = ($userFoto !== '' && strpos($userFoto, '..') === false && file_exists(public_path().'/'.ltrim($userFoto, '/')))
+    ? url(ltrim($userFoto, '/'))
+    : $defaultAvatar;
 $userName      = !empty($user->nama_lengkap) ? $user->nama_lengkap : 'IKASMEDIA';
 $userRoleName  = session('role_name') ?? 'Admin';
 $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, ' ') ? mb_strtoupper(mb_substr($userName, strpos($userName, ' ') + 1, 1)) : '');

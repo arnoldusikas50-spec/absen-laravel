@@ -506,8 +506,8 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     let csrf = {
-        name: '{{ '_token' }}',
-        hash: '{{ '_token' }}'
+        name: '_token',
+        hash: '{{ csrf_token() }}'
     };
 
     const syncAjaxCsrf = () => {

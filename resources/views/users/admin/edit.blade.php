@@ -178,8 +178,8 @@ $(document).ready(function () {
                 'error': 'Ukuran atau format tidak valid.'
             },
             error: {
-                'fileSize': 'Ukuran file terlalu besar (maks {{ value }}).',
-                'imageFormat': 'Format gambar tidak diizinkan ({{ value }} saja).'
+                'fileSize': 'Ukuran file terlalu besar (maks @{{ value }}).',
+                'imageFormat': 'Format gambar tidak diizinkan (@{{ value }} saja).'
             }
         });
 

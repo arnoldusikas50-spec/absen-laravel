@@ -460,7 +460,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
         const URL_DELETE  = '{{ url('datasiswa/delete') }}';
         const URL_CREATE  = '{{ url('datasiswa/create') }}';
         const URL_ADD     = '{{ url('datasiswa/add') }}';
-        const URL_EDIT    = '{{ url('datasiswa/edit/') }}';
+        const URL_EDIT    = '{{ route('datasiswa.edit', ['id' => '__ID__']) }}';
         const DEFAULT_FOTO = '{{ asset('assets/img/siswa_sm.png') }}';
 
         let currentPage = 1;
@@ -649,7 +649,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
 
                 const aksi = IS_ADMIN
                     ? '<td class="text-center align-middle py-3 px-4">' +
-                        '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT + idSiswa + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
+                        '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT.replace('__ID__', idSiswa) + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
                             '<i class="bi bi-pencil-square text-xs"></i>' +
                         '</a>' +
                       '</td>'

@@ -1220,7 +1220,7 @@ $jamPulangDefault = $jamHarian($jadwalHariIni->jam_pulang ?? null, '15:00');
             icon: 'warning',
             title: 'Sesi Kedaluwarsa',
             html: (recap || '') + '<p style="margin-top:8px;font-size:12px;color:#b45309">Token keamanan kedaluwarsa (tab terbuka lama). Muat ulang halaman lalu ulangi penyimpanan.</p>',
-            confirmButtonColor: '#2563eb',
+            confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
             confirmButtonText: 'Muat Ulang Halaman',
             cancelButtonText: 'Nanti',
             showCancelButton: true
@@ -1271,7 +1271,7 @@ $jamPulangDefault = $jamHarian($jadwalHariIni->jam_pulang ?? null, '15:00');
             html: singleConfirmHtml(namaGuru, tanggal, status, jenis, jamMasuk, jamPulang, keterangan),
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#2563eb',
+            confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Ya, Simpan',
             cancelButtonText: 'Cek Lagi'

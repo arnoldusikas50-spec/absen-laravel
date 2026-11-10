@@ -298,7 +298,7 @@
     // `data` akan tertimpa oleh `data:` per-panggilan. Header X-CSRF-TOKEN
     // dibaca CI4 CSRF filter dan tidak tertimpa, jadi dipakai untuk semua call.
     <?php if (csrf_inline()) : ?>
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ '_token' }}' } });
+    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
     <?php endif; ?>
 
     const idGuru = '{{ $id_active }}';

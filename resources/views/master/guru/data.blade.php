@@ -355,7 +355,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                     url: '{{ url('dataguru/delete') }}',
                     data: {
                         id_guru: idGuru,
-                        {{ '_token' }}: '{{ '_token' }}'
+                        '_token': '{{ csrf_token() }}'
                     },
                     type: "POST",
                     dataType: "json",
@@ -381,7 +381,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                     cancelButtonText: "Batal"
                                 }).then((result) => {
                                     if (result.isConfirmed) {
-                                        window.location.href = '{{ url('dataguru/detail/') }}' + idGuru;
+                                        window.location.href = '{{ route('dataguru.detail', ['id' => '__ID__']) }}'.replace('__ID__', idGuru);
                                     }
                                 });
                             } else {

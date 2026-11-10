@@ -14,13 +14,13 @@
     #kalender .fc-button-primary { background: #fff !important; color: #334155 !important; border-color: #e2e8f0 !important; }
     #kalender .fc-button-primary:hover { background: #f1f5f9 !important; color: #0f172a !important; border-color: #cbd5e1 !important; }
     #kalender .fc-button-primary:not(:disabled).fc-button-active,
-    #kalender .fc-button-primary:not(:disabled):active { background: #2563eb !important; border-color: #2563eb !important; color: #fff !important; }
+    #kalender .fc-button-primary:not(:disabled):active { background: var(--primary-600) !important; border-color: var(--primary-600) !important; color: #fff !important; }
     #kalender .fc-today-button:disabled { opacity: .45; }
     #kalender .fc-col-header-cell { font-size: .66rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; padding: .4rem 0; }
     #kalender .fc-col-header-cell-cushion { color: inherit; text-decoration: none; }
     #kalender .fc-daygrid-day-number { font-size: .72rem; font-weight: 700; color: #475569; padding: 4px 6px; text-decoration: none; }
     #kalender .fc-daygrid-day.fc-day-today { background: #eff6ff; }
-    #kalender .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: #1d4ed8; }
+    #kalender .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: var(--primary-700); }
     #kalender .fc-scrollgrid { border-radius: .9rem; overflow: hidden; border-color: #eef2f7; }
     #kalender .fc-theme-standard td, #kalender .fc-theme-standard th { border-color: #eef2f7; }
     #kalender .kalender-akhir-pekan { background: #f8fafc; }
@@ -41,7 +41,7 @@
 
     /* ── Tab pills ──────────────────────────────── */
     .tab-pill { transition: background .15s, color .15s, box-shadow .15s; }
-    .tab-pill.active { background: #fff; color: #2563eb; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+    .tab-pill.active { background: #fff; color: var(--primary-600); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
 
     /* ── Date badge ─────────────────────────────── */
     .date-icon { width: 46px; height: 46px; border-radius: 13px; display: flex; flex-direction: column;
@@ -50,7 +50,7 @@
     /* ── Mode radio ─────────────────────────────── */
     .mode-radio-label { transition: border-color .15s, background .15s, color .15s; }
     input[type=radio].peer:checked ~ .mode-radio-label {
-        border-color: #3b82f6; background: #eff6ff; color: #1d4ed8;
+        border-color: var(--primary-500); background: var(--primary-50); color: var(--primary-700);
     }
 
     /* ── Agenda rows ────────────────────────────── */

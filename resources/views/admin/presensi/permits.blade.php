@@ -730,7 +730,7 @@ $(document).ready(function() {
                         text: msg.replace(' Ulangi dengan force=1 bila memang disengaja.', ''),
                         icon: 'warning',
                         showCancelButton: true,
-                        confirmButtonColor: '#e11d48',
+                        confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                         confirmButtonText: 'Ya, tetap simpan',
                         cancelButtonText: 'Batal'
                     }).then((r) => {

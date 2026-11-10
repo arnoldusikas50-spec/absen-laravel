@@ -405,7 +405,7 @@
     [data-muat-history], [data-muat-ranking], [data-muat-koreksi] {
         display: inline-flex; align-items: center; justify-content: center;
         vertical-align: middle; margin-top: 6px; padding: 7px 16px;
-        border-radius: 9999px; border: 1px solid #fecdd3;
+        border-radius: 9999px; border: 1px solid var(--brand-200);
         background: var(--brand-50); color: var(--brand-600) !important;
         font-size: 12px !important; font-weight: 800; line-height: 1.1;
         text-decoration: none !important;
@@ -973,12 +973,12 @@
             <div class="mini-status-box box-masuk">
                 <span class="box-title"><i class="bi bi-arrow-down-left"></i>Jam Masuk</span>
                 <span class="box-value">{{ $jamMasukTampil ?? '--:--' }}</span>
-                {{ $masukBadge }}
+                {!! $masukBadge !!}
             </div>
             <div class="mini-status-box box-pulang">
                 <span class="box-title"><i class="bi bi-arrow-up-right"></i>Jam Pulang</span>
                 <span class="box-value">{{ $jamPulangTampil ?? '--:--' }}</span>
-                {{ $pulangBadge }}
+                {!! $pulangBadge !!}
             </div>
         </div>
     </div>
@@ -1288,7 +1288,7 @@
                                           <div class="font-extrabold text-slate-800 truncate" style="font-size:13.5px;">{{ $namaHariPanjang }}</div>
                                           <div class="text-xs text-slate-400 font-semibold truncate">{{ $jkMasuk }} - {{ $jkPulang }} WITA{{ $jkDurJam > 0 ? ' (' . $jkDurJam . ' jam)' : '' }}</div>
                                       </div>
-                                       <div class="shrink-0 flex flex-wrap items-center justify-end gap-1.5">{{ $jkBadge }}{{ $jkPoinChip }}</div>
+                                       <div class="shrink-0 flex flex-wrap items-center justify-end gap-1.5">{!! $jkBadge !!}{!! $jkPoinChip !!}</div>
                                   </div>
                                   <?php if (!$jkLibur): ?>
                                   <div class="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -3056,8 +3056,8 @@
         baseUrl: '{{ url('/') . '/' }}',
         assetsUrl: '{{ url('assets') }}',
         faceRegistered: {{ (!empty($face_registered)) ? 'true' : 'false' }},
-        csrfToken: '{{ '_token' }}',
-        csrfName: '{{ '_token' }}',
+        csrfToken: '{{ csrf_token() }}',
+        csrfName: '_token',
         fotoWajib: {{ isset($setting->foto_wajib) ? (int) $setting->foto_wajib : 0 }},
         currentMode: '{{ (!$attendance) ? "checkin" : ((!$attendance->jam_pulang) ? "checkout" : "done") }}',
         isHoliday: {{ ($is_holiday) ? 'true' : 'false' }},
@@ -3483,7 +3483,7 @@
                         icon: 'info',
                         title: 'Detail Denda',
                         text: (res && res.message) ? res.message : 'Tidak ada data denda ditemukan.',
-                        confirmButtonColor: '#e11d48'
+                        confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}'
                     });
                     return;
                 }
@@ -3533,7 +3533,7 @@
                     title: 'Rincian Denda',
                     html: contentHtml,
                     confirmButtonText: 'Tutup',
-                    confirmButtonColor: '#e11d48',
+                    confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                     customClass: {
                         popup: 'rounded-2xl',
                         confirmButton: 'rounded-xl px-5 py-2 font-medium text-sm'
@@ -3562,8 +3562,8 @@
        ═══════════════════════════════════════════════════════════ */
     window.FaceScan = (function () {
         const BASE = '{{ rtrim(url('/') . '/', '/') }}';
-        const CSRF_NAME = '{{ '_token' }}';
-        let CSRF_HASH = '{{ '_token' }}';
+        const CSRF_NAME = '_token';
+        let CSRF_HASH = '{{ csrf_token() }}';
 
         // Token CSRF menempel di HTML; halaman PWA yang lama terbuka atau
         // disajikan service worker bisa membawa token kedaluwarsa. Segarkan
@@ -4289,7 +4289,7 @@
                     '<div style="background:#fff;border:1px dashed var(--brand-300);border-radius:10px;padding:8px 10px;margin:8px 0 10px;font-size:13px;font-weight:800;color:var(--brand-600);">ya, saya akan meningkatkan disiplin</div>' +
                     '<input id="facescan-teguran-frasa" class="swal2-input" style="margin:0;width:100%;text-align:center;" placeholder="ketik di sini..." autocomplete="off"></div>',
                 width: '26rem', allowOutsideClick: false, allowEscapeKey: false,
-                showCancelButton: false, confirmButtonText: 'Konfirmasi & Lanjutkan Absen', confirmButtonColor: '#e11d48',
+                showCancelButton: false, confirmButtonText: 'Konfirmasi & Lanjutkan Absen', confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                 didOpen: () => {
                     const btn = Swal.getConfirmButton(), input = document.getElementById('facescan-teguran-frasa');
                     btn.disabled = true; btn.style.opacity = 0.5;
@@ -4626,7 +4626,7 @@
                 showCancelButton: true,
                 confirmButtonText: 'Ya, lanjutkan absen',
                 cancelButtonText: 'Batal',
-                confirmButtonColor: '#e11d48',
+                confirmButtonColor: '{{ \App\Libraries\Theme::metaColor('primary') }}',
                 cancelButtonColor: '#64748b',
             });
 

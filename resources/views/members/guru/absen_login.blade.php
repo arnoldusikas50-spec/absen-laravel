@@ -9,7 +9,7 @@
     <link rel="shortcut icon" href="{{ asset('assets/img/favicon.png') }}" type="image/x-icon">
     
     <!-- Tailwind Icons -->
-    <link href="{{ asset('assets/plugins/bootstrap-icon/bootstrap-icons.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}" rel="stylesheet">
     <!-- Google Fonts: Plus Jakarta Sans / Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

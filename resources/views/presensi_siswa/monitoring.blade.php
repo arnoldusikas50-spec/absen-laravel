@@ -29,8 +29,8 @@
     border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
     transition: all 0.15s ease; white-space: nowrap; user-select: none;
 }
-.filter-chip:hover  { border-color: #0284c7; color: #0284c7; background: #f0f9ff; }
-.filter-chip.active { background: #0284c7; color: #fff; border-color: #0284c7; }
+.filter-chip:hover  { border-color: var(--primary-600); color: var(--primary-600); background: var(--primary-50); }
+.filter-chip.active { background: var(--primary-600); color: #fff; border-color: var(--primary-600); }
 .filter-chip.active .chip-count { background: rgba(255,255,255,0.25); color: #fff; }
 .chip-count {
     background: #f1f5f9; color: #475569;

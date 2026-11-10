@@ -258,9 +258,9 @@
                 'error': 'Maaf, file tidak valid.'
             },
             error: {
-                'fileSize': 'Ukuran file terlalu besar (maks {{ value }}).',
-                'imageFormat': 'Format tidak diizinkan ({{ value }} saja).',
-                'fileExtension': 'Format tidak diizinkan ({{ value }} saja).'
+                'fileSize': 'Ukuran file terlalu besar (maks @{{ value }}).',
+                'imageFormat': 'Format tidak diizinkan (@{{ value }} saja).',
+                'fileExtension': 'Format tidak diizinkan (@{{ value }} saja).'
             }
         });
 
@@ -493,7 +493,7 @@
                         type: 'POST',
                         data: {
                             guru: dataGuru,
-                            {{ '_token' }}: '{{ '_token' }}'
+                            '_token': '{{ csrf_token() }}'
                         },
                         success: (res) => {
                             if (res.status) {

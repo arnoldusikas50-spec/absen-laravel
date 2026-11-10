@@ -455,7 +455,7 @@ async function selaraskanDivergensiAdmin(btn, idSiswa) {
     const fd = new FormData();
     fd.append('tanggal', '{{ $tanggal }}');
     fd.append('id_siswa', idSiswa);
-    fd.append('{{ '_token' }}', '{{ '_token' }}');
+    fd.append('_token', '{{ csrf_token() }}');
     try {
         const res = await fetch('{{ url('admin/piket/selaras-divergensi') }}', {
             method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' }
