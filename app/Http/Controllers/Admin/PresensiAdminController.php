@@ -2811,7 +2811,7 @@ class PresensiAdminController extends BaseController
         $db = DB::connection();
         $forge = (new CiForge);
         if (Schema::hasTable('absensi_setting')) {
-            $fields = $db->getFieldNames('absensi_setting');
+            $fields = Schema::getColumnListing('absensi_setting');
             if (! in_array('max_izin_hari', $fields)) {
                 $forge->addColumn('absensi_setting', [
                     'max_izin_hari' => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
@@ -10161,8 +10161,15 @@ class PresensiAdminController extends BaseController
             // Structure
             $sql .= "-- Table structure for table `$table` --\n";
             $sql .= "DROP TABLE IF EXISTS `$table`;\n";
-            $query = $db->select("SHOW CREATE TABLE `$table`")[0] ?? null;
-            $sql .= $query['Create Table'].";\n\n";
+            // select() mengembalikan stdClass; kolom "Create Table" dibaca lewat array.
+            $create = $db->select("SHOW CREATE TABLE `$table`")[0] ?? null;
+            $createSql = $create ? (((array) $create)['Create Table'] ?? null) : null;
+            if ($createSql === null) {
+                Log::error('[backupDatabase] gagal membaca struktur '.$table);
+
+                continue;
+            }
+            $sql .= $createSql.";\n\n";
 
             // Data
             $sql .= "-- Dumping data for table `$table` --\n";
@@ -10185,7 +10192,11 @@ class PresensiAdminController extends BaseController
 
         $filename = 'backup_absensi_'.date('Y-m-d_H-i-s').'.sql';
 
-        return $this->response->download($filename, $sql);
+        // download() mengharapkan path file; isi SQL dikirim lewat stream
+        // supaya tidak perlu menulis file ke disk.
+        return response()->streamDownload(function () use ($sql): void {
+            echo $sql;
+        }, $filename, ['Content-Type' => 'application/sql']);
     }
 
     /**
@@ -10199,9 +10210,10 @@ class PresensiAdminController extends BaseController
 
         $db = DB::connection();
 
-        // Dynamically fetch tables
+        // Dynamically fetch tables (Schema::getTableListing() menggantikan
+        // listTables() yang hanya ada di CodeIgniter).
         $tables = [];
-        $allTables = $db->listTables();
+        $allTables = Schema::getTableListing();
         foreach ($allTables as $t) {
             if (strpos($t, 'absensi_') === 0) {
                 $tables[] = $t;
@@ -10241,7 +10253,11 @@ class PresensiAdminController extends BaseController
 
         $filename = 'backup_absensi_json_'.date('Y-m-d_H-i-s').'.json';
 
-        return $this->response->download($filename, json_encode($data, JSON_PRETTY_PRINT));
+        // Sama seperti backup SQL: kirim isi lewat stream, bukan sebagai
+        // argumen "nama file" pada download().
+        return response()->streamDownload(function () use ($data): void {
+            echo json_encode($data, JSON_PRETTY_PRINT);
+        }, $filename, ['Content-Type' => 'application/json']);
     }
 
     /**
@@ -11371,7 +11387,7 @@ class PresensiAdminController extends BaseController
             // Hanya surat milik siswa AKTIF (buku_induk.status = '1').
             // Surat siswa LULUS/PINDAH/KELUAR tidak ditampilkan di daftar
             // (arsip fisiknya tetap tersimpan di tabel).
-            $lq = $db->table(SuratPanggilanService::TABEL.' p')
+            $lq = $db->table(SuratPanggilanService::TABEL.' as p')
                 ->select('p.*', 's.nama', 's.nis', 's.nisn', 's.kelas_awal')
                 ->join('master_siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->where('p.bulan', $bulan)
@@ -11385,8 +11401,10 @@ class PresensiAdminController extends BaseController
                 }
             } catch (\Throwable $e2) {
             }
+            // View memproses daftar ini dengan array_filter/foreach, jadi
+            // collection dari query harus diubah menjadi array biasa.
             $letters = $lq->orderBy('p.nomor_urut', 'DESC')
-                ->get();
+                ->get()->all();
 
             // Deteksi siswa yang wali kelasnya sudah punya surat teguran aktif
             // pada bulan ini, untuk ditampilkan badge alpha di bulan berjalan.
@@ -11411,7 +11429,7 @@ class PresensiAdminController extends BaseController
                         $idKelasTeguran = $db->table('master_kelas')
                             ->select('id_kelas')
                             ->whereIn('guru_id', $idGuruTeguran)
-                            ->get();
+                            ->get()->all();
                         $idKelasList = array_values(
                             array_unique(array_map(fn ($r) => (int) ($r->id_kelas ?? 0), $idKelasTeguran))
                         );
@@ -12022,7 +12040,7 @@ class PresensiAdminController extends BaseController
         $id = (int) $id;
         $db = DB::connection();
 
-        $letter = $db->table(SuratPanggilanService::TABEL.' p')
+        $letter = $db->table(SuratPanggilanService::TABEL.' as p')
             ->select('p.*', 's.nama', 's.nis', 's.nisn', 's.kelas_awal', 's.nama_ayah', 's.nohp_ayah', 's.nama_ibu', 's.nohp_ibu', 's.nama_wali', 's.nohp_wali')
             ->join('master_siswa as s', 's.id_siswa', '=', 'p.id_siswa')
             ->where('p.id', $id)

@@ -96,11 +96,11 @@ class JurnalController extends BaseController
         if (Schema::hasColumn('master_kelas', 'id_smt')) {
             $builder->where('id_smt', $idSmt);
         }
-        $kelases = $builder->orderBy('nama_kelas', 'ASC')->get();
+        $kelases = $builder->orderBy('nama_kelas', 'ASC')->get()->all();
 
         if (empty($kelases)) {
             $kelases = $db->table('master_kelas')->select('id_kelas', 'nama_kelas')
-                ->orderBy('nama_kelas', 'ASC')->get();
+                ->orderBy('nama_kelas', 'ASC')->get()->all();
         }
 
         if ($jurnal) {

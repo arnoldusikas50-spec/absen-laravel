@@ -125,9 +125,35 @@ class DatamapelController extends BaseController
             return $deny;
         }
         $db = DB::connection();
-        $builder = $db->table('master_mapel')
-            ->orderBy('kelompok', 'ASC')
-            ->orderBy('urutan_tampil', 'ASC');
+
+        $recordsTotal = $db->table('master_mapel')->count();
+
+        $builder = $db->table('master_mapel');
+
+        $search = trim((string) $this->request->input('search.value'));
+        if ($search !== '') {
+            $builder->where(function ($q) use ($search) {
+                $q->where('nama_mapel', 'like', '%'.$search.'%')
+                    ->orWhere('kode', 'like', '%'.$search.'%');
+            });
+        }
+
+        $kolomOrder = ['id_mapel', 'urutan_tampil', 'nama_mapel', 'kode', 'status', null];
+        $idxOrder = $this->request->input('order.0.column');
+        $dirOrder = strtolower((string) $this->request->input('order.0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if (is_numeric($idxOrder) && isset($kolomOrder[(int) $idxOrder]) && $kolomOrder[(int) $idxOrder] !== null) {
+            $builder->orderBy($kolomOrder[(int) $idxOrder], $dirOrder);
+        } else {
+            $builder->orderBy('kelompok', 'ASC')->orderBy('urutan_tampil', 'ASC');
+        }
+
+        $recordsFiltered = $builder->count();
+
+        $start = (int) $this->request->input('start', 0);
+        $length = (int) $this->request->input('length', 10);
+        if ($length > 0) {
+            $builder->offset($start)->limit($length);
+        }
 
         $data = $builder->get();
 
@@ -139,9 +165,9 @@ class DatamapelController extends BaseController
         unset($row);
 
         return $this->response->setJSON([
-            'draw' => $this->request->input('draw'),
-            'recordsTotal' => count($data),
-            'recordsFiltered' => count($data),
+            'draw' => (int) $this->request->input('draw', 1),
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
             'data' => $data,
         ]);
     }
@@ -243,6 +269,9 @@ class DatamapelController extends BaseController
         $nama = trim((string) $this->request->input('nama_mapel'));
         $kode = trim((string) $this->request->input('kode_mapel'));
         $kelompok = trim((string) $this->request->input('kelompok'));
+        if ($kelompok === '') {
+            $kelompok = 'A';
+        }
         $urutanPost = $this->request->input('urutan_tampil');
         $statusPost = $this->request->input('status');
 

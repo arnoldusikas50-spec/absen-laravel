@@ -121,11 +121,22 @@ class JadwalController extends BaseController
     /**
      * AJAX: Get Jadwal Harian & Timeline
      */
-    public function get_jadwal($hari)
+    public function get_jadwal(?string $hari = null)
     {
         if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
         }
+
+        // Route dengan path (get_jadwal/{hari}) mengirim hari lewat URL,
+        // route POST tanpa path (get-jadwal) mengirimnya lewat body/query.
+        $hari = trim((string) ($hari ?? $this->request->input('hari', $this->request->input('day', ''))));
+        if ($hari === '') {
+            return $this->response->setJSON(['status' => false, 'message' => 'Parameter hari belum diisi']);
+        }
+        if (! preg_match('/^[0-9]{1,2}$/', $hari) || (int) $hari < 1 || (int) $hari > 7) {
+            return $this->response->setJSON(['status' => false, 'message' => 'Parameter hari tidak valid']);
+        }
+        $hari = (string) (int) $hari;
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {

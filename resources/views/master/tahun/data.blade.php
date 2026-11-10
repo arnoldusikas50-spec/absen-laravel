@@ -90,55 +90,6 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
         </div>
     </div>
 
-    <!-- Statistik Cepat -->
-    <div class="px-6 pb-4">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Total Tahun Pelajaran</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ $stats['total_tp'] }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold {{ $stats['aktif_tp'] === 1 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $stats['aktif_tp'] }} Aktif
-                    </span>
-                </div>
-            </div>
-            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Total Semester</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ $stats['total_smt'] }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold {{ $stats['aktif_smt'] === 1 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $stats['aktif_smt'] }} Aktif
-                    </span>
-                </div>
-            </div>
-            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Periode Aktif</p>
-                    <p class="text-lg font-bold text-slate-800">{{ $periodeAktif }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold {{ $tp_active && $smt_active ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $tp_active && $smt_active ? 'Lengkap' : 'Belum Lengkap' }}
-                    </span>
-                </div>
-            </div>
-            <div class="stat-card bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Hari Efektif</p>
-                    <p class="text-2xl font-bold text-slate-800">{{ (int) $stats['heb'] }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold {{ $stats['heb'] > 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                        {{ $stats['heb'] > 0 ? 'Disetel' : 'Belum' }}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Main Content: Two Balanced Cards -->
     <div class="p-6">

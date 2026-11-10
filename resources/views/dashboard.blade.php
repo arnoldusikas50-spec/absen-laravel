@@ -95,11 +95,22 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
          HERO BANNER
     ══════════════════════════════════════════════════ -->
     <div class="px-6 pt-6 pb-0">
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-700 to-blue-900 text-white shadow-xl">
+        {{--
+            Gradien hero sengaja direduksi supaya tidak pekat/neon.
+            Warna tema (primary -> accent -> indigo) dilapis di atas dasar
+            slate gelap dengan alpha < 1, sehingga warnanya meredup dan tetap
+            mengikuti preset tema yang dipilih (App\Libraries\Theme).
+            Variabel --primary-*-rgb / --accent-*-rgb / --indigo-*-rgb dikirim
+            oleh Theme::styleTag() pada layout.
+        --}}
+        <div class="relative overflow-hidden rounded-3xl text-white shadow-lg"
+            style="background-color:#1e293b;background-image:linear-gradient(135deg,rgb(var(--primary-600-rgb)/0.82) 0%,rgb(var(--accent-600-rgb)/0.72) 52%,rgb(var(--indigo-700-rgb)/0.85) 100%);">
             <!-- Decorative blobs -->
             <div class="absolute -right-16 -bottom-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none"></div>
             <div class="absolute right-40 -top-20 w-40 h-40 rounded-full bg-white/5 pointer-events-none"></div>
             <div class="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-blue-800/40 to-transparent pointer-events-none"></div>
+            <div class="absolute inset-0 pointer-events-none"
+                style="background:radial-gradient(110% 80% at 88% 4%,rgb(var(--accent-400-rgb)/0.22),transparent 62%);"></div>
 
             <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 md:p-7">
                 <!-- Left: greeting + meta -->

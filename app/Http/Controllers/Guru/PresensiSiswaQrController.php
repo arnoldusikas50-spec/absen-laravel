@@ -2751,7 +2751,7 @@ class PresensiSiswaQrController extends BaseController
             }
         }
 
-        $fields = $db->getFieldNames('absensi_harian');
+        $fields = Schema::getColumnListing('absensi_harian');
         $fieldSet = array_flip($fields);
 
         $rawRow = [
@@ -2967,7 +2967,7 @@ class PresensiSiswaQrController extends BaseController
             $curKet = trim($curKet.' '.$calc['keterangan']);
         }
 
-        $fields = $db->getFieldNames('absensi_harian');
+        $fields = Schema::getColumnListing('absensi_harian');
         $fieldSet = array_flip($fields);
 
         // Cap bulanan juga berlaku untuk denda pulang awal. Jalur check-in di

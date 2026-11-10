@@ -805,7 +805,9 @@ class SettingsController extends BaseController
         }
 
         $db = DB::connection();
-        $tables = $db->listTables();
+        // listTables() adalah API CodeIgniter; padanannya di Laravel adalah
+        // Schema::getTableListing() yang mengembalikan nama tabel.
+        $tables = Schema::getTableListing();
         $filename = 'db_backup_'.date('Ymd_His').'.sql';
         $filepath = $backupPath.$filename;
 
@@ -824,7 +826,7 @@ class SettingsController extends BaseController
 
                 continue;
             }
-            $fields = $db->getFieldNames($table);
+            $fields = Schema::getColumnListing($table);
             if (empty($fields)) {
                 Log::error('[Settings::backupDb] tidak bisa membaca kolom '.$table);
                 $dilewati[] = $table;

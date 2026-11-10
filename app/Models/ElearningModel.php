@@ -183,7 +183,9 @@ class ElearningModel extends Model
                     ->where('ks.id_tp', '=', $tp)
                     ->where('ks.id_smt', '=', $smt);
             });
-            $builder->groupBy('k.id_kelas');
+            // MySQL ONLY_FULL_GROUP_BY menolak kolom select yang tidak ada di
+            // GROUP BY, jadi semua kolom yang di-select ikut dikelompokkan.
+            $builder->groupBy('k.id_kelas', 'k.nama_kelas', 'k.kode_kelas');
         }
 
         return $builder->orderBy('k.nama_kelas', 'ASC')
