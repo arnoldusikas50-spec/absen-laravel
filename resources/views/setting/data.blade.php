@@ -6,10 +6,6 @@ $satuan = ["1" => ["SD", "MI"], "2" => ["SMP", "MTS"], "3" => ["SMA", "MA", "SMK
 
 $settingData = isset($setting) && is_object($setting) ? $setting : (object) [];
 
-$esc = static function ($value) {
-    return e($value ?? '');
-};
-
 $jenjangOptions = [
     1 => 'SD/MI',
     2 => 'SMP/MTS',
@@ -108,25 +104,25 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                     <label class="font-weight-semibold">Nama Aplikasi <span
                                             class="text-red-500">*</span></label>
                                     <input type="text" name="nama_aplikasi" class="form-control-tw"
-                                        value="{{ $esc($settingData->nama_aplikasi ?? '') }}" required>
+                                        value="{{ esc($settingData->nama_aplikasi ?? '') }}" required>
                                 </div>
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Nama Sekolah <span
                                             class="text-red-500">*</span></label>
                                     <input type="text" name="nama_sekolah" class="form-control-tw"
-                                        value="{{ $esc($settingData->sekolah ?? '') }}" required>
+                                        value="{{ esc($settingData->sekolah ?? '') }}" required>
                                 </div>
                                 <div class="grid grid-cols-1 gap-3">
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">NSS/NSM</label>
                                         <input type="text" name="nss" class="form-control-tw"
-                                            value="{{ $esc($settingData->nss ?? '') }}" pattern="[0-9]{10,12}"
+                                            value="{{ esc($settingData->nss ?? '') }}" pattern="[0-9]{10,12}"
                                             title="NSS/NSM harus berupa angka 10-12 digit">
                                     </div>
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">NPSN</label>
                                         <input type="text" name="npsn" class="form-control-tw"
-                                            value="{{ $esc($settingData->npsn ?? '') }}" pattern="[0-9]{8}"
+                                            value="{{ esc($settingData->npsn ?? '') }}" pattern="[0-9]{8}"
                                             title="NPSN harus berupa 8 digit angka">
                                     </div>
                                 </div>
@@ -180,20 +176,20 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                             class="text-red-500">*</span></label>
                                     <textarea class="form-control-tw" name="alamat" rows="4"
                                         placeholder="Masukkan alamat lengkap"
-                                        required>{{ $esc($settingData->alamat ?? '') }}</textarea>
+                                        required>{{ esc($settingData->alamat ?? '') }}</textarea>
                                 </div>
                                 <div class="grid grid-cols-1 gap-3">
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">Desa/Kelurahan <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="desa" class="form-control-tw"
-                                            value="{{ $esc($settingData->desa ?? '') }}" required>
+                                            value="{{ esc($settingData->desa ?? '') }}" required>
                                     </div>
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">Kecamatan <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="kec" class="form-control-tw"
-                                            value="{{ $esc($settingData->kecamatan ?? '') }}" required>
+                                            value="{{ esc($settingData->kecamatan ?? '') }}" required>
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 gap-3">
@@ -201,19 +197,19 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                         <label class="font-weight-semibold">Kabupaten/Kota <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="kota" class="form-control-tw"
-                                            value="{{ $esc($settingData->kota ?? '') }}" required>
+                                            value="{{ esc($settingData->kota ?? '') }}" required>
                                     </div>
                                     <div class="mb-6 col-md-3">
                                         <label class="font-weight-semibold">Kode Pos</label>
                                         <input type="text" name="kode_pos" class="form-control-tw"
-                                            value="{{ $esc($settingData->kode_pos ?? '') }}" pattern="[0-9]{5}"
+                                            value="{{ esc($settingData->kode_pos ?? '') }}" pattern="[0-9]{5}"
                                             title="Kode pos terdiri dari 5 digit angka">
                                     </div>
                                     <div class="mb-6 col-md-3">
                                         <label class="font-weight-semibold">Provinsi <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="provinsi" class="form-control-tw"
-                                            value="{{ $esc($settingData->provinsi ?? '') }}" required>
+                                            value="{{ esc($settingData->provinsi ?? '') }}" required>
                                     </div>
                                 </div>
                             </div>
@@ -230,13 +226,13 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Website</label>
                                     <input type="url" name="web" class="form-control-tw"
-                                        value="{{ $esc($settingData->web ?? ($settingData->website ?? '')) }}"
+                                        value="{{ esc($settingData->web ?? ($settingData->website ?? '')) }}"
                                         placeholder="https://contoh-sekolah.sch.id">
                                 </div>
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Email</label>
                                     <input type="email" name="email" class="form-control-tw"
-                                        value="{{ $esc($settingData->email ?? '') }}"
+                                        value="{{ esc($settingData->email ?? '') }}"
                                         placeholder="kontak@sekolah.sch.id">
                                 </div>
                                 <div class="mb-6">
@@ -246,14 +242,14 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                             <span class="input-group-tw">+62</span>
                                         </div>
                                         <input type="tel" name="tlp" class="form-control-tw"
-                                            value="{{ $esc($settingData->telp ?? '') }}" pattern="[0-9]{6,15}"
+                                            value="{{ esc($settingData->telp ?? '') }}" pattern="[0-9]{6,15}"
                                             title="Masukkan nomor telepon tanpa spasi atau tanda hubung">
                                     </div>
                                 </div>
                                 <div class="mb-6 mb-0">
                                     <label class="font-weight-semibold">Faksimili</label>
                                     <input type="text" name="fax" class="form-control-tw"
-                                        value="{{ $esc($settingData->fax ?? '') }}">
+                                        value="{{ esc($settingData->fax ?? '') }}">
                                 </div>
                             </div>
                         </div>
@@ -274,13 +270,13 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Bot Token</label>
                                     <input type="text" name="telegram_bot_token" class="form-control-tw"
-                                        value="{{ $esc($settingData->telegram_bot_token ?? '') }}"
+                                        value="{{ esc($settingData->telegram_bot_token ?? '') }}"
                                         placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ">
                                 </div>
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Chat ID Tujuan</label>
                                     <input type="text" name="telegram_chat_id" class="form-control-tw"
-                                        value="{{ $esc($settingData->telegram_chat_id ?? '') }}"
+                                        value="{{ esc($settingData->telegram_chat_id ?? '') }}"
                                         placeholder="-100xxxxxxx atau ID User">
                                 </div>
                                 <hr>
@@ -288,19 +284,19 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">WA API Token</label>
                                     <input type="text" name="wa_token" class="form-control-tw"
-                                        value="{{ $esc($settingData->wa_token ?? '') }}"
+                                        value="{{ esc($settingData->wa_token ?? '') }}"
                                         placeholder="Token API WhatsApp Gateway">
                                 </div>
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Nomor WA Tujuan</label>
                                     <input type="text" name="wa_target_number" class="form-control-tw"
-                                        value="{{ $esc($settingData->wa_target_number ?? '') }}"
+                                        value="{{ esc($settingData->wa_target_number ?? '') }}"
                                         placeholder="0812345xxxxx">
                                 </div>
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Gateway URL (Opsional)</label>
                                     <input type="url" name="wa_gateway_url" class="form-control-tw"
-                                        value="{{ $esc($settingData->wa_gateway_url ?? 'https://api.fonnte.com/send') }}"
+                                        value="{{ esc($settingData->wa_gateway_url ?? 'https://api.fonnte.com/send') }}"
                                         placeholder="https://api.fonnte.com/send">
                                 </div>
                                 <hr>
@@ -310,7 +306,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                         <div class="mb-6">
                                             <label class="font-weight-semibold">IP Address MikroTik</label>
                                             <input type="text" name="mikrotik_host" class="form-control-tw"
-                                                value="{{ $esc($settingData->mikrotik_host ?? '') }}"
+                                                value="{{ esc($settingData->mikrotik_host ?? '') }}"
                                                 placeholder="192.168.88.1">
                                         </div>
                                     </div>
@@ -319,7 +315,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                             <label class="font-weight-semibold">Port API</label>
                                             <input type="number" name="mikrotik_port"
                                                 class="form-control-tw"
-                                                value="{{ $esc($settingData->mikrotik_port ?? '8728') }}"
+                                                value="{{ esc($settingData->mikrotik_port ?? '8728') }}"
                                                 placeholder="8728">
                                         </div>
                                     </div>
@@ -329,7 +325,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                         <div class="mb-6">
                                             <label class="font-weight-semibold">User API</label>
                                             <input type="text" name="mikrotik_user" class="form-control-tw"
-                                                value="{{ $esc($settingData->mikrotik_user ?? '') }}">
+                                                value="{{ esc($settingData->mikrotik_user ?? '') }}">
                                         </div>
                                     </div>
                                     <div class="">
@@ -337,7 +333,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                             <label class="font-weight-semibold">Password API</label>
                                             <input type="password" name="mikrotik_pass"
                                                 class="form-control-tw"
-                                                value="{{ $esc($settingData->mikrotik_pass ?? '') }}">
+                                                value="{{ esc($settingData->mikrotik_pass ?? '') }}">
                                         </div>
                                     </div>
                                 </div>
@@ -357,12 +353,12 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                         <label class="font-weight-semibold">Kepala Sekolah <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="kepsek" class="form-control-tw"
-                                            value="{{ $esc($settingData->kepsek ?? '') }}" required>
+                                            value="{{ esc($settingData->kepsek ?? '') }}" required>
                                     </div>
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">NIP Kepala Sekolah</label>
                                         <input type="text" name="nip" class="form-control-tw"
-                                            value="{{ $esc($settingData->nip ?? '') }}" pattern="[0-9]{8,20}"
+                                            value="{{ esc($settingData->nip ?? '') }}" pattern="[0-9]{8,20}"
                                             title="Masukkan 8-20 digit angka">
                                     </div>
                                 </div>
@@ -371,12 +367,12 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                         <label class="font-weight-semibold">Proktor <span
                                                 class="text-red-500">*</span></label>
                                         <input type="text" name="proktor" class="form-control-tw"
-                                            value="{{ $esc($settingData->proktor ?? '') }}" required>
+                                            value="{{ esc($settingData->proktor ?? '') }}" required>
                                     </div>
                                     <div class="mb-6 col-md-6">
                                         <label class="font-weight-semibold">NIP Proktor</label>
                                         <input type="text" name="nip_proktor" class="form-control-tw"
-                                            value="{{ $esc($settingData->nip_proktor ?? '') }}" pattern="[0-9]{8,20}"
+                                            value="{{ esc($settingData->nip_proktor ?? '') }}" pattern="[0-9]{8,20}"
                                             title="Masukkan 8-20 digit angka">
                                     </div>
                                 </div>
@@ -395,7 +391,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">Waktu Bank Soal</label>
                                     <input type="datetime-local" name="ba_waktu" class="form-control-tw"
-                                        value="{{ $esc($bankSoalDateTime) }}">
+                                        value="{{ esc($bankSoalDateTime) }}">
                                 </div>
                                 <div class="grid grid-cols-1 gap-3">
                                     <div class="mb-6 col-md-6">
@@ -424,7 +420,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                                 <div class="mb-6">
                                     <label class="font-weight-semibold">API Key (OpenAI / Gemini)</label>
                                     <input type="text" name="api_key" class="form-control-tw"
-                                        value="{{ $esc($settingData->api_key ?? '') }}"
+                                        value="{{ esc($settingData->api_key ?? '') }}"
                                         placeholder="Paste API Key disini...">
                                     <span class="text-sm text-slate-400">Kunci API diperlukan untuk fitur generate soal otomatis
                                         menggunakan AI.</span>
@@ -553,19 +549,19 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
 
     // Logos object for submit
     const logos = {
-        logo_kanan: '{{ $esc($settingData->logo_kanan ?? '') }}',
-        logo_kiri: '{{ $esc($settingData->logo_kiri ?? '') }}',
-        kodescan: '{{ $esc($settingData->kodescan ?? '') }}',
-        kopsekolah: '{{ $esc($settingData->kopsekolah ?? '') }}',
-        stampel: '{{ $esc($settingData->stampel ?? '') }}',
-        ttdproktor: '{{ $esc($settingData->ttdproktor ?? '') }}',
-        tanda_tangan: '{{ $esc($settingData->tanda_tangan ?? '') }}',
-        banner1: '{{ $esc($settingData->banner1 ?? '') }}',
-        banner2: '{{ $esc($settingData->banner2 ?? '') }}',
-        banner3: '{{ $esc($settingData->banner3 ?? '') }}'
+        logo_kanan: @json($settingData->logo_kanan ?? ''),
+        logo_kiri: @json($settingData->logo_kiri ?? ''),
+        kodescan: @json($settingData->kodescan ?? ''),
+        kopsekolah: @json($settingData->kopsekolah ?? ''),
+        stampel: @json($settingData->stampel ?? ''),
+        ttdproktor: @json($settingData->ttdproktor ?? ''),
+        tanda_tangan: @json($settingData->tanda_tangan ?? ''),
+        banner1: @json($settingData->banner1 ?? ''),
+        banner2: @json($settingData->banner2 ?? ''),
+        banner3: @json($settingData->banner3 ?? '')
     };
 
-    const satuanPend = {{ json_encode($satuan) }};
+    const satuanPend = {!! json_encode($satuan)!!};
 
     function submitSetting() {
         $('#savesetting').submit();
@@ -657,8 +653,8 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                     error: 'Oops, ada kesalahan!'
                 },
                 error: {
-                    fileSize: 'Ukuran file terlalu besar (maks {{ value }}).',
-                    imageFormat: 'Format gambar tidak diizinkan (hanya {{ value }}).'
+                    fileSize: 'Ukuran file terlalu besar (maks 2MB).',
+                    imageFormat: 'Format gambar tidak diizinkan (hanya JPG/PNG).'
                 }
             });
 

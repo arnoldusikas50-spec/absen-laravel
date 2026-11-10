@@ -1272,7 +1272,7 @@ $fotoUrl = function ($path) {
     (function () {
         'use strict';
 
-        const MON_DATE = {{ json_encode($date) }};
+        const MON_DATE = @json($date);
         const STATE_KEY = 'presensiMonitoringState';
         const table = document.getElementById('monitoringTable');
         const tbody = table ? table.querySelector('tbody') : null;
@@ -1624,7 +1624,7 @@ $fotoUrl = function ($path) {
         });
 
         window.recalculateDayStatus = function () {
-            var url = {{ json_encode(url('admin/presensi/recalculate-day')) }};
+            var url = @json(url('admin/presensi/recalculate-day'));
             var payload = new URLSearchParams({
                 '{{ '_token' }}': '{{ '_token' }}',
                 'date': MON_DATE

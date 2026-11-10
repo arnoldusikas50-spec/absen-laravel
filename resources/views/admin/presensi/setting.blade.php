@@ -1922,7 +1922,7 @@
                         </div>
                     </div>
 
-                    <script type="application/json" id="themeClientConfig">{{ $themeJson }}</script>
+                    <script type="application/json" id="themeClientConfig">{!! $themeJson !!}</script>
                 </div>
 
                 <!-- ==================================================== -->
@@ -2369,10 +2369,10 @@
             const NAMA = {1:'Januari',2:'Februari',3:'Maret',4:'April',5:'Mei',6:'Juni',7:'Juli',8:'Agustus',9:'September',10:'Oktober',11:'November',12:'Desember'};
 
             function render() {
-                const tpl = (($fmt.val() || '').trim()) || {{ json_encode(\App\Libraries\SuratNomor::DEFAULT_FORMAT) }};
+                const tpl = (($fmt.val() || '').trim()) || @json(\App\Libraries\SuratNomor::DEFAULT_FORMAT);
                 const padRaw = parseInt($pad.val(), 10);
                 const pad = (padRaw >= 1 && padRaw <= 6) ? padRaw : {{ \App\Libraries\SuratNomor::DEFAULT_PADDING }};
-                const kode = (($kode.val() || '').trim()) || {{ json_encode(\App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH) }};
+                const kode = (($kode.val() || '').trim()) || @json(\App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH);
                 const now = new Date();
                 const bln = now.getMonth() + 1;
                 const thn = now.getFullYear();
@@ -2380,11 +2380,11 @@
 
                 let teks = tpl
                     .split('{kode_sekolah}').join(kode)
-                    .split('{sekolah}').join({{ json_encode((string)($setting->sekolah ?? '')) }})
-                    .split('{npsn}').join({{ json_encode((string)($setting->npsn ?? '')) }})
-                    .split('{nss}').join({{ json_encode((string)($setting->nss ?? '')) }})
-                    .split('{kepsek}').join({{ json_encode((string)($setting->kepsek ?? '')) }})
-                    .split('{nip_kepsek}').join({{ json_encode((string)($setting->nip ?? '')) }})
+                    .split('{sekolah}').join(@json((string)($setting->sekolah ?? '')))
+                    .split('{npsn}').join(@json((string)($setting->npsn ?? '')))
+                    .split('{nss}').join(@json((string)($setting->nss ?? '')))
+                    .split('{kepsek}').join(@json((string)($setting->kepsek ?? '')))
+                    .split('{nip_kepsek}').join(@json((string)($setting->nip ?? '')))
                     .split('{nomor_urut}').join(nomor)
                     .split('{nomor}').join(nomor)
                     .split('{bulan_romawi}').join(ROM[bln] || '')
@@ -2567,8 +2567,8 @@
             const cfg = JSON.parse(cfgEl.textContent || '{}');
             const root = document.documentElement;
             const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
-            const savedPreset = {{ json_encode($curPreset) }};
-            const savedCustom = {{ json_encode($curCustom) }};
+            const savedPreset = @json($curPreset);
+            const savedCustom = @json($curCustom);
             let selected = savedPreset;
             let customHex = savedCustom;
 
@@ -2584,87 +2584,133 @@
                 ];
             }
 
+            // Port 1:1 dari Theme::rgbToHsl() + Theme::hslToHex() (PHP) agar
+            // palet warna kustom yang dipratinjau sama persis dengan palet
+            // yang nanti dirender server setelah disimpan.
             function rgbToHsl(r, g, b) {
                 r /= 255; g /= 255; b /= 255;
                 const max = Math.max(r, g, b);
                 const min = Math.min(r, g, b);
-                let h = 0;
-                let s = 0;
                 const l = (max + min) / 2;
-                if (max !== min) {
-                    const d = max - min;
-                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-                    else if (max === g) h = (b - r) / d + 2;
-                    else h = (r - g) / d + 4;
-                    h *= 60;
-                }
-                return [h, s * 100, l * 100];
+
+                if (max === min) return [0, 0, l];
+
+                const d = max - min;
+                const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                let h;
+                if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+                else if (max === g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h /= 6;
+
+                return [h, s, l];
+            }
+
+            function hueToRgb(p, q, t) {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
             }
 
             function hslToHex(h, s, l) {
-                h = ((h % 360) + 360) % 360;
-                s /= 100; l /= 100;
-                const c = (1 - Math.abs(2 * l - 1)) * s;
-                const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-                const m = l - c / 2;
-                let r = 0, g = 0, b = 0;
-                if (h < 60) { r = c; g = x; b = 0; }
-                else if (h < 120) { r = x; g = c; b = 0; }
-                else if (h < 180) { r = 0; g = c; b = x; }
-                else if (h < 240) { r = 0; g = x; b = c; }
-                else if (h < 300) { r = x; g = 0; b = c; }
-                else { r = c; g = 0; b = x; }
-                const to = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
-                return '#' + to(r) + to(g) + to(b);
+                const to = function (v) {
+                    return Math.round(v * 255).toString(16).padStart(2, '0');
+                };
+
+                if (s === 0) {
+                    return '#' + to(l) + to(l) + to(l);
+                }
+
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+
+                return '#' + to(hueToRgb(p, q, h + 1 / 3)) + to(hueToRgb(p, q, h)) + to(hueToRgb(p, q, h - 1 / 3));
             }
 
             function paletteFromHex(hex) {
                 const rgb = hexToRgb(hex);
                 const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-                const h = hsl[0];
-                const baseS = Math.min(95, Math.max(35, hsl[1]));
-                const baseL = Math.min(62, Math.max(38, hsl[2]));
-                const lightness = { 50: 96, 100: 92, 200: 84, 300: 74, 400: 64, 500: baseL, 600: baseL - 7, 700: baseL - 15, 800: baseL - 24, 900: baseL - 33 };
-                const satFactor = { 50: 0.55, 100: 0.7, 200: 0.8, 300: 0.9, 400: 1, 500: 1, 600: 1, 700: 1, 800: 1, 900: 1 };
+                const lightness = { 50: 0.97, 100: 0.94, 200: 0.88, 300: 0.78, 400: 0.65, 500: 0.50, 600: 0.40, 700: 0.32, 800: 0.25, 900: 0.19 };
                 const out = {};
                 shades.forEach(function (s) {
-                    out[s] = hslToHex(h, baseS * satFactor[s], Math.min(97, Math.max(8, lightness[s])));
+                    out[s] = hslToHex(hsl[0], hsl[1], lightness[s]);
                 });
+                // Shade 500 = warna asli, sama seperti Theme::paletteFromHex().
+                out[500] = String(hex).toLowerCase();
                 return out;
             }
 
             function resolveTheme(preset, hex) {
+                const fallback = (cfg.presets && cfg.presets.default) || {};
+
                 if (preset === 'custom') {
                     const p = paletteFromHex(hex);
-                    return { brand: p, primary: p, accent: p, indigo: p, purple: p, secondary: p[400], tertiary: p[700] };
+                    // Sama seperti Theme::resolve(): palet kustom dipakai untuk
+                    // primary + accent, sedangkan indigo/purple tetap statis.
+                    return {
+                        brand: p,
+                        primary: p,
+                        accent: p,
+                        indigo: fallback.indigo || p,
+                        purple: fallback.purple || p,
+                        secondary: p[400],
+                        tertiary: p[700]
+                    };
                 }
-                return cfg.presets && cfg.presets[preset] ? cfg.presets[preset] : cfg.presets.default;
+
+                return cfg.presets && cfg.presets[preset] ? cfg.presets[preset] : fallback;
             }
 
+            // Menulis variabel yang sama persis dengan Theme::cssVars() +
+            // Theme::brandVars(): keluarga --primary/--accent/--indigo/--purple,
+            // alias --theme-primary/--theme-accent, keluarga --brand-*,
+            // --brand-secondary/tertiary, dan --primary(-rgb).
             function applyTheme(preset, hex) {
                 const t = resolveTheme(preset, hex);
                 if (!t) return;
 
-                ['brand', 'primary', 'accent', 'indigo', 'purple'].forEach(function (family) {
-                    const palette = t[family] || t.brand;
+                const families = {
+                    primary: t.primary || t.brand,
+                    accent: t.accent || t.brand,
+                    indigo: t.indigo || t.brand,
+                    purple: t.purple || t.brand
+                };
+
+                Object.keys(families).forEach(function (family) {
                     shades.forEach(function (s) {
-                        const rgb = hexToRgb(palette[s]);
-                        root.style.setProperty('--' + family + '-' + s + '-rgb', rgb.join(' '));
-                        root.style.setProperty('--' + family + '-' + s, palette[s]);
+                        const value = families[family][s];
+                        if (!value) return;
+                        root.style.setProperty('--' + family + '-' + s, value);
+                        root.style.setProperty('--' + family + '-' + s + '-rgb', hexToRgb(value).join(' '));
                     });
                 });
 
-                root.style.setProperty('--brand-secondary', t.secondary);
-                root.style.setProperty('--brand-tertiary', t.tertiary);
-                root.style.setProperty('--brand-secondary-rgb', hexToRgb(t.secondary).join(' '));
-                root.style.setProperty('--brand-tertiary-rgb', hexToRgb(t.tertiary).join(' '));
+                ['primary', 'accent'].forEach(function (family) {
+                    shades.forEach(function (s) {
+                        const value = families[family][s];
+                        if (value) root.style.setProperty('--theme-' + family + '-' + s, value);
+                    });
+                });
 
-                const primaryRgb = hexToRgb(t.brand[600]);
+                shades.forEach(function (s) {
+                    const value = t.brand[s];
+                    if (!value) return;
+                    root.style.setProperty('--brand-' + s, value);
+                    root.style.setProperty('--brand-' + s + '-rgb', hexToRgb(value).join(' '));
+                });
+
+                ['secondary', 'tertiary'].forEach(function (key) {
+                    const value = t[key];
+                    if (!value) return;
+                    root.style.setProperty('--brand-' + key, value);
+                    root.style.setProperty('--brand-' + key + '-rgb', hexToRgb(value).join(' '));
+                });
+
                 root.style.setProperty('--primary', t.brand[600]);
-                root.style.setProperty('--primary-rgb', primaryRgb.join(', '));
-                root.style.setProperty('--secondary', t.secondary);
-                root.style.setProperty('--accent', t.tertiary);
+                root.style.setProperty('--primary-rgb', hexToRgb(t.brand[600]).join(', '));
 
                 const meta = document.querySelector('meta[name="theme-color"]');
                 if (meta) meta.setAttribute('content', t.brand[600]);

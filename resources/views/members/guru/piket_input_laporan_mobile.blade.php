@@ -1269,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── Deep link filter temuan dari dashboard piket ──────
-    const initialIssue = {{ json_encode($issue_filter ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }};
+    const initialIssue = {!! json_encode($issue_filter ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)!!};
     if (initialIssue) {
         const issueChip = document.querySelector('.issue-chip[data-issue="' + initialIssue + '"]');
         if (issueChip) {

@@ -581,9 +581,9 @@ thead .sticky-col-2 { z-index: 5; background: #f8fafc; }
     'use strict';
 
     // ── Data periode dari PHP ──────────────────────────────────────
-    const BULAN       = {{ json_encode((int) $bulan) }};
-    const TAHUN       = {{ json_encode((int) $tahun) }};
-    const JUMLAH_GURU = {{ json_encode(count($users)) }};
+    const BULAN       = {!! json_encode((int) $bulan)!!};
+    const TAHUN       = {!! json_encode((int) $tahun)!!};
+    const JUMLAH_GURU = {!! json_encode(count($users))!!};
     const URL_KIRIM   = '{{ url('admin/presensi/rekap/kirim') }}';
 
     const namaBulan = ['','Januari','Februari','Maret','April','Mei','Juni',

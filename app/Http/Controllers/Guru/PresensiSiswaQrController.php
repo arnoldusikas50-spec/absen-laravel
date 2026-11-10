@@ -2,13 +2,22 @@
 
 namespace App\Http\Controllers\Guru;
 
+use App\Http\Controllers\BaseController;
+use App\Models\DashboardModel;
+use App\Models\PiketModel;
+use App\Models\PoinHistoryModel;
+use App\Models\ShiftModel;
+use App\Models\SiswaPresensiModel;
+use App\Services\AttendancePenaltyService;
+use App\Services\AttendancePolicy;
+use App\Services\AvatarService;
+use App\Services\GuruTerawalService;
+use App\Services\SiswaDendaService;
+use App\Services\SiswaPoinService;
+use App\Services\WajibJurnalPulangService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\RateLimiter;
-use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
-use App\Models\SiswaPresensiModel;
 
 /**
  * PresensiSiswaQr
@@ -24,7 +33,8 @@ use App\Models\SiswaPresensiModel;
  */
 class PresensiSiswaQrController extends BaseController
 {
-    protected DashboardModel    $dashModel;
+    protected DashboardModel $dashModel;
+
     protected SiswaPresensiModel $presensiModel;
 
     private const VALID_STATUS = ['HADIR', 'SAKIT', 'IZIN', 'ALPA', 'TANPA_KETERANGAN', 'BDR'];
@@ -35,8 +45,8 @@ class PresensiSiswaQrController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->dashModel     = new DashboardModel();
-        $this->presensiModel = new SiswaPresensiModel();
+        $this->dashModel = new DashboardModel;
+        $this->presensiModel = new SiswaPresensiModel;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -49,14 +59,15 @@ class PresensiSiswaQrController extends BaseController
     public static function getHariIndo(string $day): string
     {
         $map = [
-            'Sunday'    => 'Minggu',
-            'Monday'    => 'Senin',
-            'Tuesday'   => 'Selasa',
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
             'Wednesday' => 'Rabu',
-            'Thursday'  => 'Kamis',
-            'Friday'    => 'Jumat',
-            'Saturday'  => 'Sabtu'
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
         ];
+
         return $map[$day] ?? $day;
     }
 
@@ -67,7 +78,8 @@ class PresensiSiswaQrController extends BaseController
     public static function generateHash(int $userId, ?string $date = null): string
     {
         $date = $date ?: date('Y-m-d');
-        $salt = (string) ('Asia/Makassar' ?? 'Asia/Makassar') . (config('app.key') ?? 'absen_ikas_secret_salt_2026');
+        $salt = (string) ('Asia/Makassar' ?? 'Asia/Makassar').(config('app.key') ?? 'absen_ikas_secret_salt_2026');
+
         return substr(hash_hmac('sha256', "presensi-siswa:{$userId}:{$date}", $salt), 0, 32);
     }
 
@@ -78,18 +90,25 @@ class PresensiSiswaQrController extends BaseController
     public static function isValidHash(?string $hash, int $userId): bool
     {
         $hash = trim((string) ($hash ?? ''));
-        if ($hash === '' || strlen($hash) < 8 || strlen($hash) > 64) return false;
-        $today     = date('Y-m-d');
+        if ($hash === '' || strlen($hash) < 8 || strlen($hash) > 64) {
+            return false;
+        }
+        $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         foreach ([$today, $yesterday] as $d) {
             $expected = self::generateHash($userId, $d);
-            if (hash_equals($expected, $hash)) return true;
+            if (hash_equals($expected, $hash)) {
+                return true;
+            }
             // Legacy 16-char: prefix dari hash baru.
             if (hash_equals(substr($expected, 0, 16), substr($hash, 0, 16)) && strlen($hash) >= 16 && strlen($expected) >= 16) {
                 // Hanya terima bila 16 char pertama cocok persis dan panjang hash 16.
-                if (strlen($hash) === 16 && hash_equals(substr($expected, 0, 16), $hash)) return true;
+                if (strlen($hash) === 16 && hash_equals(substr($expected, 0, 16), $hash)) {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
@@ -101,9 +120,12 @@ class PresensiSiswaQrController extends BaseController
     {
         try {
             $h = trim((string) ($this->request->header('X-QR-Hash') ?? ''));
-            if ($h !== '') return $h;
+            if ($h !== '') {
+                return $h;
+            }
         } catch (\Throwable $e) {
         }
+
         return trim((string) ($this->request->input('h') ?? $this->request->query('h')
             ?? $this->request->input('token') ?? $this->request->query('token') ?? ''));
     }
@@ -129,7 +151,7 @@ class PresensiSiswaQrController extends BaseController
 
         try {
             Log::warning('[PresensiSiswaQr] kiosk token invalid ip={ip} uri={uri}', [
-                'ip'  => $this->request->ip(),
+                'ip' => $this->request->ip(),
                 'uri' => uri_string(),
             ]);
         } catch (\Throwable $e) {
@@ -149,11 +171,11 @@ class PresensiSiswaQrController extends BaseController
     protected function tokenKioskDiset(): string
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('absensi_setting')) {
                 return '';
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'qr_kiosk_token')) {
+            if (! Schema::hasColumn('absensi_setting', 'qr_kiosk_token')) {
                 return '';
             }
             $row = $db->table('absensi_setting')
@@ -164,7 +186,7 @@ class PresensiSiswaQrController extends BaseController
                 // Sekali per request cycle: pengingat bahwa endpoint publik ini
                 // menerima QR/NIS mentah tanpa token sampai admin mengisinya.
                 static $sudahDilaporkan = false;
-                if (!$sudahDilaporkan) {
+                if (! $sudahDilaporkan) {
                     $sudahDilaporkan = true;
                     Log::warning('[PresensiSiswaQr] qr_kiosk_token kosong — endpoint scan publik menerima QR/NIS tanpa token. Isi token kiosk di pengaturan presensi.');
                 }
@@ -176,7 +198,7 @@ class PresensiSiswaQrController extends BaseController
             // bermasalah, tapi tidak lagi diam-diam: tanpa catatan ini
             // kegagalan baca terlihat persis sama dengan "token tidak aktif".
             Log::error('[PresensiSiswaQr] gagal membaca qr_kiosk_token, endpoint publik dibiarkan terbuka: '
-                . $e->getMessage());
+                .$e->getMessage());
 
             return '';
         }
@@ -216,7 +238,7 @@ class PresensiSiswaQrController extends BaseController
     {
         $salt = (string) (config('app.key') ?? 'absen_ikas_secret_salt_2026');
 
-        return hash_hmac('sha256', 'kiosk-gate:' . $token, $salt);
+        return hash_hmac('sha256', 'kiosk-gate:'.$token, $salt);
     }
 
     protected function kioskGateLolos(string $expected): bool
@@ -257,9 +279,9 @@ class PresensiSiswaQrController extends BaseController
     protected function urlKiosk($idKelas = null): string
     {
         $path = 'scanner';
-        $id   = (int) ($idKelas ?? 0);
+        $id = (int) ($idKelas ?? 0);
         if ($id > 0) {
-            $path .= '/' . $id;
+            $path .= '/'.$id;
         }
 
         return url($path);
@@ -270,8 +292,11 @@ class PresensiSiswaQrController extends BaseController
     {
         $qr = trim($qr);
         $len = strlen($qr);
-        if ($len <= 4) return str_repeat('*', max($len, 0));
-        return substr($qr, 0, 2) . str_repeat('*', $len - 4) . substr($qr, -2);
+        if ($len <= 4) {
+            return str_repeat('*', max($len, 0));
+        }
+
+        return substr($qr, 0, 2).str_repeat('*', $len - 4).substr($qr, -2);
     }
 
     /**
@@ -279,15 +304,16 @@ class PresensiSiswaQrController extends BaseController
      */
     public static function getHashedUrl(?int $idKelas = null, ?int $userId = null): string
     {
-        if (!$userId) {
+        if (! $userId) {
             $userId = (int) (session()->get('user_id') ?? 0);
         }
         $hash = self::generateHash($userId);
         $path = 'guru/presensi-siswa';
-        if ($idKelas && (int)$idKelas > 0) {
-            $path .= '/kelas/' . (int)$idKelas;
+        if ($idKelas && (int) $idKelas > 0) {
+            $path .= '/kelas/'.(int) $idKelas;
         }
-        return url($path . '?h=' . $hash);
+
+        return url($path.'?h='.$hash);
     }
 
     /**
@@ -297,50 +323,50 @@ class PresensiSiswaQrController extends BaseController
      */
     public function checkAuthorization(): array
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return [
                 'authorized' => false,
-                'is_admin'   => false,
-                'is_kepsek'  => false,
-                'is_piket'   => false,
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => false,
+                'is_piket' => false,
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => null,
-                'guru'       => null,
-                'reason'     => 'unauthenticated',
-                'message'    => 'Silakan login terlebih dahulu untuk mengakses menu ini.'
+                'user' => null,
+                'guru' => null,
+                'reason' => 'unauthenticated',
+                'message' => 'Silakan login terlebih dahulu untuk mengakses menu ini.',
             ];
         }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return [
                 'authorized' => false,
-                'is_admin'   => false,
-                'is_kepsek'  => false,
-                'is_piket'   => false,
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => false,
+                'is_piket' => false,
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => null,
-                'guru'       => null,
-                'reason'     => 'user_not_found',
-                'message'    => 'Sesi pengguna tidak valid.'
+                'user' => null,
+                'guru' => null,
+                'reason' => 'user_not_found',
+                'message' => 'Sesi pengguna tidak valid.',
             ];
         }
 
         // 1. Cek Admin
-        if ($this->isAdmin() || $this->inGroup('admin') || (string)$this->session->get('role') === '1') {
+        if ($this->isAdmin() || $this->inGroup('admin') || (string) $this->session->get('role') === '1') {
             return [
                 'authorized' => true,
-                'is_admin'   => true,
-                'is_kepsek'  => false,
-                'is_piket'   => true, // Admin punya akses penuh
-                'is_wali'    => false,
+                'is_admin' => true,
+                'is_kepsek' => false,
+                'is_piket' => true, // Admin punya akses penuh
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => $user,
-                'guru'       => null,
-                'reason'     => 'admin',
-                'message'    => 'Akses sebagai Administrator'
+                'user' => $user,
+                'guru' => null,
+                'reason' => 'admin',
+                'message' => 'Akses sebagai Administrator',
             ];
         }
 
@@ -349,15 +375,15 @@ class PresensiSiswaQrController extends BaseController
         if ($this->inGroup('kepsek') || in_array($roleName, ['kepsek', 'kepala sekolah', 'kepala_sekolah'], true)) {
             return [
                 'authorized' => true,
-                'is_admin'   => false,
-                'is_kepsek'  => true,
-                'is_piket'   => true, // Kepsek punya akses penuh seperti admin
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => true,
+                'is_piket' => true, // Kepsek punya akses penuh seperti admin
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => $user,
-                'guru'       => null,
-                'reason'     => 'kepsek',
-                'message'    => 'Akses sebagai Kepala Sekolah'
+                'user' => $user,
+                'guru' => null,
+                'reason' => 'kepsek',
+                'message' => 'Akses sebagai Kepala Sekolah',
             ];
         }
 
@@ -365,56 +391,59 @@ class PresensiSiswaQrController extends BaseController
         if ($this->isKepalaSekolah((int) $user->id)) {
             return [
                 'authorized' => true,
-                'is_admin'   => false,
-                'is_kepsek'  => true,
-                'is_piket'   => true, // Kepsek punya akses penuh seperti admin
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => true,
+                'is_piket' => true, // Kepsek punya akses penuh seperti admin
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => $user,
-                'guru'       => null,
-                'reason'     => 'kepsek',
-                'message'    => 'Akses sebagai Kepala Sekolah'
+                'user' => $user,
+                'guru' => null,
+                'reason' => 'kepsek',
+                'message' => 'Akses sebagai Kepala Sekolah',
             ];
         }
 
         // 2. Cek Guru Piket
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $guru = null;
         try {
             $guru = $db->table('master_guru')
                 ->where('id_user', $user->id)
                 ->first();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
-        if (!$guru) {
+        if (! $guru) {
             return [
                 'authorized' => false,
-                'is_admin'   => false,
-                'is_kepsek'  => false,
-                'is_piket'   => false,
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => false,
+                'is_piket' => false,
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => $user,
-                'guru'       => null,
-                'reason'     => 'not_guru',
-                'message'    => 'Akses ditolak: Menu ini hanya dapat diakses oleh Admin, Kepala Sekolah, Guru Piket, atau Wali Kelas.'
+                'user' => $user,
+                'guru' => null,
+                'reason' => 'not_guru',
+                'message' => 'Akses ditolak: Menu ini hanya dapat diakses oleh Admin, Kepala Sekolah, Guru Piket, atau Wali Kelas.',
             ];
         }
 
-        $idGuru  = (int) $guru->id_guru;
+        $idGuru = (int) $guru->id_guru;
         $hariIni = self::getHariIndo(date('l'));
-        $tp      = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt     = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $isPiket = false;
 
         // a. Cek jadwal piket hari ini di piket_jadwal
-        if (\Illuminate\Support\Facades\Schema::hasTable('piket_jadwal')) {
+        if (Schema::hasTable('piket_jadwal')) {
             $builder = $db->table('piket_jadwal')
                 ->where('id_guru', $idGuru)
                 ->where('hari', $hariIni);
             if ($tp && $smt) {
-                $builder->where(function ($q) { $q->where('id_tp', $tp->id_tp)->$q->where('id_smt', $smt->id_smt)->$q->orWhere('id_tp', 0); });
+                $builder->where(function ($q) {
+                    $q->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt)->orWhere('id_tp', 0);
+                });
             }
             if ($builder->count() > 0) {
                 $isPiket = true;
@@ -422,17 +451,17 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // b. Cek apakah ada tugas tambahan piket di master_guru
-        if (!$isPiket && !empty($guru->tgs_tambahan) && stripos($guru->tgs_tambahan, 'piket') !== false) {
+        if (! $isPiket && ! empty($guru->tgs_tambahan) && stripos($guru->tgs_tambahan, 'piket') !== false) {
             $isPiket = true;
         }
 
         // c. Cek group / role piket
-        if (!$isPiket && ($this->inGroup('piket') || (string)$this->session->get('role_name') === 'piket')) {
+        if (! $isPiket && ($this->inGroup('piket') || (string) $this->session->get('role_name') === 'piket')) {
             $isPiket = true;
         }
 
         // d. Cek jika guru terdaftar di piket_jadwal secara umum (jika jadwal hari ini belum diset sama sekali)
-        if (!$isPiket && \Illuminate\Support\Facades\Schema::hasTable('piket_jadwal')) {
+        if (! $isPiket && Schema::hasTable('piket_jadwal')) {
             $totalPiketHariIni = $db->table('piket_jadwal')->where('hari', $hariIni)->count();
             if ($totalPiketHariIni === 0) {
                 $isPiketTim = $db->table('piket_jadwal')->where('id_guru', $idGuru)->count() > 0;
@@ -445,46 +474,46 @@ class PresensiSiswaQrController extends BaseController
         if ($isPiket) {
             return [
                 'authorized' => true,
-                'is_admin'   => false,
-                'is_kepsek'  => false,
-                'is_piket'   => true,
-                'is_wali'    => false,
+                'is_admin' => false,
+                'is_kepsek' => false,
+                'is_piket' => true,
+                'is_wali' => false,
                 'wali_kelas' => [],
-                'user'       => $user,
-                'guru'       => $guru,
-                'reason'     => 'guru_piket',
-                'message'    => 'Akses sebagai Guru Piket'
+                'user' => $user,
+                'guru' => $guru,
+                'reason' => 'guru_piket',
+                'message' => 'Akses sebagai Guru Piket',
             ];
         }
 
         // 3. Cek Wali Kelas — akses terbatas hanya pada kelas perwaliannya
         $waliKelas = $this->getWaliKelasIds($idGuru, (int) $user->id);
-        if (!empty($waliKelas)) {
+        if (! empty($waliKelas)) {
             return [
                 'authorized' => true,
-                'is_admin'   => false,
-                'is_kepsek'  => false,
-                'is_piket'   => false,
-                'is_wali'    => true,
+                'is_admin' => false,
+                'is_kepsek' => false,
+                'is_piket' => false,
+                'is_wali' => true,
                 'wali_kelas' => $waliKelas,
-                'user'       => $user,
-                'guru'       => $guru,
-                'reason'     => 'wali_kelas',
-                'message'    => 'Akses sebagai Wali Kelas'
+                'user' => $user,
+                'guru' => $guru,
+                'reason' => 'wali_kelas',
+                'message' => 'Akses sebagai Wali Kelas',
             ];
         }
 
         return [
             'authorized' => false,
-            'is_admin'   => false,
-            'is_kepsek'  => false,
-            'is_piket'   => false,
-            'is_wali'    => false,
+            'is_admin' => false,
+            'is_kepsek' => false,
+            'is_piket' => false,
+            'is_wali' => false,
             'wali_kelas' => [],
-            'user'       => $user,
-            'guru'       => $guru,
-            'reason'     => 'not_piket_today',
-            'message'    => 'Hanya dapat diakses oleh Guru Piket yang bertugas hari ini (' . $hariIni . '), Wali Kelas, Kepala Sekolah, atau Admin.'
+            'user' => $user,
+            'guru' => $guru,
+            'reason' => 'not_piket_today',
+            'message' => 'Hanya dapat diakses oleh Guru Piket yang bertugas hari ini ('.$hariIni.'), Wali Kelas, Kepala Sekolah, atau Admin.',
         ];
     }
 
@@ -503,22 +532,22 @@ class PresensiSiswaQrController extends BaseController
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             return $ids;
         }
 
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         // 1. jabatan_guru id_jabatan = 4 (Wali Kelas)
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('jabatan_guru')) {
+            if (Schema::hasTable('jabatan_guru')) {
                 $builder = $db->table('jabatan_guru')->select('id_kelas')->where('id_guru', $idGuru)->where('id_jabatan', 4);
-                if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_tp')) {
+                if ($tp && Schema::hasColumn('jabatan_guru', 'id_tp')) {
                     $builder->where('id_tp', $tp->id_tp);
                 }
-                if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_smt')) {
+                if ($smt && Schema::hasColumn('jabatan_guru', 'id_smt')) {
                     $builder->where('id_smt', $smt->id_smt);
                 }
                 foreach ($builder->get() as $r) {
@@ -532,12 +561,12 @@ class PresensiSiswaQrController extends BaseController
 
         // 2. Fallback: master_kelas.guru_id
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_kelas') && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'guru_id')) {
+            if (Schema::hasTable('master_kelas') && Schema::hasColumn('master_kelas', 'guru_id')) {
                 $builder = $db->table('master_kelas')->select('id_kelas')->where('guru_id', $idGuru);
-                if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) {
+                if ($tp && Schema::hasColumn('master_kelas', 'id_tp')) {
                     $builder->where('id_tp', $tp->id_tp);
                 }
-                if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) {
+                if ($smt && Schema::hasColumn('master_kelas', 'id_smt')) {
                     $builder->where('id_smt', $smt->id_smt);
                 }
                 foreach ($builder->get() as $r) {
@@ -565,19 +594,20 @@ class PresensiSiswaQrController extends BaseController
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             return false;
         }
 
         $containsKepsek = static function (?string $v): bool {
             $v = strtolower(trim((string) $v));
+
             return $v !== '' && (str_contains($v, 'kepala sekolah') || str_contains($v, 'kepsek'));
         };
 
         // 1. users.tugas_tambahan
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'tugas_tambahan')) {
+            if (Schema::hasTable('users') && Schema::hasColumn('users', 'tugas_tambahan')) {
                 $row = $db->table('users')->select('tugas_tambahan')->where('id', $userId)->first();
                 if ($row && $containsKepsek($row->tugas_tambahan ?? null)) {
                     return true;
@@ -589,13 +619,13 @@ class PresensiSiswaQrController extends BaseController
         // 2. master_guru.tugas_tambahan / tgs_tambahan
         $guruRow = null;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
-                $cols = 'id_guru, nama_guru, nip';
-                if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'tugas_tambahan')) {
-                    $cols .= ', tugas_tambahan';
+            if (Schema::hasTable('master_guru')) {
+                $cols = ['id_guru', 'nama_guru', 'nip'];
+                if (Schema::hasColumn('master_guru', 'tugas_tambahan')) {
+                    $cols[] = 'tugas_tambahan';
                 }
-                if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'tgs_tambahan')) {
-                    $cols .= ', tgs_tambahan';
+                if (Schema::hasColumn('master_guru', 'tgs_tambahan')) {
+                    $cols[] = 'tgs_tambahan';
                 }
                 $guruRow = $db->table('master_guru')->select($cols)->where('id_user', $userId)->first();
                 if ($guruRow) {
@@ -609,7 +639,7 @@ class PresensiSiswaQrController extends BaseController
 
         // 3. Jabatan struktural (id_jabatan = 1 atau level mengandung kepsek)
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('jabatan_guru') && $guruRow && !empty($guruRow->id_guru)) {
+            if (Schema::hasTable('jabatan_guru') && $guruRow && ! empty($guruRow->id_guru)) {
                 $jg = $db->table('jabatan_guru')->select('id_jabatan')->where('id_guru', (int) $guruRow->id_guru)->get();
                 foreach ($jg as $r) {
                     if ((int) ($r->id_jabatan ?? 0) === 1) {
@@ -617,11 +647,11 @@ class PresensiSiswaQrController extends BaseController
                     }
                 }
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_guru') && \Illuminate\Support\Facades\Schema::hasTable('jabatan_guru') && \Illuminate\Support\Facades\Schema::hasTable('level_guru')) {
+            if (Schema::hasTable('master_guru') && Schema::hasTable('jabatan_guru') && Schema::hasTable('level_guru')) {
                 $row = $db->table('master_guru as a')
                     ->select('lg.level as jabatan')
-                    ->join('jabatan_guru as jg', 'jg.id_guru = a.id_guru', 'left')
-                    ->join('level_guru as lg', 'lg.id_level = jg.id_jabatan', 'left')
+                    ->leftJoin('jabatan_guru as jg', 'jg.id_guru', '=', 'a.id_guru')
+                    ->leftJoin('level_guru as lg', 'lg.id_level', '=', 'jg.id_jabatan')
                     ->where('a.id_user', $userId)
                     ->first();
                 if ($row && $containsKepsek($row->jabatan ?? null)) {
@@ -635,7 +665,7 @@ class PresensiSiswaQrController extends BaseController
         try {
             $setting = $this->getSettingRow();
             $kepsekNama = strtolower(trim((string) ($setting->kepsek ?? '')));
-            $kepsekNip  = trim((string) ($setting->nip ?? ''));
+            $kepsekNip = trim((string) ($setting->nip ?? ''));
             if ($guruRow) {
                 $namaGuru = strtolower(trim((string) ($guruRow->nama_guru ?? '')));
                 if ($kepsekNama !== '' && $namaGuru !== '' && ($namaGuru === $kepsekNama || str_contains($namaGuru, $kepsekNama) || str_contains($kepsekNama, $namaGuru))) {
@@ -661,32 +691,34 @@ class PresensiSiswaQrController extends BaseController
     {
         // 1. Otorisasi: HANYA Admin, Kepala Sekolah, Guru Piket, dan Wali Kelas
         $auth = $this->checkAuthorization();
-        if (!$auth['authorized']) {
+        if (! $auth['authorized']) {
             if ($auth['reason'] === 'unauthenticated') {
                 return redirect()->to('auth')->with('error', $auth['message']);
             }
-            $target = ($this->inGroup('guru') || (string)$this->session->get('role') === '2') ? 'presensi' : 'dashboard';
+            $target = ($this->inGroup('guru') || (string) $this->session->get('role') === '2') ? 'presensi' : 'dashboard';
             $this->session->setFlashdata('error', $auth['message']);
+
             return redirect()->to($target)->with('error', $auth['message']);
         }
 
-        $user       = $auth['user'];
-        $isAdmin    = $auth['is_admin'];
-        $isKepsek   = $auth['is_kepsek'] ?? false;
-        $isPiket    = $auth['is_piket'];
-        $isWali     = $auth['is_wali'] ?? false;
-        $waliKelas  = array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? []))));
-        $guru       = $auth['guru'];
-        $selectedKelasId = $idKelas !== null ? (int)$idKelas : 0;
+        $user = $auth['user'];
+        $isAdmin = $auth['is_admin'];
+        $isKepsek = $auth['is_kepsek'] ?? false;
+        $isPiket = $auth['is_piket'];
+        $isWali = $auth['is_wali'] ?? false;
+        $waliKelas = array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? []))));
+        $guru = $auth['guru'];
+        $selectedKelasId = $idKelas !== null ? (int) $idKelas : 0;
 
         // 1b. Wali kelas dikunci pada kelas perwaliannya — tolak / paksa scope sejak URL
-        if ($isWali && !empty($waliKelas)) {
-            if ($selectedKelasId > 0 && !in_array($selectedKelasId, $waliKelas, true)) {
+        if ($isWali && ! empty($waliKelas)) {
+            if ($selectedKelasId > 0 && ! in_array($selectedKelasId, $waliKelas, true)) {
                 $selectedKelasId = $waliKelas[0];
                 $params = $this->request->query();
                 unset($params['h'], $params['token']);
                 $params['h'] = self::generateHash($user->id);
-                return redirect()->to(url('guru/presensi-siswa/kelas/' . $selectedKelasId . '?' . http_build_query($params)));
+
+                return redirect()->to(url('guru/presensi-siswa/kelas/'.$selectedKelasId.'?'.http_build_query($params)));
             }
             if ($selectedKelasId <= 0) {
                 $selectedKelasId = $waliKelas[0];
@@ -695,40 +727,41 @@ class PresensiSiswaQrController extends BaseController
 
         // 2. Hash Pengaman pada URL
         $validHash = self::generateHash($user->id);
-        $urlHash   = trim((string) ($this->request->query('h') ?? $this->request->query('token') ?? ''));
+        $urlHash = trim((string) ($this->request->query('h') ?? $this->request->query('token') ?? ''));
 
         // Jika hash belum ada di URL atau tidak cocok, redirect ke URL dengan hash resmi
-        if (!self::isValidHash($urlHash, $user->id)) {
-            $path = 'guru/presensi-siswa' . ($selectedKelasId ? '/kelas/' . $selectedKelasId : '');
+        if (! self::isValidHash($urlHash, $user->id)) {
+            $path = 'guru/presensi-siswa'.($selectedKelasId ? '/kelas/'.$selectedKelasId : '');
             $params = $this->request->query();
             unset($params['h'], $params['token']);
             $params['h'] = $validHash;
-            return redirect()->to(url($path . '?' . http_build_query($params)));
+
+            return redirect()->to(url($path.'?'.http_build_query($params)));
         }
 
         $setting = $this->getSettingRow();
-        $tp      = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt     = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         // Nama guru pencatat / petugas
         $namaGuru = $guru?->nama_guru ?? ($user->first_name ?? ($isAdmin ? 'Administrator' : ($isKepsek ? 'Kepala Sekolah' : ($isWali ? 'Wali Kelas' : 'Guru Piket'))));
 
         // Tanggal & kelas terpilih
         $tanggal = date('Y-m-d');
-        $stats   = $this->getStatsHariIni($tanggal, $selectedKelasId ?: null);
+        $stats = $this->getStatsHariIni($tanggal, $selectedKelasId ?: null);
 
         // Daftar kelas aktif untuk dropdown
         $kelasList = [];
         try {
-            $db      = \Illuminate\Support\Facades\DB::connection();
-            $builder = $db->table('master_kelas')->select('id_kelas, nama_kelas');
+            $db = DB::connection();
+            $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
             if ($tp && $smt) {
                 $builder->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt);
             }
             $kelasList = $builder->orderBy('nama_kelas', 'ASC')->get();
             if (empty($kelasList)) {
                 $kelasList = $db->table('master_kelas')
-                    ->select('id_kelas, nama_kelas')
+                    ->select('id_kelas', 'nama_kelas')
                     ->orderBy('nama_kelas', 'ASC')
                     ->get();
             }
@@ -737,45 +770,46 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // Wali kelas hanya melihat kelas perwaliannya di dropdown
-        if ($isWali && !empty($waliKelas)) {
+        if ($isWali && ! empty($waliKelas)) {
             $kelasList = array_values(array_filter($kelasList, static function ($k) use ($waliKelas) {
                 return in_array((int) ($k->id_kelas ?? 0), $waliKelas, true);
             }));
         }
 
         $petugasLabel = $isAdmin ? 'Administrator' : ($isKepsek ? 'Kepala Sekolah' : ($isWali ? 'Wali Kelas' : 'Guru Piket'));
-        $titleRole    = $isAdmin ? 'Admin' : ($isKepsek ? 'Kepala Sekolah' : ($isWali ? 'Wali Kelas' : 'Guru Piket'));
+        $titleRole = $isAdmin ? 'Admin' : ($isKepsek ? 'Kepala Sekolah' : ($isWali ? 'Wali Kelas' : 'Guru Piket'));
 
         $data = [
-            'user'          => $user,
-            'isLoggedIn'    => true,
-            'setting'       => $setting,
-            'namaGuru'      => $namaGuru,
-            'tp_active'     => $tp,
-            'smt_active'    => $smt,
-            'tanggal'       => $tanggal,
-            'stats'         => $stats,
-            'kelasList'     => $kelasList,
+            'user' => $user,
+            'isLoggedIn' => true,
+            'setting' => $setting,
+            'namaGuru' => $namaGuru,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'tanggal' => $tanggal,
+            'stats' => $stats,
+            'kelasList' => $kelasList,
             'selectedKelas' => $selectedKelasId,
-            'judul'         => 'Presensi Siswa QR Code',
-            'subjudul'      => 'Khusus Petugas Piket, Wali Kelas, Kepala Sekolah & Administrator',
-            'title'         => 'Presensi Siswa QR | ' . $titleRole,
-            'hash'          => $validHash,
-            'token'         => $validHash,
-            'scan_url'      => url('guru/presensi-siswa/scan'),
-            'history_url'   => url('guru/presensi-siswa/history'),
-            'is_admin'      => $isAdmin,
-            'is_kepsek'     => $isKepsek,
-            'is_piket'      => $isPiket,
-            'is_wali'       => $isWali,
-            'wali_kelas'    => $waliKelas,
+            'judul' => 'Presensi Siswa QR Code',
+            'subjudul' => 'Khusus Petugas Piket, Wali Kelas, Kepala Sekolah & Administrator',
+            'title' => 'Presensi Siswa QR | '.$titleRole,
+            'hash' => $validHash,
+            'token' => $validHash,
+            'scan_url' => url('guru/presensi-siswa/scan'),
+            'history_url' => url('guru/presensi-siswa/history'),
+            'is_admin' => $isAdmin,
+            'is_kepsek' => $isKepsek,
+            'is_piket' => $isPiket,
+            'is_wali' => $isWali,
+            'wali_kelas' => $waliKelas,
             'petugas_label' => $petugasLabel,
-            'mode_tab'      => $this->getModeTabState($tanggal),
+            'mode_tab' => $this->getModeTabState($tanggal),
         ];
 
         // Satu URL dua tampilan: desktop → versi kiosk, HP → versi mobile
-        if (!$this->wantMobileView()) {
-            $data['title'] = 'Scanner QR Siswa Desktop | ' . ($setting->nama_sekolah ?? 'Presensi & KBM');
+        if (! $this->wantMobileView()) {
+            $data['title'] = 'Scanner QR Siswa Desktop | '.($setting->nama_sekolah ?? 'Presensi & KBM');
+
             return view('admin.presensi.scanner_siswa_desktop', $data);
         }
 
@@ -789,8 +823,12 @@ class PresensiSiswaQrController extends BaseController
     private function wantMobileView(): bool
     {
         $force = strtolower(trim((string) ($this->request->query('view') ?? '')));
-        if ($force === 'mobile') return true;
-        if ($force === 'desktop') return false;
+        if ($force === 'mobile') {
+            return true;
+        }
+        if ($force === 'desktop') {
+            return false;
+        }
         try {
             return (bool) $this->request->userAgent()->isMobile();
         } catch (\Throwable $e) {
@@ -814,30 +852,30 @@ class PresensiSiswaQrController extends BaseController
         // Perangkat yang sudah mendaftar terbawa cookie gerbang, jadi kiosk
         // tidak perlu mengetik token ulang tiap reload.
         $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
-        $gateBaru   = false;
+        $gateBaru = false;
         if ($tokenKiosk !== '') {
             $tokenUrl = trim((string) ($this->request->query('k') ?? ''));
             if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
                 $gateBaru = true;
-            } elseif (!$this->kioskGateLolos($tokenKiosk)) {
+            } elseif (! $this->kioskGateLolos($tokenKiosk)) {
                 return $this->response->setStatusCode(403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
-                    'judul'   => 'Scanner QR Terkunci',
-                    'action'  => $this->urlKiosk($idKelas),
-                    'pesan'   => (string) (session()->get('kiosk_kunci_gagal') ?? ''),
+                    'judul' => 'Scanner QR Terkunci',
+                    'action' => $this->urlKiosk($idKelas),
+                    'pesan' => (string) (session()->get('kiosk_kunci_gagal') ?? ''),
                 ]));
             }
         }
 
-        $user       = $isLoggedIn ? $this->getUser() : null;
-        $setting    = $this->getSettingRow();
-        $tp         = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt        = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $user = $isLoggedIn ? $this->getUser() : null;
+        $setting = $this->getSettingRow();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         // Nama petugas pencatat / admin
         $namaGuru = '';
         if ($user) {
             try {
-                $db = \Illuminate\Support\Facades\DB::connection();
+                $db = DB::connection();
                 $guruRow = $db->table('master_guru')
                     ->select('nama_guru')
                     ->where('id_user', $user->id)
@@ -850,13 +888,15 @@ class PresensiSiswaQrController extends BaseController
             $namaGuru = 'Petugas Scanner (Kiosk)';
         }
 
-        $tanggal         = date('Y-m-d');
-        $selectedKelasId = $idKelas !== null ? (int)$idKelas : 0;
+        $tanggal = date('Y-m-d');
+        $selectedKelasId = $idKelas !== null ? (int) $idKelas : 0;
         if ($selectedKelasId > 0) {
             try {
-                $exists = \Illuminate\Support\Facades\DB::connection()->table('master_kelas')
+                $exists = DB::connection()->table('master_kelas')
                     ->where('id_kelas', $selectedKelasId)->count() > 0;
-                if (!$exists) $selectedKelasId = 0;
+                if (! $exists) {
+                    $selectedKelasId = 0;
+                }
             } catch (\Throwable $e) {
                 $selectedKelasId = 0;
             }
@@ -866,15 +906,15 @@ class PresensiSiswaQrController extends BaseController
         // Daftar kelas aktif untuk filter dropdown
         $kelasList = [];
         try {
-            $db      = \Illuminate\Support\Facades\DB::connection();
-            $builder = $db->table('master_kelas')->select('id_kelas, nama_kelas');
+            $db = DB::connection();
+            $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
             if ($tp && $smt) {
                 $builder->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt);
             }
             $kelasList = $builder->orderBy('nama_kelas', 'ASC')->get();
             if (empty($kelasList)) {
                 $kelasList = $db->table('master_kelas')
-                    ->select('id_kelas, nama_kelas')
+                    ->select('id_kelas', 'nama_kelas')
                     ->orderBy('nama_kelas', 'ASC')
                     ->get();
             }
@@ -885,44 +925,44 @@ class PresensiSiswaQrController extends BaseController
         // Jendela operasional scan untuk badge kiosk (ringan, best-effort)
         $qrWindow = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+            $db = DB::connection();
+            if (Schema::hasTable('absensi_setting')) {
                 $ar = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
                 if ($ar && (int) ($ar->qr_scan_aktif ?? 0) === 1) {
                     $qrWindow = substr((string) ($ar->qr_scan_mulai ?? '05:30:00'), 0, 5)
-                        . '–' . substr((string) ($ar->qr_scan_selesai ?? '18:00:00'), 0, 5);
+                        .'–'.substr((string) ($ar->qr_scan_selesai ?? '18:00:00'), 0, 5);
                 }
             }
         } catch (\Throwable $e) {
         }
 
         $data = [
-            'user'          => $user,
-            'isLoggedIn'    => $isLoggedIn,
-            'setting'       => $setting,
-            'namaGuru'      => $namaGuru,
-            'tp_active'     => $tp,
-            'smt_active'    => $smt,
-            'tanggal'       => $tanggal,
-            'stats'         => $stats,
-            'kelasList'     => $kelasList,
+            'user' => $user,
+            'isLoggedIn' => $isLoggedIn,
+            'setting' => $setting,
+            'namaGuru' => $namaGuru,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'tanggal' => $tanggal,
+            'stats' => $stats,
+            'kelasList' => $kelasList,
             'selectedKelas' => $selectedKelasId,
-            'qr_window'     => $qrWindow,
-            'judul'         => 'Scanner QR Siswa (Desktop)',
-            'subjudul'      => 'Presensi Siswa QR Code & Barcode Scanner Desktop',
-            'title'         => 'Scanner QR Siswa Desktop | ' . ($setting->nama_sekolah ?? 'Presensi & KBM'),
+            'qr_window' => $qrWindow,
+            'judul' => 'Scanner QR Siswa (Desktop)',
+            'subjudul' => 'Presensi Siswa QR Code & Barcode Scanner Desktop',
+            'title' => 'Scanner QR Siswa Desktop | '.($setting->nama_sekolah ?? 'Presensi & KBM'),
             // Kiosk publik (/scanner): tanpa login & tanpa hash — samakan dengan
             // view desktop yang memakai endpoint scanner/* (tanpa otorisasi).
-            'hash'          => '',
-            'token'         => '',
-            'scan_url'      => url('scanner/scan'),
-            'history_url'   => url('scanner/history'),
-            'mode_tab'      => $this->getModeTabState($tanggal),
+            'hash' => '',
+            'token' => '',
+            'scan_url' => url('scanner/scan'),
+            'history_url' => url('scanner/history'),
+            'mode_tab' => $this->getModeTabState($tanggal),
         ];
 
         // Satu URL dua tampilan: HP → versi mobile, desktop → versi kiosk
         if ($this->wantMobileView()) {
-            $data['title'] = 'Scan QR Presensi Siswa | ' . ($setting->nama_sekolah ?? 'Presensi & KBM');
+            $data['title'] = 'Scan QR Presensi Siswa | '.($setting->nama_sekolah ?? 'Presensi & KBM');
             // CI4 tidak punya Response::setView() (itu API CI3); render view
             // lewat helper lalu tempelkan sebagai body response.
             $response = $this->response->setBody(view('members.guru.presensi_siswa_qr', $data));
@@ -954,7 +994,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         $token = trim((string) ($this->request->input('k') ?? ''));
-        if ($token === '' || !hash_equals($tokenKiosk, $token)) {
+        if ($token === '' || ! hash_equals($tokenKiosk, $token)) {
             try {
                 Log::warning('[PresensiSiswaQr] percobaan buka kunci kiosk gagal ip={ip}', [
                     'ip' => $this->request->ip(),
@@ -981,7 +1021,7 @@ class PresensiSiswaQrController extends BaseController
         // Rate limit: kiosk bersama 1 IP — 240/menit (~4 scan/detik) agar antrean padat tak terblokir
         try {
 
-            if ($this->throttleCheck('qrscan_' . md5($this->request->ip()), 240, 60) === false) {
+            if ($this->throttleCheck('qrscan_'.md5($this->request->ip()), 240, 60) === false) {
                 return $this->response->setStatusCode(429)->setJSON([
                     'status' => false, 'type' => 'error',
                     'message' => 'Terlalu banyak scan. Tunggu sebentar lalu coba lagi.',
@@ -996,22 +1036,23 @@ class PresensiSiswaQrController extends BaseController
         $auth = null;
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();
-            if (!$auth['authorized']) {
+            if (! $auth['authorized']) {
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'type'    => 'error',
+                    'status' => false,
+                    'type' => 'error',
                     'message' => $auth['message'],
                 ]);
             }
             $hash = $this->requestHash();
-            if (!self::isValidHash($hash, (int) $auth['user']->id)) {
+            if (! self::isValidHash($hash, (int) $auth['user']->id)) {
                 try {
                     Log::warning('[PresensiSiswaQr::scanQr] hash invalid ip={ip} user={u}', ['ip' => $this->request->ip(), 'u' => (int) $auth['user']->id]);
                 } catch (\Throwable $e) {
                 }
+
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'type'    => 'error',
+                    'status' => false,
+                    'type' => 'error',
                     'message' => 'Token keamanan (hash) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.',
                 ]);
             }
@@ -1029,7 +1070,7 @@ class PresensiSiswaQrController extends BaseController
         // Scanner kadang menambahkan newline/spasi — ambil token pertama saja.
         $rawQr = preg_split('/\s+/', $rawQr, 2)[0] ?? '';
         $qrValue = mb_substr(trim($rawQr), 0, 50);
-        $mode    = strtolower(trim((string) ($this->request->input('mode') ?? 'masuk')));
+        $mode = strtolower(trim((string) ($this->request->input('mode') ?? 'masuk')));
         $idKelas = (int) ($this->request->input('id_kelas') ?? 0);
         $tanggal = date('Y-m-d');
 
@@ -1039,7 +1080,7 @@ class PresensiSiswaQrController extends BaseController
         // identifier utama dan abaikan qr_value.
         $rfidValue = trim((string) ($this->request->input('rfid_value') ?? ''));
         $rfidValue = preg_split('/\s+/', $rfidValue, 2)[0] ?? '';
-        $useRfid   = $rfidValue !== '';
+        $useRfid = $rfidValue !== '';
 
         if ($useRfid) {
             // Nomor yang sama berlaku untuk semua perangkat: kartu RFID
@@ -1047,14 +1088,14 @@ class PresensiSiswaQrController extends BaseController
             // dengan urutan lookup yang identik — nomor_rfid → NIS → NISN → id.
             $siswa = $this->findSiswaByRfid($rfidValue) ?? $this->findSiswaByQr($rfidValue);
             if ($siswa) {
-                $metode = (!empty($siswa->nomor_rfid) && strcasecmp(trim((string) $siswa->nomor_rfid), $rfidValue) === 0)
+                $metode = (! empty($siswa->nomor_rfid) && strcasecmp(trim((string) $siswa->nomor_rfid), $rfidValue) === 0)
                     ? 'rfid' : 'qr';
                 // Validasi geofence & jam operasional sebelum proses siswa.
-                $lat      = $this->request->input('lat');
-                $lng      = $this->request->input('lng');
+                $lat = $this->request->input('lat');
+                $lng = $this->request->input('lng');
                 $accuracy = $this->request->input('accuracy');
                 $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
-                if (!$geoCheck['ok']) {
+                if (! $geoCheck['ok']) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
                 }
                 $scanLoc = ['lat' => $geoCheck['lat'], 'lng' => $geoCheck['lng'], 'akurasi' => $geoCheck['accuracy'], 'lokasi_id' => $geoCheck['lokasi_id']];
@@ -1067,8 +1108,8 @@ class PresensiSiswaQrController extends BaseController
                 }
 
                 $idGuru = $this->resolveGuruId();
-                $db     = \Illuminate\Support\Facades\DB::connection();
-                $jam    = date('H:i:s');
+                $db = DB::connection();
+                $jam = date('H:i:s');
 
                 // Lookup satu baris per siswa per hari.
                 $existing = $db->table('presensi_siswa')
@@ -1079,23 +1120,23 @@ class PresensiSiswaQrController extends BaseController
                     $idKelas = (int) $existing->id_kelas;
                 }
                 if ($idKelas <= 0) {
-                    $idKelas = $this->getKelasAktifSiswa((int)$siswa->id_siswa);
+                    $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
                 }
                 if ($idKelas <= 0) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'type'    => 'error',
+                        'status' => false,
+                        'type' => 'error',
                         'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
-                        'siswa'   => $this->formatSiswaInfo($siswa, null, 0),
+                        'siswa' => $this->formatSiswaInfo($siswa, null, 0),
                     ]);
                 }
 
-                if (!self::isSiswaAktif((int) $siswa->id_siswa)) {
+                if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'type'    => 'error',
+                        'status' => false,
+                        'type' => 'error',
                         'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
-                        'siswa'   => $this->formatSiswaInfo($siswa, null, $idKelas),
+                        'siswa' => $this->formatSiswaInfo($siswa, null, $idKelas),
                     ]);
                 }
 
@@ -1103,19 +1144,22 @@ class PresensiSiswaQrController extends BaseController
                     if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
                         return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                     }
+
                     return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $metode);
                 }
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
+
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $metode);
             }
 
             // Fallback: cek guru/GTK dengan nomor yang sama (nomor_rfid → NIP → kode_guru → username).
             $guru = $this->findGuruByRfid($rfidValue) ?? $this->findGuruByQr($rfidValue);
             if ($guru) {
-                $guruMetode = (!empty($guru->nomor_rfid) && strcasecmp(trim((string) $guru->nomor_rfid), $rfidValue) === 0)
+                $guruMetode = (! empty($guru->nomor_rfid) && strcasecmp(trim((string) $guru->nomor_rfid), $rfidValue) === 0)
                     ? 'rfid' : 'qr';
+
                 return $this->processGuruScan($guru, $mode, $tanggal, [
                     'lat' => $this->request->input('lat'),
                     'lng' => $this->request->input('lng'),
@@ -1125,8 +1169,8 @@ class PresensiSiswaQrController extends BaseController
             }
 
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Nomor kartu tidak terdaftar. Tempel kartu RFID, tembak QR, atau ketik NIS yang sudah didaftarkan admin.',
             ]);
         }
@@ -1143,11 +1187,11 @@ class PresensiSiswaQrController extends BaseController
             $siswa = $this->findSiswaByFingerprint($fpUid);
             if ($siswa) {
                 // Validasi geofence & jam operasional sebelum proses siswa.
-                $lat      = $this->request->input('lat');
-                $lng      = $this->request->input('lng');
+                $lat = $this->request->input('lat');
+                $lng = $this->request->input('lng');
                 $accuracy = $this->request->input('accuracy');
                 $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
-                if (!$geoCheck['ok']) {
+                if (! $geoCheck['ok']) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
                 }
                 $scanLoc = ['lat' => $geoCheck['lat'], 'lng' => $geoCheck['lng'], 'akurasi' => $geoCheck['accuracy'], 'lokasi_id' => $geoCheck['lokasi_id']];
@@ -1160,8 +1204,8 @@ class PresensiSiswaQrController extends BaseController
                 }
 
                 $idGuru = $this->resolveGuruId();
-                $db     = \Illuminate\Support\Facades\DB::connection();
-                $jam    = date('H:i:s');
+                $db = DB::connection();
+                $jam = date('H:i:s');
 
                 // Lookup satu baris per siswa per hari.
                 $existing = $db->table('presensi_siswa')
@@ -1172,23 +1216,23 @@ class PresensiSiswaQrController extends BaseController
                     $idKelas = (int) $existing->id_kelas;
                 }
                 if ($idKelas <= 0) {
-                    $idKelas = $this->getKelasAktifSiswa((int)$siswa->id_siswa);
+                    $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
                 }
                 if ($idKelas <= 0) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'type'    => 'error',
+                        'status' => false,
+                        'type' => 'error',
                         'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
-                        'siswa'   => $this->formatSiswaInfo($siswa, null, 0),
+                        'siswa' => $this->formatSiswaInfo($siswa, null, 0),
                     ]);
                 }
 
-                if (!self::isSiswaAktif((int) $siswa->id_siswa)) {
+                if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'type'    => 'error',
+                        'status' => false,
+                        'type' => 'error',
                         'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
-                        'siswa'   => $this->formatSiswaInfo($siswa, null, $idKelas),
+                        'siswa' => $this->formatSiswaInfo($siswa, null, $idKelas),
                     ]);
                 }
 
@@ -1196,11 +1240,13 @@ class PresensiSiswaQrController extends BaseController
                     if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
                         return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                     }
+
                     return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc);
                 }
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
+
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc);
             }
 
@@ -1216,8 +1262,8 @@ class PresensiSiswaQrController extends BaseController
             }
 
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Sidik jari tidak terdaftar. Hubungi admin untuk pendaftaran UserID mesin.',
             ]);
         }
@@ -1225,7 +1271,7 @@ class PresensiSiswaQrController extends BaseController
         if ($qrValue === '') {
             return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => 'QR Code, NIS, atau kartu RFID kosong.']);
         }
-        if (!in_array($mode, ['masuk', 'keluar'], true)) {
+        if (! in_array($mode, ['masuk', 'keluar'], true)) {
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'type' => 'error',
                 'message' => 'Mode tidak valid. Gunakan mode masuk atau keluar.',
@@ -1233,16 +1279,16 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // ── GEOFENCE: koordinat perangkat pemindai (kiosk) wajib di area sekolah ──
-        $lat      = $this->request->input('lat');
-        $lng      = $this->request->input('lng');
+        $lat = $this->request->input('lat');
+        $lng = $this->request->input('lng');
         $accuracy = $this->request->input('accuracy');
         $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
-        if (!$geoCheck['ok']) {
+        if (! $geoCheck['ok']) {
             return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
         }
-        $scanLat  = $geoCheck['lat'];
-        $scanLng  = $geoCheck['lng'];
-        $scanAcc  = $geoCheck['accuracy'];
+        $scanLat = $geoCheck['lat'];
+        $scanLng = $geoCheck['lng'];
+        $scanAcc = $geoCheck['accuracy'];
         $lokasiId = $geoCheck['lokasi_id'];
 
         // Tolak scan pada hari libur (konsisten dengan check-in manual)
@@ -1271,6 +1317,7 @@ class PresensiSiswaQrController extends BaseController
                     Log::warning('[PresensiSiswaQr] wali scan guru ditolak ip={ip} qr={qr}', ['ip' => $this->request->ip(), 'qr' => self::maskQrForLog($qrValue)]);
                 } catch (\Throwable $e) {
                 }
+
                 return $this->response->setStatusCode(403)->setJSON([
                     'status' => false, 'type' => 'error',
                     'message' => 'Wali kelas hanya dapat mencatat siswa kelas perwaliannya.',
@@ -1278,19 +1325,21 @@ class PresensiSiswaQrController extends BaseController
             }
             $guru = $this->findGuruByQr($qrValue);
             if ($guru) {
-                $guruSource = (!empty($guru->nomor_rfid) && $guru->nomor_rfid === $qrValue) ? 'rfid' : 'qr';
+                $guruSource = (! empty($guru->nomor_rfid) && $guru->nomor_rfid === $qrValue) ? 'rfid' : 'qr';
+
                 return $this->processGuruScan($guru, $mode, $tanggal, $scanLoc, $guruSource);
             }
+
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Guru tidak ditemukan. Pastikan QR Card Guru valid.',
             ]);
         }
 
         // 2. Cek siswa terlebih dahulu
         $siswa = $this->findSiswaByQr($qrValue);
-        if (!$siswa) {
+        if (! $siswa) {
             // 3. Fallback: Cek apakah QR ini milik Guru/GTK (NIP, kode_guru, username)
             $guru = $this->findGuruByQr($qrValue);
             if ($guru) {
@@ -1299,54 +1348,56 @@ class PresensiSiswaQrController extends BaseController
                         Log::warning('[PresensiSiswaQr] wali scan guru ditolak ip={ip} qr={qr}', ['ip' => $this->request->ip(), 'qr' => self::maskQrForLog($qrValue)]);
                     } catch (\Throwable $e) {
                     }
+
                     return $this->response->setStatusCode(403)->setJSON([
                         'status' => false, 'type' => 'error',
                         'message' => 'Wali kelas hanya dapat mencatat siswa kelas perwaliannya.',
                     ]);
                 }
-                $guruSource = (!empty($guru->nomor_rfid) && $guru->nomor_rfid === $qrValue) ? 'rfid' : 'qr';
+                $guruSource = (! empty($guru->nomor_rfid) && $guru->nomor_rfid === $qrValue) ? 'rfid' : 'qr';
+
                 return $this->processGuruScan($guru, $mode, $tanggal, $scanLoc, $guruSource);
             }
 
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Data tidak ditemukan. Pastikan QR Card Siswa atau Guru valid.',
             ]);
         }
 
         // Hanya siswa AKTIF (buku_induk.status = '1') boleh diabsen.
         // LULUS (2) / PINDAH (3) / KELUAR (4) ditolak di semua jalur scan.
-        if (!self::isSiswaAktif((int) $siswa->id_siswa)) {
+        if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
-                'siswa'   => $this->formatSiswaInfo($siswa, null, $idKelas),
+                'siswa' => $this->formatSiswaInfo($siswa, null, $idKelas),
             ]);
         }
 
         // Jika id_kelas tidak dikirim, coba ambil dari data kelas siswa
         if ($idKelas <= 0) {
-            $idKelas = $this->getKelasAktifSiswa((int)$siswa->id_siswa);
+            $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
         }
         if ($idKelas <= 0) {
             return $this->response->setJSON([
-                'status'  => false,
+                'status' => false,
                 'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
-                'siswa'   => $this->formatSiswaInfo($siswa, null, 0),
+                'siswa' => $this->formatSiswaInfo($siswa, null, 0),
             ]);
         }
 
         // Wali kelas hanya boleh scan siswa dari kelas perwaliannya
         if ($auth && ($auth['reason'] ?? '') === 'wali_kelas') {
             $allowedKelas = array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? []))));
-            if (!in_array($idKelas, $allowedKelas, true)) {
+            if (! in_array($idKelas, $allowedKelas, true)) {
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'type'    => 'error',
+                    'status' => false,
+                    'type' => 'error',
                     'message' => "Siswa {$siswa->nama} bukan siswa kelas perwalian Anda. Anda hanya dapat mencatat kelas perwalian.",
-                    'siswa'   => $this->formatSiswaInfo($siswa, null, $idKelas),
+                    'siswa' => $this->formatSiswaInfo($siswa, null, $idKelas),
                 ]);
             }
         }
@@ -1354,7 +1405,7 @@ class PresensiSiswaQrController extends BaseController
         // Resolve id_guru dari sesi (bisa NULL jika diakses publik)
         $idGuru = $this->resolveGuruId();
 
-        $db  = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $jam = date('H:i:s');
 
         try {
@@ -1370,7 +1421,7 @@ class PresensiSiswaQrController extends BaseController
             }
 
             // Deteksi sumber pemindaian (apakah cocok nomor_rfid atau QR biasa)
-            $source = (!empty($siswa->nomor_rfid) && strcasecmp(trim((string) $siswa->nomor_rfid), $qrValue) === 0) ? 'rfid' : 'qr';
+            $source = (! empty($siswa->nomor_rfid) && strcasecmp(trim((string) $siswa->nomor_rfid), $qrValue) === 0) ? 'rfid' : 'qr';
 
             if ($mode === 'masuk') {
                 // Batasan jadwal masuk ala absen wajah (buka 1 jam sebelum
@@ -1378,6 +1429,7 @@ class PresensiSiswaQrController extends BaseController
                 if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                 }
+
                 return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $source);
             } else {
                 // Batasan jadwal pulang: tolak scan keluar sebelum pulang
@@ -1385,11 +1437,13 @@ class PresensiSiswaQrController extends BaseController
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
                     return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
+
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $source);
             }
 
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswaQr::scanQr] ' . $e->getMessage());
+            Log::error('[PresensiSiswaQr::scanQr] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => 'Terjadi kesalahan sistem. Coba scan ulang.']);
         }
     }
@@ -1397,6 +1451,7 @@ class PresensiSiswaQrController extends BaseController
     /**
      * Validasi lokasi perangkat pemindai (kiosk) terhadap titik absensi sekolah.
      * Fail-closed: tanpa koordinat valid di dalam radius → scan ditolak.
+     *
      * @return array{ok:bool, message?:string, lat?:float, lng?:float, accuracy?:int, lokasi_id?:int}
      */
     private function checkScanLokasi($lat, $lng, $accuracy): array
@@ -1420,12 +1475,12 @@ class PresensiSiswaQrController extends BaseController
             return ['ok' => false, 'message' => 'Terdeteksi lokasi palsu (mock location). Matikan Fake GPS lalu scan ulang.'];
         }
         if ($acc > 1000) {
-            return ['ok' => false, 'message' => 'Akurasi GPS terlalu rendah (±' . $acc . 'm). Nyalakan GPS presisi tinggi lalu scan ulang.'];
+            return ['ok' => false, 'message' => 'Akurasi GPS terlalu rendah (±'.$acc.'m). Nyalakan GPS presisi tinggi lalu scan ulang.'];
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_lokasi')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('absensi_lokasi')) {
                 return ['ok' => false, 'message' => 'Titik lokasi sekolah belum dikonfigurasi admin.'];
             }
             $rows = $db->table('absensi_lokasi')->get();
@@ -1435,12 +1490,16 @@ class PresensiSiswaQrController extends BaseController
 
             $setting = $this->getSettingRow();
             $defaultRadius = (float) ($setting->radius_meter ?? 100);
-            if ($defaultRadius <= 0) $defaultRadius = 100;
+            if ($defaultRadius <= 0) {
+                $defaultRadius = 100;
+            }
 
             $best = null;
             foreach ($rows as $loc) {
-                $radius = (float) (!empty($loc->radius_meter) ? $loc->radius_meter : $defaultRadius);
-                if ($radius <= 0) continue;
+                $radius = (float) (! empty($loc->radius_meter) ? $loc->radius_meter : $defaultRadius);
+                if ($radius <= 0) {
+                    continue;
+                }
                 $dist = distance_meter($lat, $lng, (float) $loc->lat, (float) $loc->lng);
                 if ($dist <= $radius && ($best === null || $dist < $best['jarak'])) {
                     $best = ['lokasi_id' => (int) $loc->id, 'jarak' => $dist];
@@ -1453,7 +1512,8 @@ class PresensiSiswaQrController extends BaseController
 
             return ['ok' => true, 'lat' => $lat, 'lng' => $lng, 'accuracy' => $acc, 'lokasi_id' => $best['lokasi_id']];
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswaQr::checkScanLokasi] ' . $e->getMessage());
+            Log::error('[PresensiSiswaQr::checkScanLokasi] '.$e->getMessage());
+
             return ['ok' => false, 'message' => 'Gagal memverifikasi lokasi. Coba scan ulang.'];
         }
     }
@@ -1463,7 +1523,8 @@ class PresensiSiswaQrController extends BaseController
      */
     private static function isDuplicateKeyError(\Throwable $e): bool
     {
-        $msg = strtolower($e->getMessage() . ' ' . $e->getCode());
+        $msg = strtolower($e->getMessage().' '.$e->getCode());
+
         return str_contains($msg, 'duplicate')
             || str_contains($msg, 'uq_ps')
             || str_contains($msg, 'unique constraint')
@@ -1475,33 +1536,44 @@ class PresensiSiswaQrController extends BaseController
      * Berlaku untuk kedua mode: dulu hanya scan masuk yang dijaga, sehingga
      * scanner yang ditinggal menyala bisa mencatat "pulang" pukul 23:00 atau
      * bahkan 05:00 keesokan harinya.
+     *
      * @return string|null pesan penolakan bila di luar jam, null bila boleh
      */
     private function isOutsideScanWindow(string $mode = 'masuk', ?string $jamSekarang = null): ?string
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) return null;
+            $db = DB::connection();
+            if (! Schema::hasTable('absensi_setting')) {
+                return null;
+            }
             $row = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
-            if (!$row) return null;
-            if ((int) ($row->qr_scan_aktif ?? 0) !== 1) return null;
+            if (! $row) {
+                return null;
+            }
+            if ((int) ($row->qr_scan_aktif ?? 0) !== 1) {
+                return null;
+            }
 
-            $mulai   = substr((string) ($row->qr_scan_mulai ?? '05:30:00'), 0, 5);
+            $mulai = substr((string) ($row->qr_scan_mulai ?? '05:30:00'), 0, 5);
             $selesai = substr((string) ($row->qr_scan_selesai ?? '18:00:00'), 0, 5);
-            if ($mulai === '' || $selesai === '' || $mulai >= $selesai) return null;
+            if ($mulai === '' || $selesai === '' || $mulai >= $selesai) {
+                return null;
+            }
 
             // $jamSekarang dipakai getModeTabState supaya status tab dan
             // penolakan scan memakai angka yang sama.
             $now = substr($jamSekarang ?? date('H:i:s'), 0, 5);
             if ($now < $mulai || $now > $selesai) {
                 $arah = $mode === 'keluar'
-                    ? 'Scan pulang ditutup pukul ' . $selesai . '.'
-                    : 'Scan masuk dibuka kembali pukul ' . $mulai . '.';
-                return 'Di luar jam operasional scan (' . $mulai . '–' . $selesai . '). ' . $arah;
+                    ? 'Scan pulang ditutup pukul '.$selesai.'.'
+                    : 'Scan masuk dibuka kembali pukul '.$mulai.'.';
+
+                return 'Di luar jam operasional scan ('.$mulai.'–'.$selesai.'). '.$arah;
             }
         } catch (\Throwable $e) {
             // Gagal baca setting → jangan blokir
         }
+
         return null;
     }
 
@@ -1509,38 +1581,43 @@ class PresensiSiswaQrController extends BaseController
      * Jadwal efektif siswa pada satu tanggal: absensi_jadwal_kerja (per hari)
      * → absensi_setting. Mendelegasikan ke AttendancePolicy agar ambang telat,
      * jendela scan, poin, dan rekap memakai angka yang sama persis.
+     *
      * @return array{jam_masuk: string, jam_pulang: string, grace_menit: int, sumber: string}
      */
     private function getJadwalEfektifSiswa(string $tanggal): array
     {
-        return \App\Services\AttendancePolicy::jadwalSiswa($tanggal);
+        return AttendancePolicy::jadwalSiswa($tanggal);
     }
 
     /**
      * Batasan scan MASUK siswa ala absen wajah guru (Attendance::checkIn):
      * dibuka 1 jam sebelum jam_masuk, ditutup 3 jam setelah jam_masuk.
+     *
      * @return string|null pesan penolakan bila di luar jendela, null bila boleh
      */
     private function isOutsideJadwalMasukSiswa(string $tanggal, ?string $jamSekarang = null): ?string
     {
         try {
-            $jadwal      = $this->getJadwalEfektifSiswa($tanggal);
-            $jamMasuk    = $jadwal['jam_masuk'];
-            $bukaMasuk   = date('H:i:s', strtotime($jamMasuk) - 3600);
-            $tutupMasuk  = date('H:i:s', strtotime($jamMasuk) + (3 * 3600));
-            $now         = $jamSekarang ?? date('H:i:s');
+            $jadwal = $this->getJadwalEfektifSiswa($tanggal);
+            $jamMasuk = $jadwal['jam_masuk'];
+            $bukaMasuk = date('H:i:s', strtotime($jamMasuk) - 3600);
+            $tutupMasuk = date('H:i:s', strtotime($jamMasuk) + (3 * 3600));
+            $now = $jamSekarang ?? date('H:i:s');
             // Normalisasi ke H:i:s bila pemanggil mengirim H:i
-            if (strlen($now) === 5) $now .= ':00';
+            if (strlen($now) === 5) {
+                $now .= ':00';
+            }
             if ($now < $bukaMasuk) {
-                return 'Absen Masuk belum dibuka. Jadwal: ' . substr($jamMasuk, 0, 5)
-                    . ' (Dibuka ' . substr($bukaMasuk, 0, 5) . ')';
+                return 'Absen Masuk belum dibuka. Jadwal: '.substr($jamMasuk, 0, 5)
+                    .' (Dibuka '.substr($bukaMasuk, 0, 5).')';
             }
             if ($now > $tutupMasuk) {
-                return 'Waktu Absen Masuk habis. Batas: ' . substr($tutupMasuk, 0, 5);
+                return 'Waktu Absen Masuk habis. Batas: '.substr($tutupMasuk, 0, 5);
             }
         } catch (\Throwable $e) {
             // Gagal hitung → jangan blokir
         }
+
         return null;
     }
 
@@ -1550,34 +1627,42 @@ class PresensiSiswaQrController extends BaseController
      * lebih dulu. Normalnya tutup_masuk (mis. 10:15) lebih awal dari
      * jam_pulang (mis. 14:00), sehingga tab/scan pulang aktif sejak
      * jendela masuk ditutup.
+     *
      * @return string H:i:s
      */
     private function getBukaPulangEfektifSiswa(string $tanggal): string
     {
         $jadwal = $this->getJadwalEfektifSiswa($tanggal);
-        $tutup  = date('H:i:s', strtotime($jadwal['jam_masuk']) + (3 * 3600));
-        $plg    = $jadwal['jam_pulang'];
-        if (strlen($plg) === 5) $plg .= ':00';
+        $tutup = date('H:i:s', strtotime($jadwal['jam_masuk']) + (3 * 3600));
+        $plg = $jadwal['jam_pulang'];
+        if (strlen($plg) === 5) {
+            $plg .= ':00';
+        }
+
         return min($tutup, $plg);
     }
 
     /**
      * Batasan scan PULANG/KELUAR siswa: ditolak bila belum sampai jam buka
      * efektif (tutup_masuk terlewati atau jam_pulang tercapai).
+     *
      * @return string|null pesan penolakan bila terlalu awal, null bila boleh
      */
     private function isTooEarlyPulangSiswa(string $tanggal, ?string $jamSekarang = null): ?string
     {
         try {
-            $buka     = $this->getBukaPulangEfektifSiswa($tanggal);
-            $now      = $jamSekarang ?? date('H:i:s');
-            if (strlen($now) === 5) $now .= ':00';
+            $buka = $this->getBukaPulangEfektifSiswa($tanggal);
+            $now = $jamSekarang ?? date('H:i:s');
+            if (strlen($now) === 5) {
+                $now .= ':00';
+            }
             if ($now < $buka) {
-                return 'Belum waktunya pulang. Pulang dibuka pukul ' . substr($buka, 0, 5) . '.';
+                return 'Belum waktunya pulang. Pulang dibuka pukul '.substr($buka, 0, 5).'.';
             }
         } catch (\Throwable $e) {
             // Gagal hitung → jangan blokir
         }
+
         return null;
     }
 
@@ -1589,72 +1674,80 @@ class PresensiSiswaQrController extends BaseController
      * tercapai (mana yang lebih dulu) — tab Pulang langsung aktif
      * begitu scan masuk ditutup — dan tertutup lagi oleh jendela
      * operasional qr_scan_* yang sama seperti tab Masuk.
+     *
      * @return array{jam_masuk:string,jam_pulang:string,buka_masuk:string,tutup_masuk:string,buka_pulang:string,masuk_open:bool,pulang_open:bool,masuk_msg:string,pulang_msg:string,now:string,default_mode:string,qr_aktif:bool,qr_mulai:string,qr_selesai:string}
      */
     private function getModeTabState(string $tanggal, ?string $nowHms = null): array
     {
         $now = $nowHms ?? date('H:i:s');
-        if (strlen($now) === 5) $now .= ':00';
-        $jadwal     = $this->getJadwalEfektifSiswa($tanggal);
-        $jamMasuk   = $jadwal['jam_masuk'];
-        $jamPulang  = $jadwal['jam_pulang'];
-        $bukaMasuk  = date('H:i:s', strtotime($jamMasuk) - 3600);
+        if (strlen($now) === 5) {
+            $now .= ':00';
+        }
+        $jadwal = $this->getJadwalEfektifSiswa($tanggal);
+        $jamMasuk = $jadwal['jam_masuk'];
+        $jamPulang = $jadwal['jam_pulang'];
+        $bukaMasuk = date('H:i:s', strtotime($jamMasuk) - 3600);
         $tutupMasuk = date('H:i:s', strtotime($jamMasuk) + (3 * 3600));
 
-        $masukOpen  = ($now >= $bukaMasuk && $now <= $tutupMasuk);
-        $masukMsg   = '';
+        $masukOpen = ($now >= $bukaMasuk && $now <= $tutupMasuk);
+        $masukMsg = '';
         if ($now < $bukaMasuk) {
-            $masukMsg = 'Absen Masuk belum dibuka. Jadwal: ' . substr($jamMasuk, 0, 5)
-                . ' (Dibuka ' . substr($bukaMasuk, 0, 5) . ')';
+            $masukMsg = 'Absen Masuk belum dibuka. Jadwal: '.substr($jamMasuk, 0, 5)
+                .' (Dibuka '.substr($bukaMasuk, 0, 5).')';
         } elseif ($now > $tutupMasuk) {
-            $masukMsg = 'Waktu Absen Masuk habis. Batas: ' . substr($tutupMasuk, 0, 5);
+            $masukMsg = 'Waktu Absen Masuk habis. Batas: '.substr($tutupMasuk, 0, 5);
         }
         // Lapisan jendela operasional qr_scan_* (khusus masuk) + datanya
         // untuk hitung ulang di browser (auto-switch tanpa reload).
-        $qrAktif = false; $qrMulai = ''; $qrSelesai = '';
+        $qrAktif = false;
+        $qrMulai = '';
+        $qrSelesai = '';
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+            $db = DB::connection();
+            if (Schema::hasTable('absensi_setting')) {
                 $row = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
                 if ($row && (int) ($row->qr_scan_aktif ?? 0) === 1) {
-                    $qrAktif   = true;
-                    $qrMulai   = substr((string) ($row->qr_scan_mulai ?? '05:30:00'), 0, 5);
+                    $qrAktif = true;
+                    $qrMulai = substr((string) ($row->qr_scan_mulai ?? '05:30:00'), 0, 5);
                     $qrSelesai = substr((string) ($row->qr_scan_selesai ?? '18:00:00'), 0, 5);
-                    if ($qrMulai === '' || $qrSelesai === '' || $qrMulai >= $qrSelesai) $qrAktif = false;
+                    if ($qrMulai === '' || $qrSelesai === '' || $qrMulai >= $qrSelesai) {
+                        $qrAktif = false;
+                    }
                 }
             }
         } catch (\Throwable $e) {
         }
         if ($masukOpen && ($winMsg = $this->isOutsideScanWindow('masuk', $now)) !== null) {
             $masukOpen = false;
-            $masukMsg  = $winMsg;
+            $masukMsg = $winMsg;
         }
 
-        $bukaPulang  = $this->getBukaPulangEfektifSiswa($tanggal);
+        $bukaPulang = $this->getBukaPulangEfektifSiswa($tanggal);
         $pulangOpen = ($now >= $bukaPulang);
-        $pulangMsg  = $pulangOpen ? '' : 'Belum waktunya pulang. Pulang dibuka pukul ' . substr($bukaPulang, 0, 5) . '.';
+        $pulangMsg = $pulangOpen ? '' : 'Belum waktunya pulang. Pulang dibuka pukul '.substr($bukaPulang, 0, 5).'.';
         // Tab pulang dulu hanya punya batas bawah, jadi scanner yang ditinggal
         // menyala tetap membuka tab pulang sampai lewat tengah malam. Jendela
         // operasional yang sama dengan tab masuk sekarang ikut menutupnya.
         if ($pulangOpen && ($winMsgKeluar = $this->isOutsideScanWindow('keluar', $now)) !== null) {
             $pulangOpen = false;
-            $pulangMsg  = $winMsgKeluar;
+            $pulangMsg = $winMsgKeluar;
         }
+
         return [
-            'jam_masuk'    => substr($jamMasuk, 0, 5),
-            'jam_pulang'   => substr($jamPulang, 0, 5),
-            'buka_masuk'   => substr($bukaMasuk, 0, 5),
-            'tutup_masuk'  => substr($tutupMasuk, 0, 5),
-            'buka_pulang'  => substr($bukaPulang, 0, 5),
-            'masuk_open'   => $masukOpen,
-            'pulang_open'  => $pulangOpen,
-            'masuk_msg'    => $masukMsg,
-            'pulang_msg'   => $pulangMsg,
-            'now'          => substr($now, 0, 5),
-            'default_mode' => (!$masukOpen && $pulangOpen) ? 'keluar' : 'masuk',
-            'qr_aktif'     => $qrAktif,
-            'qr_mulai'     => $qrMulai,
-            'qr_selesai'   => $qrSelesai,
+            'jam_masuk' => substr($jamMasuk, 0, 5),
+            'jam_pulang' => substr($jamPulang, 0, 5),
+            'buka_masuk' => substr($bukaMasuk, 0, 5),
+            'tutup_masuk' => substr($tutupMasuk, 0, 5),
+            'buka_pulang' => substr($bukaPulang, 0, 5),
+            'masuk_open' => $masukOpen,
+            'pulang_open' => $pulangOpen,
+            'masuk_msg' => $masukMsg,
+            'pulang_msg' => $pulangMsg,
+            'now' => substr($now, 0, 5),
+            'default_mode' => (! $masukOpen && $pulangOpen) ? 'keluar' : 'masuk',
+            'qr_aktif' => $qrAktif,
+            'qr_mulai' => $qrMulai,
+            'qr_selesai' => $qrSelesai,
         ];
     }
 
@@ -1664,15 +1757,17 @@ class PresensiSiswaQrController extends BaseController
      * Sebelumnya fungsi ini membaca `setting.hari_libur_mingguan` — kolom yang
      * tidak pernah ada di tabel `setting` — sehingga hasilnya selalu jatuh ke
      * default 'Sun' dan bisa berbeda dari halaman absensi manual.
+     *
      * @return string|null keterangan libur, atau null bila hari kerja
      */
     private function isHariLibur(string $tgl): ?string
     {
         try {
-            return \App\Services\AttendancePolicy::alasanLibur($tgl);
+            return AttendancePolicy::alasanLibur($tgl);
         } catch (\Throwable $e) {
             // Biarkan null (tidak memblok)
         }
+
         return null;
     }
 
@@ -1688,25 +1783,25 @@ class PresensiSiswaQrController extends BaseController
         $auth = null;
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();
-            if (!$auth['authorized']) {
+            if (! $auth['authorized']) {
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'data'    => [],
+                    'status' => false,
+                    'data' => [],
                     'message' => $auth['message'],
                 ]);
             }
             $hash = $this->requestHash();
-            if (!self::isValidHash($hash, (int) $auth['user']->id)) {
+            if (! self::isValidHash($hash, (int) $auth['user']->id)) {
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'data'    => [],
+                    'status' => false,
+                    'data' => [],
                     'message' => 'Token keamanan (hash) tidak valid atau telah kedaluwarsa.',
                 ]);
             }
         } else {
             // Jalur publik: throttle ringan + token kiosk bila diaktifkan.
             try {
-                if ($this->throttleCheck('qrhist_' . md5($this->request->ip()), 120, 60) === false) {
+                if ($this->throttleCheck('qrhist_'.md5($this->request->ip()), 120, 60) === false) {
                     return $this->response->setStatusCode(429)->setJSON(['status' => false, 'data' => [], 'message' => 'Terlalu banyak permintaan. Coba lagi.']);
                 }
             } catch (\Throwable $e) {
@@ -1718,29 +1813,29 @@ class PresensiSiswaQrController extends BaseController
         }
 
         $tanggal = trim((string) ($this->request->query('tanggal') ?: date('Y-m-d')));
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal > date('Y-m-d')) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal > date('Y-m-d')) {
             $tanggal = date('Y-m-d');
         }
         // Riwayat selain hari ini memuat data pribadi siswa — wajib login
-        if ($tanggal !== date('Y-m-d') && !$this->isLoggedIn()) {
+        if ($tanggal !== date('Y-m-d') && ! $this->isLoggedIn()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'data' => [], 'message' => 'Akses ditolak']);
         }
-        $idKelas    = (int) ($this->request->query('id_kelas') ?? 0);
+        $idKelas = (int) ($this->request->query('id_kelas') ?? 0);
         $filterRole = trim((string) ($this->request->query('filter_role') ?? ''));
-        $limit      = (int) ($this->request->query('limit') ?? 50);
-        $limit      = max(1, min($limit, 200));
-        $offset     = max(0, (int) ($this->request->query('offset') ?? 0));
+        $limit = (int) ($this->request->query('limit') ?? 50);
+        $limit = max(1, min($limit, 200));
+        $offset = max(0, (int) ($this->request->query('offset') ?? 0));
         // Ambil satu baris ekstra untuk penanda has_more (pagination "muat lebih banyak")
-        $fetch      = $offset + $limit + 1;
+        $fetch = $offset + $limit + 1;
 
         // Wali kelas hanya boleh melihat riwayat kelas perwaliannya
         $isWali = $auth && ($auth['reason'] ?? '') === 'wali_kelas';
         $allowedKelas = $isWali ? array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? [])))) : [];
         if ($isWali) {
-            if ($idKelas > 0 && !in_array($idKelas, $allowedKelas, true)) {
+            if ($idKelas > 0 && ! in_array($idKelas, $allowedKelas, true)) {
                 return $this->response->setStatusCode(403)->setJSON([
-                    'status'  => false,
-                    'data'    => [],
+                    'status' => false,
+                    'data' => [],
                     'message' => 'Anda hanya dapat melihat riwayat kelas perwalian Anda.',
                 ]);
             }
@@ -1750,25 +1845,28 @@ class PresensiSiswaQrController extends BaseController
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $rows = [];
 
             // 1. Ambil data Siswa (kecuali difilter khusus guru)
             if ($filterRole !== 'guru') {
                 $builder = $db->table('presensi_siswa as ps')
-                    ->select('ps.id, ps.id_siswa, ps.id_kelas, ps.tgl, ps.jam_masuk, ps.jam_keluar,
-                              ps.status, ps.keterangan, ps.updated_at,
-                              ms.nama, ms.nis, ms.nisn, ms.foto,
-                              mk.nama_kelas, \'siswa\' as role')
-                    ->join('master_siswa as ms', 'ms.id_siswa = ps.id_siswa')
-                    ->join('master_kelas as mk', 'mk.id_kelas = ps.id_kelas', 'left')
-                    ->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                    ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); })
+                    ->select('ps.id', 'ps.id_siswa', 'ps.id_kelas', 'ps.tgl', 'ps.jam_masuk', 'ps.jam_keluar',
+                        'ps.status', 'ps.keterangan', 'ps.updated_at',
+                        'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto',
+                        'mk.nama_kelas')
+                    ->selectRaw("'siswa' as role")
+                    ->join('master_siswa as ms', 'ms.id_siswa', '=', 'ps.id_siswa')
+                    ->leftJoin('master_kelas as mk', 'mk.id_kelas', '=', 'ps.id_kelas')
+                    ->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                    ->where(function ($q) {
+                        $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                    })
                     ->where('ps.tgl', $tanggal);
 
                 if ($idKelas > 0) {
                     $builder->where('ps.id_kelas', $idKelas);
-                } elseif ($isWali && !empty($allowedKelas)) {
+                } elseif ($isWali && ! empty($allowedKelas)) {
                     // Wali kelas multi-perwalian tanpa filter: batasi ke kelas perwaliannya
                     $builder->whereIn('ps.id_kelas', $allowedKelas);
                 }
@@ -1776,39 +1874,45 @@ class PresensiSiswaQrController extends BaseController
                 $siswaRows = $builder->orderBy('ps.updated_at', 'DESC')->limit($fetch)->get();
 
                 foreach ($siswaRows as $r) {
-                    $r->foto = $this->resolveAvatar((object)['foto' => $r->foto, 'nama' => $r->nama]);
+                    $r->foto = $this->resolveAvatar((object) ['foto' => $r->foto, 'nama' => $r->nama]);
                     $r->role = 'siswa';
-                    if (!empty($r->jam_masuk)) $r->jam_masuk = substr((string)$r->jam_masuk, 0, 5);
-                    if (!empty($r->jam_keluar)) $r->jam_keluar = substr((string)$r->jam_keluar, 0, 5);
+                    if (! empty($r->jam_masuk)) {
+                        $r->jam_masuk = substr((string) $r->jam_masuk, 0, 5);
+                    }
+                    if (! empty($r->jam_keluar)) {
+                        $r->jam_keluar = substr((string) $r->jam_keluar, 0, 5);
+                    }
                     $rows[] = $r;
                 }
             }
 
             // 2. Ambil data Guru dari absensi_harian (bila tidak filter kelas spesifik dan tidak filter siswa saja)
             // Wali kelas tidak melihat data guru — hanya siswa kelas perwaliannya
-            if (!$isWali && $idKelas <= 0 && $filterRole !== 'siswa' && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian') && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            if (! $isWali && $idKelas <= 0 && $filterRole !== 'siswa' && Schema::hasTable('absensi_harian') && Schema::hasTable('master_guru')) {
                 $gBuilder = $db->table('absensi_harian as ah')
-                    ->select('ah.id, ah.id_guru, ah.user_id, ah.tgl, ah.jam_masuk, ah.jam_pulang as jam_keluar,
-                              ah.status_masuk as status, ah.keterangan, ah.updated_at,
-                              mg.nama_guru as nama, mg.nip as nis, mg.kode_guru as nisn, mg.foto,
-                              \'GURU / GTK\' as nama_kelas, \'guru\' as role')
-                    ->join('master_guru as mg', 'mg.id_user = ah.user_id OR mg.id_guru = ah.id_guru', 'left')
+                    ->select('ah.id', 'ah.id_guru', 'ah.user_id', 'ah.tgl', 'ah.jam_masuk', 'ah.jam_pulang as jam_keluar',
+                        'ah.status_masuk as status', 'ah.keterangan', 'ah.updated_at',
+                        'mg.nama_guru as nama', 'mg.nip as nis', 'mg.kode_guru as nisn', 'mg.foto')
+                    ->selectRaw("'GURU / GTK' as nama_kelas, 'guru' as role")
+                    ->leftJoin('master_guru as mg', function ($join) {
+                        $join->on('mg.id_user', '=', 'ah.user_id')->orOn('mg.id_guru', '=', 'ah.id_guru');
+                    })
                     ->where('ah.tgl', $tanggal);
 
                 $guruRows = $gBuilder->orderBy('ah.updated_at', 'DESC')->limit($fetch)->get();
 
                 foreach ($guruRows as $gr) {
-                    $gr->foto = $this->resolveGuruAvatar((object)['foto' => $gr->foto, 'nama_guru' => $gr->nama]);
+                    $gr->foto = $this->resolveGuruAvatar((object) ['foto' => $gr->foto, 'nama_guru' => $gr->nama]);
                     $gr->role = 'guru';
-                    if (!empty($gr->jam_masuk)) {
-                        $gr->jam_masuk = strlen((string)$gr->jam_masuk) >= 16
-                            ? substr((string)$gr->jam_masuk, 11, 5)
-                            : substr((string)$gr->jam_masuk, 0, 5);
+                    if (! empty($gr->jam_masuk)) {
+                        $gr->jam_masuk = strlen((string) $gr->jam_masuk) >= 16
+                            ? substr((string) $gr->jam_masuk, 11, 5)
+                            : substr((string) $gr->jam_masuk, 0, 5);
                     }
-                    if (!empty($gr->jam_keluar)) {
-                        $gr->jam_keluar = strlen((string)$gr->jam_keluar) >= 16
-                            ? substr((string)$gr->jam_keluar, 11, 5)
-                            : substr((string)$gr->jam_keluar, 0, 5);
+                    if (! empty($gr->jam_keluar)) {
+                        $gr->jam_keluar = strlen((string) $gr->jam_keluar) >= 16
+                            ? substr((string) $gr->jam_keluar, 11, 5)
+                            : substr((string) $gr->jam_keluar, 0, 5);
                     }
                     $rows[] = $gr;
                 }
@@ -1816,17 +1920,21 @@ class PresensiSiswaQrController extends BaseController
 
             // Urutkan gabungan dari yang paling baru
             usort($rows, function ($a, $b) {
-                return strcmp((string)($b->updated_at ?? ''), (string)($a->updated_at ?? ''));
+                return strcmp((string) ($b->updated_at ?? ''), (string) ($a->updated_at ?? ''));
             });
             $hasMore = count($rows) > ($offset + $limit);
             $rows = array_slice($rows, $offset, $limit);
 
             // Kiosk publik (/scanner tanpa login): samarkan NIS/NISN/NIP agar
             // endpoint hari-ini tak jadi oracle enumerasi identitas.
-            if (!$this->isLoggedIn()) {
+            if (! $this->isLoggedIn()) {
                 foreach ($rows as $r) {
-                    if (isset($r->nis)) $r->nis = '***';
-                    if (isset($r->nisn)) $r->nisn = '***';
+                    if (isset($r->nis)) {
+                        $r->nis = '***';
+                    }
+                    if (isset($r->nisn)) {
+                        $r->nisn = '***';
+                    }
                 }
             }
 
@@ -1845,15 +1953,16 @@ class PresensiSiswaQrController extends BaseController
 
             return $this->response->setJSON([
                 'status' => true,
-                'data'   => $rows,
-                'stats'  => $stats,
-                'total'  => count($rows),
+                'data' => $rows,
+                'stats' => $stats,
+                'total' => count($rows),
                 'offset' => $offset,
                 'has_more' => $hasMore,
             ]);
 
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswaQr::getHistory] ' . $e->getMessage());
+            Log::error('[PresensiSiswaQr::getHistory] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'data' => [], 'message' => 'Gagal mengambil riwayat.']);
         }
     }
@@ -1866,21 +1975,23 @@ class PresensiSiswaQrController extends BaseController
     private function findSiswaByQr(string $qrValue): ?object
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             // Satu resolusi untuk semua jalur (QR kamera, USB scanner, RFID):
             // NIS → NISN → nomor_rfid → id_siswa. nomor_rfid ikut dibaca agar
             // pemanggil bisa menyimpulkan metode scan dari nomor yang cocok,
             // dan tidak dimasukkan bila migrasi RFID belum dijalankan.
-            $cols = 'id_siswa, nama, nis, nisn, foto, jenis_kelamin'
-                . (\Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'nomor_rfid') ? ', nomor_rfid' : '');
+            $cols = ['id_siswa', 'nama', 'nis', 'nisn', 'foto', 'jenis_kelamin'];
+            if (Schema::hasColumn('master_siswa', 'nomor_rfid')) {
+                $cols[] = 'nomor_rfid';
+            }
 
             $row = $db->table('master_siswa')
                 ->select($cols)
                 ->where('nis', $qrValue)
                 ->first();
 
-            if (!$row && !empty($qrValue)) {
+            if (! $row && ! empty($qrValue)) {
                 $row = $db->table('master_siswa')
                     ->select($cols)
                     ->where('nisn', $qrValue)
@@ -1890,17 +2001,17 @@ class PresensiSiswaQrController extends BaseController
             // Nomor kartu RFID diperiksa lebih dulu: nomor inilah yang dicetak
             // sebagai QR/barcode, dan UID numerik tidak boleh tertukar dengan
             // id_siswa yang kebetulan angkanya sama.
-            if (!$row && \Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'nomor_rfid') && !empty($qrValue)) {
+            if (! $row && Schema::hasColumn('master_siswa', 'nomor_rfid') && ! empty($qrValue)) {
                 $row = $db->table('master_siswa')
                     ->select($cols)
                     ->where('nomor_rfid', $qrValue)
                     ->first();
             }
 
-            if (!$row && is_numeric($qrValue) && (int)$qrValue > 0) {
+            if (! $row && is_numeric($qrValue) && (int) $qrValue > 0) {
                 $row = $db->table('master_siswa')
                     ->select($cols)
-                    ->where('id_siswa', (int)$qrValue)
+                    ->where('id_siswa', (int) $qrValue)
                     ->first();
             }
 
@@ -1916,14 +2027,15 @@ class PresensiSiswaQrController extends BaseController
     private function findSiswaByRfid(string $rfidValue): ?object
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('master_siswa') || !\Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'nomor_rfid')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('master_siswa') || ! Schema::hasColumn('master_siswa', 'nomor_rfid')) {
                 return null;
             }
             $row = $db->table('master_siswa')
-                ->select('id_siswa, nama, nis, nisn, foto, jenis_kelamin, nomor_rfid')
+                ->select('id_siswa', 'nama', 'nis', 'nisn', 'foto', 'jenis_kelamin', 'nomor_rfid')
                 ->where('nomor_rfid', $rfidValue)
                 ->first();
+
             return $row ?: null;
         } catch (\Throwable $e) {
             return null;
@@ -1940,15 +2052,16 @@ class PresensiSiswaQrController extends BaseController
             return false;
         }
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('buku_induk')) {
                 return true;
             }
             $row = $db->table('buku_induk')->select('status')
                 ->where('id_siswa', $idSiswa)->first();
-            if (!$row) {
+            if (! $row) {
                 return true;
             }
+
             return (string) ($row->status ?? '1') === '1';
         } catch (\Throwable $e) {
             return true;
@@ -1959,11 +2072,13 @@ class PresensiSiswaQrController extends BaseController
     private function getKelasAktifSiswa(int $idSiswa): int
     {
         try {
-            $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-            if (!$tp || !$smt) return 0;
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
+            if (! $tp || ! $smt) {
+                return 0;
+            }
 
-            $db  = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $row = $db->table('kelas_siswa')
                 ->select('id_kelas')
                 ->where('id_siswa', $idSiswa)
@@ -1971,7 +2086,7 @@ class PresensiSiswaQrController extends BaseController
                 ->where('id_smt', $smt->id_smt)
                 ->first();
 
-            return $row ? (int)$row->id_kelas : 0;
+            return $row ? (int) $row->id_kelas : 0;
         } catch (\Throwable $e) {
             return 0;
         }
@@ -1980,12 +2095,15 @@ class PresensiSiswaQrController extends BaseController
     /** Ambil nama kelas berdasarkan id_kelas */
     private function getKelasName(int $idKelas): string
     {
-        if ($idKelas <= 0) return '';
+        if ($idKelas <= 0) {
+            return '';
+        }
         try {
-            $row = \Illuminate\Support\Facades\DB::connection()->table('master_kelas')
+            $row = DB::connection()->table('master_kelas')
                 ->select('nama_kelas')
                 ->where('id_kelas', $idKelas)
                 ->first();
+
             return $row?->nama_kelas ?? '';
         } catch (\Throwable $e) {
             return '';
@@ -1997,12 +2115,15 @@ class PresensiSiswaQrController extends BaseController
     {
         try {
             $uid = $this->getUserId();
-            if (!$uid) return null;
-            $row = \Illuminate\Support\Facades\DB::connection()->table('master_guru')
+            if (! $uid) {
+                return null;
+            }
+            $row = DB::connection()->table('master_guru')
                 ->select('id_guru')
                 ->where('id_user', $uid)
                 ->first();
-            return $row ? (int)$row->id_guru : null;
+
+            return $row ? (int) $row->id_guru : null;
         } catch (\Throwable $e) {
             return null;
         }
@@ -2013,42 +2134,48 @@ class PresensiSiswaQrController extends BaseController
         $db, object $siswa, ?object $existing,
         int $idKelas, ?int $idGuru, string $tanggal, string $jam, array $scanLoc = [], string $source = 'qr'
     ) {
-        $hasJamCol = \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'jam');
+        $hasJamCol = Schema::hasColumn('presensi_siswa', 'jam');
         $locCols = [];
         foreach (['lat_masuk' => $scanLoc['lat'] ?? null, 'lng_masuk' => $scanLoc['lng'] ?? null,
-                  'akurasi_masuk' => $scanLoc['akurasi'] ?? null, 'lokasi_id' => $scanLoc['lokasi_id'] ?? null] as $col => $val) {
-            if ($val !== null && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', $col)) $locCols[$col] = $val;
+            'akurasi_masuk' => $scanLoc['akurasi'] ?? null, 'lokasi_id' => $scanLoc['lokasi_id'] ?? null] as $col => $val) {
+            if ($val !== null && Schema::hasColumn('presensi_siswa', $col)) {
+                $locCols[$col] = $val;
+            }
         }
         // Audit sumber (best-effort, kolom baru dari migrasi 20261006).
         try {
             $ip = (string) $this->request->ip();
-            if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_masuk')) $locCols['sumber_masuk'] = $source;
-            if ($ip !== '' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'ip_masuk')) $locCols['ip_masuk'] = substr($ip, 0, 45);
+            if (Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
+                $locCols['sumber_masuk'] = $source;
+            }
+            if ($ip !== '' && Schema::hasColumn('presensi_siswa', 'ip_masuk')) {
+                $locCols['ip_masuk'] = substr($ip, 0, 45);
+            }
         } catch (\Throwable $e) {
         }
 
         if ($existing) {
-            if (!empty($existing->jam_masuk)) {
+            if (! empty($existing->jam_masuk)) {
                 return $this->response->setJSON([
-                    'status'   => false,
-                    'type'     => 'already_in',
-                    'message'  => "{$siswa->nama} sudah absen masuk pukul " . substr($existing->jam_masuk, 0, 5) . '.',
-                    'siswa'    => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                    'status' => false,
+                    'type' => 'already_in',
+                    'message' => "{$siswa->nama} sudah absen masuk pukul ".substr($existing->jam_masuk, 0, 5).'.',
+                    'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
                 ]);
             }
             if (in_array($existing->status, ['SAKIT', 'IZIN'], true)) {
                 return $this->response->setJSON([
-                    'status'  => false,
-                    'type'    => 'izin',
+                    'status' => false,
+                    'type' => 'izin',
                     'message' => "{$siswa->nama} berstatus {$existing->status}.",
-                    'siswa'   => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                    'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
                 ]);
             }
 
             $updateData = [
-                'jam_masuk'  => $jam,
-                'status'     => 'HADIR',
-                'id_guru'    => $idGuru ?? $existing->id_guru,
+                'jam_masuk' => $jam,
+                'status' => 'HADIR',
+                'id_guru' => $idGuru ?? $existing->id_guru,
                 'updated_at' => date('Y-m-d H:i:s'),
             ] + $locCols;
             if ($hasJamCol && empty($existing->jam)) {
@@ -2059,35 +2186,36 @@ class PresensiSiswaQrController extends BaseController
             // poin/sync telat ganda. Update hanya bila jam_masuk masih kosong.
             $db->table('presensi_siswa')
                 ->where('id', $existing->id)
-                ->where('jam_masuk IS NULL', null, false)
+                ->whereNull('jam_masuk')
                 ->update($updateData);
             if (1 === 0) {
                 $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
+
                 return $this->response->setJSON([
-                    'status'  => false,
-                    'type'    => 'already_in',
-                    'message' => "{$siswa->nama} sudah absen masuk pukul " . substr((string) ($finalIn->jam_masuk ?? $jam), 0, 5) . '.',
-                    'siswa'   => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                    'status' => false,
+                    'type' => 'already_in',
+                    'message' => "{$siswa->nama} sudah absen masuk pukul ".substr((string) ($finalIn->jam_masuk ?? $jam), 0, 5).'.',
+                    'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
                 ]);
             }
-            \App\Services\SiswaPoinService::sinkron((int) $existing->id);
-            \App\Services\SiswaDendaService::sinkron((int) $existing->id);
+            SiswaPoinService::sinkron((int) $existing->id);
+            SiswaDendaService::sinkron((int) $existing->id);
             // Sinkron otomatis status TELAT ke arsip piket (best-effort):
             // hanya mengisi bila piket belum mencatat siswa ini.
             try {
-                (new \App\Models\PiketModel())->syncTelatOtomatis($tanggal, $idKelas, [(int) $siswa->id_siswa]);
+                (new PiketModel)->syncTelatOtomatis($tanggal, $idKelas, [(int) $siswa->id_siswa]);
             } catch (\Throwable $e) {
-                Log::error('[PresensiSiswaQr::processCheckIn] sync telat: ' . $e->getMessage());
+                Log::error('[PresensiSiswaQr::processCheckIn] sync telat: '.$e->getMessage());
             }
         } else {
             $insertData = [
-                'id_kelas'   => $idKelas,
-                'id_siswa'   => $siswa->id_siswa,
-                'id_mapel'   => null,
-                'id_guru'    => $idGuru,
-                'tgl'        => $tanggal,
-                'jam_masuk'  => $jam,
-                'status'     => 'HADIR',
+                'id_kelas' => $idKelas,
+                'id_siswa' => $siswa->id_siswa,
+                'id_mapel' => null,
+                'id_guru' => $idGuru,
+                'tgl' => $tanggal,
+                'jam_masuk' => $jam,
+                'status' => 'HADIR',
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ] + $locCols;
@@ -2103,53 +2231,54 @@ class PresensiSiswaQrController extends BaseController
                         ->where('id_siswa', $siswa->id_siswa)
                         ->where('tgl', $tanggal)
                         ->first();
+
                     return $this->response->setJSON([
-                        'status'   => false,
-                        'type'     => 'already_in',
-                        'message'  => "{$siswa->nama} sudah absen masuk pukul " . substr((string) ($existing->jam_masuk ?? $jam), 0, 5) . '.',
-                        'siswa'    => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                        'status' => false,
+                        'type' => 'already_in',
+                        'message' => "{$siswa->nama} sudah absen masuk pukul ".substr((string) ($existing->jam_masuk ?? $jam), 0, 5).'.',
+                        'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
                     ]);
                 }
                 throw $e;
             }
-            \App\Services\SiswaPoinService::sinkron((int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId());
-            \App\Services\SiswaDendaService::sinkron((int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId());
+            SiswaPoinService::sinkron((int) DB::getPdo()->lastInsertId());
+            SiswaDendaService::sinkron((int) DB::getPdo()->lastInsertId());
             // Sinkron otomatis status TELAT ke arsip piket (best-effort):
             // hanya mengisi bila piket belum mencatat siswa ini.
             try {
-                (new \App\Models\PiketModel())->syncTelatOtomatis($tanggal, $idKelas, [(int) $siswa->id_siswa]);
+                (new PiketModel)->syncTelatOtomatis($tanggal, $idKelas, [(int) $siswa->id_siswa]);
             } catch (\Throwable $e2) {
-                Log::error('[PresensiSiswaQr::processCheckIn] sync telat: ' . $e2->getMessage());
+                Log::error('[PresensiSiswaQr::processCheckIn] sync telat: '.$e2->getMessage());
             }
         }
 
-        $existing = (object)array_merge((array)($existing ?? []), ['jam_masuk' => $jam, 'status' => 'HADIR', 'id_kelas' => $idKelas]);
+        $existing = (object) array_merge((array) ($existing ?? []), ['jam_masuk' => $jam, 'status' => 'HADIR', 'id_kelas' => $idKelas]);
 
         // Flag telat untuk umpan balik kiosk/mobile — tanpa ini UI selalu
         // menampilkan "Hadir Tepat Waktu" meski siswa scan setelah batas masuk.
         $telatMenit = 0;
         $batasMasukLabel = '';
         try {
-            $hit = \App\Services\AttendancePolicy::telat(
+            $hit = AttendancePolicy::telat(
                 $tanggal,
                 $jam,
                 $this->getJadwalEfektifSiswa($tanggal)
             );
-            $telatMenit     = $hit['telat_menit'];
+            $telatMenit = $hit['telat_menit'];
             $batasMasukLabel = $hit['batas'];
         } catch (\Throwable $e) {
         }
 
         return $this->response->setJSON([
-            'status'      => true,
-            'type'        => 'check_in',
-            'metode'      => $source,
-            'message'     => "{$siswa->nama} berhasil absen masuk pukul " . substr($jam, 0, 5) . '.'
-                . ($telatMenit > 0 ? ' Terlambat ' . $telatMenit . ' menit (batas ' . $batasMasukLabel . ').' : ''),
-            'jam_masuk'   => substr($jam, 0, 5),
-            'telat'       => $telatMenit > 0,
+            'status' => true,
+            'type' => 'check_in',
+            'metode' => $source,
+            'message' => "{$siswa->nama} berhasil absen masuk pukul ".substr($jam, 0, 5).'.'
+                .($telatMenit > 0 ? ' Terlambat '.$telatMenit.' menit (batas '.$batasMasukLabel.').' : ''),
+            'jam_masuk' => substr($jam, 0, 5),
+            'telat' => $telatMenit > 0,
             'telat_menit' => $telatMenit,
-            'siswa'       => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+            'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
         ]);
     }
 
@@ -2158,20 +2287,20 @@ class PresensiSiswaQrController extends BaseController
         $db, object $siswa, ?object $existing,
         int $idKelas, ?int $idGuru, string $tanggal, string $jam, array $scanLoc = [], string $source = 'qr'
     ) {
-        if (!$existing || empty($existing->jam_masuk)) {
+        if (! $existing || empty($existing->jam_masuk)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'not_in',
+                'status' => false,
+                'type' => 'not_in',
                 'message' => "{$siswa->nama} belum absen masuk hari ini.",
-                'siswa'   => $this->formatSiswaInfo($siswa, null, $idKelas),
+                'siswa' => $this->formatSiswaInfo($siswa, null, $idKelas),
             ]);
         }
-        if (!empty($existing->jam_keluar)) {
+        if (! empty($existing->jam_keluar)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'already_out',
-                'message' => "{$siswa->nama} sudah absen keluar pukul " . substr($existing->jam_keluar, 0, 5) . '.',
-                'siswa'   => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                'status' => false,
+                'type' => 'already_out',
+                'message' => "{$siswa->nama} sudah absen keluar pukul ".substr($existing->jam_keluar, 0, 5).'.',
+                'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
             ]);
         }
         if ($jam < $existing->jam_masuk) {
@@ -2180,97 +2309,111 @@ class PresensiSiswaQrController extends BaseController
 
         $locOut = [];
         foreach (['lat_keluar' => $scanLoc['lat'] ?? null, 'lng_keluar' => $scanLoc['lng'] ?? null] as $col => $val) {
-            if ($val !== null && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', $col)) $locOut[$col] = $val;
+            if ($val !== null && Schema::hasColumn('presensi_siswa', $col)) {
+                $locOut[$col] = $val;
+            }
         }
         try {
             $ipOut = (string) $this->request->ip();
-            if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_keluar')) $locOut['sumber_keluar'] = $source;
-            if ($ipOut !== '' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'ip_keluar')) $locOut['ip_keluar'] = substr($ipOut, 0, 45);
+            if (Schema::hasColumn('presensi_siswa', 'sumber_keluar')) {
+                $locOut['sumber_keluar'] = $source;
+            }
+            if ($ipOut !== '' && Schema::hasColumn('presensi_siswa', 'ip_keluar')) {
+                $locOut['ip_keluar'] = substr($ipOut, 0, 45);
+            }
             // Jam keluar akhirnya tercatat → penanda cron tidak berlaku lagi.
-            if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) $locOut['pulang_tidak_tercatat'] = 0;
+            if (Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) {
+                $locOut['pulang_tidak_tercatat'] = 0;
+            }
         } catch (\Throwable $e) {
         }
         // Guard idempoten: update hanya bila jam_keluar masih kosong sehingga
         // dua scan keluar paralel tidak saling menimpa (last-write-wins).
         $db->table('presensi_siswa')
             ->where('id', $existing->id)
-            ->where('jam_keluar IS NULL', null, false)
+            ->whereNull('jam_keluar')
             ->update([
                 'jam_keluar' => $jam,
                 // Pertahankan pencatat masuk; jangan timpa dengan pemindai keluar.
-                'id_guru'    => !empty($existing->id_guru) ? $existing->id_guru : $idGuru,
+                'id_guru' => ! empty($existing->id_guru) ? $existing->id_guru : $idGuru,
                 'updated_at' => date('Y-m-d H:i:s'),
             ] + $locOut);
         if (1 === 0) {
             $finalOut = $db->table('presensi_siswa')->select('jam_keluar')->where('id', $existing->id)->first();
-            $shown = !empty($finalOut->jam_keluar) ? substr($finalOut->jam_keluar, 0, 5) : substr($jam, 0, 5);
+            $shown = ! empty($finalOut->jam_keluar) ? substr($finalOut->jam_keluar, 0, 5) : substr($jam, 0, 5);
+
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'already_out',
-                'message' => "{$siswa->nama} sudah absen keluar pukul " . $shown . '.',
-                'siswa'   => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+                'status' => false,
+                'type' => 'already_out',
+                'message' => "{$siswa->nama} sudah absen keluar pukul ".$shown.'.',
+                'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
             ]);
         }
         try {
-            \App\Services\SiswaPoinService::sinkron((int) $existing->id);
-            \App\Services\SiswaDendaService::sinkron((int) $existing->id);
+            SiswaPoinService::sinkron((int) $existing->id);
+            SiswaDendaService::sinkron((int) $existing->id);
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswaQr::processCheckOut] sinkron poin: ' . $e->getMessage());
+            Log::error('[PresensiSiswaQr::processCheckOut] sinkron poin: '.$e->getMessage());
         }
 
-        $existing = (object)array_merge((array)$existing, ['jam_keluar' => $jam, 'id_kelas' => $idKelas]);
+        $existing = (object) array_merge((array) $existing, ['jam_keluar' => $jam, 'id_kelas' => $idKelas]);
+
         return $this->response->setJSON([
-            'status'     => true,
-            'type'       => 'check_out',
-            'metode'     => $source,
-            'message'    => "{$siswa->nama} berhasil absen keluar pukul " . substr($jam, 0, 5) . '.',
+            'status' => true,
+            'type' => 'check_out',
+            'metode' => $source,
+            'message' => "{$siswa->nama} berhasil absen keluar pukul ".substr($jam, 0, 5).'.',
             'jam_keluar' => substr($jam, 0, 5),
-            'siswa'      => $this->formatSiswaInfo($siswa, $existing, $idKelas),
+            'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
         ]);
     }
 
     /** Format info ringkas siswa untuk response JSON */
     private function formatSiswaInfo(object $siswa, ?object $presensi = null, int $idKelas = 0): array
     {
-        $resolvedKelasId = $idKelas > 0 ? $idKelas : (int)($presensi->id_kelas ?? 0);
-        $namaKelas       = $resolvedKelasId > 0 ? $this->getKelasName($resolvedKelasId) : '';
+        $resolvedKelasId = $idKelas > 0 ? $idKelas : (int) ($presensi->id_kelas ?? 0);
+        $namaKelas = $resolvedKelasId > 0 ? $this->getKelasName($resolvedKelasId) : '';
         if ($namaKelas === '') {
-            $kId = $this->getKelasAktifSiswa((int)$siswa->id_siswa);
-            if ($kId > 0) $namaKelas = $this->getKelasName($kId);
+            $kId = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
+            if ($kId > 0) {
+                $namaKelas = $this->getKelasName($kId);
+            }
         }
 
         return [
-            'id_siswa'   => (int)$siswa->id_siswa,
-            'nama'       => (string)$siswa->nama,
-            'nis'        => (string)($siswa->nis ?? ''),
-            'nisn'       => (string)($siswa->nisn ?? ''),
+            'id_siswa' => (int) $siswa->id_siswa,
+            'nama' => (string) $siswa->nama,
+            'nis' => (string) ($siswa->nis ?? ''),
+            'nisn' => (string) ($siswa->nisn ?? ''),
             'nama_kelas' => $namaKelas,
-            'foto'       => $this->resolveAvatar($siswa),
-            'jam_masuk'  => $presensi ? substr((string)($presensi->jam_masuk ?? ''), 0, 5) : null,
-            'jam_keluar' => $presensi ? substr((string)($presensi->jam_keluar ?? ''), 0, 5) : null,
-            'status'     => $presensi ? ($presensi->status ?? null) : null,
+            'foto' => $this->resolveAvatar($siswa),
+            'jam_masuk' => $presensi ? substr((string) ($presensi->jam_masuk ?? ''), 0, 5) : null,
+            'jam_keluar' => $presensi ? substr((string) ($presensi->jam_keluar ?? ''), 0, 5) : null,
+            'status' => $presensi ? ($presensi->status ?? null) : null,
         ];
     }
 
     /** Resolusi URL foto siswa */
     private function resolveAvatar(object $siswa): string
     {
-        return \App\Services\AvatarService::untukSiswa($siswa, '#e11d48');
+        return AvatarService::untukSiswa($siswa, '#e11d48');
     }
 
     /** Stats ringkas scan hari ini */
     private function getStatsHariIni(string $tanggal, ?int $idKelas = null): array
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             $builder = $db->table('presensi_siswa as ps')
-                ->select("COUNT(ps.id) as total,
+                ->selectRaw("COUNT(ps.id) as total,
                           SUM(CASE WHEN ps.status = 'HADIR' THEN 1 ELSE 0 END) as hadir,
                           SUM(CASE WHEN ps.jam_masuk IS NOT NULL AND ps.jam_masuk != '' THEN 1 ELSE 0 END) as masuk,
-                          SUM(CASE WHEN ps.jam_keluar IS NOT NULL AND ps.jam_keluar != '' THEN 1 ELSE 0 END) as keluar", false)
-                ->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); })
+                          SUM(CASE WHEN ps.jam_keluar IS NOT NULL AND ps.jam_keluar != '' THEN 1 ELSE 0 END) as keluar")
+                ->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                ->where(function ($q) {
+                    $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                })
                 ->where('ps.tgl', $tanggal);
 
             if ($idKelas !== null && $idKelas > 0) {
@@ -2279,39 +2422,39 @@ class PresensiSiswaQrController extends BaseController
 
             $row = $builder->first();
 
-            $totalSiswa  = (int)($row->total  ?? 0);
-            $hadirSiswa  = (int)($row->hadir  ?? 0);
-            $masukSiswa  = (int)($row->masuk   ?? 0);
-            $keluarSiswa = (int)($row->keluar  ?? 0);
+            $totalSiswa = (int) ($row->total ?? 0);
+            $hadirSiswa = (int) ($row->hadir ?? 0);
+            $masukSiswa = (int) ($row->masuk ?? 0);
+            $keluarSiswa = (int) ($row->keluar ?? 0);
 
-            $guruHadir  = 0;
-            $guruMasuk  = 0;
+            $guruHadir = 0;
+            $guruMasuk = 0;
             $guruKeluar = 0;
 
             if ($idKelas === null || $idKelas <= 0) {
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+                if (Schema::hasTable('absensi_harian')) {
                     $gRow = $db->table('absensi_harian')
-                        ->select("COUNT(id) as total,
+                        ->selectRaw("COUNT(id) as total,
                                   SUM(CASE WHEN jam_masuk IS NOT NULL AND jam_masuk != '' THEN 1 ELSE 0 END) as masuk,
-                                  SUM(CASE WHEN jam_pulang IS NOT NULL AND jam_pulang != '' THEN 1 ELSE 0 END) as keluar", false)
+                                  SUM(CASE WHEN jam_pulang IS NOT NULL AND jam_pulang != '' THEN 1 ELSE 0 END) as keluar")
                         ->where('tgl', $tanggal)
                         ->first();
                     if ($gRow) {
                         // Hadir = sudah jam_masuk (bukan sekadar row ada).
-                        $guruMasuk  = (int)($gRow->masuk ?? 0);
-                        $guruHadir  = $guruMasuk > 0 ? $guruMasuk : (int)($gRow->total ?? 0);
-                        $guruKeluar = (int)($gRow->keluar ?? 0);
+                        $guruMasuk = (int) ($gRow->masuk ?? 0);
+                        $guruHadir = $guruMasuk > 0 ? $guruMasuk : (int) ($gRow->total ?? 0);
+                        $guruKeluar = (int) ($gRow->keluar ?? 0);
                     }
                 }
             }
 
             return [
-                'total'       => $totalSiswa + $guruHadir,
-                'hadir'       => $hadirSiswa + $guruHadir,
-                'masuk'       => $masukSiswa + $guruMasuk,
-                'keluar'      => $keluarSiswa + $guruKeluar,
+                'total' => $totalSiswa + $guruHadir,
+                'hadir' => $hadirSiswa + $guruHadir,
+                'masuk' => $masukSiswa + $guruMasuk,
+                'keluar' => $keluarSiswa + $guruKeluar,
                 'siswa_hadir' => $hadirSiswa,
-                'guru_hadir'  => $guruHadir,
+                'guru_hadir' => $guruHadir,
             ];
         } catch (\Throwable $e) {
             return ['total' => 0, 'hadir' => 0, 'masuk' => 0, 'keluar' => 0, 'siswa_hadir' => 0, 'guru_hadir' => 0];
@@ -2332,51 +2475,71 @@ class PresensiSiswaQrController extends BaseController
             $clean = trim(substr($clean, strpos($clean, ':') + 1));
         }
 
-        if ($clean === '') return null;
+        if ($clean === '') {
+            return null;
+        }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('master_guru')) return null;
+            $db = DB::connection();
+            if (! Schema::hasTable('master_guru')) {
+                return null;
+            }
 
             $builder = $db->table('master_guru');
 
             // 1. NIP
             $row = (clone $builder)->where('nip', $clean)->first();
-            if ($row) return $row;
+            if ($row) {
+                return $row;
+            }
 
             // 2. Kode Guru (mis. GR001, KEPSEK)
             $row = (clone $builder)->where('kode_guru', $clean)->first();
-            if ($row) return $row;
+            if ($row) {
+                return $row;
+            }
 
             // 3. Username
             $row = (clone $builder)->where('username', $clean)->first();
-            if ($row) return $row;
+            if ($row) {
+                return $row;
+            }
 
             // 4. NUPTK
-            if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'nuptk')) {
+            if (Schema::hasColumn('master_guru', 'nuptk')) {
                 $row = (clone $builder)->where('nuptk', $clean)->first();
-                if ($row) return $row;
+                if ($row) {
+                    return $row;
+                }
             }
 
             // 5. No KTP / NIK
-            if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'no_ktp')) {
+            if (Schema::hasColumn('master_guru', 'no_ktp')) {
                 $row = (clone $builder)->where('no_ktp', $clean)->first();
-                if ($row) return $row;
+                if ($row) {
+                    return $row;
+                }
             }
 
             // 6. Nomor RFID Guru — nomor kartu yang sama dengan QR cetak.
             // Dicek sebelum id agar UID numerik tidak tertukar dengan id_guru.
-            if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'nomor_rfid')) {
+            if (Schema::hasColumn('master_guru', 'nomor_rfid')) {
                 $row = (clone $builder)->where('nomor_rfid', $clean)->first();
-                if ($row) return $row;
+                if ($row) {
+                    return $row;
+                }
             }
 
             // 7. Angka: id_guru atau id_user
-            if (is_numeric($clean) && (int)$clean > 0) {
-                $row = (clone $builder)->where('id_guru', (int)$clean)->first();
-                if ($row) return $row;
-                $row = (clone $builder)->where('id_user', (int)$clean)->first();
-                if ($row) return $row;
+            if (is_numeric($clean) && (int) $clean > 0) {
+                $row = (clone $builder)->where('id_guru', (int) $clean)->first();
+                if ($row) {
+                    return $row;
+                }
+                $row = (clone $builder)->where('id_user', (int) $clean)->first();
+                if ($row) {
+                    return $row;
+                }
             }
 
             return null;
@@ -2391,14 +2554,15 @@ class PresensiSiswaQrController extends BaseController
     private function findGuruByRfid(string $rfidValue): ?object
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('master_guru') || !\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'nomor_rfid')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('master_guru') || ! Schema::hasColumn('master_guru', 'nomor_rfid')) {
                 return null;
             }
             $row = $db->table('master_guru')
-                ->select('id_guru, id_user, nama_guru, nip, kode_guru, username, foto, nomor_rfid')
+                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'username', 'foto', 'nomor_rfid')
                 ->where('nomor_rfid', $rfidValue)
                 ->first();
+
             return $row ?: null;
         } catch (\Throwable $e) {
             return null;
@@ -2411,14 +2575,15 @@ class PresensiSiswaQrController extends BaseController
     private function findSiswaByFingerprint(string $fingerprintUid): ?object
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('master_siswa') || !\Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'fingerprint_uid')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('master_siswa') || ! Schema::hasColumn('master_siswa', 'fingerprint_uid')) {
                 return null;
             }
             $row = $db->table('master_siswa')
-                ->select('id_siswa, nama, nis, nisn, foto, jenis_kelamin, fingerprint_uid')
+                ->select('id_siswa', 'nama', 'nis', 'nisn', 'foto', 'jenis_kelamin', 'fingerprint_uid')
                 ->where('fingerprint_uid', $fingerprintUid)
                 ->first();
+
             return $row ?: null;
         } catch (\Throwable $e) {
             return null;
@@ -2431,14 +2596,15 @@ class PresensiSiswaQrController extends BaseController
     private function findGuruByFingerprint(string $fingerprintUid): ?object
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('master_guru') || !\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'fingerprint_uid')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('master_guru') || ! Schema::hasColumn('master_guru', 'fingerprint_uid')) {
                 return null;
             }
             $row = $db->table('master_guru')
-                ->select('id_guru, id_user, nama_guru, nip, kode_guru, username, foto, fingerprint_uid')
+                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'username', 'foto', 'fingerprint_uid')
                 ->where('fingerprint_uid', $fingerprintUid)
                 ->first();
+
             return $row ?: null;
         } catch (\Throwable $e) {
             return null;
@@ -2450,27 +2616,29 @@ class PresensiSiswaQrController extends BaseController
      */
     private function processGuruScan(object $guru, string $mode, string $tanggal, array $scanLoc = [], string $source = 'qr')
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_harian')) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Tabel absensi guru belum siap di database.',
             ]);
         }
 
         // Resolve userId
         $userId = (int) ($guru->id_user ?? 0);
-        if ($userId <= 0 && !empty($guru->username) && \Illuminate\Support\Facades\Schema::hasTable('users')) {
+        if ($userId <= 0 && ! empty($guru->username) && Schema::hasTable('users')) {
             $uRow = $db->table('users')->where('username', $guru->username)->first();
-            if ($uRow) $userId = (int) $uRow->id;
+            if ($uRow) {
+                $userId = (int) $uRow->id;
+            }
         }
         if ($userId <= 0) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => "Akun login untuk {$guru->nama_guru} belum terhubung ke sistem pengguna.",
-                'guru'    => $this->formatGuruInfo($guru, null),
+                'guru' => $this->formatGuruInfo($guru, null),
             ]);
         }
 
@@ -2489,10 +2657,11 @@ class PresensiSiswaQrController extends BaseController
                 return $this->processGuruCheckOut($db, $guru, $existing, $userId, $tanggal, $jam, $recordedTime, $scanLoc, $source);
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswaQr::processGuruScan] ' . $e->getMessage());
+            Log::error('[PresensiSiswaQr::processGuruScan] '.$e->getMessage());
+
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'error',
+                'status' => false,
+                'type' => 'error',
                 'message' => 'Terjadi kesalahan sistem saat memproses presensi guru — periksa log aplikasi.',
             ]);
         }
@@ -2505,80 +2674,80 @@ class PresensiSiswaQrController extends BaseController
         $db, object $guru, ?object $existing, int $userId,
         string $tanggal, string $jam, string $recordedTime, array $scanLoc = [], string $source = 'qr'
     ) {
-        if ($existing && !empty($existing->jam_masuk)) {
-            $masukStr = strlen((string)$existing->jam_masuk) >= 16
-                ? substr((string)$existing->jam_masuk, 11, 5)
-                : substr((string)$existing->jam_masuk, 0, 5);
+        if ($existing && ! empty($existing->jam_masuk)) {
+            $masukStr = strlen((string) $existing->jam_masuk) >= 16
+                ? substr((string) $existing->jam_masuk, 11, 5)
+                : substr((string) $existing->jam_masuk, 0, 5);
 
             return $this->response->setJSON([
-                'status'    => false,
-                'type'      => 'already_in',
-                'role'      => 'guru',
-                'message'   => "{$guru->nama_guru} sudah absen masuk pukul {$masukStr}.",
+                'status' => false,
+                'type' => 'already_in',
+                'role' => 'guru',
+                'message' => "{$guru->nama_guru} sudah absen masuk pukul {$masukStr}.",
                 'jam_masuk' => $masukStr,
-                'guru'      => $this->formatGuruInfo($guru, $existing),
+                'guru' => $this->formatGuruInfo($guru, $existing),
             ]);
         }
 
         // Resolusi jadwal kerja & shift
         $dayIso = (int) date('N', strtotime($tanggal));
         $jadwalHarian = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwalHarian = $db->table('absensi_jadwal_kerja')->where('hari', $dayIso)->first();
         }
 
         $attSetting = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+        if (Schema::hasTable('absensi_setting')) {
             $attSetting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
         }
-        if (!$attSetting) {
+        if (! $attSetting) {
             $attSetting = (object) [
-                'jam_masuk'       => '07:30:00',
-                'jam_pulang'      => '15:00:00',
-                'grace_period'    => 15,
-                'denda_tier_1'    => 100,
-                'point_tier_1'    => 1,
+                'jam_masuk' => '07:30:00',
+                'jam_pulang' => '15:00:00',
+                'grace_period' => 15,
+                'denda_tier_1' => 100,
+                'point_tier_1' => 1,
                 'max_denda_bulan' => 0,
             ];
         }
 
-        $shiftModel    = new \App\Models\ShiftModel();
-        $workSchedule  = $shiftModel->getScheduleForUser($userId, $dayIso, $jadwalHarian, $attSetting);
+        $shiftModel = new ShiftModel;
+        $workSchedule = $shiftModel->getScheduleForUser($userId, $dayIso, $jadwalHarian, $attSetting);
         $jamMasukLimit = $workSchedule['jam_masuk'];
-        $graceMins     = (int) ($workSchedule['grace_menit'] ?? ($attSetting->grace_period ?? 15));
+        $graceMins = (int) ($workSchedule['grace_menit'] ?? ($attSetting->grace_period ?? 15));
 
         // Status masuk via rumus baku yang sama dengan absen wajah guru, scan
         // siswa, poin, dan rekap (AttendancePolicy::telat).
-        $hit = \App\Services\AttendancePolicy::telat($tanggal, $recordedTime, [
-            'jam_masuk'   => $jamMasukLimit,
+        $hit = AttendancePolicy::telat($tanggal, $recordedTime, [
+            'jam_masuk' => $jamMasukLimit,
             'grace_menit' => $graceMins,
         ]);
-        $statusMasuk     = $hit['status'];
-        $telatMenit      = $hit['telat_menit'];
+        $statusMasuk = $hit['status'];
+        $telatMenit = $hit['telat_menit'];
         $datangAwalMenit = $hit['datang_awal_menit'];
 
-        $points          = 0;
-        $denda           = 0.0;
+        $points = 0;
+        $denda = 0.0;
         $keteranganDenda = null;
 
-        $penaltyService = new \App\Services\AttendancePenaltyService();
+        $penaltyService = new AttendancePenaltyService;
 
         if ($datangAwalMenit > 0) {
             $points += $penaltyService->calculateReward($datangAwalMenit, $attSetting);
         }
         if ($statusMasuk === 'LATE') {
-            $calc        = $penaltyService->calculatePenalty($telatMenit, $attSetting, 'Telat Masuk');
-            $points      = -1 * $calc['points'];
-            $denda       = (float) $calc['denda'];
+            $calc = $penaltyService->calculatePenalty($telatMenit, $attSetting, 'Telat Masuk');
+            $points = -1 * $calc['points'];
+            $denda = (float) $calc['denda'];
             $keteranganDenda = $calc['keterangan'];
         }
 
         if ($denda > 0) {
             $capped = $penaltyService->applyMonthlyCap($userId, $tanggal, $denda, $attSetting);
-            $denda  = (float) $capped['total'];
+            $denda = (float) $capped['total'];
             if ($capped['capped']) {
                 $capRp = number_format((float) ($attSetting->max_denda_bulan ?? 0), 0, ',', '.');
-                $keteranganDenda = trim(($keteranganDenda ?? '') . " (dibatasi cap bulanan Rp{$capRp})");
+                $keteranganDenda = trim(($keteranganDenda ?? '')." (dibatasi cap bulanan Rp{$capRp})");
             }
         }
 
@@ -2586,67 +2755,67 @@ class PresensiSiswaQrController extends BaseController
         $fieldSet = array_flip($fields);
 
         $rawRow = [
-            'user_id'           => $userId,
-            'id_guru'           => (int) $guru->id_guru,
-            'tgl'               => $tanggal,
-            'jam_masuk'         => $recordedTime,
-            'lat_masuk'         => $scanLoc['lat'] ?? null,
-            'lng_masuk'         => $scanLoc['lng'] ?? null,
-            'lokasi_masuk_id'   => $scanLoc['lokasi_id'] ?? null,
-            'jarak_masuk'       => 0,
-            'foto_masuk'        => null,
-            'status_masuk'      => $statusMasuk,
-            'points'            => $points,
-            'denda'             => $denda,
-            'keterangan_denda'  => $keteranganDenda,
-            'keterangan'        => 'Absen via QR Scanner Kiosk',
-            'telat_menit'       => $telatMenit,
+            'user_id' => $userId,
+            'id_guru' => (int) $guru->id_guru,
+            'tgl' => $tanggal,
+            'jam_masuk' => $recordedTime,
+            'lat_masuk' => $scanLoc['lat'] ?? null,
+            'lng_masuk' => $scanLoc['lng'] ?? null,
+            'lokasi_masuk_id' => $scanLoc['lokasi_id'] ?? null,
+            'jarak_masuk' => 0,
+            'foto_masuk' => null,
+            'status_masuk' => $statusMasuk,
+            'points' => $points,
+            'denda' => $denda,
+            'keterangan_denda' => $keteranganDenda,
+            'keterangan' => 'Absen via QR Scanner Kiosk',
+            'telat_menit' => $telatMenit,
             'datang_awal_menit' => $datangAwalMenit,
-            'ip_address'        => $this->request->ip(),
-            'device_info'       => substr((string) ($this->request->userAgent() ?? 'Kiosk QR'), 0, 150),
-            'gps_accuracy'      => !empty($scanLoc['akurasi']) ? $scanLoc['akurasi'] : null,
-            'is_mock_location'  => 0,
-            'is_wfh'            => 0,
-            'created_at'        => date('Y-m-d H:i:s'),
-            'updated_at'        => date('Y-m-d H:i:s'),
+            'ip_address' => $this->request->ip(),
+            'device_info' => substr((string) ($this->request->userAgent() ?? 'Kiosk QR'), 0, 150),
+            'gps_accuracy' => ! empty($scanLoc['akurasi']) ? $scanLoc['akurasi'] : null,
+            'is_mock_location' => 0,
+            'is_wfh' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
         $insertData = array_intersect_key($rawRow, $fieldSet);
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             if ($existing) {
                 $db->table('absensi_harian')->where('id', $existing->id)->update($insertData);
                 $insertedId = (int) $existing->id;
             } else {
                 $db->table('absensi_harian')->insert($insertData);
-                $insertedId = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+                $insertedId = (int) DB::getPdo()->lastInsertId();
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                \App\Services\GuruTerawalService::afterCheckIn($db, $tanggal, $userId);
+                GuruTerawalService::afterCheckIn($db, $tanggal, $userId);
             } catch (\Throwable $e) {
-                Log::error('Pengumuman guru terawal gagal: ' . $e->getMessage());
+                Log::error('Pengumuman guru terawal gagal: '.$e->getMessage());
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             if (self::isDuplicateKeyError($e)) {
                 $existing = $db->table('absensi_harian')
                     ->where('user_id', $userId)
                     ->where('tgl', $tanggal)
                     ->first();
-                $masukStr = strlen((string)($existing->jam_masuk ?? $jam)) >= 16
-                    ? substr((string)($existing->jam_masuk ?? $jam), 11, 5)
-                    : substr((string)($existing->jam_masuk ?? $jam), 0, 5);
+                $masukStr = strlen((string) ($existing->jam_masuk ?? $jam)) >= 16
+                    ? substr((string) ($existing->jam_masuk ?? $jam), 11, 5)
+                    : substr((string) ($existing->jam_masuk ?? $jam), 0, 5);
 
                 return $this->response->setJSON([
-                    'status'    => false,
-                    'type'      => 'already_in',
-                    'role'      => 'guru',
-                    'message'   => "{$guru->nama_guru} sudah absen masuk pukul {$masukStr}.",
+                    'status' => false,
+                    'type' => 'already_in',
+                    'role' => 'guru',
+                    'message' => "{$guru->nama_guru} sudah absen masuk pukul {$masukStr}.",
                     'jam_masuk' => $masukStr,
-                    'guru'      => $this->formatGuruInfo($guru, $existing),
+                    'guru' => $this->formatGuruInfo($guru, $existing),
                 ]);
             }
             throw $e;
@@ -2655,24 +2824,25 @@ class PresensiSiswaQrController extends BaseController
         // Sinkronisasi buku besar poin
         if ($insertedId > 0 && class_exists('\App\Models\PoinHistoryModel')) {
             try {
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($insertedId);
+                (new PoinHistoryModel)->syncAttendancePoint($insertedId);
             } catch (\Throwable $e) {
-                Log::error('[PresensiSiswaQr] sync poin guru: ' . $e->getMessage());
+                Log::error('[PresensiSiswaQr] sync poin guru: '.$e->getMessage());
             }
         }
 
-        $resGuru  = (object) array_merge((array) ($existing ?? []), $insertData);
+        $resGuru = (object) array_merge((array) ($existing ?? []), $insertData);
         $waktuStr = substr($jam, 0, 5);
 
-        $statusKet = ($statusMasuk === 'LATE') ? " (Terlambat {$telatMenit} mnt)" : " (Tepat Waktu)";
+        $statusKet = ($statusMasuk === 'LATE') ? " (Terlambat {$telatMenit} mnt)" : ' (Tepat Waktu)';
+
         return $this->response->setJSON([
-            'status'    => true,
-            'type'      => 'check_in',
-            'role'      => 'guru',
-            'metode'    => $source,
-            'message'   => "{$guru->nama_guru} berhasil absen masuk pukul {$waktuStr}{$statusKet}.",
+            'status' => true,
+            'type' => 'check_in',
+            'role' => 'guru',
+            'metode' => $source,
+            'message' => "{$guru->nama_guru} berhasil absen masuk pukul {$waktuStr}{$statusKet}.",
             'jam_masuk' => $waktuStr,
-            'guru'      => $this->formatGuruInfo($guru, $resGuru),
+            'guru' => $this->formatGuruInfo($guru, $resGuru),
         ]);
     }
 
@@ -2683,28 +2853,28 @@ class PresensiSiswaQrController extends BaseController
         $db, object $guru, ?object $existing, int $userId,
         string $tanggal, string $jam, string $recordedTime, array $scanLoc = [], string $source = 'qr'
     ) {
-        if (!$existing || empty($existing->jam_masuk)) {
+        if (! $existing || empty($existing->jam_masuk)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'type'    => 'not_in',
-                'role'    => 'guru',
+                'status' => false,
+                'type' => 'not_in',
+                'role' => 'guru',
                 'message' => "{$guru->nama_guru} belum absen masuk hari ini.",
-                'guru'    => $this->formatGuruInfo($guru, null),
+                'guru' => $this->formatGuruInfo($guru, null),
             ]);
         }
 
-        if (!empty($existing->jam_pulang)) {
-            $pulangStr = strlen((string)$existing->jam_pulang) >= 16
-                ? substr((string)$existing->jam_pulang, 11, 5)
-                : substr((string)$existing->jam_pulang, 0, 5);
+        if (! empty($existing->jam_pulang)) {
+            $pulangStr = strlen((string) $existing->jam_pulang) >= 16
+                ? substr((string) $existing->jam_pulang, 11, 5)
+                : substr((string) $existing->jam_pulang, 0, 5);
 
             return $this->response->setJSON([
-                'status'     => false,
-                'type'       => 'already_out',
-                'role'       => 'guru',
-                'message'    => "{$guru->nama_guru} sudah absen keluar/pulang pukul {$pulangStr}.",
+                'status' => false,
+                'type' => 'already_out',
+                'role' => 'guru',
+                'message' => "{$guru->nama_guru} sudah absen keluar/pulang pukul {$pulangStr}.",
                 'jam_keluar' => $pulangStr,
-                'guru'       => $this->formatGuruInfo($guru, $existing),
+                'guru' => $this->formatGuruInfo($guru, $existing),
             ]);
         }
 
@@ -2714,13 +2884,13 @@ class PresensiSiswaQrController extends BaseController
         // Status dinas dikecualikan karena guru tidak mengajar di sekolah; WFH
         // tidak, sama seperti jalur guru. Hari libur tidak perlu diurus di sini
         // karena scanQr() sudah menolak seluruh scan lewat isHariLibur().
-        $isDinasScan = \App\Services\WajibJurnalPulangService::isStatusDinas($existing->status_masuk ?? '');
+        $isDinasScan = WajibJurnalPulangService::isStatusDinas($existing->status_masuk ?? '');
 
-        if (!$isDinasScan) {
-            $gate = \App\Services\WajibJurnalPulangService::gate(
+        if (! $isDinasScan) {
+            $gate = WajibJurnalPulangService::gate(
                 (int) ($guru->id_guru ?? 0),
                 $tanggal,
-                \App\Services\AttendancePolicy::setting(),
+                AttendancePolicy::setting(),
                 $db,
                 $jam,
                 (string) ($guru->nama_guru ?? '')
@@ -2730,13 +2900,13 @@ class PresensiSiswaQrController extends BaseController
                 // message = pesan lengkap (daftar sesi dibutuhkan operator di
                 // gerbang); layar scanner membacakan versi pendek lewat TTS.
                 return $this->response->setJSON([
-                    'status'           => false,
-                    'type'             => 'jurnal_kurang',
-                    'role'             => 'guru',
-                    'message'          => $gate['message'],
-                    'message_singkat'  => $gate['message_singkat'],
-                    'data'             => $gate['data'],
-                    'guru'             => $this->formatGuruInfo($guru, $existing),
+                    'status' => false,
+                    'type' => 'jurnal_kurang',
+                    'role' => 'guru',
+                    'message' => $gate['message'],
+                    'message_singkat' => $gate['message_singkat'],
+                    'data' => $gate['data'],
+                    'guru' => $this->formatGuruInfo($guru, $existing),
                 ]);
             }
         }
@@ -2745,56 +2915,56 @@ class PresensiSiswaQrController extends BaseController
         // Resolusi jadwal kerja & shift untuk jam pulang
         $dayIso = (int) date('N', strtotime($tanggal));
         $jadwalHarian = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwalHarian = $db->table('absensi_jadwal_kerja')->where('hari', $dayIso)->first();
         }
 
         $attSetting = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+        if (Schema::hasTable('absensi_setting')) {
             $attSetting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
         }
-        if (!$attSetting) {
+        if (! $attSetting) {
             $attSetting = (object) [
-                'jam_masuk'       => '07:30:00',
-                'jam_pulang'      => '15:00:00',
-                'grace_period'    => 15,
-                'denda_tier_1'    => 100,
-                'point_tier_1'    => 1,
+                'jam_masuk' => '07:30:00',
+                'jam_pulang' => '15:00:00',
+                'grace_period' => 15,
+                'denda_tier_1' => 100,
+                'point_tier_1' => 1,
             ];
         }
 
-        $shiftModel     = new \App\Models\ShiftModel();
-        $workSchedule   = $shiftModel->getScheduleForUser($userId, $dayIso, $jadwalHarian, $attSetting);
+        $shiftModel = new ShiftModel;
+        $workSchedule = $shiftModel->getScheduleForUser($userId, $dayIso, $jadwalHarian, $attSetting);
         $jamPulangLimit = $workSchedule['jam_pulang'];
 
-        $threshold  = strtotime($tanggal . ' ' . $jamPulangLimit);
-        $checkTime  = strtotime($recordedTime);
+        $threshold = strtotime($tanggal.' '.$jamPulangLimit);
+        $checkTime = strtotime($recordedTime);
 
         $pulangCepatMenit = 0;
         $pulangAkhirMenit = 0;
-        $penaltyService   = new \App\Services\AttendancePenaltyService();
+        $penaltyService = new AttendancePenaltyService;
 
         $curPoints = (int) ($existing->points ?? 0);
-        $curDenda  = (float) ($existing->denda ?? 0.0);
-        $curKet    = (string) ($existing->keterangan_denda ?? '');
+        $curDenda = (float) ($existing->denda ?? 0.0);
+        $curKet = (string) ($existing->keterangan_denda ?? '');
 
         if ($checkTime >= $threshold) {
             $statusPulang = 'ONTIME';
-            $diffVal      = $checkTime - $threshold;
-            $diffMins     = (int) floor($diffVal / 60);
+            $diffVal = $checkTime - $threshold;
+            $diffMins = (int) floor($diffVal / 60);
             if ($diffMins >= 60) {
                 $pulangAkhirMenit = $diffMins - 60;
-                $rewardOut        = $penaltyService->calculateReward($pulangAkhirMenit, $attSetting);
-                $curPoints       += $rewardOut;
+                $rewardOut = $penaltyService->calculateReward($pulangAkhirMenit, $attSetting);
+                $curPoints += $rewardOut;
             }
         } else {
-            $statusPulang     = 'EARLY';
-            $diffVal          = $threshold - $checkTime;
+            $statusPulang = 'EARLY';
+            $diffVal = $threshold - $checkTime;
             $pulangCepatMenit = (int) ceil($diffVal / 60);
-            $calc             = $penaltyService->calculatePenalty($pulangCepatMenit, $attSetting, 'Pulang Awal');
-            $curPoints       -= $calc['points'];
-            $curDenda        += (float) $calc['denda'];
-            $curKet           = trim($curKet . ' ' . $calc['keterangan']);
+            $calc = $penaltyService->calculatePenalty($pulangCepatMenit, $attSetting, 'Pulang Awal');
+            $curPoints -= $calc['points'];
+            $curDenda += (float) $calc['denda'];
+            $curKet = trim($curKet.' '.$calc['keterangan']);
         }
 
         $fields = $db->getFieldNames('absensi_harian');
@@ -2806,33 +2976,33 @@ class PresensiSiswaQrController extends BaseController
         // diterima bendahara. excludeId = baris ini sendiri, karena $curDenda
         // sudah memuat denda check-in yang tersimpan di baris yang sama.
         if ($curDenda > 0) {
-            $capped   = $penaltyService->applyMonthlyCap($userId, $tanggal, $curDenda, $attSetting, (int) $existing->id);
+            $capped = $penaltyService->applyMonthlyCap($userId, $tanggal, $curDenda, $attSetting, (int) $existing->id);
             $curDenda = (float) $capped['total'];
             if ($capped['capped']) {
-                $capRp  = number_format((float) ($attSetting->max_denda_bulan ?? 0), 0, ',', '.');
-                $curKet = trim($curKet . " (dibatasi cap bulanan Rp{$capRp})");
+                $capRp = number_format((float) ($attSetting->max_denda_bulan ?? 0), 0, ',', '.');
+                $curKet = trim($curKet." (dibatasi cap bulanan Rp{$capRp})");
             }
         }
 
         $rawUpdate = [
-            'jam_pulang'         => $recordedTime,
-            'lat_pulang'         => $scanLoc['lat'] ?? null,
-            'lng_pulang'         => $scanLoc['lng'] ?? null,
-            'lokasi_pulang_id'   => $scanLoc['lokasi_id'] ?? null,
-            'jarak_pulang'       => 0,
-            'status_pulang'      => $statusPulang,
+            'jam_pulang' => $recordedTime,
+            'lat_pulang' => $scanLoc['lat'] ?? null,
+            'lng_pulang' => $scanLoc['lng'] ?? null,
+            'lokasi_pulang_id' => $scanLoc['lokasi_id'] ?? null,
+            'jarak_pulang' => 0,
+            'status_pulang' => $statusPulang,
             'pulang_cepat_menit' => $pulangCepatMenit,
             'pulang_akhir_menit' => $pulangAkhirMenit,
-            'points'             => $curPoints,
-            'denda'              => $curDenda,
-            'keterangan_denda'   => $curKet ?: null,
-            'updated_at'         => date('Y-m-d H:i:s'),
+            'points' => $curPoints,
+            'denda' => $curDenda,
+            'keterangan_denda' => $curKet ?: null,
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
         $updateData = array_intersect_key($rawUpdate, $fieldSet);
 
         $db->table('absensi_harian')
             ->where('id', $existing->id)
-            ->where('jam_pulang IS NULL', null, false)
+            ->whereNull('jam_pulang')
             ->update($updateData);
 
         // Guard 'jam_pulang IS NULL' berarti update bisa tidak mengenai apa pun
@@ -2841,43 +3011,45 @@ class PresensiSiswaQrController extends BaseController
         // "berhasil" padahal denda/poin yang barusan dihitung tidak tersimpan.
         if (1 === 0) {
             $setelah = $db->table('absensi_harian')->where('id', $existing->id)->first();
-            $pulangTersimpan = $setelah && !empty($setelah->jam_pulang)
+            $pulangTersimpan = $setelah && ! empty($setelah->jam_pulang)
                 ? (strlen((string) $setelah->jam_pulang) >= 16
                     ? substr((string) $setelah->jam_pulang, 11, 5)
                     : substr((string) $setelah->jam_pulang, 0, 5))
                 : null;
 
             return $this->response->setJSON([
-                'status'     => false,
-                'type'       => 'already_out',
-                'role'       => 'guru',
-                'message'    => $pulangTersimpan
+                'status' => false,
+                'type' => 'already_out',
+                'role' => 'guru',
+                'message' => $pulangTersimpan
                     ? "{$guru->nama_guru} sudah absen keluar pukul {$pulangTersimpan}."
                     : "Absen keluar {$guru->nama_guru} tidak tersimpan; silakan ulangi.",
                 'jam_keluar' => $pulangTersimpan,
-                'guru'       => $this->formatGuruInfo($guru, $setelah ?: $existing),
+                'guru' => $this->formatGuruInfo($guru, $setelah ?: $existing),
             ]);
         }
 
         // Sinkron poin
         if (class_exists('\App\Models\PoinHistoryModel')) {
             try {
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
-            } catch (\Throwable $e) {}
+                (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+            } catch (\Throwable $e) {
+            }
         }
 
-        $resGuru  = (object) array_merge((array) $existing, $updateData);
+        $resGuru = (object) array_merge((array) $existing, $updateData);
         $waktuStr = substr($jam, 0, 5);
 
-        $statusKet = ($statusPulang === 'EARLY') ? " (Pulang lebih awal {$pulangCepatMenit} mnt)" : " (Tepat Waktu)";
+        $statusKet = ($statusPulang === 'EARLY') ? " (Pulang lebih awal {$pulangCepatMenit} mnt)" : ' (Tepat Waktu)';
+
         return $this->response->setJSON([
-            'status'     => true,
-            'type'       => 'check_out',
-            'role'       => 'guru',
-            'metode'     => $source,
-            'message'    => "{$guru->nama_guru} berhasil absen keluar pukul {$waktuStr}{$statusKet}.",
+            'status' => true,
+            'type' => 'check_out',
+            'role' => 'guru',
+            'metode' => $source,
+            'message' => "{$guru->nama_guru} berhasil absen keluar pukul {$waktuStr}{$statusKet}.",
             'jam_keluar' => $waktuStr,
-            'guru'       => $this->formatGuruInfo($guru, $resGuru),
+            'guru' => $this->formatGuruInfo($guru, $resGuru),
         ]);
     }
 
@@ -2885,41 +3057,40 @@ class PresensiSiswaQrController extends BaseController
     private function formatGuruInfo(object $guru, ?object $presensi = null): array
     {
         $jamMasuk = null;
-        if (!empty($presensi->jam_masuk)) {
-            $jamMasuk = strlen((string)$presensi->jam_masuk) >= 16
-                ? substr((string)$presensi->jam_masuk, 11, 5)
-                : substr((string)$presensi->jam_masuk, 0, 5);
+        if (! empty($presensi->jam_masuk)) {
+            $jamMasuk = strlen((string) $presensi->jam_masuk) >= 16
+                ? substr((string) $presensi->jam_masuk, 11, 5)
+                : substr((string) $presensi->jam_masuk, 0, 5);
         }
         $jamKeluar = null;
-        if (!empty($presensi->jam_pulang)) {
-            $jamKeluar = strlen((string)$presensi->jam_pulang) >= 16
-                ? substr((string)$presensi->jam_pulang, 11, 5)
-                : substr((string)$presensi->jam_pulang, 0, 5);
+        if (! empty($presensi->jam_pulang)) {
+            $jamKeluar = strlen((string) $presensi->jam_pulang) >= 16
+                ? substr((string) $presensi->jam_pulang, 11, 5)
+                : substr((string) $presensi->jam_pulang, 0, 5);
         }
 
         return [
-            'id_guru'    => (int) $guru->id_guru,
-            'nama'       => (string) $guru->nama_guru,
-            'nip'        => (string) ($guru->nip ?? ''),
-            'kode_guru'  => (string) ($guru->kode_guru ?? ''),
-            'jabatan'    => 'GURU / GTK',
+            'id_guru' => (int) $guru->id_guru,
+            'nama' => (string) $guru->nama_guru,
+            'nip' => (string) ($guru->nip ?? ''),
+            'kode_guru' => (string) ($guru->kode_guru ?? ''),
+            'jabatan' => 'GURU / GTK',
             'nama_kelas' => 'GURU / GTK',
-            'role'       => 'guru',
-            'foto'       => $this->resolveGuruAvatar($guru),
-            'jam_masuk'  => $jamMasuk,
+            'role' => 'guru',
+            'foto' => $this->resolveGuruAvatar($guru),
+            'jam_masuk' => $jamMasuk,
             'jam_keluar' => $jamKeluar,
-            'status'     => $presensi ? ($presensi->status_masuk ?? 'HADIR') : null,
+            'status' => $presensi ? ($presensi->status_masuk ?? 'HADIR') : null,
         ];
     }
 
     /** Resolusi URL foto guru */
     private function resolveGuruAvatar(object $guru): string
     {
-        return \App\Services\AvatarService::tampilan(
+        return AvatarService::tampilan(
             (string) ($guru->foto ?? ''),
             (string) ($guru->nama_guru ?? 'Guru'),
             '#7c3aed'
         );
     }
 }
-

@@ -302,7 +302,7 @@
     <?php endif; ?>
 
     const idGuru = '{{ $id_active }}';
-    let dokumen = {{ json_encode($guru->dokumen ?? new stdClass()) }};
+    let dokumen = {!! json_encode($guru->dokumen ?? new stdClass())!!};
 
     function deleteImage(confirm) {
          Swal.fire({

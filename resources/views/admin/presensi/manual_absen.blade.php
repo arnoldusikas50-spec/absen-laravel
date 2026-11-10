@@ -746,9 +746,9 @@ $jamPulangDefault = $jamHarian($jadwalHariIni->jam_pulang ?? null, '15:00');
     // Harus '20261006-rev3' — bila tidak, browser masih menyajikan halaman lama.
     var MANUAL_ABSEN_BUILD   = '20261006-rev3';
     window.MANUAL_ABSEN_BUILD = MANUAL_ABSEN_BUILD;
-    var HOLIDAYS_DATA        = {{ json_encode($holidays ?? []) }};
-    var JADWAL_DATA          = {{ json_encode($jadwalKerja ?? []) }};
-    var HARI_LIBUR_MINGGUAN  = {{ json_encode($hariLiburMingguan ?? ['Sun']) }};
+    var HOLIDAYS_DATA        = {!! json_encode($holidays ?? []) !!};
+    var JADWAL_DATA          = {!! json_encode($jadwalKerja ?? []) !!};
+    var HARI_LIBUR_MINGGUAN  = {!! json_encode($hariLiburMingguan ?? ['Sun']) !!};
     var currentMode          = 'single';
     var activeFilter         = 'all';
     var TODAY_STR            = '{{ date('Y-m-d') }}';

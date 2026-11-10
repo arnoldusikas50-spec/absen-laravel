@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Models\AuthModel;
 use App\Models\DashboardModel;
 use App\Models\DropdownModel;
+use App\Models\LeaveModel;
+use App\Models\LogModel;
 use App\Models\MasterModel;
+use App\Models\PostModel;
 use App\Services\HariSekolahService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Dashboard Controller - Fully ported from CI3
@@ -18,17 +21,20 @@ use App\Services\HariSekolahService;
 class DashboardController extends BaseController
 {
     protected AuthModel $authModel;
+
     protected DashboardModel $dashboardModel;
+
     protected MasterModel $masterModel;
+
     protected DropdownModel $dropdownModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->authModel = new AuthModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->masterModel = new MasterModel();
-        $this->dropdownModel = new DropdownModel();
+        $this->authModel = new AuthModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->masterModel = new MasterModel;
+        $this->dropdownModel = new DropdownModel;
     }
 
     /**
@@ -37,23 +43,23 @@ class DashboardController extends BaseController
     public function index()
     {
         // Check if logged in
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
 
         $user = $this->authModel->user($this->getUserId());
         $setting = $this->getSettingRow();
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $data = [
             'user' => $user,
             'judul' => 'Beranda',
             'subjudul' => 'Halaman Utama',
             'setting' => $setting,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
             'tp_active' => $tp,
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'smt_active' => $smt,
         ];
 
@@ -67,8 +73,13 @@ class DashboardController extends BaseController
         // Siswa memiliki halaman presensi mandiri
         if (strtolower($role ?? '') === 'siswa') {
             $redirect = redirect()->to('siswa/presensi');
-            if ($err = session('error')) $redirect->with('error', $err);
-            if ($succ = session('success')) $redirect->with('success', $succ);
+            if ($err = session('error')) {
+                $redirect->with('error', $err);
+            }
+            if ($succ = session('success')) {
+                $redirect->with('success', $succ);
+            }
+
             return $redirect;
         }
 
@@ -78,10 +89,19 @@ class DashboardController extends BaseController
                 // Guru tidak boleh masuk halaman /dashboard (milik admin);
                 // halaman utama guru adalah /presensi (sama seperti redirect setelah login)
                 $redirect = redirect()->to('presensi');
-                if ($err = session('error')) $redirect->with('error', $err);
-                if ($warn = session('warning')) $redirect->with('warning', $warn);
-                if ($succ = session('success')) $redirect->with('success', $succ);
-                if ($msg = session('message')) $redirect->with('message', $msg);
+                if ($err = session('error')) {
+                    $redirect->with('error', $err);
+                }
+                if ($warn = session('warning')) {
+                    $redirect->with('warning', $warn);
+                }
+                if ($succ = session('success')) {
+                    $redirect->with('success', $succ);
+                }
+                if ($msg = session('message')) {
+                    $redirect->with('message', $msg);
+                }
+
                 return $redirect;
 
             default:
@@ -104,11 +124,11 @@ class DashboardController extends BaseController
         $data['times'] = [];
         $data['mapels'] = [];
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $today = date('Y-m-d');
 
         // Status hari ini: hari sekolah, akhir pekan, atau libur kalender.
-        $hariService = new HariSekolahService();
+        $hariService = new HariSekolahService;
         $hariSekolah = $hariService->status($today);
         $isHariSekolah = $hariSekolah['status'] === HariSekolahService::AKTIF;
         $namaHariIni = $hariSekolah['nama_hari'];
@@ -126,31 +146,35 @@ class DashboardController extends BaseController
         // 1. Presensi Siswa Hari Ini — hanya siswa AKTIF.
         $siswaHadirHariIni = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('presensi_siswa')) {
+            if (Schema::hasTable('presensi_siswa')) {
                 $hq = $db->table('presensi_siswa as ps')
                     ->where('ps.tgl', $today)
                     ->whereIn('ps.status', ['H', 'HADIR', 'hadir', 'h']);
                 try {
-                    if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
-                        $hq->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                            ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+                    if (Schema::hasTable('buku_induk')) {
+                        $hq->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                            ->where(function ($q) {
+                                $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                            });
                     }
                 } catch (\Throwable $e2) {
                 }
                 $siswaHadirHariIni = (int) $hq->count();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         $data['siswaHadirHariIni'] = $siswaHadirHariIni;
 
         // 2. Jurnal Mengajar Hari Ini
         $jurnalHariIni = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('guru_jurnal')) {
+            if (Schema::hasTable('guru_jurnal')) {
                 $jurnalHariIni = $db->table('guru_jurnal')
                     ->where('tanggal', $today)
                     ->count();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         $data['jurnalHariIni'] = $jurnalHariIni;
 
         // 3. Piket Guru Hari Ini (saat libur: roster hari sekolah berikutnya)
@@ -164,23 +188,24 @@ class DashboardController extends BaseController
             $piketHariRoster = $hariService->namaHari($piketTanggalRoster);
         }
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('piket_tamu')) {
+            if (Schema::hasTable('piket_tamu')) {
                 $tamuHariIni = $db->table('piket_tamu')->where('tanggal', $today)->count();
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('piket_kejadian')) {
+            if (Schema::hasTable('piket_kejadian')) {
                 $kejadianHariIni = $db->table('piket_kejadian')->where('tanggal', $today)->count();
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('piket_jadwal') && $tp && $smt) {
+            if (Schema::hasTable('piket_jadwal') && $tp && $smt) {
                 $petugasPiketHariIni = $db->table('piket_jadwal as pj')
-                    ->select('pj.*, g.nama_guru, g.nip')
-                    ->join('master_guru as g', 'g.id_guru = pj.id_guru', 'left')
+                    ->select('pj.*', 'g.nama_guru', 'g.nip')
+                    ->leftJoin('master_guru as g', 'g.id_guru', '=', 'pj.id_guru')
                     ->where('pj.hari', $piketHariRoster)
                     ->where('pj.id_tp', $tp->id_tp)
                     ->where('pj.id_smt', $smt->id_smt)
                     ->orderBy('g.nama_guru', 'ASC')
                     ->get();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         $data['tamuHariIni'] = $tamuHariIni;
         $data['kejadianHariIni'] = $kejadianHariIni;
         $data['petugasPiketHariIni'] = $petugasPiketHariIni;
@@ -199,9 +224,9 @@ class DashboardController extends BaseController
         if (! $isHariSekolah) {
             $checkinDate = null;
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+                if (Schema::hasTable('absensi_harian')) {
                     $latest = $db->table('absensi_harian')
-                        ->selectMax('tgl', 'tgl_terakhir')
+                        ->selectRaw('MAX(tgl) as tgl_terakhir')
                         ->where('tgl', '<', $today)
                         ->first();
                     $checkinDate = $latest->tgl_terakhir ?? null;
@@ -215,12 +240,12 @@ class DashboardController extends BaseController
 
         $data['recentPresensi'] = [];
         try {
-            if ($checkinDate !== null && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if ($checkinDate !== null && Schema::hasTable('absensi_harian')) {
                 $data['recentPresensi'] = $db->table('absensi_harian as a')
-                    ->select('a.*, u.first_name, u.last_name, u.foto, g.nama_guru, g.nip, loc_in.nama_lokasi as nama_lokasi_masuk')
-                    ->join('users as u', 'u.id = a.user_id', 'left')
-                    ->join('master_guru as g', 'g.id_guru = a.id_guru', 'left')
-                    ->join('absensi_lokasi as loc_in', 'loc_in.id = a.lokasi_masuk_id', 'left')
+                    ->select('a.*', 'u.first_name', 'u.last_name', 'u.foto', 'g.nama_guru', 'g.nip', 'loc_in.nama_lokasi as nama_lokasi_masuk')
+                    ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+                    ->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
+                    ->leftJoin('absensi_lokasi as loc_in', 'loc_in.id', '=', 'a.lokasi_masuk_id')
                     ->where('a.tgl', $checkinDate)
                     ->orderBy('a.jam_masuk', 'DESC')
                     ->limit(8)
@@ -240,22 +265,22 @@ class DashboardController extends BaseController
             'total' => 0,
         ];
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (Schema::hasTable('absensi_harian')) {
                 $data['pendingSummary']['dinas'] = $db->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
                 // Baris PENDING_VERIFICATION tidak lagi dihitung hadir, jadi
                 // ia harus muncul di sini — kalau tidak, guru yang menunggu
                 // tindakan hanya hilang dari hitungan admin.
                 $data['pendingSummary']['kehadiran'] = $db->table('absensi_harian')->where('status_masuk', 'PENDING_VERIFICATION')->count();
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+            if (Schema::hasTable('absensi_koreksi')) {
                 $data['pendingSummary']['koreksi'] = $db->table('absensi_koreksi')->where('status', 'pending')->count();
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            if (Schema::hasTable('absensi_izin')) {
                 $data['pendingSummary']['izin'] = $db->table('absensi_izin')
-                    ->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)
+                    ->whereIn('status', LeaveModel::STATUS_PENDING)
                     ->count();
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+            if (Schema::hasTable('face_registration_requests')) {
                 $data['pendingSummary']['wajah'] = $db->table('face_registration_requests')->where('status', 'pending')->count();
             }
             $data['pendingSummary']['total'] = $data['pendingSummary']['dinas'] + $data['pendingSummary']['koreksi'] + $data['pendingSummary']['izin'] + $data['pendingSummary']['wajah'] + $data['pendingSummary']['kehadiran'];
@@ -265,7 +290,7 @@ class DashboardController extends BaseController
         // Log aktivitas terbaru (pre-rendered)
         $data['recentLogs'] = [];
         try {
-            $logModel = new \App\Models\LogModel();
+            $logModel = new LogModel;
             $data['recentLogs'] = $logModel->getLog(0, 7);
         } catch (\Throwable $e) {
             $data['recentLogs'] = [];
@@ -296,10 +321,10 @@ class DashboardController extends BaseController
             'persen' => 0,
         ];
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+            $db = DB::connection();
+            if (Schema::hasTable('users')) {
                 $out['total_guru'] = (int) $db->table('users')
-                    ->join('users_groups as ug', 'ug.user_id = users.id')
+                    ->join('users_groups as ug', 'ug.user_id', '=', 'users.id')
                     ->where('ug.group_id', 2)
                     ->where('users.active', 1)
                     ->count();
@@ -307,7 +332,7 @@ class DashboardController extends BaseController
                     $out['total_guru'] = (int) $db->table('users')->where('active', 1)->count();
                 }
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (Schema::hasTable('absensi_harian')) {
                 $rows = $db->table('absensi_harian')->select('status_masuk')->where('tgl', $tanggal)->get();
                 $recordedUsers = count($rows);
                 foreach ($rows as $r) {
@@ -347,7 +372,7 @@ class DashboardController extends BaseController
                 }
                 $out['belum_absen'] = max(0, $out['total_guru'] - $recordedUsers);
                 $out['pending'] += (int) $db->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+                if (Schema::hasTable('absensi_koreksi')) {
                     $out['pending'] += (int) $db->table('absensi_koreksi')->where('status', 'pending')->count();
                 }
             }
@@ -356,6 +381,7 @@ class DashboardController extends BaseController
             }
         } catch (\Throwable $e) {
         }
+
         return $out;
     }
 
@@ -366,8 +392,8 @@ class DashboardController extends BaseController
     {
         $tanggal = $tanggal ?: date('Y-m-d');
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('absensi_harian')) {
                 return 0;
             }
             $rows = $db->table('absensi_harian')->select('status_masuk')->where('tgl', $tanggal)->get();
@@ -383,6 +409,7 @@ class DashboardController extends BaseController
                     $n++;
                 }
             }
+
             return $n;
         } catch (\Throwable $e) {
             return 0;
@@ -394,9 +421,9 @@ class DashboardController extends BaseController
      */
     private function getAdminBox(?object $setting, int $tp, int $smt, ?string $tanggal = null)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $today = $tanggal ?: date('Y-m-d');
-        $hariService = new HariSekolahService();
+        $hariService = new HariSekolahService;
         $statusHari = $hariService->status($today);
         $isHariSekolah = $statusHari['status'] === HariSekolahService::AKTIF;
         $namaHari = $statusHari['nama_hari'];
@@ -407,27 +434,31 @@ class DashboardController extends BaseController
 
         $siswaHadir = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('presensi_siswa')) {
+            if (Schema::hasTable('presensi_siswa')) {
                 $shq = $db->table('presensi_siswa as ps')
                     ->where('ps.tgl', $today)
                     ->whereIn('ps.status', ['H', 'HADIR', 'hadir', 'h']);
                 try {
-                    if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
-                        $shq->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                            ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+                    if (Schema::hasTable('buku_induk')) {
+                        $shq->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                            ->where(function ($q) {
+                                $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                            });
                     }
                 } catch (\Throwable $e2) {
                 }
                 $siswaHadir = (int) $shq->count();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $jurnalHariIni = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('guru_jurnal')) {
+            if (Schema::hasTable('guru_jurnal')) {
                 $jurnalHariIni = $db->table('guru_jurnal')->where('tanggal', $today)->count();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $piketCount = 0;
         $piketHari = $namaHari;
@@ -436,18 +467,19 @@ class DashboardController extends BaseController
             $berikut = $hariService->hariSekolahBerikutnya($today);
             if ($berikut !== null) {
                 $piketHari = $hariService->namaHari($berikut);
-                $piketHint = 'Jadwal ' . $piketHari . ', ' . (int) date('j', strtotime($berikut)) . ' ' . date('M', strtotime($berikut));
+                $piketHint = 'Jadwal '.$piketHari.', '.(int) date('j', strtotime($berikut)).' '.date('M', strtotime($berikut));
             }
         }
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('piket_jadwal')) {
+            if (Schema::hasTable('piket_jadwal')) {
                 $piketCount = $db->table('piket_jadwal')
                     ->where('hari', $piketHari)
                     ->where('id_tp', $tp)
                     ->where('id_smt', $smt)
                     ->count();
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $box = [
             [
@@ -456,7 +488,7 @@ class DashboardController extends BaseController
                 'title' => 'Guru GTK',
                 'hint' => 'Terdaftar',
                 'url' => 'dataguru',
-                'icon' => 'user-circle'
+                'icon' => 'user-circle',
             ],
             [
                 'box' => 'blue',
@@ -464,7 +496,7 @@ class DashboardController extends BaseController
                 'title' => 'Total Siswa',
                 'hint' => 'Tahun aktif',
                 'url' => 'datasiswa',
-                'icon' => 'users'
+                'icon' => 'users',
             ],
             [
                 'box' => 'success',
@@ -472,7 +504,7 @@ class DashboardController extends BaseController
                 'title' => 'Guru Hadir',
                 'hint' => $isHariSekolah ? 'Hari ini' : 'Libur hari ini',
                 'url' => 'admin/presensi',
-                'icon' => 'user-clock'
+                'icon' => 'user-clock',
             ],
             [
                 'box' => 'indigo',
@@ -480,7 +512,7 @@ class DashboardController extends BaseController
                 'title' => 'Siswa Hadir',
                 'hint' => $isHariSekolah ? 'Hari ini' : 'Libur hari ini',
                 'url' => 'admin/presensi/siswa/harian',
-                'icon' => 'user-check'
+                'icon' => 'user-check',
             ],
             [
                 'box' => 'fuchsia',
@@ -488,7 +520,7 @@ class DashboardController extends BaseController
                 'title' => 'Jurnal KBM',
                 'hint' => $isHariSekolah ? 'Hari ini' : 'Tidak ada KBM',
                 'url' => 'admin/jurnal',
-                'icon' => 'book'
+                'icon' => 'book',
             ],
             [
                 'box' => 'amber',
@@ -496,9 +528,10 @@ class DashboardController extends BaseController
                 'title' => 'Guru Piket',
                 'hint' => $piketHint,
                 'url' => 'admin/piket',
-                'icon' => 'bell'
+                'icon' => 'bell',
             ],
         ];
+
         return $box;
     }
 
@@ -533,13 +566,13 @@ class DashboardController extends BaseController
      */
     private function getPanitiaBox(int $tp, int $smt)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Kehadiran hari ini (presensi; modul ujian sudah dilepas)
         $hadirHariIni = 0;
         $pendingVerifikasi = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (Schema::hasTable('absensi_harian')) {
                 $today = date('Y-m-d');
                 $rows = $db->table('absensi_harian')->select('status_masuk')->where('tgl', $today)->get();
                 foreach ($rows as $r) {
@@ -553,7 +586,7 @@ class DashboardController extends BaseController
                 }
                 $pendingVerifikasi = (int) $db->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
                 $pendingVerifikasi += (int) $db->table('absensi_harian')->where('status_masuk', 'PENDING_VERIFICATION')->count();
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+                if (Schema::hasTable('absensi_koreksi')) {
                     $pendingVerifikasi += (int) $db->table('absensi_koreksi')->where('status', 'pending')->count();
                 }
             }
@@ -566,30 +599,31 @@ class DashboardController extends BaseController
                 'total' => $this->dashboardModel->total('master_guru'),
                 'title' => 'Guru',
                 'url' => 'dataguru',
-                'icon' => 'chalkboard-teacher'
+                'icon' => 'chalkboard-teacher',
             ],
             [
                 'box' => 'cyan',
                 'total' => $this->dashboardModel->getTotalSiswa($tp, $smt),
                 'title' => 'Siswa',
                 'url' => 'datasiswa',
-                'icon' => 'users'
+                'icon' => 'users',
             ],
             [
                 'box' => 'teal',
                 'total' => $hadirHariIni,
                 'title' => 'Hadir Hari Ini',
                 'url' => 'admin/presensi',
-                'icon' => 'user-clock'
+                'icon' => 'user-clock',
             ],
             [
                 'box' => 'fuchsia',
                 'total' => $pendingVerifikasi,
                 'title' => 'Pending Verifikasi',
                 'url' => 'admin/presensi/dinas',
-                'icon' => 'clock'
+                'icon' => 'clock',
             ],
         ];
+
         return $box;
     }
 
@@ -615,7 +649,7 @@ class DashboardController extends BaseController
             'pengawas' => [],
             'kelases' => [],
             'panitias' => [],
-            'today' => date('Y-m-d')
+            'today' => date('Y-m-d'),
         ]);
     }
 
@@ -624,11 +658,11 @@ class DashboardController extends BaseController
      */
     public function get_realtime_stats()
     {
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
 
-        if (!$tp || !$smt || !$setting) {
+        if (! $tp || ! $smt || ! $setting) {
             return $this->response->setJSON(['info_box' => [], 'ujian_box' => []]);
         }
 
@@ -637,12 +671,12 @@ class DashboardController extends BaseController
         if (strtolower($role) === 'panitia') {
             $data = [
                 'info_box' => $this->getPanitiaBox($tp->id_tp, $smt->id_smt),
-                'ujian_box' => []
+                'ujian_box' => [],
             ];
         } else {
             $data = [
                 'info_box' => $this->getAdminBox($setting, $tp->id_tp, $smt->id_smt),
-                'ujian_box' => $this->getUjianBox($tp->id_tp, $smt->id_smt)
+                'ujian_box' => $this->getUjianBox($tp->id_tp, $smt->id_smt),
             ];
         }
 
@@ -655,7 +689,7 @@ class DashboardController extends BaseController
     public function getlog()
     {
         try {
-            $logModel = new \App\Models\LogModel();
+            $logModel = new LogModel;
 
             // Query string tidak dipercaya: 'limit=abc' bikin TypeError di
             // aritmetika dan 'page=0' menghasilkan offset negatif yang
@@ -677,7 +711,7 @@ class DashboardController extends BaseController
                     if (strpos($foto, 'uploads/') === 0) {
                         $fotoUrl = url($foto);
                     } else {
-                        $fotoUrl = url('uploads/profiles/' . $foto);
+                        $fotoUrl = url('uploads/profiles/'.$foto);
                     }
                 } else {
                     $fotoUrl = url('assets/img/user.png');
@@ -686,9 +720,9 @@ class DashboardController extends BaseController
                 $dataLogs[] = [
                     'text' => $log->keterangan, // JS uses 'text' or 'message'
                     'message' => $log->keterangan,
-                    'user' => $log->first_name . ' ' . $log->last_name,
+                    'user' => $log->first_name.' '.$log->last_name,
                     'time' => $log->waktu,
-                    'foto' => $fotoUrl
+                    'foto' => $fotoUrl,
                 ];
             }
 
@@ -705,7 +739,7 @@ class DashboardController extends BaseController
     {
         return $this->response->setJSON([
             'ada_ujian' => 0,
-            'token' => (object) ['token' => '', 'auto' => '0', 'jarak' => '1', 'elapsed' => '00:00:00']
+            'token' => (object) ['token' => '', 'auto' => '0', 'jarak' => '1', 'elapsed' => '00:00:00'],
         ]);
     }
 
@@ -723,10 +757,10 @@ class DashboardController extends BaseController
     public function getpost()
     {
         try {
-            $postModel = new \App\Models\PostModel();
+            $postModel = new PostModel;
             $user = $this->authModel->user();
 
-            if (!$user) {
+            if (! $user) {
                 // Return empty if no user (session technically expired but handled gracefully for dashboard widgets)
                 return $this->response->setJSON(['posts' => [], 'total' => 0]);
             }
@@ -736,8 +770,8 @@ class DashboardController extends BaseController
             $kelas = null;
 
             if (strtolower($role) === 'siswa') {
-                $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-                $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+                $tp = DB::table('master_tp')->where('active', 1)->first();
+                $smt = DB::table('master_smt')->where('active', 1)->first();
 
                 // Safety check for TP/SMT
                 if ($tp && $smt) {
@@ -775,14 +809,14 @@ class DashboardController extends BaseController
                         $pathInDb = $p->foto;
                         if ($pathInDb) {
                             if (strpos($pathInDb, 'uploads/') === 0) {
-                                if (file_exists(public_path() . '/' . $pathInDb)) {
+                                if (file_exists(public_path().'/'.$pathInDb)) {
                                     $foto = url($pathInDb);
                                 } else {
                                     $foto = url('assets/img/guru.png');
                                 }
                             } else {
-                                if (file_exists(public_path() . '/' . 'uploads/profiles/' . $pathInDb)) {
-                                    $foto = url('uploads/profiles/' . $pathInDb);
+                                if (file_exists(public_path().'/'.'uploads/profiles/'.$pathInDb)) {
+                                    $foto = url('uploads/profiles/'.$pathInDb);
                                 } else {
                                     $foto = url('assets/img/guru.png');
                                 }
@@ -800,7 +834,7 @@ class DashboardController extends BaseController
                         'created_at' => $p->updated ?? $p->tanggal ?? date('Y-m-d H:i:s'),
                         'author' => $p->dari == '0' ? 'Administrator' : ($p->nama_guru ?? 'Guru'),
                         'author_photo' => $foto,
-                        'comments_count' => $p->jml ?? 0
+                        'comments_count' => $p->jml ?? 0,
                     ];
                 }
             }
@@ -809,7 +843,8 @@ class DashboardController extends BaseController
 
         } catch (\Throwable $th) {
             // Log error and return empty to prevent dashboard breakage
-            Log::error('[Dashboard::getpost] ' . $th->getMessage());
+            Log::error('[Dashboard::getpost] '.$th->getMessage());
+
             return $this->response->setJSON(['posts' => [], 'total' => 0, 'error' => 'Gagal memuat postingan']);
         }
     }
@@ -822,6 +857,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireRole('admin')) {
             return $deny;
         }
+
         return $this->gantiPeriodeAktif('id_tp', 'tahun', 'master_tp', 'Tahun Pelajaran', 20);
     }
 
@@ -833,6 +869,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireRole('admin')) {
             return $deny;
         }
+
         return $this->gantiPeriodeAktif('id_smt', 'smt', 'master_smt', 'Semester', 10);
     }
 
@@ -846,10 +883,10 @@ class DashboardController extends BaseController
     private function gantiPeriodeAktif(string $pk, string $kolomLabel, string $tabel, string $nama, int $maksLabel)
     {
         $aktif = (int) ($this->request->input('active') ?? 0);
-        $ids   = $this->request->input($pk) ?? [];
+        $ids = $this->request->input($pk) ?? [];
         $label = $this->request->input($kolomLabel) ?? [];
-        if (!is_array($ids) || !is_array($label)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Data ' . strtolower($nama) . ' tidak terbaca — tidak ada yang diubah.']);
+        if (! is_array($ids) || ! is_array($label)) {
+            return $this->response->setJSON(['status' => false, 'msg' => 'Data '.strtolower($nama).' tidak terbaca — tidak ada yang diubah.']);
         }
 
         $update = [];
@@ -862,43 +899,42 @@ class DashboardController extends BaseController
             if ($nilaiLabel === '' || mb_strlen($nilaiLabel) > $maksLabel) {
                 return $this->response->setJSON([
                     'status' => false,
-                    'msg' => 'Label ' . strtolower($nama) . ' kosong atau lebih dari ' . $maksLabel . ' karakter — tidak ada yang diubah.',
+                    'msg' => 'Label '.strtolower($nama).' kosong atau lebih dari '.$maksLabel.' karakter — tidak ada yang diubah.',
                 ]);
             }
             $update[$id] = [$pk => $id, $kolomLabel => $nilaiLabel, 'active' => $id === $aktif ? 1 : 0];
         }
 
         if ($update === []) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Tidak ada ' . strtolower($nama) . ' yang valid — tidak ada yang diubah.']);
+            return $this->response->setJSON(['status' => false, 'msg' => 'Tidak ada '.strtolower($nama).' yang valid — tidak ada yang diubah.']);
         }
-        if (!isset($update[$aktif])) {
-            return $this->response->setJSON(['status' => false, 'msg' => $nama . ' yang ingin diaktifkan tidak ada di daftar — tidak ada yang diubah.']);
+        if (! isset($update[$aktif])) {
+            return $this->response->setJSON(['status' => false, 'msg' => $nama.' yang ingin diaktifkan tidak ada di daftar — tidak ada yang diubah.']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
         try {
-            if ($db->table($tabel)->updateBatch(array_values($update), $pk) === false || !true) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                return $this->response->setJSON(['status' => false, 'msg' => $nama . ' gagal disimpan. Periode berjalan belum berubah.']);
+            foreach (array_values($update) as $row) {
+                $db->table($tabel)->where($pk, $row[$pk])->update($row);
             }
-            $db->table($tabel)->where($pk . ' <>', $aktif)->where('active', 1)->update(['active' => 0]);
+            $db->table($tabel)->where($pk.' <>', $aktif)->where('active', 1)->update(['active' => 0]);
             $db->table($tabel)->where($pk, $aktif)->update(['active' => 1]);
 
             if ($db->table($tabel)->where('active', 1)->count() !== 1) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                return $this->response->setJSON(['status' => false, 'msg' => $nama . ' gagal disimpan: jumlah periode aktif tidak tepat satu.']);
+                DB::rollBack();
+
+                return $this->response->setJSON(['status' => false, 'msg' => $nama.' gagal disimpan: jumlah periode aktif tidak tepat satu.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
-            }
-            Log::error('[Dashboard::gantiPeriodeAktif] ' . $tabel . ' aktif=' . $aktif . ': ' . $e->getMessage());
-            return $this->response->setJSON(['status' => false, 'msg' => $nama . ' gagal disimpan. Data belum berubah.']);
+            DB::rollBack();
+            Log::error('[Dashboard::gantiPeriodeAktif] '.$tabel.' aktif='.$aktif.': '.$e->getMessage());
+
+            return $this->response->setJSON(['status' => false, 'msg' => $nama.' gagal disimpan. Data belum berubah.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => $nama . ' berhasil diganti', 'update' => array_values($update)]);
+        return $this->response->setJSON(['status' => true, 'msg' => $nama.' berhasil diganti', 'update' => array_values($update)]);
     }
 
     /**
@@ -909,9 +945,9 @@ class DashboardController extends BaseController
     private function fiturBelumTersedia(string $apa)
     {
         return $this->response->setJSON([
-            'status'  => false,
-            'message' => $apa . ' belum tersedia di versi ini — tidak ada data yang diubah.',
-            'msg'     => $apa . ' belum tersedia di versi ini — tidak ada data yang diubah.',
+            'status' => false,
+            'message' => $apa.' belum tersedia di versi ini — tidak ada data yang diubah.',
+            'msg' => $apa.' belum tersedia di versi ini — tidak ada data yang diubah.',
         ]);
     }
 
@@ -923,6 +959,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireLogin()) {
             return $deny;
         }
+
         return $this->fiturBelumTersedia('Menyimpan balasan komentar');
     }
 
@@ -934,6 +971,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireLogin()) {
             return $deny;
         }
+
         return $this->fiturBelumTersedia('Menyimpan komentar');
     }
 
@@ -945,6 +983,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireRole('admin')) {
             return $deny;
         }
+
         return $this->fiturBelumTersedia('Menghapus pengumuman');
     }
 
@@ -956,6 +995,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireRole('admin')) {
             return $deny;
         }
+
         return $this->fiturBelumTersedia('Menghapus komentar');
     }
 
@@ -967,6 +1007,7 @@ class DashboardController extends BaseController
         if ($deny = $this->requireRole('admin')) {
             return $deny;
         }
+
         return $this->fiturBelumTersedia('Menghapus balasan');
     }
 
@@ -975,11 +1016,12 @@ class DashboardController extends BaseController
      */
     private function logTableName(): string
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tableName = 'logs';
-        if (!\Illuminate\Support\Facades\Schema::hasTable('logs') && \Illuminate\Support\Facades\Schema::hasTable('log')) {
+        if (! Schema::hasTable('logs') && Schema::hasTable('log')) {
             $tableName = 'log';
         }
+
         return $tableName;
     }
 
@@ -988,7 +1030,7 @@ class DashboardController extends BaseController
      */
     public function deletelog($id)
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -998,7 +1040,7 @@ class DashboardController extends BaseController
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $db->table($this->logTableName())->where('id_log', $id)->delete();
 
             if (1 < 1) {
@@ -1007,7 +1049,8 @@ class DashboardController extends BaseController
 
             return $this->respond(true, 'Log berhasil dihapus.');
         } catch (\Throwable $e) {
-            Log::error('[Dashboard::deletelog] ' . $e->getMessage());
+            Log::error('[Dashboard::deletelog] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menghapus log', null, null, 500);
         }
     }
@@ -1017,16 +1060,18 @@ class DashboardController extends BaseController
      */
     public function hapuslog()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $db->table($this->logTableName())->truncate();
+
             return $this->respond(true, 'Seluruh log aktivitas berhasil dihapus.');
         } catch (\Throwable $e) {
-            Log::error('[Dashboard::hapuslog] ' . $e->getMessage());
+            Log::error('[Dashboard::hapuslog] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menghapus log', null, null, 500);
         }
     }

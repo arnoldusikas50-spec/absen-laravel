@@ -20,12 +20,12 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
         <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
             <i class="bi bi-calendar3 text-blue-500 text-[11px]"></i>
             <span class="text-xs font-semibold text-slate-600">
-                {{ isset($tp_active) ? esc($tp_active->tahun) : '—' }}
+                {{ isset($tp_active) ? $tp_active->tahun : '—' }}
             </span>
             <span class="w-px h-3 bg-slate-300 mx-0.5"></span>
             <i class="bi bi-bookmark-fill text-violet-500 text-[10px]"></i>
             <span class="text-xs font-semibold text-slate-600">
-                Smt {{ isset($smt_active) ? esc($smt_active->smt) : '—' }}
+                Smt {{ isset($smt_active) ? $smt_active->smt : '—' }}
             </span>
         </div>
     </div>

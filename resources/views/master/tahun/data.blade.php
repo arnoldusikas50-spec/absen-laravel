@@ -18,13 +18,13 @@ $tpActiveYear = $tp_active ? $tp_active->tahun : 'Belum Diatur';
 $smtActiveName = $smt_active ? $smt_active->smt : 'Belum Diatur';
 
 // Build safe JSON payloads for AJAX activation
-$tpJsonData = json_encode(array_map(function($t) {
+$tpJsonData = json_encode(collect($tp)->map(function ($t) {
     return ['id' => $t->id_tp, 'tp' => $t->tahun];
-}, $tp));
+})->values()->all(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 
-$smtJsonData = json_encode(array_map(function($s) {
+$smtJsonData = json_encode(collect($smt)->map(function ($s) {
     return ['id' => $s->id_smt, 'Semester' => $s->smt];
-}, $smt));
+})->values()->all(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 ?>
 
 <div class="fade-in-up">
@@ -349,8 +349,8 @@ $smtJsonData = json_encode(array_map(function($s) {
 @section('scripts')
 <script>
     // Data list from backend for reliable serialization
-    const rawTpData = {{ $tpJsonData }};
-    const rawSmtData = {{ $smtJsonData }};
+    const rawTpData = {!! $tpJsonData !!};
+    const rawSmtData = {!! $smtJsonData !!};
 
     $(document).ready(function () {
         // Ganti Tahun Pelajaran Aktif

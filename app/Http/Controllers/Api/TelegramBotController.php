@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\BaseController;
+use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
+use App\Models\UserNotifikasiModel;
+use App\Services\AttendancePenaltyService;
+use App\Services\AttendancePolicy;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\BaseController;
-use App\Models\UserNotifikasiModel;
-use App\Services\AttendancePenaltyService;
-use App\Services\NotificationService;
 
 /**
  * Bot Telegram dua arah (inbound webhook + perintah personal).
@@ -41,7 +44,7 @@ class TelegramBotController extends BaseController
             // tabel setting (menu Pengaturan), sama seperti yang dipakai
             // endpoint rekap. absensi_setting tidak punya kolom itu, jadi
             // membacanya dari sana selalu berujung 401.
-            $setting = (new \App\Models\DashboardModel())->getSettingRow();
+            $setting = (new DashboardModel)->getSettingRow();
         } catch (\Throwable $e) {
             return $this->json(false, 'Koneksi database gagal.', null, 500);
         }
@@ -50,12 +53,12 @@ class TelegramBotController extends BaseController
         if ($expected === '') {
             return $this->json(false, 'API key belum dikonfigurasi. Isi api_key di menu Pengaturan.', null, 503);
         }
-        if ($key === '' || !hash_equals($expected, $key)) {
+        if ($key === '' || ! hash_equals($expected, $key)) {
             return $this->json(false, 'API key tidak valid.', null, 401);
         }
 
         try {
-            $absensi = (new \App\Models\AttendanceSettingModel())->first();
+            $absensi = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
             return $this->json(false, 'Koneksi database gagal.', null, 500);
         }
@@ -65,10 +68,11 @@ class TelegramBotController extends BaseController
             return $this->json(false, 'Bot token belum diisi di Pengaturan.', null, 503);
         }
         $secret = $this->webhookSecret($botToken);
+
         return $this->json(true, 'OK', [
-            'secret'      => $secret,
-            'webhook_url' => rtrim(url(), '/') . '/api/telegram/webhook?secret=' . $secret,
-            'bot'         => (new NotificationService())->getBotUsername() ?: '(panggil setelah webhook aktif)',
+            'secret' => $secret,
+            'webhook_url' => rtrim(url(), '/').'/api/telegram/webhook?secret='.$secret,
+            'bot' => (new NotificationService)->getBotUsername() ?: '(panggil setelah webhook aktif)',
         ]);
     }
 
@@ -103,7 +107,7 @@ class TelegramBotController extends BaseController
     public function webhook()
     {
         try {
-            $setting = (new \App\Models\AttendanceSettingModel())->first();
+            $setting = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(200);
         }
@@ -112,7 +116,7 @@ class TelegramBotController extends BaseController
             return $this->response->setStatusCode(200);
         }
         $secret = trim((string) ($this->request->query('secret') ?? ''));
-        if ($secret === '' || !hash_equals($this->webhookSecret($botToken), $secret)) {
+        if ($secret === '' || ! hash_equals($this->webhookSecret($botToken), $secret)) {
             return $this->response->setStatusCode(403);
         }
 
@@ -122,7 +126,7 @@ class TelegramBotController extends BaseController
             return $this->response->setStatusCode(200);
         }
         $message = $update['message'] ?? $update['edited_message'] ?? null;
-        if (!is_array($message)) {
+        if (! is_array($message)) {
             return $this->response->setStatusCode(200);
         }
         // Payload datang dari jaringan dan bisa berbentuk apa pun: `chat`
@@ -139,7 +143,7 @@ class TelegramBotController extends BaseController
         $command = strtolower(preg_replace('/@.*$/', '', $parts[0] ?? ''));
         $arg = trim($parts[1] ?? '');
 
-        $notify = new NotificationService();
+        $notify = new NotificationService;
         try {
             switch ($command) {
                 case '/start':
@@ -162,7 +166,7 @@ class TelegramBotController extends BaseController
                 $notify->sendTelegramTo($chatId, $reply);
             }
         } catch (\Throwable $e) {
-            Log::error('[telegram-webhook] ' . $e->getMessage());
+            Log::error('[telegram-webhook] '.$e->getMessage());
         }
 
         // Selalu 200 agar Telegram tidak retry membabi-buta
@@ -171,13 +175,14 @@ class TelegramBotController extends BaseController
 
     private function linkedUser(string $chatId): ?object
     {
-        $model = new UserNotifikasiModel();
+        $model = new UserNotifikasiModel;
         $row = $model->getByChatId($chatId);
-        if (!$row) {
+        if (! $row) {
             return null;
         }
         try {
-            $user = \Illuminate\Support\Facades\DB::connection()->table('users')->where('id', $row->user_id)->first();
+            $user = DB::connection()->table('users')->where('id', $row->user_id)->first();
+
             return ($user && (int) ($user->active ?? 0) === 1) ? $user : null;
         } catch (\Throwable $e) {
             return null;
@@ -186,36 +191,40 @@ class TelegramBotController extends BaseController
 
     private function displayName(?object $user): string
     {
-        if (!$user) {
+        if (! $user) {
             return 'Guru';
         }
-        $name = trim((string) ($user->first_name ?? '') . ' ' . (string) ($user->last_name ?? ''));
+        $name = trim((string) ($user->first_name ?? '').' '.(string) ($user->last_name ?? ''));
+
         return $name !== '' ? $name : (string) ($user->username ?? 'Guru');
     }
 
     private function cmdStart(string $arg, string $chatId): string
     {
-        $model = new UserNotifikasiModel();
+        $model = new UserNotifikasiModel;
         if ($arg === '') {
             $user = $this->linkedUser($chatId);
             if ($user) {
                 return "Halo <b>{$this->displayName($user)}</b>, akun Anda sudah tertaut. Ketik /bantuan untuk daftar perintah.";
             }
+
             return "Untuk menautkan akun, buka aplikasi presensi → menu <b>Notifikasi</b> → <b>Tautkan Telegram</b>, lalu ketik ulang /start diikuti kode yang tampil.\nContoh: <code>/start abc123</code>";
         }
         $userId = $model->bindChat($arg, $chatId);
-        if (!$userId) {
+        if (! $userId) {
             return 'Kode tautan tidak valid atau kedaluwarsa. Buat kode baru dari aplikasi (menu Notifikasi → Tautkan Telegram).';
         }
         $user = $this->linkedUser($chatId);
+
         return "✅ Akun <b>{$this->displayName($user)}</b> berhasil ditautkan. Ketik /bantuan untuk daftar perintah.";
     }
 
     private function cmdLepas(string $chatId): string
     {
-        if (!(new UserNotifikasiModel())->unbindByChatId($chatId)) {
+        if (! (new UserNotifikasiModel)->unbindByChatId($chatId)) {
             return 'Gagal melepas tautan. Coba lagi nanti atau hubungi admin.';
         }
+
         return 'Tautan akun dilepas. Anda tidak akan menerima notifikasi personal lagi.';
     }
 
@@ -237,11 +246,12 @@ class TelegramBotController extends BaseController
     {
         $user = $this->linkedUser($chatId);
         $sapaan = $user ? $this->displayName($user) : 'Bapak/Ibu Guru';
+
         return "Halo <b>{$sapaan}</b>! Perintah yang tersedia:\n"
-            . "/rekap — rekap presensi hari ini\n"
-            . "/denda — sisa denda Anda tahun ini\n"
-            . "/lepas — lepas tautan akun\n"
-            . "/bantuan — pesan ini";
+            ."/rekap — rekap presensi hari ini\n"
+            ."/denda — sisa denda Anda tahun ini\n"
+            ."/lepas — lepas tautan akun\n"
+            .'/bantuan — pesan ini';
     }
 
     private function cmdRekap(string $chatId): string
@@ -250,27 +260,28 @@ class TelegramBotController extends BaseController
         // yang tahu username bot bisa membaca agregat kehadiran sekolah.
         // Sama seperti /denda, hanya akun tertaut yang boleh meminta rekap.
         $user = $this->linkedUser($chatId);
-        if (!$user) {
+        if (! $user) {
             return 'Akun Anda belum tertaut. Tautkan dulu via aplikasi (menu Notifikasi → Tautkan Telegram).';
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $today = date('Y-m-d');
             $row = $db->table('absensi_harian')
-                ->select("COUNT(*) as total,"
+                ->selectRaw('COUNT(*) as total,'
                     // "Hadir" mengikuti definisi layar lain (ontime/late/WFH/dinas),
                     // bukan hanya yang tepat waktu — dulu guru yang telat/WFH/dinas
                     // tidak muncul di angka ini sama sekali.
-                    . ' ' . \App\Services\AttendancePolicy::sqlTermHadir('absensi_harian') . ' as hadir,'
-                    . " SUM(CASE WHEN status_masuk = 'LATE' THEN 1 ELSE 0 END) as telat,"
-                    . " SUM(CASE WHEN status_masuk IN ('ALPHA','ALPA') THEN 1 ELSE 0 END) as alpha", false)
+                    .' '.AttendancePolicy::sqlTermHadir('absensi_harian').' as hadir,'
+                    ." SUM(CASE WHEN status_masuk = 'LATE' THEN 1 ELSE 0 END) as telat,"
+                    ." SUM(CASE WHEN status_masuk IN ('ALPHA','ALPA') THEN 1 ELSE 0 END) as alpha")
                 ->where('tgl', $today)
                 ->first();
-            return "📊 <b>REKAP " . date('d/m/Y') . "</b>\n"
-                . "✅ Hadir: " . (int) ($row->hadir ?? 0) . "\n"
-                . "⏰ Telat: " . (int) ($row->telat ?? 0) . "\n"
-                . "❌ Alpha: " . (int) ($row->alpha ?? 0);
+
+            return '📊 <b>REKAP '.date('d/m/Y')."</b>\n"
+                .'✅ Hadir: '.(int) ($row->hadir ?? 0)."\n"
+                .'⏰ Telat: '.(int) ($row->telat ?? 0)."\n"
+                .'❌ Alpha: '.(int) ($row->alpha ?? 0);
         } catch (\Throwable $e) {
             return 'Gagal mengambil rekap. Coba lagi nanti.';
         }
@@ -279,32 +290,32 @@ class TelegramBotController extends BaseController
     private function cmdDenda(string $chatId): string
     {
         $user = $this->linkedUser($chatId);
-        if (!$user) {
+        if (! $user) {
             return 'Akun Anda belum tertaut. Tautkan dulu via aplikasi (menu Notifikasi → Tautkan Telegram).';
         }
         $userId = (int) $user->id;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $year = date('Y');
-            $setting = (new \App\Models\AttendanceSettingModel())->first() ?? (object) [];
-            $start = $year . '-01-01';
+            $setting = (new AttendanceSettingModel)->first() ?? (object) [];
+            $start = $year.'-01-01';
             $end = date('Y-m-d');
 
             $row = $db->table('absensi_harian')
-                ->select('SUM(COALESCE(denda, 0)) as total')
+                ->selectRaw('SUM(COALESCE(denda, 0)) as total')
                 ->where('user_id', $userId)
                 ->where('tgl', '>=', $start)
                 ->where('tgl', '<=', $end)
                 ->first();
             $total = (float) ($row->total ?? 0);
 
-            $miss = (new AttendancePenaltyService())->missingAlphaFines($userId, $start, $end, $setting, false);
+            $miss = (new AttendancePenaltyService)->missingAlphaFines($userId, $start, $end, $setting, false);
             $total += (float) ($miss['total'] ?? 0);
 
             $bayar = 0.0;
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+            if (Schema::hasTable('absensi_pembayaran_denda')) {
                 $pr = $db->table('absensi_pembayaran_denda')
-                    ->select('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total')
+                    ->selectRaw('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total')
                     ->where('user_id', $userId)
                     ->where('tahun', $year)
                     ->where('status', '!=', 'batal')
@@ -313,11 +324,12 @@ class TelegramBotController extends BaseController
             }
 
             $sisa = max(0.0, $total - $bayar);
-            $fmt = static fn($v) => 'Rp ' . number_format($v, 0, ',', '.');
+            $fmt = static fn ($v) => 'Rp '.number_format($v, 0, ',', '.');
+
             return "💰 <b>DENDA {$this->displayName($user)} ({$year})</b>\n"
-                . "Total: {$fmt($total)}\n"
-                . "Dibayar: {$fmt($bayar)}\n"
-                . "Sisa: <b>{$fmt($sisa)}</b>";
+                ."Total: {$fmt($total)}\n"
+                ."Dibayar: {$fmt($bayar)}\n"
+                ."Sisa: <b>{$fmt($sisa)}</b>";
         } catch (\Throwable $e) {
             return 'Gagal mengambil data denda. Coba lagi nanti.';
         }

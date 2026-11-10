@@ -2,21 +2,45 @@
 
 namespace App\Http\Controllers\Guru;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\BaseController;
+use App\Http\Controllers\CiForge;
+use App\Libraries\QrToken;
+use App\Libraries\RememberLogin;
+use App\Libraries\RouterosAPI;
+use App\Libraries\SuratNomor;
+use App\Libraries\SuratTeguranLevel;
+use App\Libraries\TelegramLink;
+use App\Libraries\TteQr;
+use App\Libraries\WhatsAppLink;
+use App\Models\AttendanceCorrectionModel;
+use App\Models\AttendanceLocationModel;
 use App\Models\AttendanceModel;
 use App\Models\AttendanceSettingModel;
-use App\Models\AttendanceLocationModel;
-use App\Models\LeaveModel;
 use App\Models\AuditLogModel;
-use App\Models\PoinHistoryModel;
-use Dompdf\Dompdf;
+use App\Models\AuthModel;
 use App\Models\DashboardModel;
-
+use App\Models\ElearningModel;
+use App\Models\JurnalGuruModel;
+use App\Models\LeaveModel;
+use App\Models\PoinHistoryModel;
+use App\Models\ShiftModel;
+use App\Models\UserNotifikasiModel;
+use App\Services\AttendancePenaltyService;
+use App\Services\AttendancePolicy;
+use App\Services\AvatarService;
+use App\Services\CutiKategoriService;
+use App\Services\GuruTerawalService;
+use App\Services\IzinKuotaService;
+use App\Services\NotificationService;
+use App\Services\OpenWAService;
+use App\Services\RekapPdfService;
+use App\Services\SuratTeguranService;
+use App\Services\WajibJurnalPulangService;
+use Dompdf\Dompdf;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Guru Mobile Attendance Controller
@@ -24,33 +48,35 @@ use App\Models\DashboardModel;
 class AttendanceController extends BaseController
 {
     protected $attendanceModel;
+
     protected $settingModel;
+
     protected $leaveModel;
 
     private function isGuruKepalaSekolah(): bool
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return false;
         }
 
         $userId = session()->get('user_id');
-        if (!$userId) {
+        if (! $userId) {
             return false;
         }
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
 
-        if (!$db) {
+        if (! $db) {
             return false;
         }
 
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'tugas_tambahan')) {
+            if (Schema::hasTable('users') && Schema::hasColumn('users', 'tugas_tambahan')) {
                 $row = $db->table('users')
                     ->select('tugas_tambahan')
                     ->where('id', $userId)
@@ -63,7 +89,7 @@ class AttendanceController extends BaseController
         }
 
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_guru') && \Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'tugas_tambahan')) {
+            if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'tugas_tambahan')) {
                 $row = $db->table('master_guru')
                     ->select('tugas_tambahan')
                     ->where('id_user', $userId)
@@ -76,11 +102,11 @@ class AttendanceController extends BaseController
         }
 
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_guru') && \Illuminate\Support\Facades\Schema::hasTable('jabatan_guru') && \Illuminate\Support\Facades\Schema::hasTable('level_guru')) {
+            if (Schema::hasTable('master_guru') && Schema::hasTable('jabatan_guru') && Schema::hasTable('level_guru')) {
                 $row = $db->table('master_guru as a')
                     ->select('lg.level as jabatan')
-                    ->join('jabatan_guru as jg', 'jg.id_guru = a.id_guru', 'left')
-                    ->join('level_guru as lg', 'lg.id_level = jg.id_jabatan', 'left')
+                    ->leftJoin('jabatan_guru as jg', 'jg.id_guru', '=', 'a.id_guru')
+                    ->leftJoin('level_guru as lg', 'lg.id_level', '=', 'jg.id_jabatan')
                     ->where('a.id_user', $userId)
                     ->first();
                 $jabatan = strtolower(trim((string) ($row->jabatan ?? '')));
@@ -92,10 +118,10 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $dashboardModel = new DashboardModel();
+            $dashboardModel = new DashboardModel;
             $globalSetting = $this->getSettingRow();
             $kepsekNama = strtolower(trim((string) ($globalSetting->kepsek ?? '')));
-            if ($kepsekNama !== '' && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            if ($kepsekNama !== '' && Schema::hasTable('master_guru')) {
                 $guru = $db->table('master_guru')->select('nama_guru')->where('id_user', $userId)->first();
                 $namaGuru = strtolower(trim((string) ($guru->nama_guru ?? '')));
                 if ($namaGuru !== '' && $namaGuru === $kepsekNama) {
@@ -110,19 +136,22 @@ class AttendanceController extends BaseController
 
     private function ensureKepsekAccess()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             // Endpoint kepsek ada yang JSON (AJAX): jangan balas redirect HTML.
             if ($this->request->ajax() || strpos((string) $this->request->header('Accept'), 'application/json') !== false) {
                 return $this->respond(false, 'Akses ditolak', null, null, 403);
             }
+
             return redirect()->to('auth');
         }
-        if (!$this->isGuruKepalaSekolah()) {
+        if (! $this->isGuruKepalaSekolah()) {
             if ($this->request->ajax() || strpos((string) $this->request->header('Accept'), 'application/json') !== false) {
                 return $this->respond(false, 'Akses ditolak', null, null, 403);
             }
+
             return redirect()->to('presensi/notif')->with('error', 'Akses ditolak');
         }
+
         return null;
     }
 
@@ -142,10 +171,10 @@ class AttendanceController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->attendanceModel = new AttendanceModel();
-        $this->settingModel = new AttendanceSettingModel();
-        $this->leaveModel = new LeaveModel();
-        $this->authModel = new \App\Models\AuthModel();
+        $this->attendanceModel = new AttendanceModel;
+        $this->settingModel = new AttendanceSettingModel;
+        $this->leaveModel = new LeaveModel;
+        $this->authModel = new AuthModel;
     }
 
     private function getDefaultSettings()
@@ -173,7 +202,7 @@ class AttendanceController extends BaseController
             // halaman Pengaturan, supaya UI dan penegakan tidak berbeda.
             'wajib_jurnal_sebelum_pulang' => 1,
             // Opt-in: jurnal harus divalidasi piket dulu sebelum boleh pulang.
-            'wajib_jurnal_tervalidasi_sebelum_pulang' => 0
+            'wajib_jurnal_tervalidasi_sebelum_pulang' => 0,
         ];
     }
 
@@ -186,13 +215,15 @@ class AttendanceController extends BaseController
             if ($this->isAdmin()) {
                 return redirect()->to('admin/presensi');
             }
+
             return redirect()->to('presensi');
         }
 
         $setting = $this->settingModel->first();
-        if (!$setting) {
+        if (! $setting) {
             $setting = $this->getDefaultSettings();
         }
+
         return view('members.guru.absen_login', ['setting' => $setting]);
     }
 
@@ -208,7 +239,7 @@ class AttendanceController extends BaseController
         // Brute-force: batasi per IP+username seperti endpoint presensi lain.
         try {
 
-            $throttleKey = 'applogin_' . md5($this->request->ip() . '|' . strtolower($username));
+            $throttleKey = 'applogin_'.md5($this->request->ip().'|'.strtolower($username));
             if ($this->throttleCheck($throttleKey, 5, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.', null, null, 429);
             }
@@ -219,28 +250,30 @@ class AttendanceController extends BaseController
         $user = $this->authModel->login($username);
 
         // Pesan disamakan agar tidak bisa dipakai menebak username terdaftar.
-        if (!$user || (string) $user->active !== '1' || !password_verify($password, $user->password)) {
+        if (! $user || (string) $user->active !== '1' || ! password_verify($password, $user->password)) {
             return $this->respond(false, 'Username atau Password salah!');
         }
 
         // Check if user is Guru or Admin
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $userGroup = $db->table('users_groups as ug')
             ->select('g.name as group_name')
-            ->join('groups as g', 'g.id = ug.group_id')
+            ->join('groups as g', 'g.id', '=', 'ug.group_id')
             ->where('ug.user_id', $user->id)
             ->first();
 
         $groupName = strtolower((string) ($userGroup->group_name ?? $user->role_name ?? ''));
-        if (!in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
+        if (! in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
             return $this->respond(false, 'Akses ditolak: Hanya akun Guru atau Admin yang diizinkan.');
         }
 
         // Identitas guru diambil dari relasi id_user. Pencarian berdasarkan
         // nama bisa menempelkan sesi ke guru yang salah.
         $guru = $db->table('master_guru')->where('id_user', $user->id)->first();
-        if (!$guru) {
-            $guru = $db->table('master_guru')->where(function ($q) { $q->where('nip', $username)->$q->orWhere('kode_guru', $username); })->first();
+        if (! $guru) {
+            $guru = $db->table('master_guru')->where(function ($q) {
+                $q->where('nip', $username)->orWhere('kode_guru', $username);
+            })->first();
         }
 
         // Cegah session fixation.
@@ -249,21 +282,21 @@ class AttendanceController extends BaseController
         $this->session->set([
             'user_id' => $user->id,
             'username' => $user->username,
-            'nama' => $user->first_name . ($user->last_name ? ' ' . $user->last_name : ''),
+            'nama' => $user->first_name.($user->last_name ? ' '.$user->last_name : ''),
             'email' => $user->email,
             'role' => $user->group_id,
             'role_name' => $groupName,
             'foto' => $user->foto,
             'is_login' => true,
             'login_variant' => 'staff',
-            'id_guru' => $guru ? $guru->id_guru : 0
+            'id_guru' => $guru ? $guru->id_guru : 0,
         ]);
 
         $redirectUrl = $groupName === 'guru' ? url('presensi') : url('dashboard');
 
         // PWA "tetap login" 30 hari — hanya guru (admin/panitia dikecualikan).
         if ($groupName === 'guru') {
-            \App\Libraries\RememberLogin::issue((int) $user->id);
+            RememberLogin::issue((int) $user->id);
         }
 
         return $this->respond(true, 'Login berhasil', ['redirect' => $redirectUrl]);
@@ -271,8 +304,9 @@ class AttendanceController extends BaseController
 
     public function logoutApp()
     {
-        \App\Libraries\RememberLogin::clear();
+        RememberLogin::clear();
         session()->destroy();
+
         return redirect()->to('/');
     }
 
@@ -282,27 +316,29 @@ class AttendanceController extends BaseController
 
     private function getGoogleClientId(): string
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'google_client_id')) {
+        $db = DB::connection();
+        if (Schema::hasTable('absensi_setting') && Schema::hasColumn('absensi_setting', 'google_client_id')) {
             $row = $db->table('absensi_setting')->select('google_client_id')->orderBy('id', 'ASC')->limit(1)->first();
-            if (!empty($row->google_client_id)) {
+            if (! empty($row->google_client_id)) {
                 return trim($row->google_client_id);
             }
         }
         $env = getenv('GOOGLE_OAUTH_CLIENT_ID') ?: ($_ENV['GOOGLE_OAUTH_CLIENT_ID'] ?? ($_SERVER['GOOGLE_OAUTH_CLIENT_ID'] ?? ''));
+
         return trim((string) $env);
     }
 
     private function getGoogleClientSecret(): string
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'google_client_secret')) {
+        $db = DB::connection();
+        if (Schema::hasTable('absensi_setting') && Schema::hasColumn('absensi_setting', 'google_client_secret')) {
             $row = $db->table('absensi_setting')->select('google_client_secret')->orderBy('id', 'ASC')->limit(1)->first();
-            if (!empty($row->google_client_secret)) {
+            if (! empty($row->google_client_secret)) {
                 return trim($row->google_client_secret);
             }
         }
         $env = getenv('GOOGLE_OAUTH_CLIENT_SECRET') ?: ($_ENV['GOOGLE_OAUTH_CLIENT_SECRET'] ?? ($_SERVER['GOOGLE_OAUTH_CLIENT_SECRET'] ?? ''));
+
         return trim((string) $env);
     }
 
@@ -332,10 +368,11 @@ class AttendanceController extends BaseController
             'scope' => 'openid email profile',
             'state' => $state,
             'access_type' => 'offline',
-            'prompt' => 'select_account'
+            'prompt' => 'select_account',
         ];
 
-        $url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
+        $url = 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query($params);
+
         return redirect()->to($url);
     }
 
@@ -347,15 +384,16 @@ class AttendanceController extends BaseController
         $savedState = session()->get('oauth2_state');
 
         if ($error) {
-            return redirect()->to('auth')->with('error', 'Login Google dibatalkan: ' . e($error));
+            return redirect()->to('auth')->with('error', 'Login Google dibatalkan: '.e($error));
         }
 
-        if (!$code) {
+        if (! $code) {
             return redirect()->to('auth')->with('error', 'Gagal login dengan Google (Otorisasi tidak memberikan kode verifikasi).');
         }
 
-        if (!$state || !$savedState || !hash_equals((string) $savedState, (string) $state)) {
+        if (! $state || ! $savedState || ! hash_equals((string) $savedState, (string) $state)) {
             session()->remove('oauth2_state');
+
             return redirect()->to('auth')->with('error', 'Sesi login Google telah kedaluwarsa. Silakan klik tombol Google lagi.');
         }
 
@@ -376,15 +414,16 @@ class AttendanceController extends BaseController
 
             $tokenData = json_decode($response->body(), true);
 
-            if (!isset($tokenData['access_token'])) {
-                Log::error('Google Auth Token Error: ' . json_encode($tokenData));
+            if (! isset($tokenData['access_token'])) {
+                Log::error('Google Auth Token Error: '.json_encode($tokenData));
                 $errMsg = $tokenData['error_description'] ?? ($tokenData['error'] ?? 'Gagal verifikasi token ke Google');
-                return redirect()->to('auth')->with('error', 'Gagal verifikasi ke Google: ' . $errMsg);
+
+                return redirect()->to('auth')->with('error', 'Gagal verifikasi ke Google: '.$errMsg);
             }
 
             // 3. Get User Info
             $userResponse = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $tokenData['access_token'],
+                'Authorization' => 'Bearer '.$tokenData['access_token'],
             ])->get('https://www.googleapis.com/oauth2/v2/userinfo');
 
             $userData = json_decode($userResponse->body(), true);
@@ -395,27 +434,27 @@ class AttendanceController extends BaseController
             }
 
             // 4. Check DB for matching user
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             // 4a. Find by users.email
             $user = $db->table('users as a')
-                ->select('a.*, b.group_id, c.name as role_name')
-                ->join('users_groups as b', 'a.id = b.user_id', 'left')
-                ->join('groups as c', 'b.group_id = c.id', 'left')
+                ->select('a.*', 'b.group_id', 'c.name as role_name')
+                ->leftJoin('users_groups as b', 'a.id', '=', 'b.user_id')
+                ->leftJoin('groups as c', 'b.group_id', '=', 'c.id')
                 ->where('LOWER(a.email)', strtolower($email))
                 ->first();
 
             // 4b. If not found, check master_guru.email
-            if (!$user) {
+            if (! $user) {
                 $guruRow = $db->table('master_guru')
                     ->where('LOWER(email)', strtolower($email))
                     ->first();
 
-                if ($guruRow && !empty($guruRow->id_user)) {
+                if ($guruRow && ! empty($guruRow->id_user)) {
                     $user = $db->table('users as a')
-                        ->select('a.*, b.group_id, c.name as role_name')
-                        ->join('users_groups as b', 'a.id = b.user_id', 'left')
-                        ->join('groups as c', 'b.group_id = c.id', 'left')
+                        ->select('a.*', 'b.group_id', 'c.name as role_name')
+                        ->leftJoin('users_groups as b', 'a.id', '=', 'b.user_id')
+                        ->leftJoin('groups as c', 'b.group_id', '=', 'c.id')
                         ->where('a.id', $guruRow->id_user)
                         ->first();
 
@@ -426,12 +465,12 @@ class AttendanceController extends BaseController
                 }
             }
 
-            if (!$user) {
-                return redirect()->to('auth')->with('error', 'Email Google (' . e($email) . ') belum terdaftar pada akun Guru / Pengguna.');
+            if (! $user) {
+                return redirect()->to('auth')->with('error', 'Email Google ('.e($email).') belum terdaftar pada akun Guru / Pengguna.');
             }
 
-            if ((string)$user->active !== '1') {
-                return redirect()->to('auth')->with('error', 'Akun Anda (' . e($email) . ') saat ini dinonaktifkan.');
+            if ((string) $user->active !== '1') {
+                return redirect()->to('auth')->with('error', 'Akun Anda ('.e($email).') saat ini dinonaktifkan.');
             }
 
             // 5. Get Guru Info
@@ -444,7 +483,7 @@ class AttendanceController extends BaseController
             // Login Google hanya untuk staf. Tanpa whitelist ini akun siswa
             // (atau user tanpa grup) akan diberi role_name 'Guru' dan lolos
             // pemeriksaan inGroup('guru') di seluruh endpoint /presensi.
-            if (!in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
+            if (! in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
                 return redirect()->to('auth')->with('error', 'Akun ini tidak diizinkan login melalui Google.');
             }
 
@@ -454,7 +493,7 @@ class AttendanceController extends BaseController
             $this->session->set([
                 'user_id' => $user->id,
                 'username' => $user->username,
-                'nama' => $user->first_name . ($user->last_name ? ' ' . $user->last_name : ''),
+                'nama' => $user->first_name.($user->last_name ? ' '.$user->last_name : ''),
                 'email' => $user->email ?: $email,
                 'role' => $user->group_id,
                 'role_name' => $groupName,
@@ -462,12 +501,12 @@ class AttendanceController extends BaseController
                 'is_login' => true,
                 'login_variant' => 'staff',
                 'id_guru' => $guru ? $guru->id_guru : 0,
-                'login_provider' => 'google'
+                'login_provider' => 'google',
             ]);
 
             // PWA "tetap login" 30 hari — hanya guru (admin/panitia dikecualikan).
             if ($groupName === 'guru') {
-                \App\Libraries\RememberLogin::issue((int) $user->id);
+                RememberLogin::issue((int) $user->id);
             }
 
             if ($groupName === 'admin') {
@@ -480,7 +519,8 @@ class AttendanceController extends BaseController
             return redirect()->to('presensi');
 
         } catch (\Throwable $e) {
-            Log::error('Google Auth Exception: ' . $e->getMessage());
+            Log::error('Google Auth Exception: '.$e->getMessage());
+
             return redirect()->to('auth')->with('error', 'Terjadi kesalahan sistem saat login Google. Silakan coba lagi.');
         }
     }
@@ -490,12 +530,12 @@ class AttendanceController extends BaseController
      */
     public function index()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
         }
 
         $setting = $this->settingModel->first();
-        if (!$setting) {
+        if (! $setting) {
             $setting = $this->getDefaultSettings();
         }
 
@@ -503,9 +543,9 @@ class AttendanceController extends BaseController
         $userId = session()->get('user_id');
 
         $todayAttendance = $this->attendanceModel
-            ->select('absensi_harian.*, loc_in.nama_lokasi as nama_lokasi_masuk, loc_out.nama_lokasi as nama_lokasi_pulang')
-            ->join('absensi_lokasi as loc_in', 'loc_in.id = absensi_harian.lokasi_masuk_id', 'left')
-            ->join('absensi_lokasi as loc_out', 'loc_out.id = absensi_harian.lokasi_pulang_id', 'left')
+            ->select('absensi_harian.*', 'loc_in.nama_lokasi as nama_lokasi_masuk', 'loc_out.nama_lokasi as nama_lokasi_pulang')
+            ->leftJoin('absensi_lokasi as loc_in', 'loc_in.id', '=', 'absensi_harian.lokasi_masuk_id')
+            ->leftJoin('absensi_lokasi as loc_out', 'loc_out.id', '=', 'absensi_harian.lokasi_pulang_id')
             ->where('absensi_harian.user_id', $userId)
             ->where('absensi_harian.tgl', $today)
             ->first();
@@ -523,7 +563,8 @@ class AttendanceController extends BaseController
         if (is_array($setting)) {
             $setting = (object) $setting;
         }
-        return (new \App\Services\AttendancePenaltyService())->calculatePenalty($minutes, $setting, $type);
+
+        return (new AttendancePenaltyService)->calculatePenalty($minutes, $setting, $type);
     }
 
     private function calculateProgressiveRewardPoints(int $minutes, $setting): int
@@ -531,13 +572,14 @@ class AttendanceController extends BaseController
         if (is_array($setting)) {
             $setting = (object) $setting;
         }
-        return (new \App\Services\AttendancePenaltyService())->calculateReward($minutes, $setting);
+
+        return (new AttendancePenaltyService)->calculateReward($minutes, $setting);
     }
 
     private function syncPoinHistory($userId, $tipe, $poin, $keterangan, $refId = null)
     {
         try {
-            $model = new PoinHistoryModel();
+            $model = new PoinHistoryModel;
             $model->insert([
                 'user_id' => $userId,
                 'poin' => $poin,
@@ -547,14 +589,15 @@ class AttendanceController extends BaseController
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('syncPoinHistory failed: ' . $e->getMessage());
+            Log::error('syncPoinHistory failed: '.$e->getMessage());
         }
     }
 
     private function countConsecutiveAlphaDays($userId, $todayDate)
     {
         try {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            $penaltyService = new AttendancePenaltyService;
+
             return $penaltyService->getConsecutiveAlphaStreak((int) $userId, $todayDate);
         } catch (\Throwable $e) {
             return 0;
@@ -572,9 +615,9 @@ class AttendanceController extends BaseController
      */
     private function recordSuratTeguran($db, $userId, $idGuru, $level, $bulan, $tahun)
     {
-        $svc = new \App\Services\SuratTeguranService($db);
+        $svc = new SuratTeguranService($db);
 
-        if (!$svc->tabelAda()) {
+        if (! $svc->tabelAda()) {
             return null;
         }
 
@@ -586,8 +629,8 @@ class AttendanceController extends BaseController
         // itu sebabnya jalur ini menolak menebaknya.
         if ($idGuru <= 0) {
             Log::error('[recordSuratTeguran] dilewati: guru user '
-                . (int) $userId . ' belum punya baris master_guru, surat tidak bisa '
-                . 'diatribusikan (ambang level ' . (int) $level . ').');
+                .(int) $userId.' belum punya baris master_guru, surat tidak bisa '
+                .'diatribusikan (ambang level '.(int) $level.').');
 
             return null;
         }
@@ -625,6 +668,7 @@ class AttendanceController extends BaseController
             }
         } catch (\Throwable $e) {
         }
+
         return date('Y-m-d');
     }
 
@@ -633,6 +677,7 @@ class AttendanceController extends BaseController
     {
         $ymd = $this->tglIzinYmd($val, $fallback);
         $ts = strtotime($ymd);
+
         return $ts !== false ? date('d/m/Y', $ts) : $ymd;
     }
 
@@ -641,6 +686,7 @@ class AttendanceController extends BaseController
     {
         $ymd = $this->tglIzinYmd($val, $fallback);
         $parts = explode('-', $ymd);
+
         return [(int) ($parts[0] ?? date('Y')), (int) ($parts[1] ?? date('n'))];
     }
 
@@ -649,46 +695,49 @@ class AttendanceController extends BaseController
      * Checks session, master_guru table, or creates linkage if missing.
      */
     private function resolveIdGuru(int $userId): int
-    {        $idGuru = session()->get('id_guru');
-        if (!empty($idGuru)) {
+    {
+        $idGuru = session()->get('id_guru');
+        if (! empty($idGuru)) {
             return (int) $idGuru;
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            $db = DB::connection();
+            if ($db && Schema::hasTable('master_guru')) {
                 $guru = $db->table('master_guru')->where('id_user', $userId)->first();
-                if ($guru && !empty($guru->id_guru)) {
+                if ($guru && ! empty($guru->id_guru)) {
                     $idGuru = (int) $guru->id_guru;
                     session()->set('id_guru', $idGuru);
+
                     return $idGuru;
                 }
 
                 // If not yet linked in master_guru, create a matching row
-                if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                if (Schema::hasTable('users')) {
                     $u = $db->table('users')->where('id', $userId)->first();
                     if ($u) {
-                        $fullName = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                        $fullName = trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
                         if (empty($fullName)) {
-                            $fullName = $u->username ?? ('User ' . $userId);
+                            $fullName = $u->username ?? ('User '.$userId);
                         }
                         $db->table('master_guru')->insert([
-                            'id_user'   => $userId,
+                            'id_user' => $userId,
                             'nama_guru' => $fullName,
-                            'username'  => $u->username ?? '',
-                            'nip'       => '',
-                            'foto'      => $u->foto ?? null
+                            'username' => $u->username ?? '',
+                            'nip' => '',
+                            'foto' => $u->foto ?? null,
                         ]);
-                        $newId = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+                        $newId = (int) DB::getPdo()->lastInsertId();
                         if ($newId > 0) {
                             session()->set('id_guru', $newId);
+
                             return $newId;
                         }
                     }
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('resolveIdGuru error: ' . $e->getMessage());
+            Log::error('resolveIdGuru error: '.$e->getMessage());
         }
 
         return 0;
@@ -700,14 +749,14 @@ class AttendanceController extends BaseController
      */
     public function checkIn()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
         try {
             // Rate Limiting - Max 5 requests per minute
 
-            $ipKey = 'attendance_' . md5($this->request->ip() . session()->get('user_id'));
+            $ipKey = 'attendance_'.md5($this->request->ip().session()->get('user_id'));
             if ($this->throttleCheck($ipKey, 5, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
             }
@@ -719,7 +768,7 @@ class AttendanceController extends BaseController
             $faceDescriptor = $this->request->input('face_descriptor');
             $isWfh = $this->request->input('is_wfh') === '1';
 
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $this->patchAbsensiHarianTable();
             $setting = $this->settingModel->first();
 
@@ -742,7 +791,7 @@ class AttendanceController extends BaseController
 
             // WFH validation
             if ($isWfh) {
-                if (!$setting || !(int) ($setting->wfh_enabled ?? 0)) {
+                if (! $setting || ! (int) ($setting->wfh_enabled ?? 0)) {
                     return $this->respond(false, 'Fitur WFH tidak aktif. Hubungi admin.');
                 }
                 // Check WFH quota
@@ -750,7 +799,7 @@ class AttendanceController extends BaseController
                 $wfhCount = $db->table('absensi_harian')
                     ->where('user_id', session()->get('user_id'))
                     ->where('is_wfh', 1)
-                    ->where('tgl', 'like', $bulanIni . '%')
+                    ->where('tgl', 'like', $bulanIni.'%')
                     ->count();
                 $maxWfh = (int) ($setting->wfh_max_per_bulan ?? 5);
                 if ($wfhCount >= $maxWfh) {
@@ -765,8 +814,8 @@ class AttendanceController extends BaseController
             $isMockLocation = 0;
             $mockWarning = '';
 
-            if (!$isWfh) {
-                if (!$this->isValidCoordinate($lat, $lng)) {
+            if (! $isWfh) {
+                if (! $this->isValidCoordinate($lat, $lng)) {
                     return $this->respond(false, 'Lokasi tidak valid');
                 }
                 if ($accuracy < 0) {
@@ -818,7 +867,7 @@ class AttendanceController extends BaseController
                     return $this->respond(false, 'Verifikasi wajah gagal: data wajah tidak ditemukan. Silakan coba lagi.');
                 }
                 $descriptorArr = json_decode($faceDescriptor, true);
-                if (!is_array($descriptorArr) || count($descriptorArr) !== 128) {
+                if (! is_array($descriptorArr) || count($descriptorArr) !== 128) {
                     return $this->respond(false, 'Verifikasi wajah gagal: data wajah tidak valid.');
                 }
                 $storedRow = $db->table('users')
@@ -832,19 +881,19 @@ class AttendanceController extends BaseController
                 }
 
                 $storedArr = json_decode($storedDescriptor, true);
-                if (!is_array($storedArr) || count($storedArr) !== 128) {
+                if (! is_array($storedArr) || count($storedArr) !== 128) {
                     return $this->respond(false, 'Data wajah profil rusak. Silakan daftarkan ulang di menu Profil.');
                 }
 
                 $distance = $this->euclideanDistance($descriptorArr, $storedArr);
-                $faceThreshold = isset($setting->face_threshold) && (float)$setting->face_threshold > 0 ? (float)$setting->face_threshold : 0.72;
+                $faceThreshold = isset($setting->face_threshold) && (float) $setting->face_threshold > 0 ? (float) $setting->face_threshold : 0.72;
                 $matchScore = $this->calculateSimilarity($distance);
 
                 if ($distance > $faceThreshold) {
-                    return $this->respond(false, 'Wajah tidak cocok dengan data profil (Tingkat kemiripan: ' . $matchScore . '%). Pastikan pencahayaan cukup dan wajah menghadap kamera.', [
+                    return $this->respond(false, 'Wajah tidak cocok dengan data profil (Tingkat kemiripan: '.$matchScore.'%). Pastikan pencahayaan cukup dan wajah menghadap kamera.', [
                         'face_match_score' => $matchScore,
                         'face_distance' => round($distance, 3),
-                        'face_match' => false
+                        'face_match' => false,
                     ]);
                 }
             }
@@ -879,7 +928,7 @@ class AttendanceController extends BaseController
             $jadwal = null;
 
             // Ambil Jadwal Kerja
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
                 $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
             }
 
@@ -890,7 +939,7 @@ class AttendanceController extends BaseController
                 $waktuTutupMasuk = date('H:i:s', strtotime($jamMasukLimit) + (4 * 3600));
             } else {
                 // Jadwal efektif: shift per guru (bila ditugaskan) → jadwal harian → setting global
-                $shiftModel = new \App\Models\ShiftModel();
+                $shiftModel = new ShiftModel;
                 $workSchedule = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
                 $jamMasukLimit = $workSchedule['jam_masuk'];
 
@@ -899,7 +948,7 @@ class AttendanceController extends BaseController
                 $waktuTutupMasuk = date('H:i:s', strtotime($jamMasukLimit) + (3 * 3600));
             }
 
-            if (!$isDinas) {
+            if (! $isDinas) {
                 if ($now < $waktuBukaMasuk) {
                     return $this->respond(false, "Absen Masuk belum dibuka. Jadwal: $jamMasukLimit (Dibuka $waktuBukaMasuk)");
                 }
@@ -909,10 +958,10 @@ class AttendanceController extends BaseController
             }
             // --- END VALIDASI ---
             if ($this->attendanceModel->where('user_id', $userId)->where('tgl', $today)->first()) {
-                return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: ' . $today . ')');
+                return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: '.$today.')');
             }
 
-            if (!$isDinas) {
+            if (! $isDinas) {
                 $holidayMsg = $this->checkIsHoliday($today);
                 if ($holidayMsg) {
                     return $this->respond(false, $holidayMsg);
@@ -923,7 +972,7 @@ class AttendanceController extends BaseController
             $validDistance = 0;
             $lokasiId = null;
 
-            if (!$isDinas && !$isWfh) {
+            if (! $isDinas && ! $isWfh) {
                 $locationRows = [];
                 try {
                     $locationRows = $db->table('absensi_lokasi')->get();
@@ -939,7 +988,7 @@ class AttendanceController extends BaseController
                 foreach ($locationRows as $loc) {
                     $locLat = (float) $loc->lat;
                     $locLng = (float) $loc->lng;
-                    $radius = (float) (!empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
+                    $radius = (float) (! empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
                     $dist = distance_meter($lat, $lng, $locLat, $locLng);
                     if ($dist <= $radius) {
                         $validDistance = $dist;
@@ -956,11 +1005,11 @@ class AttendanceController extends BaseController
             // handle foto upload if provided & required
             // Nama file unik per hari: tidak menimpa foto hari sebelumnya.
             $fotoPath = null;
-            if (!empty($foto)) {
+            if (! empty($foto)) {
                 $fotoPath = $this->saveAbsenPhoto($foto, (int) $userId, 'masuk');
             }
 
-            if ($fotoPath === null && !$isWfh && $setting && (int) $setting->foto_wajib === 1) {
+            if ($fotoPath === null && ! $isWfh && $setting && (int) $setting->foto_wajib === 1) {
                 return $this->respond(false, 'Foto wajib diunggah dan harus valid');
             }
 
@@ -982,23 +1031,23 @@ class AttendanceController extends BaseController
                 $dayOfWeek = date('N', strtotime($today));
                 $jadwal = null;
                 // $db already defined above
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+                if (Schema::hasTable('absensi_jadwal_kerja')) {
                     $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
                 }
 
-                $shiftModel = new \App\Models\ShiftModel();
+                $shiftModel = new ShiftModel;
                 $workSchedule = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
                 $jamMasukLimit = $workSchedule['jam_masuk'];
                 $graceMins = (int) ($workSchedule['grace_menit'] ?? ($setting->grace_period ?? 15));
 
                 // Status masuk dari rumus baku AttendancePolicy (sama dengan
                 // scan QR, poin siswa, rekap, dan koreksi admin).
-                $hit = \App\Services\AttendancePolicy::telat($today, $recordedTime, [
-                    'jam_masuk'   => $jamMasukLimit,
+                $hit = AttendancePolicy::telat($today, $recordedTime, [
+                    'jam_masuk' => $jamMasukLimit,
                     'grace_menit' => $graceMins,
                 ]);
-                $statusMasuk     = $hit['status'];
-                $telatMenit      = $hit['telat_menit'];
+                $statusMasuk = $hit['status'];
+                $telatMenit = $hit['telat_menit'];
                 $datangAwalMenit = $hit['datang_awal_menit'];
 
                 $points = 0;
@@ -1023,15 +1072,15 @@ class AttendanceController extends BaseController
                 // agar teguran tidak tercatat bila insert gagal.
                 $teguranLevel = null;
                 $confirm = $this->request->input('confirm');
-                
+
                 // 1. Cek berturut-turut (Peringatan jika >= 3)
                 $consecutiveAlpha = $this->countConsecutiveAlphaDays($userId, $today);
                 if ($consecutiveAlpha >= 3) {
-                    if (!$confirm) {
+                    if (! $confirm) {
                         return $this->respond(false, "Peringatan Keras: Anda tidak hadir selama {$consecutiveAlpha} hari kerja berturut-turut. Mohon perbaiki tingkat kehadiran Anda. Lanjutkan absen?", [
                             'warning_level' => 'consecutive',
                             'require_confirm' => true,
-                            '_token' => '_token'
+                            '_token' => '_token',
                         ]);
                     }
                 }
@@ -1042,11 +1091,11 @@ class AttendanceController extends BaseController
                 if ($alphaCount >= 10) {
                     $teguranLevel = 10;
                     // But first, we must warn the user if they haven't confirmed yet
-                    if (!$confirm) {
+                    if (! $confirm) {
                         return $this->respond(false, "Peringatan Tingkat III: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Absensi ini MEMERLUKAN VERIFIKASI sebelum tercatat. Lanjutkan?", [
                             'warning_level' => 10,
                             'require_confirm' => true,
-                            '_token' => '_token'
+                            '_token' => '_token',
                         ]);
                     }
                     // If confirmed, proceed but set status
@@ -1055,22 +1104,22 @@ class AttendanceController extends BaseController
                 // If 7-9 days
                 elseif ($alphaCount >= 7) {
                     $teguranLevel = 7;
-                    if (!$confirm) {
+                    if (! $confirm) {
                         return $this->respond(false, "Peringatan Tingkat II: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Harap tingkatkan kehadiran Anda. Lanjutkan?", [
                             'warning_level' => 7,
                             'require_confirm' => true,
-                            '_token' => '_token'
+                            '_token' => '_token',
                         ]);
                     }
                 }
                 // If 3-6 days
                 elseif ($alphaCount >= 3) {
                     $teguranLevel = 3;
-                    if (!$confirm) {
+                    if (! $confirm) {
                         return $this->respond(false, "Peringatan Tingkat I: Anda memiliki $alphaCount hari ketidakhadiran (Alpha) bulan ini. Lanjutkan?", [
                             'warning_level' => 3,
                             'require_confirm' => true,
-                            '_token' => '_token'
+                            '_token' => '_token',
                         ]);
                     }
                 }
@@ -1091,47 +1140,47 @@ class AttendanceController extends BaseController
                 'points' => $points ?? 0,
                 'denda' => $denda ?? 0,
                 'keterangan_denda' => $keteranganDenda ?? null,
-                'keterangan' => $this->request->input('keterangan')
+                'keterangan' => $this->request->input('keterangan'),
             ];
 
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit')) {
+            if (Schema::hasColumn('absensi_harian', 'telat_menit')) {
                 $data['telat_menit'] = $telatMenit;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit')) {
+            if (Schema::hasColumn('absensi_harian', 'datang_awal_menit')) {
                 $data['datang_awal_menit'] = $datangAwalMenit ?? 0;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'ip_address')) {
+            if (Schema::hasColumn('absensi_harian', 'ip_address')) {
                 $data['ip_address'] = $this->request->ip();
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'device_info')) {
+            if (Schema::hasColumn('absensi_harian', 'device_info')) {
                 $userAgent = (string) $this->request->userAgent();
                 if ($timestampLocal) {
                     $userAgent .= ' (Offline Mode Sync)';
                 }
                 $data['device_info'] = $userAgent;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
+            if (Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
                 $data['gps_accuracy'] = $accuracy > 0 ? $accuracy : null;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_mock_location')) {
+            if (Schema::hasColumn('absensi_harian', 'is_mock_location')) {
                 $data['is_mock_location'] = $isMockLocation;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_wfh')) {
+            if (Schema::hasColumn('absensi_harian', 'is_wfh')) {
                 $data['is_wfh'] = $isWfh ? 1 : 0;
             }
 
             // Insert protektif terhadap race condition: UNIQUE(user_id, tgl) di DB
             // adalah penjaga akhir bila dua request paralel lolos cek di atas.
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             // Cap denda dihitung di sini (terkunci FOR UPDATE) agar konsisten
             // dengan baris yang akan di-insert tepat di bawah.
             if (($denda ?? 0) > 0) {
-                $penaltyService = new \App\Services\AttendancePenaltyService();
+                $penaltyService = new AttendancePenaltyService;
                 $capped = $penaltyService->applyMonthlyCap((int) $userId, $today, (float) $denda, $setting, null, true);
                 if ($capped['capped']) {
                     $denda = $capped['total'];
                     $capRp = number_format((float) ($setting->max_denda_bulan ?? 0), 0, ',', '.');
-                    $keteranganDenda = trim(($keteranganDenda ?? '') . " (dibatasi cap bulanan Rp{$capRp})");
+                    $keteranganDenda = trim(($keteranganDenda ?? '')." (dibatasi cap bulanan Rp{$capRp})");
                     $data['denda'] = $denda;
                     $data['keterangan_denda'] = $keteranganDenda;
                 }
@@ -1139,42 +1188,43 @@ class AttendanceController extends BaseController
             try {
                 $insertedId = $this->attendanceModel->insert($data);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
                 if ($this->isDuplicateKeyError($e)) {
-                    return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: ' . $today . ')');
+                    return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: '.$today.')');
                 }
                 throw $e;
             }
             if ($insertedId === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
                 if ($this->attendanceModel->where('user_id', $userId)->where('tgl', $today)->first()) {
-                    return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: ' . $today . ')');
+                    return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: '.$today.')');
                 }
+
                 return $this->respond(false, 'Gagal menyimpan absensi, silakan coba lagi.');
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Pengumuman "guru paling awal hari ini" — dikirim tepat di saat
             // absensi tercatat, bukan lewat cron terpisah. Idempoten per hari,
             // jadi aman dipanggil dari semua jalur check-in.
             try {
-                \App\Services\GuruTerawalService::afterCheckIn($db, $today, $userId);
+                GuruTerawalService::afterCheckIn($db, $today, $userId);
             } catch (\Throwable $e) {
-                Log::error('Pengumuman guru terawal gagal: ' . $e->getMessage());
+                Log::error('Pengumuman guru terawal gagal: '.$e->getMessage());
             }
 
             // Surat teguran dicatat SETELAH insert sukses (bukan sebelumnya).
-            if (!empty($teguranLevel)) {
+            if (! empty($teguranLevel)) {
                 try {
                     $this->recordSuratTeguran($db, $userId, $idGuru, $teguranLevel, date('m', strtotime($today)), date('Y', strtotime($today)));
                 } catch (\Throwable $e) {
-                    Log::error('Gagal mencatat surat teguran: ' . $e->getMessage());
+                    Log::error('Gagal mencatat surat teguran: '.$e->getMessage());
                 }
             }
 
             // AUDIT LOG
             try {
-                $auditModel = new AuditLogModel();
+                $auditModel = new AuditLogModel;
                 $auditModel->log(
                     'absensi_harian',
                     $insertedId,
@@ -1186,23 +1236,27 @@ class AttendanceController extends BaseController
                     $isDinas ? 'Absen Masuk (Dinas)' : ($isWfh ? 'Absen Masuk (WFH)' : 'Absen Masuk')
                 );
             } catch (\Throwable $ex) {
-                Log::error('Failed to create audit log: ' . $ex->getMessage());
+                Log::error('Failed to create audit log: '.$ex->getMessage());
             }
 
             // POIN HISTORY: Sync to poin_history ledger (skip for WFH & Dinas)
-            if (!$isDinas && !$isWfh) {
-                $poinModel = new \App\Models\PoinHistoryModel();
+            if (! $isDinas && ! $isWfh) {
+                $poinModel = new PoinHistoryModel;
                 $poinModel->syncAttendancePoint($insertedId);
             }
 
             // MIKROTIK INTEGRATION: Enable Hotspot User (skip for WFH)
-            if (!$isWfh) {
+            if (! $isWfh) {
                 $this->enableHotspotUser($userId ?? 0);
             }
 
             $msg = 'Check-in berhasil';
-            if ($isDinas) $msg = 'Absen Dinas dicatat. Menunggu verifikasi admin.';
-            if ($isWfh) $msg = 'Absen WFH berhasil dicatat.';
+            if ($isDinas) {
+                $msg = 'Absen Dinas dicatat. Menunggu verifikasi admin.';
+            }
+            if ($isWfh) {
+                $msg = 'Absen WFH berhasil dicatat.';
+            }
             $msg .= $mockWarning;
 
             if ($timestampLocal) {
@@ -1210,15 +1264,15 @@ class AttendanceController extends BaseController
             }
 
             // Add Motivation if Late (not for WFH/Dinas)
-            if (!$isDinas && !$isWfh && ($statusMasuk === 'LATE' || $telatMenit > 0)) {
-                $msg .= "\n\n" . $this->getRandomMotivation();
+            if (! $isDinas && ! $isWfh && ($statusMasuk === 'LATE' || $telatMenit > 0)) {
+                $msg .= "\n\n".$this->getRandomMotivation();
             }
 
             // Siapkan informasi panggilan & suara ucapan (Text-to-Speech)
             $namaGuruLengkap = '';
             $sapaan = 'Bapak atau Ibu';
-            if ($idGuru && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
-                $guruRow = $db->table('master_guru')->select('nama_guru, jenis_kelamin')->where('id_guru', $idGuru)->first();
+            if ($idGuru && Schema::hasTable('master_guru')) {
+                $guruRow = $db->table('master_guru')->select('nama_guru', 'jenis_kelamin')->where('id_guru', $idGuru)->first();
                 if ($guruRow) {
                     $namaGuruLengkap = $guruRow->nama_guru ?? '';
                     $jk = strtoupper(trim((string) ($guruRow->jenis_kelamin ?? '')));
@@ -1230,9 +1284,9 @@ class AttendanceController extends BaseController
                 }
             }
             if (empty($namaGuruLengkap)) {
-                $uRow = $db->table('users')->select('first_name, last_name')->where('id', $userId)->first();
+                $uRow = $db->table('users')->select('first_name', 'last_name')->where('id', $userId)->first();
                 if ($uRow) {
-                    $namaGuruLengkap = trim(($uRow->first_name ?? '') . ' ' . ($uRow->last_name ?? ''));
+                    $namaGuruLengkap = trim(($uRow->first_name ?? '').' '.($uRow->last_name ?? ''));
                 }
             }
 
@@ -1253,7 +1307,7 @@ class AttendanceController extends BaseController
                 $namaBersih = mb_convert_case($namaBersih, MB_CASE_TITLE, 'UTF-8');
             }
 
-            $isLate = (!$isDinas && !$isWfh && ($statusMasuk === 'LATE' || $telatMenit > 0));
+            $isLate = (! $isDinas && ! $isWfh && ($statusMasuk === 'LATE' || $telatMenit > 0));
             $panggilanLengkap = $namaDepan !== '' ? "$sapaan $namaDepan" : $sapaan;
 
             if ($isDinas) {
@@ -1269,8 +1323,8 @@ class AttendanceController extends BaseController
             // Notifikasi keterlambatan ke grup/channel (best-effort, jangan gagalkan check-in)
             if ($isLate) {
                 try {
-                    (new \App\Services\NotificationService())->notifyLateCheckin(
-                        $namaGuruLengkap !== '' ? $namaGuruLengkap : ('User ' . $userId),
+                    (new NotificationService)->notifyLateCheckin(
+                        $namaGuruLengkap !== '' ? $namaGuruLengkap : ('User '.$userId),
                         substr((string) ($recordedTime ?? date('Y-m-d H:i:s')), 11, 5),
                         (int) $telatMenit,
                         // Dipakai untuk memberi tahu guru yang telat secara
@@ -1278,7 +1332,7 @@ class AttendanceController extends BaseController
                         $userId
                     );
                 } catch (\Throwable $e) {
-                    Log::error('Notifikasi telat gagal: ' . $e->getMessage());
+                    Log::error('Notifikasi telat gagal: '.$e->getMessage());
                 }
             }
 
@@ -1287,29 +1341,30 @@ class AttendanceController extends BaseController
             // dinas masuk kecuali membuka menu pending secara manual.
             if ($isDinas) {
                 try {
-                    (new \App\Services\NotificationService())->notifyDinasSubmitted(
-                        $namaGuruLengkap !== '' ? $namaGuruLengkap : ('User ' . $userId),
+                    (new NotificationService)->notifyDinasSubmitted(
+                        $namaGuruLengkap !== '' ? $namaGuruLengkap : ('User '.$userId),
                         $today,
                         $keteranganInput,
                         (int) $userId
                     );
                 } catch (\Throwable $e) {
-                    Log::error('Notifikasi pengajuan dinas gagal: ' . $e->getMessage());
+                    Log::error('Notifikasi pengajuan dinas gagal: '.$e->getMessage());
                 }
             }
 
             return $this->respond(true, $msg, [
                 'status_masuk' => $statusMasuk,
-                'telat_menit'  => (int) $telatMenit,
-                'is_late'      => $isLate,
-                'nama_guru'    => $namaGuruLengkap,
-                'nama_bersih'  => $namaBersih,
-                'nama_depan'   => $namaDepan,
-                'sapaan'       => $sapaan,
-                'voice_text'   => $voiceText,
+                'telat_menit' => (int) $telatMenit,
+                'is_late' => $isLate,
+                'nama_guru' => $namaGuruLengkap,
+                'nama_bersih' => $namaBersih,
+                'nama_depan' => $namaDepan,
+                'sapaan' => $sapaan,
+                'voice_text' => $voiceText,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Check-in Error: ' . $e->getMessage() . ' | Line: ' . $e->getLine());
+            Log::error('Check-in Error: '.$e->getMessage().' | Line: '.$e->getLine());
+
             return $this->respond(false, 'Terjadi kesalahan sistem — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -1319,14 +1374,14 @@ class AttendanceController extends BaseController
      */
     public function checkOut()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
         try {
             // Rate Limiting - Max 5 requests per minute
 
-            $ipKey = 'attendance_out_' . md5($this->request->ip() . session()->get('user_id'));
+            $ipKey = 'attendance_out_'.md5($this->request->ip().session()->get('user_id'));
             if ($this->throttleCheck($ipKey, 5, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
             }
@@ -1340,314 +1395,319 @@ class AttendanceController extends BaseController
             $userId = (int) session()->get('user_id');
             $idGuru = $this->resolveIdGuru($userId);
 
-        // Handle Offline Timestamp — toleransi ±5 menit dari jam server (anti backdate).
-        $timestampLocal = $this->request->input('timestamp');
-        if ($timestampLocal && strtotime($timestampLocal)) {
-            $ts = strtotime($timestampLocal);
-            $serverNow = time();
-            if (abs($serverNow - $ts) > 300) {
-                return $this->respond(false, 'Waktu perangkat tidak valid (selisih lebih dari 5 menit dari server)');
-            }
-            if (date('Y-m-d', $ts) !== date('Y-m-d', $serverNow)) {
-                return $this->respond(false, 'Sync offline hanya bisa untuk hari ini');
-            }
-            $checkOutDate = date('Y-m-d', $ts);
-            $recordedTime = date('Y-m-d H:i:s', $ts);
-            $now = date('H:i:s', $ts);
-        } else {
-            $checkOutDate = date('Y-m-d');
-            $recordedTime = date('Y-m-d H:i:s');
-            $now = date('H:i:s');
-        }
-
-        $todayAttendance = $this->attendanceModel
-            ->where('user_id', $userId)
-            ->where('tgl', $checkOutDate)
-            ->first();
-
-        if (!$todayAttendance) {
-            return $this->respond(false, 'Anda belum absen masuk pada tanggal ' . $checkOutDate);
-        }
-
-        // Baris bisa sudah ada tanpa jam_masuk: alpha dari cron, izin/sakit/
-        // cuti yang disetujui admin, atau dinas yang disetujui retroactive.
-        // Keberadaan baris BUKAN bukti sudah absen masuk — hanya jam_masuk
-        // yang membuktikan. Tanpa guard ini guru bisa absen pulang di baris
-        // yang tidak pernah ia masuki.
-        if (empty($todayAttendance->jam_masuk)) {
-            return $this->respond(false, 'Anda belum absen masuk pada tanggal ' . $checkOutDate
-                . '. Absen pulang hanya bisa dilakukan setelah absen masuk tercatat.');
-        }
-
-        if ($todayAttendance->jam_pulang) {
-            return $this->respond(false, 'Anda sudah absen pulang');
-        }
-
-        $isWfh = (int) ($todayAttendance->is_wfh ?? 0) === 1;
-
-        // GPS Validation (skip for WFH)
-        if ($isWfh) {
-            $isMockLocation = 0;
-            $mockWarning = '';
-        } else {
-            if (!$this->isValidCoordinate($lat, $lng)) {
-                return $this->respond(false, 'Lokasi tidak valid');
-            }
-            $accuracy = (float) $this->request->input('accuracy');
-            if ($accuracy < 0) {
-                return $this->respond(false, 'Akurasi GPS tidak valid');
-            }
-            if ($accuracy > 10000) {
-                return $this->respond(false, 'Akurasi GPS terlalu rendah. Nyalakan GPS dan coba lagi.');
+            // Handle Offline Timestamp — toleransi ±5 menit dari jam server (anti backdate).
+            $timestampLocal = $this->request->input('timestamp');
+            if ($timestampLocal && strtotime($timestampLocal)) {
+                $ts = strtotime($timestampLocal);
+                $serverNow = time();
+                if (abs($serverNow - $ts) > 300) {
+                    return $this->respond(false, 'Waktu perangkat tidak valid (selisih lebih dari 5 menit dari server)');
+                }
+                if (date('Y-m-d', $ts) !== date('Y-m-d', $serverNow)) {
+                    return $this->respond(false, 'Sync offline hanya bisa untuk hari ini');
+                }
+                $checkOutDate = date('Y-m-d', $ts);
+                $recordedTime = date('Y-m-d H:i:s', $ts);
+                $now = date('H:i:s', $ts);
+            } else {
+                $checkOutDate = date('Y-m-d');
+                $recordedTime = date('Y-m-d H:i:s');
+                $now = date('H:i:s');
             }
 
-            $isMockLocation = 0;
-            $mockWarning = '';
+            $todayAttendance = $this->attendanceModel
+                ->where('user_id', $userId)
+                ->where('tgl', $checkOutDate)
+                ->first();
 
-            $mockCheck = $this->detectMockLocation($lat, $lng, $accuracy);
-            $isMockLocation = $mockCheck['is_mock'];
-            if ($mockCheck['strong']) {
-                return $this->respond(false, 'Terdeteksi lokasi palsu (mock location). Matikan aplikasi Fake GPS dan coba lagi.', null, null, 400);
+            if (! $todayAttendance) {
+                return $this->respond(false, 'Anda belum absen masuk pada tanggal '.$checkOutDate);
             }
-            if ($isMockLocation) {
-                $mockWarning = ' ⚠️ Akurasi GPS rendah, data tercatat untuk verifikasi.';
+
+            // Baris bisa sudah ada tanpa jam_masuk: alpha dari cron, izin/sakit/
+            // cuti yang disetujui admin, atau dinas yang disetujui retroactive.
+            // Keberadaan baris BUKAN bukti sudah absen masuk — hanya jam_masuk
+            // yang membuktikan. Tanpa guard ini guru bisa absen pulang di baris
+            // yang tidak pernah ia masuki.
+            if (empty($todayAttendance->jam_masuk)) {
+                return $this->respond(false, 'Anda belum absen masuk pada tanggal '.$checkOutDate
+                    .'. Absen pulang hanya bisa dilakukan setelah absen masuk tercatat.');
             }
-        }
 
-        // --- FACE VERIFICATION (same as checkIn) ---
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $setting = $this->settingModel->first();
-        if (!$setting) {
-            $setting = $this->getDefaultSettings();
-        }
-        // Status dinas saat check-out HANYA mengikuti record check-in yang sudah
-        // berstatus DINAS*. Client tidak bisa menaikkan status jadi dinas lewat
-        // POST is_dinas maupun kata kunci di keterangan (celah bypass geofence).
-        $isDinas = \App\Services\WajibJurnalPulangService::isStatusDinas($todayAttendance->status_masuk ?? '');
+            if ($todayAttendance->jam_pulang) {
+                return $this->respond(false, 'Anda sudah absen pulang');
+            }
 
-        $faceRequired = false;
-        if ($isDinas) {
+            $isWfh = (int) ($todayAttendance->is_wfh ?? 0) === 1;
+
+            // GPS Validation (skip for WFH)
+            if ($isWfh) {
+                $isMockLocation = 0;
+                $mockWarning = '';
+            } else {
+                if (! $this->isValidCoordinate($lat, $lng)) {
+                    return $this->respond(false, 'Lokasi tidak valid');
+                }
+                $accuracy = (float) $this->request->input('accuracy');
+                if ($accuracy < 0) {
+                    return $this->respond(false, 'Akurasi GPS tidak valid');
+                }
+                if ($accuracy > 10000) {
+                    return $this->respond(false, 'Akurasi GPS terlalu rendah. Nyalakan GPS dan coba lagi.');
+                }
+
+                $isMockLocation = 0;
+                $mockWarning = '';
+
+                $mockCheck = $this->detectMockLocation($lat, $lng, $accuracy);
+                $isMockLocation = $mockCheck['is_mock'];
+                if ($mockCheck['strong']) {
+                    return $this->respond(false, 'Terdeteksi lokasi palsu (mock location). Matikan aplikasi Fake GPS dan coba lagi.', null, null, 400);
+                }
+                if ($isMockLocation) {
+                    $mockWarning = ' ⚠️ Akurasi GPS rendah, data tercatat untuk verifikasi.';
+                }
+            }
+
+            // --- FACE VERIFICATION (same as checkIn) ---
+            $db = DB::connection();
+            $setting = $this->settingModel->first();
+            if (! $setting) {
+                $setting = $this->getDefaultSettings();
+            }
+            // Status dinas saat check-out HANYA mengikuti record check-in yang sudah
+            // berstatus DINAS*. Client tidak bisa menaikkan status jadi dinas lewat
+            // POST is_dinas maupun kata kunci di keterangan (celah bypass geofence).
+            $isDinas = WajibJurnalPulangService::isStatusDinas($todayAttendance->status_masuk ?? '');
+
             $faceRequired = false;
-        } elseif ($isWfh) {
-            $faceRequired = $setting && (int) ($setting->wfh_wajib_wajah ?? 1) === 1;
-        } else {
-            $faceRequired = $setting && (int) $setting->foto_wajib === 1;
-        }
-
-        $isAiMatch = ($setting->face_match_mode ?? 'ai_match') === 'ai_match';
-        if ($faceRequired && $isAiMatch) {
-            $faceCheck = $this->verifyFaceDescriptor((string) ($faceDescriptor ?? ''), $db, $setting);
-            if (!$faceCheck['ok']) {
-                return $this->respond(false, $faceCheck['message'], $faceCheck['data'] ?? null);
+            if ($isDinas) {
+                $faceRequired = false;
+            } elseif ($isWfh) {
+                $faceRequired = $setting && (int) ($setting->wfh_wajib_wajah ?? 1) === 1;
+            } else {
+                $faceRequired = $setting && (int) $setting->foto_wajib === 1;
             }
-        }
 
-        // --- VALIDASI JAM PULANG ---
-        $dayOfWeek = date('N', strtotime($checkOutDate));
-        $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
-            $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
-        }
+            $isAiMatch = ($setting->face_match_mode ?? 'ai_match') === 'ai_match';
+            if ($faceRequired && $isAiMatch) {
+                $faceCheck = $this->verifyFaceDescriptor((string) ($faceDescriptor ?? ''), $db, $setting);
+                if (! $faceCheck['ok']) {
+                    return $this->respond(false, $faceCheck['message'], $faceCheck['data'] ?? null);
+                }
+            }
 
-        // Izin pulang awal: flag eksplisit + wajib alasan tertulis (teraudit di kolom keterangan).
-        // Menerima flag baru 'izin_pulang_awal' maupun nilai legacy 'is_dinas=2' dari aplikasi lama.
-        $isEarly = ($this->request->input('izin_pulang_awal') === '1')
-            || ($this->request->input('is_dinas') === '2');
-        if ($isEarly && empty(trim((string) ($this->request->input('keterangan') ?? '')))) {
-            return $this->respond(false, 'Pulang awal wajib mengisi alasan pada kolom keterangan.');
-        }
+            // --- VALIDASI JAM PULANG ---
+            $dayOfWeek = date('N', strtotime($checkOutDate));
+            $jadwal = null;
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
+                $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
+            }
 
-        if ($isWfh) {
-            // WFH: use WFH schedule
-            $jamPulangLimit = ($setting->wfh_selesai ?? '16:00:00');
-        } else {
-            // Jadwal efektif per guru (shift → jadwal harian → setting)
-            $shiftModel = new \App\Models\ShiftModel();
-            $workSchedule = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
-            $jamPulangLimit = $workSchedule['jam_pulang'];
-        }
+            // Izin pulang awal: flag eksplisit + wajib alasan tertulis (teraudit di kolom keterangan).
+            // Menerima flag baru 'izin_pulang_awal' maupun nilai legacy 'is_dinas=2' dari aplikasi lama.
+            $isEarly = ($this->request->input('izin_pulang_awal') === '1')
+                || ($this->request->input('is_dinas') === '2');
+            if ($isEarly && empty(trim((string) ($this->request->input('keterangan') ?? '')))) {
+                return $this->respond(false, 'Pulang awal wajib mengisi alasan pada kolom keterangan.');
+            }
 
-        // STRICT: Tidak boleh pulang sebelum waktunya (kecuali Dinas ATAU WFH ATAU Izin/Early)
-        if (!$isDinas && !$isWfh && !$isEarly && $now < $jamPulangLimit) {
-            return $this->respond(false, "Belum waktunya pulang. Jadwal: $jamPulangLimit");
-        }
-        // --- END VALIDASI ---
+            if ($isWfh) {
+                // WFH: use WFH schedule
+                $jamPulangLimit = ($setting->wfh_selesai ?? '16:00:00');
+            } else {
+                // Jadwal efektif per guru (shift → jadwal harian → setting)
+                $shiftModel = new ShiftModel;
+                $workSchedule = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
+                $jamPulangLimit = $workSchedule['jam_pulang'];
+            }
 
-        // --- WAJIB JURNAL SEBELUM PULANG ---
-        // Kebijakan opsional dari Pengaturan. Guru dengan sesi terjadwal hari
-        // ini wajib sudah mengisi jurnal untuk tiap sesi yang sudah dimulai.
-        // Dinas dikecualikan karena guru tidak mengajar di sekolah; hari libur
-        // juga dikecualikan karena tidak ada KBM yang harus dijurnal.
-        if (!$isDinas) {
-            $sesiKurang = $this->getSessionsBlockingCheckout(
-                (int) $idGuru,
+            // STRICT: Tidak boleh pulang sebelum waktunya (kecuali Dinas ATAU WFH ATAU Izin/Early)
+            if (! $isDinas && ! $isWfh && ! $isEarly && $now < $jamPulangLimit) {
+                return $this->respond(false, "Belum waktunya pulang. Jadwal: $jamPulangLimit");
+            }
+            // --- END VALIDASI ---
+
+            // --- WAJIB JURNAL SEBELUM PULANG ---
+            // Kebijakan opsional dari Pengaturan. Guru dengan sesi terjadwal hari
+            // ini wajib sudah mengisi jurnal untuk tiap sesi yang sudah dimulai.
+            // Dinas dikecualikan karena guru tidak mengajar di sekolah; hari libur
+            // juga dikecualikan karena tidak ada KBM yang harus dijurnal.
+            if (! $isDinas) {
+                $sesiKurang = $this->getSessionsBlockingCheckout(
+                    (int) $idGuru,
+                    $checkOutDate,
+                    (int) $dayOfWeek,
+                    $now,
+                    $setting,
+                    $db
+                );
+
+                if (! empty($sesiKurang)) {
+                    $gate = $this->formatBlockingSessions($sesiKurang, $setting, $checkOutDate, $db);
+
+                    return $this->respond(false, $gate['message'], $gate['data']);
+                }
+            }
+            // --- END WAJIB JURNAL ---
+
+            // Validate geofence (skip for Dinas & WFH)
+            $validDistance = 0;
+            $lokasiId = null;
+
+            if (! $isDinas && ! $isWfh) {
+                $locationRows = [];
+                try {
+                    $locationRows = $db->table('absensi_lokasi')->get();
+                } catch (\Throwable $e) {
+                    Log::error('Failed to load absensi_lokasi table: '.$e->getMessage());
+                }
+
+                if (empty($locationRows)) {
+                    return $this->respond(false, 'Titik lokasi kantor belum dikonfigurasi oleh admin. Hubungi admin sekolah.');
+                }
+
+                $validDistance = null;
+                foreach ($locationRows as $loc) {
+                    $locLat = (float) $loc->lat;
+                    $locLng = (float) $loc->lng;
+                    $radius = (float) (! empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
+                    $dist = distance_meter($lat, $lng, $locLat, $locLng);
+                    if ($dist <= $radius) {
+                        $validDistance = $dist;
+                        $lokasiId = $loc->id;
+                        break;
+                    }
+                }
+
+                if ($validDistance === null) {
+                    return $this->respond(false, 'Di luar area lokasi absensi. Absen pulang di luar lokasi hanya diperbolehkan jika menggunakan Mode Dinas atau WFH.');
+                }
+            }
+
+            $fotoPath = null;
+            if (! empty($foto)) {
+                $fotoPath = $this->saveAbsenPhoto($foto, (int) $userId, 'pulang');
+            }
+
+            if ($fotoPath === null && ! $isWfh && $setting && (int) $setting->foto_wajib === 1) {
+                return $this->respond(false, 'Foto wajib diunggah dan harus valid');
+            }
+
+            $checkoutResult = $this->storeCheckout(
+                (int) $userId,
+                $todayAttendance,
                 $checkOutDate,
-                (int) $dayOfWeek,
-                $now,
+                $recordedTime,
+                $jamPulangLimit,
+                $isWfh,
+                $isDinas,
+                $lat,
+                $lng,
+                $lokasiId,
+                $validDistance,
+                $fotoPath,
+                $accuracy,
+                (int) $isMockLocation,
+                $this->request->input('keterangan'),
                 $setting,
-                $db
+                $isDinas ? 'Absen Pulang (Dinas)' : ($isWfh ? 'Absen Pulang (WFH)' : 'Absen Pulang')
             );
 
-            if (!empty($sesiKurang)) {
-                $gate = $this->formatBlockingSessions($sesiKurang, $setting, $checkOutDate, $db);
-                return $this->respond(false, $gate['message'], $gate['data']);
-            }
-        }
-        // --- END WAJIB JURNAL ---
-
-        // Validate geofence (skip for Dinas & WFH)
-        $validDistance = 0;
-        $lokasiId = null;
-
-        if (!$isDinas && !$isWfh) {
-            $locationRows = [];
-            try {
-                $locationRows = $db->table('absensi_lokasi')->get();
-            } catch (\Throwable $e) {
-                Log::error('Failed to load absensi_lokasi table: ' . $e->getMessage());
+            if (! $checkoutResult['ok']) {
+                return $this->respond(false, $checkoutResult['message']);
             }
 
-            if (empty($locationRows)) {
-                return $this->respond(false, 'Titik lokasi kantor belum dikonfigurasi oleh admin. Hubungi admin sekolah.');
+            $statusPulang = $checkoutResult['status_pulang'];
+            $pulangCepatMenit = $checkoutResult['pulang_cepat_menit'];
+            $totalDenda = $checkoutResult['total_denda'];
+            $existingDenda = $checkoutResult['existing_denda'];
+
+            $msg = 'Absen Pulang berhasil';
+            if ($isWfh) {
+                $msg = 'Absen Pulang WFH berhasil.';
+            }
+            if ($timestampLocal) {
+                $msg .= ' (Sync Offline)';
+            }
+            $msg .= $mockWarning;
+
+            // Add Motivation if Early
+            if (! $isWfh && ($statusPulang === 'EARLY' || $pulangCepatMenit > 0)) {
+                $msg .= "\n\n".$this->getRandomMotivation();
             }
 
-            $validDistance = null;
-            foreach ($locationRows as $loc) {
-                $locLat = (float) $loc->lat;
-                $locLng = (float) $loc->lng;
-                $radius = (float) (!empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
-                $dist = distance_meter($lat, $lng, $locLat, $locLng);
-                if ($dist <= $radius) {
-                    $validDistance = $dist;
-                    $lokasiId = $loc->id;
-                    break;
+            // Siapkan informasi panggilan & suara ucapan pulang (Text-to-Speech)
+            $namaGuruLengkap = '';
+            $sapaan = 'Bapak atau Ibu';
+            $idGuru = $idGuru ?: (int) ($todayAttendance->id_guru ?? 0);
+            if ($idGuru && Schema::hasTable('master_guru')) {
+                $guruRow = $db->table('master_guru')->select('nama_guru', 'jenis_kelamin')->where('id_guru', $idGuru)->first();
+                if ($guruRow) {
+                    $namaGuruLengkap = $guruRow->nama_guru ?? '';
+                    $jk = strtoupper(trim((string) ($guruRow->jenis_kelamin ?? '')));
+                    if ($jk === 'L' || strpos($jk, 'LAKI') !== false) {
+                        $sapaan = 'Bapak';
+                    } elseif ($jk === 'P' || strpos($jk, 'PEREMPUAN') !== false) {
+                        $sapaan = 'Ibu';
+                    }
                 }
             }
-
-            if ($validDistance === null) {
-                return $this->respond(false, 'Di luar area lokasi absensi. Absen pulang di luar lokasi hanya diperbolehkan jika menggunakan Mode Dinas atau WFH.');
-            }
-        }
-
-        $fotoPath = null;
-        if (!empty($foto)) {
-            $fotoPath = $this->saveAbsenPhoto($foto, (int) $userId, 'pulang');
-        }
-
-        if ($fotoPath === null && !$isWfh && $setting && (int) $setting->foto_wajib === 1) {
-            return $this->respond(false, 'Foto wajib diunggah dan harus valid');
-        }
-
-        $checkoutResult = $this->storeCheckout(
-            (int) $userId,
-            $todayAttendance,
-            $checkOutDate,
-            $recordedTime,
-            $jamPulangLimit,
-            $isWfh,
-            $isDinas,
-            $lat,
-            $lng,
-            $lokasiId,
-            $validDistance,
-            $fotoPath,
-            $accuracy,
-            (int) $isMockLocation,
-            $this->request->input('keterangan'),
-            $setting,
-            $isDinas ? 'Absen Pulang (Dinas)' : ($isWfh ? 'Absen Pulang (WFH)' : 'Absen Pulang')
-        );
-
-        if (!$checkoutResult['ok']) {
-            return $this->respond(false, $checkoutResult['message']);
-        }
-
-        $statusPulang = $checkoutResult['status_pulang'];
-        $pulangCepatMenit = $checkoutResult['pulang_cepat_menit'];
-        $totalDenda = $checkoutResult['total_denda'];
-        $existingDenda = $checkoutResult['existing_denda'];
-
-        $msg = 'Absen Pulang berhasil';
-        if ($isWfh) $msg = 'Absen Pulang WFH berhasil.';
-        if ($timestampLocal)
-            $msg .= ' (Sync Offline)';
-        $msg .= $mockWarning;
-
-        // Add Motivation if Early
-        if (!$isWfh && ($statusPulang === 'EARLY' || $pulangCepatMenit > 0)) {
-            $msg .= "\n\n" . $this->getRandomMotivation();
-        }
-
-        // Siapkan informasi panggilan & suara ucapan pulang (Text-to-Speech)
-        $namaGuruLengkap = '';
-        $sapaan = 'Bapak atau Ibu';
-        $idGuru = $idGuru ?: (int) ($todayAttendance->id_guru ?? 0);
-        if ($idGuru && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
-            $guruRow = $db->table('master_guru')->select('nama_guru, jenis_kelamin')->where('id_guru', $idGuru)->first();
-            if ($guruRow) {
-                $namaGuruLengkap = $guruRow->nama_guru ?? '';
-                $jk = strtoupper(trim((string) ($guruRow->jenis_kelamin ?? '')));
-                if ($jk === 'L' || strpos($jk, 'LAKI') !== false) {
-                    $sapaan = 'Bapak';
-                } elseif ($jk === 'P' || strpos($jk, 'PEREMPUAN') !== false) {
-                    $sapaan = 'Ibu';
+            if (empty($namaGuruLengkap)) {
+                $uRow = $db->table('users')->select('first_name', 'last_name')->where('id', $userId)->first();
+                if ($uRow) {
+                    $namaGuruLengkap = trim(($uRow->first_name ?? '').' '.($uRow->last_name ?? ''));
                 }
             }
-        }
-        if (empty($namaGuruLengkap)) {
-            $uRow = $db->table('users')->select('first_name, last_name')->where('id', $userId)->first();
-            if ($uRow) {
-                $namaGuruLengkap = trim(($uRow->first_name ?? '') . ' ' . ($uRow->last_name ?? ''));
+            $namaBersih = preg_replace('/,.*$/', '', $namaGuruLengkap);
+            $namaBersih = preg_replace('/\b(Drs|Dra|Ir|Prof|Dr|H|Hj|Ust|Kh)\.?\b/i', '', $namaBersih);
+            $namaBersih = trim(preg_replace('/\s+/', ' ', $namaBersih));
+
+            // Ambil hanya nama depan saja untuk panggilan suara TTS
+            $namaWords = array_values(array_filter(explode(' ', $namaBersih), static function ($w) {
+                return strlen(rtrim($w, '.')) > 1;
+            }));
+            $namaDepan = $namaWords[0] ?? (explode(' ', $namaBersih)[0] ?? '');
+            if ($namaDepan !== '') {
+                $namaDepan = mb_convert_case($namaDepan, MB_CASE_TITLE, 'UTF-8');
             }
-        }
-        $namaBersih = preg_replace('/,.*$/', '', $namaGuruLengkap);
-        $namaBersih = preg_replace('/\b(Drs|Dra|Ir|Prof|Dr|H|Hj|Ust|Kh)\.?\b/i', '', $namaBersih);
-        $namaBersih = trim(preg_replace('/\s+/', ' ', $namaBersih));
+            if ($namaBersih !== '') {
+                $namaBersih = mb_convert_case($namaBersih, MB_CASE_TITLE, 'UTF-8');
+            }
+            $panggilanLengkap = $namaDepan !== '' ? "$sapaan $namaDepan" : $sapaan;
+            if (! $isWfh && ($statusPulang === 'EARLY' || $pulangCepatMenit > 0)) {
+                $voiceText = "Perhatian $panggilanLengkap. Presensi pulang berhasil, Anda pulang ".(int) $pulangCepatMenit.' menit lebih awal. Hati-hati di jalan .';
+            } else {
+                $voiceText = "Terima kasih $panggilanLengkap. Presensi pulang berhasil. Hati-hati di jalan .";
+            }
 
-        // Ambil hanya nama depan saja untuk panggilan suara TTS
-        $namaWords = array_values(array_filter(explode(' ', $namaBersih), static function ($w) {
-            return strlen(rtrim($w, '.')) > 1;
-        }));
-        $namaDepan = $namaWords[0] ?? (explode(' ', $namaBersih)[0] ?? '');
-        if ($namaDepan !== '') {
-            $namaDepan = mb_convert_case($namaDepan, MB_CASE_TITLE, 'UTF-8');
-        }
-        if ($namaBersih !== '') {
-            $namaBersih = mb_convert_case($namaBersih, MB_CASE_TITLE, 'UTF-8');
-        }
-        $panggilanLengkap = $namaDepan !== '' ? "$sapaan $namaDepan" : $sapaan;
-        if (!$isWfh && ($statusPulang === 'EARLY' || $pulangCepatMenit > 0)) {
-            $voiceText = "Perhatian $panggilanLengkap. Presensi pulang berhasil, Anda pulang " . (int) $pulangCepatMenit . " menit lebih awal. Hati-hati di jalan .";
-        } else {
-            $voiceText = "Terima kasih $panggilanLengkap. Presensi pulang berhasil. Hati-hati di jalan .";
-        }
+            $this->notifyEarlyCheckoutDenda(
+                (int) $userId,
+                (int) $idGuru,
+                $isDinas,
+                $isWfh,
+                $statusPulang,
+                (int) $pulangCepatMenit,
+                (float) $totalDenda,
+                (float) $existingDenda,
+                $namaGuruLengkap
+            );
 
-        $this->notifyEarlyCheckoutDenda(
-            (int) $userId,
-            (int) $idGuru,
-            $isDinas,
-            $isWfh,
-            $statusPulang,
-            (int) $pulangCepatMenit,
-            (float) $totalDenda,
-            (float) $existingDenda,
-            $namaGuruLengkap
-        );
+            return $this->respond(true, $msg, [
+                'status_pulang' => $statusPulang,
+                'pulang_cepat_menit' => (int) $pulangCepatMenit,
+                'nama_guru' => $namaGuruLengkap,
+                'nama_bersih' => $namaBersih,
+                'nama_depan' => $namaDepan,
+                'sapaan' => $sapaan,
+                'voice_text' => $voiceText,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Check-out Error: '.$e->getMessage().' | Line: '.$e->getLine());
 
-        return $this->respond(true, $msg, [
-            'status_pulang' => $statusPulang,
-            'pulang_cepat_menit' => (int) $pulangCepatMenit,
-            'nama_guru' => $namaGuruLengkap,
-            'nama_bersih' => $namaBersih,
-            'nama_depan' => $namaDepan,
-            'sapaan' => $sapaan,
-            'voice_text' => $voiceText,
-        ]);
-    } catch (\Throwable $e) {
-        Log::error('Check-out Error: ' . $e->getMessage() . ' | Line: ' . $e->getLine());
-        return $this->respond(false, 'Terjadi kesalahan sistem saat check-out — periksa log aplikasi.', null, null, 500);
+            return $this->respond(false, 'Terjadi kesalahan sistem saat check-out — periksa log aplikasi.', null, null, 500);
+        }
     }
-}
 
     /**
      * Notifikasi denda pulang awal (hanya porsi baru hari ini, best-effort).
@@ -1674,14 +1734,14 @@ class AttendanceController extends BaseController
 
         if ($namaGuru === '') {
             try {
-                $db = \Illuminate\Support\Facades\DB::connection();
+                $db = DB::connection();
                 if ($idGuru > 0) {
                     $row = $db->table('master_guru')->select('nama_guru')->where('id_guru', $idGuru)->first();
                     $namaGuru = trim((string) ($row->nama_guru ?? ''));
                 }
                 if ($namaGuru === '') {
-                    $row = $db->table('users')->select('first_name, last_name')->where('id', $userId)->first();
-                    $namaGuru = trim(((string) ($row->first_name ?? '')) . ' ' . ((string) ($row->last_name ?? '')));
+                    $row = $db->table('users')->select('first_name', 'last_name')->where('id', $userId)->first();
+                    $namaGuru = trim(((string) ($row->first_name ?? '')).' '.((string) ($row->last_name ?? '')));
                 }
             } catch (\Throwable $e) {
                 $namaGuru = '';
@@ -1689,14 +1749,14 @@ class AttendanceController extends BaseController
         }
 
         try {
-            (new \App\Services\NotificationService())->notifyDenda(
-                $namaGuru !== '' ? $namaGuru : ('User ' . $userId),
+            (new NotificationService)->notifyDenda(
+                $namaGuru !== '' ? $namaGuru : ('User '.$userId),
                 $dendaBaru,
-                'Pulang Awal ' . $pulangCepatMenit . ' menit',
+                'Pulang Awal '.$pulangCepatMenit.' menit',
                 $userId
             );
         } catch (\Throwable $e) {
-            Log::error('Notifikasi denda pulang awal gagal: ' . $e->getMessage());
+            Log::error('Notifikasi denda pulang awal gagal: '.$e->getMessage());
         }
     }
 
@@ -1716,7 +1776,7 @@ class AttendanceController extends BaseController
         $setting,
         $db
     ): array {
-        return \App\Services\WajibJurnalPulangService::sesiYangMenahan(
+        return WajibJurnalPulangService::sesiYangMenahan(
             $idGuru,
             $checkOutDate,
             $setting,
@@ -1732,16 +1792,16 @@ class AttendanceController extends BaseController
      * Pada mode ketat, nama guru piket penanggung jawab validasi ikut disebut
      * agar guru tahu harus minta persetujuan ke siapa.
      *
-     * @param array<int,object> $sesiKurang
+     * @param  array<int,object>  $sesiKurang
      * @return array{message:string,data:array}
      */
     private function formatBlockingSessions(array $sesiKurang, $setting = null, string $tanggal = '', $db = null): array
     {
-        $petugas = \App\Services\WajibJurnalPulangService::butuhValidasi($setting)
-            ? \App\Services\WajibJurnalPulangService::petugasValidasi($tanggal, $db)
+        $petugas = WajibJurnalPulangService::butuhValidasi($setting)
+            ? WajibJurnalPulangService::petugasValidasi($tanggal, $db)
             : [];
 
-        return \App\Services\WajibJurnalPulangService::pesanLengkap($sesiKurang, $petugas);
+        return WajibJurnalPulangService::pesanLengkap($sesiKurang, $petugas);
     }
 
     /**
@@ -1769,9 +1829,9 @@ class AttendanceController extends BaseController
         $setting,
         string $auditNote
     ): array {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        $threshold = strtotime($checkOutDate . ' ' . $jamPulangLimit);
+        $threshold = strtotime($checkOutDate.' '.$jamPulangLimit);
         $checkTime = strtotime($recordedTime);
 
         $earlyPoints = 0;
@@ -1821,9 +1881,9 @@ class AttendanceController extends BaseController
 
         // Update keterangan denda
         $existingKeterangan = $isDinas ? null : ($todayAttendance->keterangan_denda ?? null);
-        if ($keteranganDendaUpdate && !$isDinas) {
+        if ($keteranganDendaUpdate && ! $isDinas) {
             if ($existingKeterangan) {
-                $existingKeterangan .= "; " . $keteranganDendaUpdate;
+                $existingKeterangan .= '; '.$keteranganDendaUpdate;
             } else {
                 $existingKeterangan = $keteranganDendaUpdate;
             }
@@ -1833,15 +1893,15 @@ class AttendanceController extends BaseController
         // Baris ini dikecualikan dari penjumlahan agar tidak dihitung ganda.
         // Seluruh baca-cap + tulis dibungkus transaksi agar dua check-out
         // paralel tidak sama-sama lolos cap.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            if (!$isDinas && $totalDenda > 0) {
-                $penaltyService = new \App\Services\AttendancePenaltyService();
+            if (! $isDinas && $totalDenda > 0) {
+                $penaltyService = new AttendancePenaltyService;
                 $capped = $penaltyService->applyMonthlyCap($userId, $checkOutDate, (float) $totalDenda, $setting, (int) $todayAttendance->id, true);
                 if ($capped['capped']) {
                     $totalDenda = $capped['total'];
-                    $capNote = '(dibatasi cap bulanan Rp ' . number_format($totalDenda, 0, ',', '.') . ')';
-                    $existingKeterangan = $existingKeterangan ? $existingKeterangan . ' ' . $capNote : $capNote;
+                    $capNote = '(dibatasi cap bulanan Rp '.number_format($totalDenda, 0, ',', '.').')';
+                    $existingKeterangan = $existingKeterangan ? $existingKeterangan.' '.$capNote : $capNote;
                 }
             }
 
@@ -1850,7 +1910,7 @@ class AttendanceController extends BaseController
             $ketLama = trim((string) ($todayAttendance->keterangan ?? ''));
             $ketBaru = trim((string) ($keterangan ?? ''));
             $keteranganFinal = ($ketBaru === '') ? ($ketLama !== '' ? $ketLama : null)
-                : ($ketLama !== '' && strpos($ketLama, $ketBaru) === false ? $ketLama . ' | Pulang: ' . $ketBaru : $ketBaru);
+                : ($ketLama !== '' && strpos($ketLama, $ketBaru) === false ? $ketLama.' | Pulang: '.$ketBaru : $ketBaru);
 
             $updateData = [
                 'jam_pulang' => $recordedTime,
@@ -1867,13 +1927,13 @@ class AttendanceController extends BaseController
                 'keterangan' => $keteranganFinal,
             ];
 
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit')) {
+            if (Schema::hasColumn('absensi_harian', 'pulang_akhir_menit')) {
                 $updateData['pulang_akhir_menit'] = $pulangAkhirMenit;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
+            if (Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
                 $updateData['gps_accuracy'] = $accuracy > 0 ? $accuracy : null;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_mock_location')) {
+            if (Schema::hasColumn('absensi_harian', 'is_mock_location')) {
                 $updateData['is_mock_location'] = $isMockLocation;
             }
 
@@ -1882,16 +1942,17 @@ class AttendanceController extends BaseController
             // sehingga poin/denda tidak terakumulasi ganda.
             $checkoutBuilder = $db->table('absensi_harian');
             $checkoutBuilder->where('id', $todayAttendance->id);
-            $checkoutBuilder->where('jam_pulang IS NULL', null, false);
+            $checkoutBuilder->whereNull('jam_pulang');
             $checkoutBuilder->update($updateData);
             if (1 === 0) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return ['ok' => false, 'message' => 'Anda sudah absen pulang'];
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
             try {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
             } catch (\Throwable $e2) {
             }
             throw $e;
@@ -1899,7 +1960,7 @@ class AttendanceController extends BaseController
 
         // AUDIT LOG
         try {
-            $auditModel = new AuditLogModel();
+            $auditModel = new AuditLogModel;
             $auditModel->log(
                 'absensi_harian',
                 $todayAttendance->id,
@@ -1911,15 +1972,15 @@ class AttendanceController extends BaseController
                 $auditNote
             );
         } catch (\Throwable $ex) {
-            Log::error('Failed to create audit log: ' . $ex->getMessage());
+            Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
         // POIN HISTORY: Sync checkout delta to poin_history ledger (skip WFH)
-        if (!$isDinas && !$isWfh) {
+        if (! $isDinas && ! $isWfh) {
             try {
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($todayAttendance->id);
+                (new PoinHistoryModel)->syncAttendancePoint($todayAttendance->id);
             } catch (\Throwable $ex) {
-                Log::error('Sync poin check-out gagal: ' . $ex->getMessage());
+                Log::error('Sync poin check-out gagal: '.$ex->getMessage());
             }
         }
 
@@ -1943,6 +2004,7 @@ class AttendanceController extends BaseController
         if ($lng < -180 || $lng > 180) {
             return false;
         }
+
         return true;
     }
 
@@ -1971,6 +2033,7 @@ class AttendanceController extends BaseController
         if ($accuracy > 100) {
             return ['is_mock' => 1, 'strong' => false];
         }
+
         return ['is_mock' => 0, 'strong' => false];
     }
 
@@ -1982,6 +2045,7 @@ class AttendanceController extends BaseController
         if ((int) $e->getCode() === 1062) {
             return true;
         }
+
         return stripos($e->getMessage(), 'uplicate') !== false;
     }
 
@@ -1995,7 +2059,7 @@ class AttendanceController extends BaseController
             return ['ok' => false, 'message' => 'Verifikasi wajah gagal: data wajah tidak ditemukan. Silakan coba lagi.'];
         }
         $descriptorArr = json_decode($faceDescriptor, true);
-        if (!is_array($descriptorArr) || count($descriptorArr) !== 128) {
+        if (! is_array($descriptorArr) || count($descriptorArr) !== 128) {
             return ['ok' => false, 'message' => 'Verifikasi wajah gagal: data wajah tidak valid.'];
         }
         $storedRow = $db->table('users')
@@ -2007,7 +2071,7 @@ class AttendanceController extends BaseController
             return ['ok' => false, 'message' => 'Silakan daftarkan wajah terlebih dahulu di menu Profil sebelum absen.'];
         }
         $storedArr = json_decode($storedDescriptor, true);
-        if (!is_array($storedArr) || count($storedArr) !== 128) {
+        if (! is_array($storedArr) || count($storedArr) !== 128) {
             return ['ok' => false, 'message' => 'Data wajah profil rusak. Silakan daftarkan ulang di menu Profil.'];
         }
         $distance = $this->euclideanDistance($descriptorArr, $storedArr);
@@ -2016,7 +2080,7 @@ class AttendanceController extends BaseController
         if ($distance > $faceThreshold) {
             return [
                 'ok' => false,
-                'message' => 'Wajah tidak cocok dengan data profil (Tingkat kemiripan: ' . $matchScore . '%). Pastikan pencahayaan cukup dan wajah menghadap kamera.',
+                'message' => 'Wajah tidak cocok dengan data profil (Tingkat kemiripan: '.$matchScore.'%). Pastikan pencahayaan cukup dan wajah menghadap kamera.',
                 'data' => [
                     'face_match_score' => $matchScore,
                     'face_distance' => round($distance, 3),
@@ -2024,6 +2088,7 @@ class AttendanceController extends BaseController
                 ],
             ];
         }
+
         return ['ok' => true, 'message' => 'Wajah cocok.'];
     }
 
@@ -2040,7 +2105,7 @@ class AttendanceController extends BaseController
         $seen = [];
         $out = [];
         foreach ($rows as $row) {
-            if (!is_object($row)) {
+            if (! is_object($row)) {
                 continue;
             }
             $uid = (int) ($row->user_id ?? 0);
@@ -2051,17 +2116,19 @@ class AttendanceController extends BaseController
             $out[] = $row;
         }
         usort($out, static fn ($a, $b) => strcmp((string) ($b->updated_at ?? ''), (string) ($a->updated_at ?? '')));
+
         return array_slice($out, 0, 10);
     }
 
     public function mobile()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $this->patchAbsensiHarianTable();
             $this->patchAbsensiKoreksiTable();
         } catch (\Throwable $e) {
@@ -2070,7 +2137,7 @@ class AttendanceController extends BaseController
 
         $setting = $this->getDefaultSettings();
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+            if ($db && Schema::hasTable('absensi_setting')) {
                 $loadedSetting = $this->settingModel->first();
                 if ($loadedSetting) {
                     $setting = $loadedSetting;
@@ -2081,35 +2148,37 @@ class AttendanceController extends BaseController
 
         $todayAttendance = null;
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if ($db && Schema::hasTable('absensi_harian')) {
                 $builder = $this->attendanceModel
                     ->select('absensi_harian.*')
                     ->where('absensi_harian.user_id', session()->get('user_id'))
                     ->where('absensi_harian.tgl', date('Y-m-d'));
 
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_lokasi')) {
+                if (Schema::hasTable('absensi_lokasi')) {
                     $builder
-                        ->select('loc_in.nama_lokasi as nama_lokasi_masuk, loc_out.nama_lokasi as nama_lokasi_pulang')
-                        ->join('absensi_lokasi as loc_in', 'loc_in.id = absensi_harian.lokasi_masuk_id', 'left')
-                        ->join('absensi_lokasi as loc_out', 'loc_out.id = absensi_harian.lokasi_pulang_id', 'left');
+                        ->addSelect('loc_in.nama_lokasi as nama_lokasi_masuk', 'loc_out.nama_lokasi as nama_lokasi_pulang')
+                        ->leftJoin('absensi_lokasi as loc_in', 'loc_in.id', '=', 'absensi_harian.lokasi_masuk_id')
+                        ->leftJoin('absensi_lokasi as loc_out', 'loc_out.id', '=', 'absensi_harian.lokasi_pulang_id');
                 }
 
                 $todayAttendance = $builder->first();
 
                 // Auto-normalize lembur (pulang_akhir_menit) jika kurang dari 1 jam (60 menit)
-                if ($todayAttendance && !empty($todayAttendance->jam_pulang) && !empty($todayAttendance->pulang_akhir_menit)) {
+                if ($todayAttendance && ! empty($todayAttendance->jam_pulang) && ! empty($todayAttendance->pulang_akhir_menit)) {
                     $jadwalPulang = $todayAttendance->jadwal_pulang ?? ($setting->jam_pulang ?? '15:00:00');
                     $dayOfWeek = date('N', strtotime($todayAttendance->tgl));
-                    if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+                    if (Schema::hasTable('absensi_jadwal_kerja')) {
                         $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
-                        if ($jadwal && !empty($jadwal->jam_pulang)) $jadwalPulang = $jadwal->jam_pulang;
+                        if ($jadwal && ! empty($jadwal->jam_pulang)) {
+                            $jadwalPulang = $jadwal->jam_pulang;
+                        }
                     }
-                    $tsThreshold = strtotime($todayAttendance->tgl . ' ' . $jadwalPulang);
+                    $tsThreshold = strtotime($todayAttendance->tgl.' '.$jadwalPulang);
                     $tsPulang = strtotime($todayAttendance->jam_pulang);
                     if ($tsPulang > $tsThreshold) {
                         $diffMin = (int) floor(($tsPulang - $tsThreshold) / 60);
                         $correctLembur = ($diffMin >= 60) ? ($diffMin - 60) : 0;
-                        if ((int)$todayAttendance->pulang_akhir_menit !== $correctLembur) {
+                        if ((int) $todayAttendance->pulang_akhir_menit !== $correctLembur) {
                             $todayAttendance->pulang_akhir_menit = $correctLembur;
                             $db->table('absensi_harian')->where('id', $todayAttendance->id)->update(['pulang_akhir_menit' => $correctLembur]);
                         }
@@ -2122,7 +2191,7 @@ class AttendanceController extends BaseController
 
         $todayPermit = null;
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            if ($db && Schema::hasTable('absensi_izin')) {
                 $todayDate = date('Y-m-d');
                 $todayPermit = $db->table('absensi_izin')
                     ->where('user_id', session()->get('user_id'))
@@ -2131,10 +2200,10 @@ class AttendanceController extends BaseController
                     ->orderBy('id', 'DESC')
                     ->first();
 
-                if (!$todayPermit) {
+                if (! $todayPermit) {
                     $todayPermit = $db->table('absensi_izin')
                         ->where('user_id', session()->get('user_id'))
-                        ->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)
+                        ->whereIn('status', LeaveModel::STATUS_PENDING)
                         ->whereRaw("'$todayDate' BETWEEN tgl_mulai AND tgl_selesai")
                         ->orderBy('id', 'DESC')
                         ->first();
@@ -2149,17 +2218,21 @@ class AttendanceController extends BaseController
         } catch (\Throwable $e) {
             $user = null;
         }
-        if (!$user) {
+        if (! $user) {
             return redirect()->to('auth')->with('error', 'Sesi tidak valid');
         }
 
         if ($user) {
-            $this->resolveIdGuru((int)$user->id);
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            $this->resolveIdGuru((int) $user->id);
+            if ($db && Schema::hasTable('master_guru')) {
                 $guruRow = $db->table('master_guru')->where('id_user', $user->id)->first();
                 if ($guruRow) {
-                    if (!empty($guruRow->nama_guru)) $user->nama_guru = $guruRow->nama_guru;
-                    if (!empty($guruRow->foto)) $user->foto = $guruRow->foto;
+                    if (! empty($guruRow->nama_guru)) {
+                        $user->nama_guru = $guruRow->nama_guru;
+                    }
+                    if (! empty($guruRow->foto)) {
+                        $user->foto = $guruRow->foto;
+                    }
                     $user->nip = $guruRow->nip ?? '';
                     $user->kode_guru = $guruRow->kode_guru ?? '';
                     $user->nuptk = $guruRow->nuptk ?? '';
@@ -2171,7 +2244,7 @@ class AttendanceController extends BaseController
         }
 
         // Check if face is registered
-        $faceRegistered = !empty($user->face_descriptor);
+        $faceRegistered = ! empty($user->face_descriptor);
 
         // Dynamic Greeting
         $holidayReason = null;
@@ -2180,74 +2253,84 @@ class AttendanceController extends BaseController
         } catch (\Throwable $e) {
             $holidayReason = null;
         }
-        $greetingMsg = "Selamat Beraktivitas!";
+        $greetingMsg = 'Selamat Beraktivitas!';
 
         if ($holidayReason) {
             if (strpos($holidayReason, 'mingguan') !== false) {
-                $greetingMsg = "Selamat berakhir pekan! Nikmati waktu istirahat Anda.";
+                $greetingMsg = 'Selamat berakhir pekan! Nikmati waktu istirahat Anda.';
             } else {
                 $cleanReason = str_replace('Hari ini libur: ', '', $holidayReason);
-                $greetingMsg = "Selamat berlibur! " . $cleanReason;
+                $greetingMsg = 'Selamat berlibur! '.$cleanReason;
             }
         }
 
         // Data Absensi Guru Lain Hari Ini (Comparison)
         $others = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
-                $hasIzinTable = \Illuminate\Support\Facades\Schema::hasTable('absensi_izin');
-                $selectFields = 'ah.*, users.first_name, users.last_name, users.foto as user_foto, users.username, mg.nama_guru, mg.foto as guru_foto';
-                
+            if ($db && Schema::hasTable('absensi_harian')) {
+                $hasIzinTable = Schema::hasTable('absensi_izin');
+                $selectFields = ['ah.*', 'users.first_name', 'users.last_name', 'users.foto as user_foto', 'users.username', 'mg.nama_guru', 'mg.foto as guru_foto'];
+
                 if ($hasIzinTable) {
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'keterangan')) {
-                        $selectFields .= ', ai.keterangan as izin_keterangan';
+                    if (Schema::hasColumn('absensi_izin', 'keterangan')) {
+                        $selectFields[] = 'ai.keterangan as izin_keterangan';
                     }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'alasan')) {
-                        $selectFields .= ', ai.alasan as izin_alasan';
+                    if (Schema::hasColumn('absensi_izin', 'alasan')) {
+                        $selectFields[] = 'ai.alasan as izin_alasan';
                     }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'jenis')) {
-                        $selectFields .= ', ai.jenis as izin_jenis';
+                    if (Schema::hasColumn('absensi_izin', 'jenis')) {
+                        $selectFields[] = 'ai.jenis as izin_jenis';
                     }
 
                     $builder = $db->table('absensi_harian as ah')
                         ->select($selectFields)
-                        ->join('users', 'users.id = ah.user_id')
-                        ->join('master_guru as mg', 'mg.id_user = users.id OR mg.id_guru = ah.id_guru', 'left')
-                        ->join('absensi_izin as ai', "ai.user_id = ah.user_id AND ai.status = 'approved' AND '" . date('Y-m-d') . "' BETWEEN ai.tgl_mulai AND ai.tgl_selesai", 'left')
+                        ->join('users', 'users.id', '=', 'ah.user_id')
+                        ->leftJoin('master_guru as mg', function ($join) {
+                            $join->on('mg.id_user', '=', 'users.id')->orOn('mg.id_guru', '=', 'ah.id_guru');
+                        })
+                        ->leftJoin('absensi_izin as ai', function ($join) {
+                            $join->on('ai.user_id', '=', 'ah.user_id')
+                                ->where('ai.status', '=', 'approved')
+                                ->whereRaw('? BETWEEN ai.tgl_mulai AND ai.tgl_selesai', [date('Y-m-d')]);
+                        })
                         ->where('ah.tgl', date('Y-m-d'))
                         ->where('ah.user_id', '!=', $user->id)
                         ->orderBy('ah.updated_at', 'DESC')
                         ->limit(10);
-                    $others = $builder->get()->getResultObject();
+                    $others = $builder->get()->all();
                     $others = $this->unikkanKartuActivity($others);
 
                     // Juga sertakan guru yang izin/sakit/cuti disetujui hari ini namun belum tercatat di absensi_harian
-                    $existingUserIds = array_filter(array_map(fn($item) => (int)($item->user_id ?? 0), $others));
-                    $existingUserIds[] = (int)$user->id;
+                    $existingUserIds = array_filter(array_map(fn ($item) => (int) ($item->user_id ?? 0), $others));
+                    $existingUserIds[] = (int) $user->id;
 
-                    $leaveSelect = 'ai.user_id, ai.id_guru, ai.jenis as izin_jenis, ai.updated_at, users.first_name, users.last_name, users.foto as user_foto, users.username, mg.nama_guru, mg.foto as guru_foto';
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'keterangan')) {
-                        $leaveSelect .= ', ai.keterangan as izin_keterangan';
+                    $leaveSelect = ['ai.user_id', 'ai.id_guru', 'ai.jenis as izin_jenis', 'ai.updated_at', 'users.first_name', 'users.last_name', 'users.foto as user_foto', 'users.username', 'mg.nama_guru', 'mg.foto as guru_foto'];
+                    if (Schema::hasColumn('absensi_izin', 'keterangan')) {
+                        $leaveSelect[] = 'ai.keterangan as izin_keterangan';
                     }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'alasan')) {
-                        $leaveSelect .= ', ai.alasan as izin_alasan';
+                    if (Schema::hasColumn('absensi_izin', 'alasan')) {
+                        $leaveSelect[] = 'ai.alasan as izin_alasan';
                     }
 
                     $leavesTodayBuilder = $db->table('absensi_izin as ai')
                         ->select($leaveSelect)
-                        ->join('users', 'users.id = ai.user_id')
-                        ->join('master_guru as mg', 'mg.id_user = users.id OR mg.id_guru = ai.id_guru', 'left')
+                        ->join('users', 'users.id', '=', 'ai.user_id')
+                        ->leftJoin('master_guru as mg', function ($join) {
+                            $join->on('mg.id_user', '=', 'users.id')->orOn('mg.id_guru', '=', 'ai.id_guru');
+                        })
                         ->where('ai.status', 'approved')
-                        ->whereRaw("'" . date('Y-m-d') . "' BETWEEN ai.tgl_mulai AND ai.tgl_selesai");
+                        ->whereRaw("'".date('Y-m-d')."' BETWEEN ai.tgl_mulai AND ai.tgl_selesai");
 
-                    if (!empty($existingUserIds)) {
+                    if (! empty($existingUserIds)) {
                         $leavesTodayBuilder->whereNotIn('ai.user_id', $existingUserIds);
                     }
 
-                    $leavesToday = $leavesTodayBuilder->limit(5)->get()->getResultObject();
+                    $leavesToday = $leavesTodayBuilder->limit(5)->get()->all();
                     foreach ($leavesToday as $l) {
                         $jUpper = strtoupper($l->izin_jenis ?? 'IZIN');
-                        if (in_array($jUpper, ['IJIN', 'IZIN'])) $jUpper = 'IJIN';
+                        if (in_array($jUpper, ['IJIN', 'IZIN'])) {
+                            $jUpper = 'IJIN';
+                        }
                         $l->status_masuk = $jUpper;
                         $l->status_pulang = $jUpper;
                         $l->keterangan = $l->izin_keterangan ?? $l->izin_alasan ?? '';
@@ -2261,9 +2344,11 @@ class AttendanceController extends BaseController
                     $others = $this->unikkanKartuActivity($others);
                 } else {
                     $others = $this->attendanceModel
-                        ->select('absensi_harian.*, users.first_name, users.last_name, users.foto as user_foto, users.username, mg.nama_guru, mg.foto as guru_foto')
-                        ->join('users', 'users.id = absensi_harian.user_id')
-                        ->join('master_guru as mg', 'mg.id_user = users.id OR mg.id_guru = absensi_harian.id_guru', 'left')
+                        ->select('absensi_harian.*', 'users.first_name', 'users.last_name', 'users.foto as user_foto', 'users.username', 'mg.nama_guru', 'mg.foto as guru_foto')
+                        ->join('users', 'users.id', '=', 'absensi_harian.user_id')
+                        ->leftJoin('master_guru as mg', function ($join) {
+                            $join->on('mg.id_user', '=', 'users.id')->orOn('mg.id_guru', '=', 'absensi_harian.id_guru');
+                        })
                         ->where('absensi_harian.tgl', date('Y-m-d'))
                         ->where('absensi_harian.user_id', '!=', $user->id)
                         ->orderBy('absensi_harian.updated_at', 'DESC')
@@ -2279,67 +2364,69 @@ class AttendanceController extends BaseController
         $disciplineRanking = [];
         $lazyRanking = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian') && \Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\Schema::hasTable('users_groups')) {
+            if ($db && Schema::hasTable('absensi_harian') && Schema::hasTable('users') && Schema::hasTable('users_groups')) {
                 $monthPrefix = date('Y-m');
-                $hasTelatMenit = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit');
-                $hasPulangCepat = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
-                $hasDatangAwal = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit');
-                $hasPulangAkhir = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
+                $hasTelatMenit = Schema::hasColumn('absensi_harian', 'telat_menit');
+                $hasPulangCepat = Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
+                $hasDatangAwal = Schema::hasColumn('absensi_harian', 'datang_awal_menit');
+                $hasPulangAkhir = Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
 
                 // Rumus skor kanonik ada di AttendancePolicy supaya angka di
                 // presensi, ranking, dan poin_history guru tidak berbeda lagi.
-                $scoreExpr = \App\Services\AttendancePolicy::sqlExprSkorHarian('a', [
-                    'telat_menit'        => $hasTelatMenit,
+                $scoreExpr = AttendancePolicy::sqlExprSkorHarian('a', [
+                    'telat_menit' => $hasTelatMenit,
                     'pulang_cepat_menit' => $hasPulangCepat,
-                    'datang_awal_menit'  => $hasDatangAwal,
+                    'datang_awal_menit' => $hasDatangAwal,
                     'pulang_akhir_menit' => $hasPulangAkhir,
                 ]);
 
                 $builder = $db->table('absensi_harian as a')
-                    ->select("a.user_id, u.first_name, u.last_name, u.username, u.foto as user_foto, mg.nama_guru, mg.foto as guru_foto")
-                    ->select(\App\Services\AttendancePolicy::sqlTermHadir('a') . ' as total_hadir', false)
-                    ->select("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime", false)
-                    ->select("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late", false)
-                    ->select($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : "0 as total_telat_menit", false)
-                    ->select($hasDatangAwal ? "COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal" : "0 as total_datang_awal", false)
-                    ->select($hasPulangAkhir ? "COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir" : "0 as total_pulang_akhir", false)
-                    ->select("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda", false)
-                    ->select("$scoreExpr as score", false)
-                    ->join('users as u', 'u.id = a.user_id')
-                    ->join('users_groups as ug', 'ug.user_id = u.id')
-                    ->join('master_guru as mg', 'mg.id_user = u.id', 'left')
+                    ->select('a.user_id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto as user_foto', 'mg.nama_guru', 'mg.foto as guru_foto')
+                    ->selectRaw(AttendancePolicy::sqlTermHadir('a').' as total_hadir')
+                    ->selectRaw("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime")
+                    ->selectRaw("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late")
+                    ->selectRaw($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : '0 as total_telat_menit')
+                    ->selectRaw($hasDatangAwal ? 'COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal' : '0 as total_datang_awal')
+                    ->selectRaw($hasPulangAkhir ? 'COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir' : '0 as total_pulang_akhir')
+                    ->selectRaw("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda")
+                    ->selectRaw("$scoreExpr as score")
+                    ->join('users as u', 'u.id', '=', 'a.user_id')
+                    ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
+                    ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'u.id')
                     ->where('ug.group_id', 2)
                     // Kecualikan akun yang juga terdaftar sebagai siswa (cegah siswa nyasar ke ranking guru)
-                    ->where('u.id NOT IN (SELECT user_id FROM users_groups WHERE group_id = 3)', null, false)
+                    ->whereRaw('u.id NOT IN (SELECT user_id FROM users_groups WHERE group_id = 3)')
                     ->where('u.active', 1)
-                    ->where('a.tgl', 'like', $monthPrefix . '%')
-                    ->groupBy('a.user_id, u.first_name, u.last_name, u.username, u.foto, mg.nama_guru, mg.foto');
+                    ->where('a.tgl', 'like', $monthPrefix.'%')
+                    ->groupBy('a.user_id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'mg.nama_guru', 'mg.foto');
 
                 // 3 Guru Paling Disiplin (Top Skor)
-                $disciplineRanking = (clone $builder)->orderBy('score', 'DESC', false)->limit(3)->get();
+                $disciplineRanking = (clone $builder)->orderBy('score', 'DESC')->limit(3)->get();
 
                 // Kriteria Guru Perlu Perhatian: diutamakan jumlah alpha terbanyak, lalu jumlah terlambat terbanyak (ambil 3 teratas)
                 try {
                     $candidates = $db->table('users as u')
-                        ->select("u.id as user_id, u.first_name, u.last_name, u.username, u.foto as user_foto, mg.nama_guru, mg.foto as guru_foto")
-                        ->select(\App\Services\AttendancePolicy::sqlTermHadir('a') . ' as total_hadir', false)
-                        ->select("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime", false)
-                        ->select("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late", false)
-                        ->select($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : "0 as total_telat_menit", false)
-                        ->select("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda", false)
-                        ->select("COALESCE($scoreExpr, 0) as score", false)
-                        ->join('users_groups as ug', 'ug.user_id = u.id')
-                        ->join('master_guru as mg', 'mg.id_user = u.id', 'left')
-                        ->join('absensi_harian as a', "a.user_id = u.id AND a.tgl LIKE '{$monthPrefix}%'", 'left')
+                        ->select('u.id as user_id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto as user_foto', 'mg.nama_guru', 'mg.foto as guru_foto')
+                        ->selectRaw(AttendancePolicy::sqlTermHadir('a').' as total_hadir')
+                        ->selectRaw("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime")
+                        ->selectRaw("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late")
+                        ->selectRaw($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : '0 as total_telat_menit')
+                        ->selectRaw("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda")
+                        ->selectRaw("COALESCE($scoreExpr, 0) as score")
+                        ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
+                        ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'u.id')
+                        ->leftJoin('absensi_harian as a', function ($join) use ($monthPrefix) {
+                            $join->on('a.user_id', '=', 'u.id')->where('a.tgl', 'LIKE', $monthPrefix.'%');
+                        })
                         ->where('ug.group_id', 2)
                         // Kecualikan akun yang juga terdaftar sebagai siswa (cegah siswa nyasar ke ranking guru)
-                        ->where('u.id NOT IN (SELECT user_id FROM users_groups WHERE group_id = 3)', null, false)
+                        ->whereRaw('u.id NOT IN (SELECT user_id FROM users_groups WHERE group_id = 3)')
                         ->where('u.active', 1)
-                        ->groupBy('u.id, u.first_name, u.last_name, u.username, u.foto, mg.nama_guru, mg.foto')
+                        ->groupBy('u.id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'mg.nama_guru', 'mg.foto')
                         ->get();
 
                     // Hitung alpha per kandidat menggunakan AttendancePenaltyService
-                    $candIds = array_values(array_filter(array_map(static fn($c) => (int) ($c->user_id ?? 0), $candidates)));
+                    $candIds = array_values(array_filter(array_map(static fn ($c) => (int) ($c->user_id ?? 0), $candidates)));
                     $candAlphaMap = $this->getAlphaCountMapForUsersMonth($candIds, $monthPrefix, $db, $setting);
                     foreach ($candidates as $c) {
                         $alpha = (int) ($candAlphaMap[(int) ($c->user_id ?? 0)] ?? 0);
@@ -2380,7 +2467,7 @@ class AttendanceController extends BaseController
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[Ranking Homepage] Error: ' . $e->getMessage());
+            Log::error('[Ranking Homepage] Error: '.$e->getMessage());
             $disciplineRanking = [];
             $lazyRanking = [];
         }
@@ -2388,16 +2475,16 @@ class AttendanceController extends BaseController
         try {
             $alphaFine = (int) ($setting->denda_alpha_per_hari ?? 0);
             $allRankingUsers = array_merge($disciplineRanking, $lazyRanking);
-            if ($db && !empty($allRankingUsers)) {
-                $userIds = array_map(static fn($r) => (int) ($r->user_id ?? 0), $allRankingUsers);
+            if ($db && ! empty($allRankingUsers)) {
+                $userIds = array_map(static fn ($r) => (int) ($r->user_id ?? 0), $allRankingUsers);
                 $userIds = array_values(array_filter(array_unique($userIds)));
                 $alphaMap = $this->getAlphaCountMapForUsersMonth($userIds, date('Y-m'), $db, $setting);
 
                 $recordedAlphaDenda = [];
                 $alphaRows = $db->table('absensi_harian')
-                    ->select('user_id, SUM(COALESCE(denda, 0)) as total_alpha_denda')
+                    ->select('user_id')->selectRaw('SUM(COALESCE(denda, 0)) as total_alpha_denda')
                     ->whereIn('user_id', $userIds)
-                    ->where('tgl', 'like', date('Y-m') . '%')
+                    ->where('tgl', 'like', date('Y-m').'%')
                     ->whereIn('status_masuk', ['ALPHA', 'ALPA'])
                     ->groupBy('user_id')
                     ->get();
@@ -2423,15 +2510,15 @@ class AttendanceController extends BaseController
         // atau avatar inisial lokal.
         foreach ([$disciplineRanking, $lazyRanking] as $barisRanking) {
             foreach ($barisRanking as $r) {
-                $r->avatar = \App\Services\AvatarService::untukBaris($r);
+                $r->avatar = AvatarService::untukBaris($r);
             }
         }
 
         // Fetch Locations: Strong Fallback
         $locations = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_lokasi')) {
-                $locationModel = new \App\Models\AttendanceLocationModel();
+            if ($db && Schema::hasTable('absensi_lokasi')) {
+                $locationModel = new AttendanceLocationModel;
                 $locations = $locationModel->get();
 
                 if (empty($locations)) {
@@ -2450,7 +2537,7 @@ class AttendanceController extends BaseController
                 $tp = $db->table('master_tp')->where('active', 1)->first();
                 $smt = $db->table('master_smt')->where('active', 1)->first();
                 if ($guru && $tp && $smt) {
-                    $jadwalRows = (new \App\Models\ElearningModel())->getJadwalKbmGuruHariIni(
+                    $jadwalRows = (new ElearningModel)->getJadwalKbmGuruHariIni(
                         (int) $guru->id_guru,
                         (int) date('N'),
                         (int) $tp->id_tp,
@@ -2463,13 +2550,13 @@ class AttendanceController extends BaseController
                     // jurnalnya belum disetujui piket ditandai menunggu.
                     $statusJurnal = [];
                     try {
-                        foreach ((new \App\Models\JurnalGuruModel())->getStatusJurnalHarian(
+                        foreach ((new JurnalGuruModel)->getStatusJurnalHarian(
                             (int) $guru->id_guru,
                             (int) $tp->id_tp,
                             (int) $smt->id_smt,
                             (int) date('N'),
                             date('Y-m-d'),
-                            \App\Services\WajibJurnalPulangService::butuhValidasi($setting)
+                            WajibJurnalPulangService::butuhValidasi($setting)
                         ) as $row) {
                             $statusJurnal[(int) $row['slot']->id_jadwal] = $row;
                         }
@@ -2503,7 +2590,7 @@ class AttendanceController extends BaseController
         // Upcoming Events
         $upcomingEvents = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('kalender_akademik')) {
+            if ($db && Schema::hasTable('kalender_akademik')) {
                 $upcomingEvents = $db->table('kalender_akademik')
                     ->where('tgl_mulai', '>=', date('Y-m-d'))
                     ->orderBy('tgl_mulai', 'ASC')
@@ -2522,19 +2609,20 @@ class AttendanceController extends BaseController
         try {
             if ($db && $user) {
                 $dayIso = (int) date('N');
-                $jadwalHarian = \Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')
+                $jadwalHarian = Schema::hasTable('absensi_jadwal_kerja')
                     ? $db->table('absensi_jadwal_kerja')->where('hari', $dayIso)->first()
                     : null;
-                $shiftModel = new \App\Models\ShiftModel();
+                $shiftModel = new ShiftModel;
                 $schedHariIni = $shiftModel->getScheduleForUser((int) $user->id, $dayIso, $jadwalHarian, $setting);
-                if (!empty($schedHariIni['jam_masuk'])) {
+                if (! empty($schedHariIni['jam_masuk'])) {
                     $jamKerja['masuk'] = substr((string) $schedHariIni['jam_masuk'], 0, 5);
                 }
-                if (!empty($schedHariIni['jam_pulang'])) {
+                if (! empty($schedHariIni['jam_pulang'])) {
                     $jamKerja['pulang'] = substr((string) $schedHariIni['jam_pulang'], 0, 5);
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return view('members.guru.absen_mobile', [
             'setting' => $setting,
@@ -2545,7 +2633,7 @@ class AttendanceController extends BaseController
             'others' => $others,
             'disciplineRanking' => $disciplineRanking,
             'lazyRanking' => $lazyRanking,
-            'is_holiday' => !empty($holidayReason),
+            'is_holiday' => ! empty($holidayReason),
             'holiday_reason' => $holidayReason,
             'locations' => $locations,
             'jadwal' => $jadwal,
@@ -2557,21 +2645,24 @@ class AttendanceController extends BaseController
 
     public function logPage()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
+
         return view('members.guru.absen_log');
     }
 
     public function logPdf()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
 
         $userId = session()->get('user_id');
         $user = $this->authModel->user($userId);
-        
+
         $month = $this->request->query('month') ?? date('Y-m');
-        $start = $month . '-01';
+        $start = $month.'-01';
         $end = date('Y-m-t', strtotime($start));
 
         $data = $this->attendanceModel
@@ -2581,17 +2672,17 @@ class AttendanceController extends BaseController
             ->orderBy('tgl', 'ASC')
             ->get();
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $html = view('members.guru.pdf_log', [
             'user' => $user,
             'data' => $data,
-            'month' => $month
+            'month' => $month,
         ]);
-        
+
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
-        $dompdf->stream("Rekap_Absensi_" . ($user->username ?? 'Guru') . "_" . $month . ".pdf", ["Attachment" => true]);
+        $dompdf->stream('Rekap_Absensi_'.($user->username ?? 'Guru').'_'.$month.'.pdf', ['Attachment' => true]);
         exit;
     }
 
@@ -2602,38 +2693,40 @@ class AttendanceController extends BaseController
      */
     public function rekapGuruPdf()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
         }
 
         $bulan = (string) ($this->request->query('bulan') ?? date('m'));
         $tahun = (string) ($this->request->query('tahun') ?? date('Y'));
         $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-        if (!preg_match('/^(0[1-9]|1[0-2])$/', $bulan)) {
+        if (! preg_match('/^(0[1-9]|1[0-2])$/', $bulan)) {
             $bulan = date('m');
         }
-        if (!preg_match('/^\d{4}$/', $tahun)) {
+        if (! preg_match('/^\d{4}$/', $tahun)) {
             $tahun = date('Y');
         }
 
         try {
-            $rekap = (new \App\Services\RekapPdfService())->buildRekapBulananPdf($bulan, $tahun);
+            $rekap = (new RekapPdfService)->buildRekapBulananPdf($bulan, $tahun);
         } catch (\Throwable $e) {
-            Log::error('[rekapGuruPdf] ' . $e->getMessage());
+            Log::error('[rekapGuruPdf] '.$e->getMessage());
+
             return $this->response->setStatusCode(500)
                 ->setBody('Gagal membuat PDF rekap guru. Silakan coba lagi.');
         }
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $rekap['filename'] . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$rekap['filename'].'"')
             ->setBody($rekap['pdf']);
     }
 
     public function notifPage()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
 
         $showKepsekMenu = false;
         try {
@@ -2646,12 +2739,12 @@ class AttendanceController extends BaseController
         $kepsekPendingIzin = 0;
         if ($showKepsekMenu) {
             try {
-                $db = \Illuminate\Support\Facades\DB::connection();
-                if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+                $db = DB::connection();
+                if ($db && Schema::hasTable('absensi_harian')) {
                     $kepsekPendingDinas = (int) $db->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
                 }
-                if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
-                    $kepsekPendingIzin = (int) $db->table('absensi_izin')->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)->count();
+                if ($db && Schema::hasTable('absensi_izin')) {
+                    $kepsekPendingIzin = (int) $db->table('absensi_izin')->whereIn('status', LeaveModel::STATUS_PENDING)->count();
                 }
             } catch (\Throwable $e) {
                 $kepsekPendingDinas = 0;
@@ -2662,7 +2755,7 @@ class AttendanceController extends BaseController
         return view('members.guru.absen_notif', [
             'showKepsekMenu' => $showKepsekMenu,
             'kepsekPendingDinas' => $kepsekPendingDinas,
-            'kepsekPendingIzin' => $kepsekPendingIzin
+            'kepsekPendingIzin' => $kepsekPendingIzin,
         ]);
     }
 
@@ -2675,24 +2768,24 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
 
         $pending = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if ($db && Schema::hasTable('absensi_harian')) {
                 $builder = $db->table('absensi_harian as a')
                     ->select('a.*')
                     ->orderBy('a.created_at', 'DESC')
                     ->where('a.status_masuk', 'DINAS_PENDING');
 
-                if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
-                    $builder->select('u.first_name, u.last_name, u.username, u.foto')->join('users as u', 'u.id = a.user_id', 'left');
+                if (Schema::hasTable('users')) {
+                    $builder->addSelect('u.first_name', 'u.last_name', 'u.username', 'u.foto')->leftJoin('users as u', 'u.id', '=', 'a.user_id');
                 }
-                if (\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
-                    $builder->select('mg.nama_guru, mg.nip')->join('master_guru as mg', 'mg.id_user = a.user_id', 'left');
+                if (Schema::hasTable('master_guru')) {
+                    $builder->addSelect('mg.nama_guru', 'mg.nip')->leftJoin('master_guru as mg', 'mg.id_user', '=', 'a.user_id');
                 }
 
                 $pending = $builder->get();
@@ -2702,7 +2795,7 @@ class AttendanceController extends BaseController
         }
 
         return view('members.guru.kepsek.verifikasi_dinas', [
-            'pending' => $pending
+            'pending' => $pending,
         ]);
     }
 
@@ -2714,7 +2807,7 @@ class AttendanceController extends BaseController
         }
 
         $attendance = $this->attendanceModel->find($id);
-        if (!$attendance) {
+        if (! $attendance) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (($attendance->status_masuk ?? '') !== 'DINAS_PENDING') {
@@ -2725,7 +2818,7 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
@@ -2734,7 +2827,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Anda tidak dapat menyetujui pengajuan Anda sendiri', null, null, 403);
         }
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $setting = $absenSettingModel->first();
         $pointHadir = (int) ($setting->point_hadir ?? 10);
 
@@ -2747,14 +2840,14 @@ class AttendanceController extends BaseController
             'telat_menit' => 0,
             'pulang_cepat_menit' => 0,
         ];
-        if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verifikasi_catatan')) {
+        if ($db && Schema::hasTable('absensi_harian')) {
+            if (Schema::hasColumn('absensi_harian', 'verifikasi_catatan')) {
                 $data['verifikasi_catatan'] = $catatan;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_by')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_by')) {
                 $data['verified_by'] = (int) (session()->get('user_id') ?? 0);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_at')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $data['verified_at'] = date('Y-m-d H:i:s');
             }
         }
@@ -2767,18 +2860,18 @@ class AttendanceController extends BaseController
         if (1 !== 1) {
             return $this->respond(false, 'Status sudah diproses admin lain. Muat ulang halaman.');
         }
-        (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+        (new PoinHistoryModel)->syncAttendancePoint($id);
 
         // Jalur admin mencatat keputusan dinas di audit log; jalur kepsek
         // sebelumnya diam total, padahal yang menyetujui di sini kepsek.
         try {
-            (new AuditLogModel())->log('absensi_harian', (int) $id, 'KEPSEK_APPROVE_DINAS',
+            (new AuditLogModel)->log('absensi_harian', (int) $id, 'KEPSEK_APPROVE_DINAS',
                 (int) ($attendance->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
                 ['status_masuk' => (string) ($attendance->status_masuk ?? '')],
                 ['status_masuk' => 'DINAS_APPROVED', 'catatan' => (string) $catatan],
                 'Dinas disetujui kepsek');
         } catch (\Throwable $ex) {
-            Log::error('Audit kepsekApproveDinas gagal: ' . $ex->getMessage());
+            Log::error('Audit kepsekApproveDinas gagal: '.$ex->getMessage());
         }
 
         // Evaluasi dan sinkronisasi pembatalan surat teguran jika hari alpha gugur
@@ -2786,9 +2879,10 @@ class AttendanceController extends BaseController
             $tglDinas = $attendance->tgl ?? date('Y-m-d');
             $blnDinas = (int) date('n', strtotime($tglDinas));
             $thnDinas = (int) date('Y', strtotime($tglDinas));
-            $penaltySvc = new \App\Services\AttendancePenaltyService();
+            $penaltySvc = new AttendancePenaltyService;
             $penaltySvc->syncSuratTeguranOnAttendanceChange((int) ($attendance->user_id ?? 0), $blnDinas, $thnDinas, $setting);
-        } catch (\Throwable $ex) {}
+        } catch (\Throwable $ex) {
+        }
 
         // Kabari guru + grup (best-effort, setelah penyimpanan selesai).
         try {
@@ -2796,14 +2890,14 @@ class AttendanceController extends BaseController
             $guruRow = $db
                 ? $db->table('master_guru')->select('nama_guru')->where('id_user', $dinasUserId)->first()
                 : null;
-            (new \App\Services\NotificationService())->notifyDinasApproved(
+            (new NotificationService)->notifyDinasApproved(
                 $guruRow->nama_guru ?? 'Guru',
                 (string) ($attendance->tgl ?? date('Y-m-d')),
                 $dinasUserId,
                 $catatan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi kepsek approve dinas gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi kepsek approve dinas gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Dinas disetujui');
@@ -2817,7 +2911,7 @@ class AttendanceController extends BaseController
         }
 
         $attendance = $this->attendanceModel->find($id);
-        if (!$attendance) {
+        if (! $attendance) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (($attendance->status_masuk ?? '') !== 'DINAS_PENDING') {
@@ -2828,7 +2922,7 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
@@ -2846,14 +2940,14 @@ class AttendanceController extends BaseController
             'telat_menit' => 0,
             'pulang_cepat_menit' => 0,
         ];
-        if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verifikasi_catatan')) {
+        if ($db && Schema::hasTable('absensi_harian')) {
+            if (Schema::hasColumn('absensi_harian', 'verifikasi_catatan')) {
                 $data['verifikasi_catatan'] = $catatan;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_by')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_by')) {
                 $data['verified_by'] = (int) (session()->get('user_id') ?? 0);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_at')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $data['verified_at'] = date('Y-m-d H:i:s');
             }
         }
@@ -2866,16 +2960,16 @@ class AttendanceController extends BaseController
         if (1 !== 1) {
             return $this->respond(false, 'Status sudah diproses admin lain. Muat ulang halaman.');
         }
-        (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+        (new PoinHistoryModel)->syncAttendancePoint($id);
 
         try {
-            (new AuditLogModel())->log('absensi_harian', (int) $id, 'KEPSEK_REJECT_DINAS',
+            (new AuditLogModel)->log('absensi_harian', (int) $id, 'KEPSEK_REJECT_DINAS',
                 (int) ($attendance->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
                 ['status_masuk' => (string) ($attendance->status_masuk ?? '')],
                 ['status_masuk' => 'DINAS_REJECTED', 'catatan' => (string) $catatan],
                 'Dinas ditolak kepsek');
         } catch (\Throwable $ex) {
-            Log::error('Audit kepsekRejectDinas gagal: ' . $ex->getMessage());
+            Log::error('Audit kepsekRejectDinas gagal: '.$ex->getMessage());
         }
 
         // Kabari guru + grup (best-effort). Sama seperti versi admin, alasan
@@ -2885,14 +2979,14 @@ class AttendanceController extends BaseController
             $guruRow = $db
                 ? $db->table('master_guru')->select('nama_guru')->where('id_user', $dinasUserId)->first()
                 : null;
-            (new \App\Services\NotificationService())->notifyDinasRejected(
+            (new NotificationService)->notifyDinasRejected(
                 $guruRow->nama_guru ?? 'Guru',
                 (string) ($attendance->tgl ?? date('Y-m-d')),
                 $dinasUserId,
                 $catatan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi kepsek reject dinas gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi kepsek reject dinas gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Dinas ditolak');
@@ -2907,20 +3001,20 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
 
         $permits = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            if ($db && Schema::hasTable('absensi_izin')) {
                 $builder = $db->table('absensi_izin as i')
                     ->select('i.*')
                     ->orderBy('i.created_at', 'DESC')
                     ->where('i.status', 'pending');
-                if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
-                    $builder->select('u.first_name, u.last_name, u.username, u.foto')->join('users as u', 'u.id = i.user_id', 'left');
+                if (Schema::hasTable('users')) {
+                    $builder->addSelect('u.first_name', 'u.last_name', 'u.username', 'u.foto')->leftJoin('users as u', 'u.id', '=', 'i.user_id');
                 }
                 $permits = $builder->get();
             }
@@ -2929,7 +3023,7 @@ class AttendanceController extends BaseController
         }
 
         return view('members.guru.kepsek.verifikasi_izin', [
-            'permits' => $permits
+            'permits' => $permits,
         ]);
     }
 
@@ -2941,7 +3035,7 @@ class AttendanceController extends BaseController
         }
 
         $permit = $this->leaveModel->find($id);
-        if (!$permit) {
+        if (! $permit) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (($permit->status ?? '') !== 'pending') {
@@ -2952,7 +3046,7 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
@@ -2962,24 +3056,25 @@ class AttendanceController extends BaseController
         }
 
         $update = ['status' => 'approved'];
-        if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
+        if ($db && Schema::hasTable('absensi_izin')) {
+            if (Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
                 $update['verifikasi_catatan'] = $catatan;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_by')) {
+            if (Schema::hasColumn('absensi_izin', 'verified_by')) {
                 $update['verified_by'] = (int) (session()->get('user_id') ?? 0);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_at')) {
+            if (Schema::hasColumn('absensi_izin', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
             }
         }
 
-        if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {            $start = strtotime((string) $permit->tgl_mulai);
+        if ($db && Schema::hasTable('absensi_harian')) {
+            $start = strtotime((string) $permit->tgl_mulai);
             $end = strtotime((string) $permit->tgl_selesai);
 
             // Samakan enum dengan Admin\PresensiAdmin::approvePermit ('IJIN', bukan 'IZIN')
             $statusMasuk = 'IJIN';
-            $jenisLower = strtolower(trim((string)($permit->jenis ?? '')));
+            $jenisLower = strtolower(trim((string) ($permit->jenis ?? '')));
             if ($jenisLower === 'sakit') {
                 $statusMasuk = 'SAKIT';
             } elseif ($jenisLower === 'cuti') {
@@ -3001,17 +3096,17 @@ class AttendanceController extends BaseController
                 $point = (int) ($globalSetting->point_cuti ?? 0);
             }
 
-            $hasKeterangan = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan');
-            $punyaIzinId  = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'izin_id');
-            $svcLibur     = new \App\Services\IzinKuotaService($db);
+            $hasKeterangan = Schema::hasColumn('absensi_harian', 'keterangan');
+            $punyaIzinId = Schema::hasColumn('absensi_harian', 'izin_id');
+            $svcLibur = new IzinKuotaService($db);
 
             // Sama seperti approvePermit admin: hari yang sudah berisi scan
             // asli guru tidak ditimpa, dan baris yang ditulis dicap izin_id
             // supaya reject/delete mengembalikannya dengan tepat.
-            $isAbsenNetral  = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
-            $dilewatiKecak  = [];
+            $isAbsenNetral = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
+            $dilewatiKecak = [];
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 // Status permit diubah dalam transaksi yang sama dengan penulisan
                 // absensi harian: gagal di tengah → rollback penuh, bisa retry.
@@ -3030,138 +3125,143 @@ class AttendanceController extends BaseController
                     throw new \RuntimeException('Status sudah diproses admin lain. Muat ulang halaman.');
                 }
 
-            for ($current = $start; $current <= $end; $current = strtotime('+1 day', $current)) {
-                $dateStr = date('Y-m-d', $current);
+                for ($current = $start; $current <= $end; $current = strtotime('+1 day', $current)) {
+                    $dateStr = date('Y-m-d', $current);
 
-                if ($svcLibur->isLibur($dateStr)) continue;
-
-                $exist = $db->table('absensi_harian')
-                    ->select('id' . ($punyaIzinId ? ', izin_id' : '') . ', jam_masuk')
-                    ->where('user_id', $permit->user_id)
-                    ->where('tgl', $dateStr)
-                    ->first();
-
-                // Hari dengan scan asli dibiarkan utuh untuk semua jenis
-                // pengajuan — sama seperti Admin\PresensiAdmin::approvePermit.
-                // Menimpanya menghapus bukti kehadiran dan membuka kredit
-                // hantu (denda + telat_menit dinol-kan).
-                if ($exist && ! empty($exist->jam_masuk)) {
-                    $dilewatiKecak[] = $dateStr;
-                    continue;
-                }
-
-                $tambahan = [];
-                if ($punyaIzinId) {
-                    $tambahan['izin_id'] = (int) $id;
-                }
-
-                if ($exist) {
-                    $updateAbsen = [
-                        'status_masuk' => $statusMasuk,
-                        'status_pulang' => $statusMasuk,
-                        'points' => $point,
-                        'denda' => 0,
-                        'keterangan_denda' => null,
-                        'telat_menit' => 0,
-                        'pulang_cepat_menit' => 0,
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ] + $tambahan;
-                    if ($hasKeterangan) {
-                        $updateAbsen['keterangan'] = (string) ($permit->keterangan ?? '');
+                    if ($svcLibur->isLibur($dateStr)) {
+                        continue;
                     }
-                    if ($isAbsenNetral) {
-                        $updateAbsen['jam_masuk']  = null;
-                        $updateAbsen['jam_pulang'] = null;
-                    }
-                    $db->table('absensi_harian')->where('id', $exist->id)->update($updateAbsen);
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($exist->id);
-                } else {
-                    $insert = [
-                        'user_id' => (int) $permit->user_id,
-                        'id_guru' => (int) ($permit->id_guru ?? 0),
-                        'tgl' => $dateStr,
-                        'jam_masuk' => null,
-                        'jam_pulang' => null,
-                        'status_masuk' => $statusMasuk,
-                        'status_pulang' => $statusMasuk,
-                        'points' => $point,
-                        'denda' => 0,
-                        'keterangan_denda' => null,
-                        'telat_menit' => 0,
-                        'pulang_cepat_menit' => 0,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
-                    ] + $tambahan;
-                    if ($hasKeterangan) {
-                        $insert['keterangan'] = (string) ($permit->keterangan ?? '');
-                    }
-                    $db->table('absensi_harian')->insert($insert);
-                    $newId = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($newId);
-                }
-            }
-            \Illuminate\Support\Facades\DB::commit();
 
-            try {
-                (new AuditLogModel())->log('absensi_izin', (int) $id, 'KEPSEK_APPROVE',
-                    (int) ($permit->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
-                    ['status' => (string) ($permit->status ?? '')],
-                    [
-                        'status'      => 'approved',
-                        'hari_dilewati' => $dilewatiKecak ?? [],
-                    ],
-                    'Izin disetujui kepsek: ' . $permit->jenis);
-            } catch (\Throwable $ex) {
-                Log::error('Audit kepsekApprovePermit gagal: ' . $ex->getMessage());
-            }
+                    $exist = $db->table('absensi_harian')
+                        ->select($punyaIzinId ? ['id', 'izin_id', 'jam_masuk'] : ['id', 'jam_masuk'])
+                        ->where('user_id', $permit->user_id)
+                        ->where('tgl', $dateStr)
+                        ->first();
+
+                    // Hari dengan scan asli dibiarkan utuh untuk semua jenis
+                    // pengajuan — sama seperti Admin\PresensiAdmin::approvePermit.
+                    // Menimpanya menghapus bukti kehadiran dan membuka kredit
+                    // hantu (denda + telat_menit dinol-kan).
+                    if ($exist && ! empty($exist->jam_masuk)) {
+                        $dilewatiKecak[] = $dateStr;
+
+                        continue;
+                    }
+
+                    $tambahan = [];
+                    if ($punyaIzinId) {
+                        $tambahan['izin_id'] = (int) $id;
+                    }
+
+                    if ($exist) {
+                        $updateAbsen = [
+                            'status_masuk' => $statusMasuk,
+                            'status_pulang' => $statusMasuk,
+                            'points' => $point,
+                            'denda' => 0,
+                            'keterangan_denda' => null,
+                            'telat_menit' => 0,
+                            'pulang_cepat_menit' => 0,
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ] + $tambahan;
+                        if ($hasKeterangan) {
+                            $updateAbsen['keterangan'] = (string) ($permit->keterangan ?? '');
+                        }
+                        if ($isAbsenNetral) {
+                            $updateAbsen['jam_masuk'] = null;
+                            $updateAbsen['jam_pulang'] = null;
+                        }
+                        $db->table('absensi_harian')->where('id', $exist->id)->update($updateAbsen);
+                        (new PoinHistoryModel)->syncAttendancePoint($exist->id);
+                    } else {
+                        $insert = [
+                            'user_id' => (int) $permit->user_id,
+                            'id_guru' => (int) ($permit->id_guru ?? 0),
+                            'tgl' => $dateStr,
+                            'jam_masuk' => null,
+                            'jam_pulang' => null,
+                            'status_masuk' => $statusMasuk,
+                            'status_pulang' => $statusMasuk,
+                            'points' => $point,
+                            'denda' => 0,
+                            'keterangan_denda' => null,
+                            'telat_menit' => 0,
+                            'pulang_cepat_menit' => 0,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ] + $tambahan;
+                        if ($hasKeterangan) {
+                            $insert['keterangan'] = (string) ($permit->keterangan ?? '');
+                        }
+                        $db->table('absensi_harian')->insert($insert);
+                        $newId = DB::getPdo()->lastInsertId();
+                        (new PoinHistoryModel)->syncAttendancePoint($newId);
+                    }
+                }
+                DB::commit();
+
+                try {
+                    (new AuditLogModel)->log('absensi_izin', (int) $id, 'KEPSEK_APPROVE',
+                        (int) ($permit->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
+                        ['status' => (string) ($permit->status ?? '')],
+                        [
+                            'status' => 'approved',
+                            'hari_dilewati' => $dilewatiKecak ?? [],
+                        ],
+                        'Izin disetujui kepsek: '.$permit->jenis);
+                } catch (\Throwable $ex) {
+                    Log::error('Audit kepsekApprovePermit gagal: '.$ex->getMessage());
+                }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('Kepsek approve permit gagal: ' . $e->getMessage());
+                DB::rollBack();
+                Log::error('Kepsek approve permit gagal: '.$e->getMessage());
+
                 return $this->respond(false, 'Gagal menyetujui pengajuan.', null, null, 500);
             }
 
             // Evaluasi dan sinkronisasi pembatalan surat teguran jika hari alpha gugur
             try {
-                $penaltySvc = new \App\Services\AttendancePenaltyService();
+                $penaltySvc = new AttendancePenaltyService;
                 [$thnPermit, $blnPermit] = $this->tahunBulanIzin($start ?? null, (string) ($permit->tgl_mulai ?? ''));
                 $penaltySvc->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnPermit, $thnPermit, $globalSetting);
-            } catch (\Throwable $ex) {}
-        }
-            // Kabari guru + grup. Best-effort, setelah transaksi selesai.
-            try {
-                $notif = new \App\Services\NotificationService();
-                $permitUserId = (int) ($permit->user_id ?? 0);
-                $guruRow = $db->table('master_guru')->select('nama_guru')
-                    ->where('id_user', $permitUserId)->first();
-                $namaGuru = $guruRow->nama_guru ?? 'Guru';
-                // $start/$end dihitung di dalam blok absensi_harian; fallback
-                // ke kolom izin agar notifikasi tetap benar bila blok dilewati.
-                // Normalizer tahan DateTime|int|string (date() mentah melempar
-                // TypeError untuk DateTime — pernah tercatat di log).
-                $notif->notifyPermitApproved(
-                    $namaGuru,
-                    (string) ($permit->jenis ?? ''),
-                    $this->tglIzinLabel($start ?? null, (string) ($permit->tgl_mulai ?? '')),
-                    $this->tglIzinLabel($end ?? null, (string) ($permit->tgl_selesai ?? '')),
-                    $permitUserId,
-                    empty($dilewatiKecak)
-                        ? $catatan
-                        : trim($catatan . ' | ' . count($dilewatiKecak)
-                            . ' hari dilewati karena sudah ada scan kehadiran: '
-                            . implode(', ', $dilewatiKecak))
-                );
             } catch (\Throwable $ex) {
-                Log::error('Notifikasi kepsek approve izin gagal: ' . $ex->getMessage());
             }
+        }
+        // Kabari guru + grup. Best-effort, setelah transaksi selesai.
+        try {
+            $notif = new NotificationService;
+            $permitUserId = (int) ($permit->user_id ?? 0);
+            $guruRow = $db->table('master_guru')->select('nama_guru')
+                ->where('id_user', $permitUserId)->first();
+            $namaGuru = $guruRow->nama_guru ?? 'Guru';
+            // $start/$end dihitung di dalam blok absensi_harian; fallback
+            // ke kolom izin agar notifikasi tetap benar bila blok dilewati.
+            // Normalizer tahan DateTime|int|string (date() mentah melempar
+            // TypeError untuk DateTime — pernah tercatat di log).
+            $notif->notifyPermitApproved(
+                $namaGuru,
+                (string) ($permit->jenis ?? ''),
+                $this->tglIzinLabel($start ?? null, (string) ($permit->tgl_mulai ?? '')),
+                $this->tglIzinLabel($end ?? null, (string) ($permit->tgl_selesai ?? '')),
+                $permitUserId,
+                empty($dilewatiKecak)
+                    ? $catatan
+                    : trim($catatan.' | '.count($dilewatiKecak)
+                        .' hari dilewati karena sudah ada scan kehadiran: '
+                        .implode(', ', $dilewatiKecak))
+            );
+        } catch (\Throwable $ex) {
+            Log::error('Notifikasi kepsek approve izin gagal: '.$ex->getMessage());
+        }
 
-            $pesan = 'Pengajuan disetujui';
-            if (! empty($dilewatiKecak)) {
-                $pesan .= ' (catatan: ' . count($dilewatiKecak)
-                    . ' hari tidak diubah karena sudah ada scan kehadiran: '
-                    . implode(', ', $dilewatiKecak) . ')';
-            }
+        $pesan = 'Pengajuan disetujui';
+        if (! empty($dilewatiKecak)) {
+            $pesan .= ' (catatan: '.count($dilewatiKecak)
+                .' hari tidak diubah karena sudah ada scan kehadiran: '
+                .implode(', ', $dilewatiKecak).')';
+        }
 
-            return $this->respond(true, $pesan);
+        return $this->respond(true, $pesan);
     }
 
     public function kepsekRejectPermit($id)
@@ -3172,7 +3272,7 @@ class AttendanceController extends BaseController
         }
 
         $permit = $this->leaveModel->find($id);
-        if (!$permit) {
+        if (! $permit) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (($permit->status ?? '') !== 'pending') {
@@ -3183,11 +3283,11 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
-        if (!$db) {
+        if (! $db) {
             return $this->respond(false, 'Koneksi database gagal', null, null, 500);
         }
 
@@ -3196,14 +3296,14 @@ class AttendanceController extends BaseController
         }
 
         $update = ['status' => 'rejected'];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
+        if (Schema::hasTable('absensi_izin')) {
+            if (Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
                 $update['verifikasi_catatan'] = $catatan;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_by')) {
+            if (Schema::hasColumn('absensi_izin', 'verified_by')) {
                 $update['verified_by'] = (int) (session()->get('user_id') ?? 0);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_at')) {
+            if (Schema::hasColumn('absensi_izin', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
             }
         }
@@ -3225,7 +3325,7 @@ class AttendanceController extends BaseController
         // saveManualPermit — lalu mengubahnya jadi ALPHA dan menagih denda
         // ke guru yang tidak melakukan apa-apa. Karena itu loop di bawah
         // hanya jalan bila pengajuan ini benar-benar pernah disetujui.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $db->table('absensi_izin')
                 ->where('id', $id)->where('status', 'pending')
@@ -3237,27 +3337,31 @@ class AttendanceController extends BaseController
             $setTolak = $this->settingModel->first() ?? (object) [];
             $flatAlpha = (float) ($setTolak->denda_alpha_per_hari ?? 5000);
             $poinAlpha = abs((int) ($setTolak->point_alpa ?? 5));
-            $svcTolak = new \App\Services\AttendancePenaltyService();
+            $svcTolak = new AttendancePenaltyService;
             $mulai = strtotime((string) ($permit->tgl_mulai ?? ''));
             $selesai = strtotime((string) ($permit->tgl_selesai ?? ''));
-            $svcLibur = new \App\Services\IzinKuotaService($db);
+            $svcLibur = new IzinKuotaService($db);
             $permitStatusTolak = $svcTolak->normalizeIzinStatus((string) ($permit->jenis ?? ''));
             $pernahDisetujuiTolak = strtolower(trim((string) ($permit->status ?? ''))) === 'approved';
             $blnSentuh = [];
             if ($pernahDisetujuiTolak && $mulai && $selesai && $mulai <= $selesai) {
                 for ($i = $mulai; $i <= $selesai; $i = strtotime('+1 day', $i)) {
                     $tglStr = date('Y-m-d', $i);
-                    if ($svcLibur->isLibur($tglStr)) continue;
+                    if ($svcLibur->isLibur($tglStr)) {
+                        continue;
+                    }
                     $baris = $db->table('absensi_harian')
                         ->where('user_id', $permit->user_id)->where('tgl', $tglStr)->first();
-                    if (!$baris) continue;
+                    if (! $baris) {
+                        continue;
+                    }
                     $st = strtoupper((string) ($baris->status_masuk ?? ''));
-                    if (!in_array($st, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'DINAS'], true) && strpos($st, 'DINAS') !== 0) {
+                    if (! in_array($st, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'DINAS'], true) && strpos($st, 'DINAS') !== 0) {
                         continue;
                     }
                     // Hanya baris milik pengajuan ini yang jadi ALPHA —
                     // lihat catatan pada Admin\PresensiAdmin::rejectPermit.
-                    if (! \App\Models\AttendanceModel::apakahMilikIzin($baris, (int) $id, $permitStatusTolak)) {
+                    if (! AttendanceModel::apakahMilikIzin($baris, (int) $id, $permitStatusTolak)) {
                         continue;
                     }
                     $cap = $svcTolak->applyMonthlyCap((int) $permit->user_id, $tglStr, $flatAlpha, $setTolak, (int) $baris->id, true);
@@ -3266,45 +3370,50 @@ class AttendanceController extends BaseController
                         'status_pulang' => 'ALPHA',
                         'points' => -$poinAlpha,
                         'denda' => (float) $cap['total'],
-                        'keterangan_denda' => 'Alpa (Rp ' . number_format($flatAlpha, 0, ',', '.') . ')' . ($cap['capped'] ? ' (dibatasi cap bulanan Rp ' . number_format((float) $cap['total'], 0, ',', '.') . ')' : ''),
-                        'keterangan' => 'Ditolak: ' . $catatan,
+                        'keterangan_denda' => 'Alpa (Rp '.number_format($flatAlpha, 0, ',', '.').')'.($cap['capped'] ? ' (dibatasi cap bulanan Rp '.number_format((float) $cap['total'], 0, ',', '.').')' : ''),
+                        'keterangan' => 'Ditolak: '.$catatan,
                         'updated_at' => date('Y-m-d H:i:s'),
                     ]);
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($baris->id);
+                    (new PoinHistoryModel)->syncAttendancePoint($baris->id);
                     $blnSentuh[substr($tglStr, 0, 7)] = true;
                 }
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                (new AuditLogModel())->log('absensi_izin', (int) $id, 'KEPSEK_REJECT',
+                (new AuditLogModel)->log('absensi_izin', (int) $id, 'KEPSEK_REJECT',
                     (int) ($permit->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
                     ['status' => (string) ($permit->status ?? '')],
                     [
-                        'status'           => 'rejected',
-                        'alasan'           => (string) $catatan,
+                        'status' => 'rejected',
+                        'alasan' => (string) $catatan,
                         'bulan_terpengaruh' => array_keys($blnSentuh),
                     ],
-                    'Izin ditolak kepsek: ' . $permit->jenis);
+                    'Izin ditolak kepsek: '.$permit->jenis);
             } catch (\Throwable $ex) {
-                Log::error('Audit kepsekRejectPermit gagal: ' . $ex->getMessage());
+                Log::error('Audit kepsekRejectPermit gagal: '.$ex->getMessage());
             }
 
             foreach (array_keys($blnSentuh) as $ym) {
                 try {
                     [$thS, $blS] = array_map('intval', explode('-', $ym));
                     $svcTolak->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blS, $thS, $setTolak);
-                } catch (\Throwable $ex2) {}
+                } catch (\Throwable $ex2) {
+                }
             }
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('Kepsek reject permit gagal: ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('Kepsek reject permit gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak pengajuan — periksa log aplikasi.', null, null, 500);
         }
 
         // Kabari guru + grup. Best-effort, tidak boleh menggagalkan penolakan.
         try {
-            $notif = new \App\Services\NotificationService();
+            $notif = new NotificationService;
             $permitUserId = (int) ($permit->user_id ?? 0);
             $guruRow = $db ? $db->table('master_guru')->select('nama_guru')
                 ->where('id_user', $permitUserId)->first() : null;
@@ -3316,7 +3425,7 @@ class AttendanceController extends BaseController
                 $catatan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi kepsek reject izin gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi kepsek reject izin gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Pengajuan ditolak');
@@ -3334,22 +3443,22 @@ class AttendanceController extends BaseController
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
 
         $letters = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
+            if ($db && Schema::hasTable('absensi_surat_teguran')) {
                 $builder = $db->table('absensi_surat_teguran as a')
                     ->select('a.*')
                     ->orderBy('a.created_at', 'DESC')
                     ->where('a.bulan', $bulan)
                     ->where('a.tahun', $tahun);
 
-                if (\Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
-                    $builder->select('g.nama_guru, g.nip, g.id_user, g.foto as guru_foto')->join('master_guru as g', 'g.id_guru = a.id_guru', 'left');
+                if (Schema::hasTable('master_guru')) {
+                    $builder->addSelect('g.nama_guru', 'g.nip', 'g.id_user', 'g.foto as guru_foto')->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru');
                 }
 
                 $letters = $builder->get();
@@ -3361,7 +3470,7 @@ class AttendanceController extends BaseController
         return view('members.guru.kepsek.surat_teguran', [
             'letters' => $letters,
             'bulan' => $bulan,
-            'tahun' => $tahun
+            'tahun' => $tahun,
         ]);
     }
 
@@ -3372,13 +3481,13 @@ class AttendanceController extends BaseController
             return $guard;
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $letter = $db->table('absensi_surat_teguran as a')
-            ->join('master_guru as g', 'g.id_guru = a.id_guru', 'left')
+            ->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.id', $id)
             ->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return redirect()->back()->with('error', 'Data surat tidak ditemukan');
         }
 
@@ -3387,16 +3496,16 @@ class AttendanceController extends BaseController
         }
 
         $baseSetting = $this->settingModel->first();
-        if (!$baseSetting) {
+        if (! $baseSetting) {
             $baseSetting = (object) [];
         }
-        $dashboardModel = new DashboardModel();
+        $dashboardModel = new DashboardModel;
         $globalSetting = $this->getSettingRow();
 
         $setting = clone $baseSetting;
         if ($globalSetting) {
             foreach (get_object_vars($globalSetting) as $key => $val) {
-                if (!isset($setting->$key)) {
+                if (! isset($setting->$key)) {
                     $setting->$key = $val;
                 }
             }
@@ -3407,10 +3516,11 @@ class AttendanceController extends BaseController
         if ($jumlahAlpha <= 0) {
             try {
                 $letterUserId = (int) ($letter->id_user ?? 0);
-                if ($letterUserId <= 0 && !empty($letter->id_guru) && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+                if ($letterUserId <= 0 && ! empty($letter->id_guru) && Schema::hasTable('master_guru')) {
                     $grow = $db->table('master_guru')->where('id_guru', $letter->id_guru)->first();
-                    if ($grow && !empty($grow->id_user))
+                    if ($grow && ! empty($grow->id_user)) {
                         $letterUserId = (int) $grow->id_user;
+                    }
                 }
                 if ($letterUserId > 0) {
                     $calcAlpha = $this->alphaForLetterPeriod(
@@ -3421,45 +3531,47 @@ class AttendanceController extends BaseController
                     $jumlahAlpha = (int) ($letter->level ?? 3);
                 }
             } catch (\Throwable $e) {
-                Log::error('kepsekDownloadTeguran alpha gagal: ' . $e->getMessage());
+                Log::error('kepsekDownloadTeguran alpha gagal: '.$e->getMessage());
                 $jumlahAlpha = (int) ($letter->level ?? 3);
             }
         }
 
-        $teguranText = \App\Libraries\SuratTeguranLevel::label((int) ($letter->level ?? 0));
+        $teguranText = SuratTeguranLevel::label((int) ($letter->level ?? 0));
 
         // Rincian tanggal alpha untuk kalimat rincian di badan surat.
         $alphaDates = [];
         try {
             $uidSurat = (int) ($letter->id_user ?? 0);
-            if ($uidSurat <= 0 && !empty($letter->id_guru) && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+            if ($uidSurat <= 0 && ! empty($letter->id_guru) && Schema::hasTable('master_guru')) {
                 $grow2 = $db->table('master_guru')->where('id_guru', $letter->id_guru)->first();
-                if ($grow2 && !empty($grow2->id_user)) $uidSurat = (int) $grow2->id_user;
+                if ($grow2 && ! empty($grow2->id_user)) {
+                    $uidSurat = (int) $grow2->id_user;
+                }
             }
             if ($uidSurat > 0) {
-                $alphaDates = (new \App\Services\AttendancePenaltyService())->teacherMonthlyAlphaDates(
+                $alphaDates = (new AttendancePenaltyService)->teacherMonthlyAlphaDates(
                     $uidSurat, (int) ($letter->bulan ?? date('n')), (int) ($letter->tahun ?? date('Y')), $setting
                 );
             }
         } catch (\Throwable $e) {
-            Log::error('kepsekDownloadTeguran alpha dates gagal: ' . $e->getMessage());
+            Log::error('kepsekDownloadTeguran alpha dates gagal: '.$e->getMessage());
         }
 
         $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path() . '/' . $setting->logo_kiri)) {
-            $type = pathinfo(public_path() . '/' . $setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->logo_kiri);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
+            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path() . '/' . $setting->kopsekolah)) {
-            $type = pathinfo(public_path() . '/' . $setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->kopsekolah);
-            $kopBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
+            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
+            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
-        $nomorSurat = \App\Libraries\SuratNomor::build(
+        $nomorSurat = SuratNomor::build(
             (int) ($letter->nomor_urut ?? 0),
             (int) ($letter->bulan ?? date('n')),
             (int) ($letter->tahun ?? date('Y')),
@@ -3482,13 +3594,13 @@ class AttendanceController extends BaseController
             'periode_bulan' => (int) ($letter->bulan ?? date('n')),
             'periode_tahun' => (int) ($letter->tahun ?? date('Y')),
             // Tanggal surat = tanggal terbit arsip, bukan tanggal cetak.
-            'tanggal_terbit' => !empty($letter->created_at) ? (string) $letter->created_at : null,
+            'tanggal_terbit' => ! empty($letter->created_at) ? (string) $letter->created_at : null,
             // Daftar tanggal alpha periode surat untuk rincian di badan surat.
-            'alpha_dates' => $alphaDates
+            'alpha_dates' => $alphaDates,
         ];
 
         $html = view('members.guru.surat_teguran_pdf', $viewData);
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->set_option('isRemoteEnabled', true);
         $dompdf->loadHtml($html);
@@ -3496,7 +3608,7 @@ class AttendanceController extends BaseController
         $dompdf->render();
 
         $filename = "Surat_Teguran_{$letter->level}_Hari_{$letter->nama_guru}.pdf";
-        $dompdf->stream($filename, ["Attachment" => false]);
+        $dompdf->stream($filename, ['Attachment' => false]);
         exit;
     }
 
@@ -3505,13 +3617,14 @@ class AttendanceController extends BaseController
      */
     public function updateProfile()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         try {
             $userId = (int) session()->get('user_id');
             $idGuru = $this->resolveIdGuru($userId);
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             // Validate input
             $rules = [
@@ -3520,8 +3633,8 @@ class AttendanceController extends BaseController
                 'no_hp' => 'permit_empty|numeric|max_length[15]',
             ];
 
-            if (!$this->validate($rules)) {
-                return $this->respond(false, 'Data tidak valid: ' . implode(', ', $this->validator->getErrors()));
+            if (! $this->validate($rules)) {
+                return $this->respond(false, 'Data tidak valid: '.implode(', ', $this->validator->getErrors()));
             }
 
             // ID Telegram: opsional, divalidasi terpisah karena formatnya
@@ -3531,7 +3644,7 @@ class AttendanceController extends BaseController
             if ($telegramSent) {
                 $telegramRaw = (string) ($this->request->input('telegram_id') ?? '');
                 try {
-                    $telegramRaw = \App\Libraries\TelegramLink::normalizeChatId($telegramRaw);
+                    $telegramRaw = TelegramLink::normalizeChatId($telegramRaw);
                 } catch (\InvalidArgumentException $e) {
                     return $this->respond(false, $e->getMessage());
                 }
@@ -3545,7 +3658,7 @@ class AttendanceController extends BaseController
                 'tempat_lahir' => $this->request->input('tempat_lahir'),
                 'tgl_lahir' => $this->request->input('tgl_lahir'),
                 'jenis_kelamin' => $this->request->input('jenis_kelamin'),
-                'alamat_jalan' => $this->request->input('alamat_jalan')
+                'alamat_jalan' => $this->request->input('alamat_jalan'),
             ];
 
             // Remove empty values
@@ -3553,7 +3666,7 @@ class AttendanceController extends BaseController
                 return $value !== null && $value !== '';
             });
 
-            $hasTgColumn = \Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'telegram_id');
+            $hasTgColumn = Schema::hasColumn('master_guru', 'telegram_id');
             if ($telegramSent && $hasTgColumn) {
                 // Biarkan string kosong tersimpan supaya tautan bisa dilepas.
                 $data['telegram_id'] = $telegramRaw;
@@ -3566,16 +3679,16 @@ class AttendanceController extends BaseController
 
             $telegramNote = '';
             if ($telegramSent) {
-                if (!$hasTgColumn) {
+                if (! $hasTgColumn) {
                     $telegramNote = ' Kolom ID Telegram belum tersedia, jalankan: php spark migrate';
                 } elseif ($telegramRaw === '') {
-                    $ok = \App\Libraries\TelegramLink::detachFromGuru($idGuru, $userId);
+                    $ok = TelegramLink::detachFromGuru($idGuru, $userId);
                     $telegramNote = $ok
                         ? ' Tautan Telegram dilepas.'
                         : ' Gagal melepas tautan Telegram — coba simpan lagi.';
                 } else {
-                    $r = \App\Libraries\TelegramLink::attachToGuru($idGuru, $userId, $telegramRaw);
-                    $telegramNote = $r['ok'] ? ' ' . $r['message'] : ' Gagal menautkan Telegram: ' . $r['message'];
+                    $r = TelegramLink::attachToGuru($idGuru, $userId, $telegramRaw);
+                    $telegramNote = $r['ok'] ? ' '.$r['message'] : ' Gagal menautkan Telegram: '.$r['message'];
                 }
             }
 
@@ -3586,25 +3699,27 @@ class AttendanceController extends BaseController
             $waNote = '';
             if (array_key_exists('wa_number', $this->request->input())) {
                 $waRaw = (string) ($this->request->input('wa_number') ?? '');
-                $hasWaColumn = \Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'wa_number');
+                $hasWaColumn = Schema::hasColumn('master_guru', 'wa_number');
 
-                if (! $hasWaColumn || ! \Illuminate\Support\Facades\Schema::hasColumn('user_notifikasi', 'wa_number')) {
+                if (! $hasWaColumn || ! Schema::hasColumn('user_notifikasi', 'wa_number')) {
                     $waNote = ' Kolom WhatsApp belum tersedia, jalankan: php spark migrate';
                 } else {
-                    $r = \App\Libraries\WhatsAppLink::attachToGuru($idGuru, $userId, $waRaw);
-                    $waNote = $r['ok'] ? ' ' . $r['message'] : ' Gagal menyimpan nomor WhatsApp: ' . $r['message'];
+                    $r = WhatsAppLink::attachToGuru($idGuru, $userId, $waRaw);
+                    $waNote = $r['ok'] ? ' '.$r['message'] : ' Gagal menyimpan nomor WhatsApp: '.$r['message'];
                 }
             }
 
-            $note = trim($telegramNote . $waNote);
+            $note = trim($telegramNote.$waNote);
 
             if ($updated || $waNote !== '') {
-                return $this->respond(true, 'Profil berhasil diupdate.' . $note);
+                return $this->respond(true, 'Profil berhasil diupdate.'.$note);
             }
+
             return $this->respond(false, 'Tidak ada perubahan data');
 
         } catch (\Throwable $e) {
-            Log::error('Update Profile Error: ' . $e->getMessage());
+            Log::error('Update Profile Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal update profil.', null, null, 500);
         }
     }
@@ -3614,21 +3729,22 @@ class AttendanceController extends BaseController
      */
     public function uploadFoto()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         try {
             $userId = (int) session()->get('user_id');
             $idGuru = $this->resolveIdGuru($userId);
             $file = $this->request->file('foto');
 
-            if (!$file || !$file->isValid()) {
+            if (! $file || ! $file->isValid()) {
                 return $this->respond(false, 'File tidak valid');
             }
 
             // Validate file type
             $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-            if (!in_array($file->getMimeType(), $allowedTypes)) {
+            if (! in_array($file->getMimeType(), $allowedTypes)) {
                 return $this->respond(false, 'File harus berupa gambar (JPG, JPEG, PNG)');
             }
 
@@ -3640,13 +3756,13 @@ class AttendanceController extends BaseController
             // Create upload directory if not exists
             // Create upload directory if not exists
             $userId = session()->get('user_id');
-            $uploadPath = public_path() . '/' . 'uploads/users/' . $userId . '/profile/';
-            if (!is_dir($uploadPath)) {
+            $uploadPath = public_path().'/'.'uploads/users/'.$userId.'/profile/';
+            if (! is_dir($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
             }
 
             // Get old photo to delete
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $oldData = $db->table('master_guru')->where('id_guru', $idGuru)->first();
 
             // Generate new filename
@@ -3655,7 +3771,7 @@ class AttendanceController extends BaseController
 
             // Move file
             if ($file->move($uploadPath, $newName)) {
-                $fullPath = 'uploads/users/' . $userId . '/profile/' . $newName;
+                $fullPath = 'uploads/users/'.$userId.'/profile/'.$newName;
 
                 // Update master_guru (Store FULL PATH like Dataguru controller)
                 $db->table('master_guru')
@@ -3672,19 +3788,20 @@ class AttendanceController extends BaseController
                     $okUsers = 1 > 0;
                 }
 
-                if (!$okMguru || !$okUsers) {
+                if (! $okMguru || ! $okUsers) {
                     // DB gagal — jangan tinggalkan file yatim, dan jangan hapus foto lama.
-                    @unlink($uploadPath . $newName);
-                    Log::error('Upload Foto: update DB gagal (master_guru=' . var_export($okMguru, true)
-                        . ', users=' . var_export($okUsers, true) . ') utk user ' . $userId);
+                    @unlink($uploadPath.$newName);
+                    Log::error('Upload Foto: update DB gagal (master_guru='.var_export($okMguru, true)
+                        .', users='.var_export($okUsers, true).') utk user '.$userId);
+
                     return $this->respond(false, 'Foto terunggah tapi gagal disimpan ke profil. Silakan coba lagi.', null, null, 500);
                 }
 
                 // Baru hapus foto lama setelah kedua tulis DB berhasil
-                if ($oldData && $oldData->foto && $oldData->foto !== $fullPath && file_exists(public_path() . '/' . $oldData->foto)) {
+                if ($oldData && $oldData->foto && $oldData->foto !== $fullPath && file_exists(public_path().'/'.$oldData->foto)) {
                     // Avoid deleting default assets if accidentally stored
                     if (strpos($oldData->foto, 'assets/') === false) {
-                        @unlink(public_path() . '/' . $oldData->foto);
+                        @unlink(public_path().'/'.$oldData->foto);
                     }
                 }
 
@@ -3693,9 +3810,9 @@ class AttendanceController extends BaseController
                 return $this->respond(false, 'Gagal upload file');
             }
 
-
         } catch (\Throwable $e) {
-            Log::error('Upload Foto Error: ' . $e->getMessage());
+            Log::error('Upload Foto Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal upload foto.', null, null, 500);
         }
     }
@@ -3705,8 +3822,9 @@ class AttendanceController extends BaseController
      */
     public function registerFace()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $descriptor = $this->request->input('face_descriptor');
         if (empty($descriptor)) {
@@ -3714,22 +3832,22 @@ class AttendanceController extends BaseController
         }
 
         $arr = json_decode($descriptor, true);
-        if (!is_array($arr) || count($arr) !== 128) {
+        if (! is_array($arr) || count($arr) !== 128) {
             return $this->respond(false, 'Data wajah tidak valid');
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            $forge = (new \App\Http\Controllers\CiForge());
+            $db = DB::connection();
+            $forge = (new CiForge);
             $userId = session()->get('user_id');
 
             // Auto-create face_descriptor column if missing
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'face_descriptor')) {
+            if (! Schema::hasColumn('users', 'face_descriptor')) {
                 $forge->addColumn('users', [
                     'face_descriptor' => [
                         'type' => 'TEXT',
                         'null' => true,
-                    ]
+                    ],
                 ]);
             }
 
@@ -3739,18 +3857,18 @@ class AttendanceController extends BaseController
                 ->where('id', $userId)
                 ->first();
 
-            $existingFace = !empty($user->face_descriptor);
+            $existingFace = ! empty($user->face_descriptor);
 
             // Pendaftaran pertama (belum punya wajah): langsung aktif agar user baru bisa absen.
-            if (!$existingFace) {
-                \Illuminate\Support\Facades\DB::beginTransaction();
+            if (! $existingFace) {
+                DB::beginTransaction();
                 $db->table('users')
                     ->where('id', $userId)
                     ->update(['face_descriptor' => $descriptor]);
                 $okUpdate = 1 > 0;
 
                 $okLog = true;
-                if ($okUpdate && \Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+                if ($okUpdate && Schema::hasTable('face_registration_requests')) {
                     $db->table('face_registration_requests')->insert([
                         'user_id' => $userId,
                         'face_descriptor' => $descriptor,
@@ -3762,18 +3880,19 @@ class AttendanceController extends BaseController
                     $okLog = true;
                 }
 
-                if (!$okUpdate || !$okLog || true === false) {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                if (! $okUpdate || ! $okLog || true === false) {
+                    DB::rollBack();
+
                     return $this->respond(false, 'Gagal mendaftarkan wajah. Silakan coba lagi.', null, null, 500);
                 }
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
 
                 return $this->respond(true, 'Data wajah berhasil didaftarkan dan langsung aktif untuk verifikasi absensi.');
             }
 
             // Perubahan wajah berikutnya: WAJIB persetujuan admin (anti titip absen —
             // sebelumnya overwrite langsung + auto-approve request pending).
-            if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+            if (Schema::hasTable('face_registration_requests')) {
                 $pending = $db->table('face_registration_requests')
                     ->where('user_id', $userId)
                     ->where('status', 'pending')
@@ -3788,7 +3907,7 @@ class AttendanceController extends BaseController
                     ->where('status', 'approved')
                     ->orderBy('updated_at', 'DESC')
                     ->first();
-                if ($lastApproved && !empty($lastApproved->updated_at)
+                if ($lastApproved && ! empty($lastApproved->updated_at)
                     && (time() - strtotime($lastApproved->updated_at)) < 30 * 86400) {
                     return $this->respond(false, 'Data wajah hanya dapat diganti 1x per 30 hari. Hubungi admin bila mendesak.');
                 }
@@ -3807,31 +3926,33 @@ class AttendanceController extends BaseController
             // Fallback bila tabel request belum ada: tolak perubahan demi keamanan
             return $this->respond(false, 'Perubahan wajah membutuhkan persetujuan admin. Hubungi admin sekolah.');
         } catch (\Throwable $e) {
-            Log::error('Register Face Error: ' . $e->getMessage());
+            Log::error('Register Face Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mendaftarkan wajah', null, null, 500);
         }
     }
 
     public function getWfhQuota()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = session()->get('user_id');
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $setting = $this->settingModel->first();
 
             $wfhEnabled = $setting && (int) ($setting->wfh_enabled ?? 0) === 1;
             $maxWfh = (int) ($setting->wfh_max_per_bulan ?? 5);
 
             $wfhCount = 0;
-            if ($wfhEnabled && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_wfh')) {
+            if ($wfhEnabled && Schema::hasTable('absensi_harian') && Schema::hasColumn('absensi_harian', 'is_wfh')) {
                 $wfhCount = $db->table('absensi_harian')
                     ->where('user_id', $userId)
                     ->where('is_wfh', 1)
-                    ->where('tgl', 'like', date('Y-m') . '%')
+                    ->where('tgl', 'like', date('Y-m').'%')
                     ->count();
             }
 
@@ -3841,11 +3962,11 @@ class AttendanceController extends BaseController
                 ->where('user_id', $userId)
                 ->where('tgl', $today)
                 ->first();
-            $alreadyCheckedIn = !empty($todayRecord);
+            $alreadyCheckedIn = ! empty($todayRecord);
             $todayIsWfh = $alreadyCheckedIn && (int) ($todayRecord->is_wfh ?? 0) === 1;
 
             // Cek apakah sudah check-in dan bukan WFH — tidak bisa WFH lagi
-            $alreadyCheckedInNonWfh = $alreadyCheckedIn && !$todayIsWfh;
+            $alreadyCheckedInNonWfh = $alreadyCheckedIn && ! $todayIsWfh;
 
             return $this->respond(true, 'Kuota WFH', [
                 'wfh_enabled' => $wfhEnabled,
@@ -3863,25 +3984,26 @@ class AttendanceController extends BaseController
 
     public function getFaceRegistrationStatus()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = session()->get('user_id');
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             $user = $db->table('users')
                 ->select('face_descriptor')
                 ->where('id', $userId)
                 ->first();
 
-            $hasFace = !empty($user->face_descriptor);
+            $hasFace = ! empty($user->face_descriptor);
             $pending = null;
 
-            if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+            if (Schema::hasTable('face_registration_requests')) {
                 $pending = $db->table('face_registration_requests')
-                    ->select('id, status, keterangan, created_at, updated_at')
+                    ->select('id', 'status', 'keterangan', 'created_at', 'updated_at')
                     ->where('user_id', $userId)
                     ->orderBy('created_at', 'DESC')
                     ->limit(1)
@@ -3903,13 +4025,13 @@ class AttendanceController extends BaseController
      */
     public function qrCheckin()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
         // Rate limit seperti check-in/out: cegah brute-force token & spam scan
 
-        $qrKey = 'qr_checkin_' . md5($this->request->ip() . session()->get('user_id'));
+        $qrKey = 'qr_checkin_'.md5($this->request->ip().session()->get('user_id'));
         if ($this->throttleCheck($qrKey, 5, 60) === false) {
             return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
         }
@@ -3924,7 +4046,7 @@ class AttendanceController extends BaseController
 
         // QR tidak boleh tanpa lokasi: cegah token diteruskan via screenshot/chat
         // lalu di-scan dari luar lokasi acara.
-        if (!$this->isValidCoordinate($lat, $lng)) {
+        if (! $this->isValidCoordinate($lat, $lng)) {
             return $this->respond(false, 'Lokasi wajib diaktifkan untuk scan QR');
         }
         // Akurasi wajib dikirim klien; 0/hilang = sinyal mock atau GPS mati.
@@ -3939,17 +4061,17 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Terdeteksi lokasi palsu (mock location). Matikan aplikasi Fake GPS dan coba lagi.', null, null, 400);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_qr')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_qr')) {
             return $this->respond(false, 'Fitur QR belum diaktifkan');
         }
         $this->patchAbsensiQrLogJenis($db);
 
         // Resolve event: token rotating (window ±1 interval) atau static.
         // Token rotating kedaluwarsa tiap 30–120 detik → screenshot/chat basi.
-        $qr = \App\Libraries\QrToken::findEvent($db, $token, date('Y-m-d'));
+        $qr = QrToken::findEvent($db, $token, date('Y-m-d'));
 
-        if (!$qr) {
+        if (! $qr) {
             return $this->respond(false, 'QR Code tidak valid, kedaluwarsa, atau sudah tidak aktif');
         }
 
@@ -3962,7 +4084,7 @@ class AttendanceController extends BaseController
         $scanBuilder = $db->table('absensi_qr_log')
             ->where('qr_id', $qr->id)
             ->where('user_id', $userId);
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+        if (Schema::hasColumn('absensi_qr_log', 'jenis')) {
             $scanBuilder->where('jenis', 'masuk');
         }
         $alreadyScanned = $scanBuilder->count();
@@ -3982,9 +4104,9 @@ class AttendanceController extends BaseController
                 'scanned_at' => date('Y-m-d H:i:s'),
                 'lat' => $lat ?: null,
                 'lng' => $lng ?: null,
-                'created_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s'),
             ];
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+            if (Schema::hasColumn('absensi_qr_log', 'jenis')) {
                 $logData['jenis'] = 'masuk';
             }
             $db->table('absensi_qr_log')->insert($logData);
@@ -4005,28 +4127,28 @@ class AttendanceController extends BaseController
 
         $msg = "Absen {$qr->nama_acara} berhasil";
         $data = ['qr_event' => $qr->nama_acara];
-        if (!empty($bridge['bridged'])) {
+        if (! empty($bridge['bridged'])) {
             $msg .= $bridge['status_masuk'] === 'LATE'
                 ? " + tercatat absen masuk (Terlambat {$bridge['telat_menit']} mnt)"
-                : " + tercatat absen masuk (Tepat Waktu)";
+                : ' + tercatat absen masuk (Tepat Waktu)';
             $data['status_masuk'] = $bridge['status_masuk'];
             $data['telat_menit'] = (int) $bridge['telat_menit'];
             // Notifikasi keterlambatan via QR (best-effort)
             if ($bridge['status_masuk'] === 'LATE') {
                 try {
                     $guruQr = $db->table('master_guru')->select('nama_guru')->where('id_user', $userId)->first();
-                    $namaQr = $guruQr->nama_guru ?? ('User ' . $userId);
-                    (new \App\Services\NotificationService())->notifyLateCheckin(
+                    $namaQr = $guruQr->nama_guru ?? ('User '.$userId);
+                    (new NotificationService)->notifyLateCheckin(
                         $namaQr,
                         date('H:i'),
                         (int) $bridge['telat_menit'],
                         $userId
                     );
                 } catch (\Throwable $e) {
-                    Log::error('Notifikasi telat QR gagal: ' . $e->getMessage());
+                    Log::error('Notifikasi telat QR gagal: '.$e->getMessage());
                 }
             }
-        } elseif (!empty($bridge['reason'])) {
+        } elseif (! empty($bridge['reason'])) {
             $data['harian_note'] = $bridge['reason'];
         }
 
@@ -4042,11 +4164,11 @@ class AttendanceController extends BaseController
      */
     public function qrCheckout()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $qrKey = 'qr_checkout_' . md5($this->request->ip() . session()->get('user_id'));
+        $qrKey = 'qr_checkout_'.md5($this->request->ip().session()->get('user_id'));
         if ($this->throttleCheck($qrKey, 5, 60) === false) {
             return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
         }
@@ -4058,7 +4180,7 @@ class AttendanceController extends BaseController
         if ($token === '') {
             return $this->respond(false, 'Token QR tidak valid');
         }
-        if (!$this->isValidCoordinate($lat, $lng)) {
+        if (! $this->isValidCoordinate($lat, $lng)) {
             return $this->respond(false, 'Lokasi wajib diaktifkan untuk scan QR');
         }
         $qrAccuracyRaw = $this->request->input('accuracy');
@@ -4079,14 +4201,14 @@ class AttendanceController extends BaseController
         $isMockLocation = (int) ($mockCheck['is_mock'] ?? 0);
         $mockWarning = $isMockLocation ? ' ⚠️ Akurasi GPS rendah, data tercatat untuk verifikasi.' : '';
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_qr')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_qr')) {
             return $this->respond(false, 'Fitur QR belum diaktifkan');
         }
         $this->patchAbsensiQrLogJenis($db);
 
-        $qr = \App\Libraries\QrToken::findEvent($db, $token, date('Y-m-d'));
-        if (!$qr) {
+        $qr = QrToken::findEvent($db, $token, date('Y-m-d'));
+        if (! $qr) {
             return $this->respond(false, 'QR Code tidak valid, kedaluwarsa, atau sudah tidak aktif');
         }
 
@@ -4105,12 +4227,12 @@ class AttendanceController extends BaseController
             ->where('tgl', $checkOutDate)
             ->first();
 
-        if (!$todayAttendance) {
-            return $this->respond(false, 'Anda belum absen masuk pada tanggal ' . $checkOutDate);
+        if (! $todayAttendance) {
+            return $this->respond(false, 'Anda belum absen masuk pada tanggal '.$checkOutDate);
         }
         if (empty($todayAttendance->jam_masuk)) {
-            return $this->respond(false, 'Anda belum absen masuk pada tanggal ' . $checkOutDate
-                . '. Absen pulang hanya bisa dilakukan setelah absen masuk tercatat.');
+            return $this->respond(false, 'Anda belum absen masuk pada tanggal '.$checkOutDate
+                .'. Absen pulang hanya bisa dilakukan setelah absen masuk tercatat.');
         }
         if ($todayAttendance->jam_pulang) {
             return $this->respond(false, 'Anda sudah absen pulang');
@@ -4118,12 +4240,12 @@ class AttendanceController extends BaseController
 
         $isWfh = (int) ($todayAttendance->is_wfh ?? 0) === 1;
         $setting = $this->settingModel->first();
-        if (!$setting) {
+        if (! $setting) {
             $setting = $this->getDefaultSettings();
         }
 
         // Status dinas hanya mengikuti record check-in (client tidak bisa menaikkannya).
-        $isDinas = \App\Services\WajibJurnalPulangService::isStatusDinas($todayAttendance->status_masuk ?? '');
+        $isDinas = WajibJurnalPulangService::isStatusDinas($todayAttendance->status_masuk ?? '');
 
         // Kebijakan QR: tanpa kamera, foto, atau verifikasi wajah. Pengaman
         // tetap token, sesi login, jam pulang, jurnal, dan geofence.
@@ -4138,23 +4260,23 @@ class AttendanceController extends BaseController
 
         $dayOfWeek = (int) date('N', strtotime($checkOutDate));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
 
         if ($isWfh) {
             $jamPulangLimit = ($setting->wfh_selesai ?? '16:00:00');
         } else {
-            $shiftModel = new \App\Models\ShiftModel();
+            $shiftModel = new ShiftModel;
             $workSchedule = $shiftModel->getScheduleForUser($userId, $dayOfWeek, $jadwal, $setting);
             $jamPulangLimit = $workSchedule['jam_pulang'];
         }
 
-        if (!$isDinas && !$isWfh && !$isEarly && $now < $jamPulangLimit) {
+        if (! $isDinas && ! $isWfh && ! $isEarly && $now < $jamPulangLimit) {
             return $this->respond(false, "Belum waktunya pulang. Jadwal: $jamPulangLimit");
         }
 
-        if (!$isDinas) {
+        if (! $isDinas) {
             $sesiKurang = $this->getSessionsBlockingCheckout(
                 $idGuru,
                 $checkOutDate,
@@ -4163,20 +4285,21 @@ class AttendanceController extends BaseController
                 $setting,
                 $db
             );
-            if (!empty($sesiKurang)) {
+            if (! empty($sesiKurang)) {
                 $gate = $this->formatBlockingSessions($sesiKurang, $setting, $checkOutDate, $db);
+
                 return $this->respond(false, $gate['message'], $gate['data']);
             }
         }
 
         $validDistance = 0;
         $lokasiId = null;
-        if (!$isDinas && !$isWfh) {
+        if (! $isDinas && ! $isWfh) {
             $locationRows = [];
             try {
                 $locationRows = $db->table('absensi_lokasi')->get();
             } catch (\Throwable $e) {
-                Log::error('Failed to load absensi_lokasi table: ' . $e->getMessage());
+                Log::error('Failed to load absensi_lokasi table: '.$e->getMessage());
             }
             if (empty($locationRows)) {
                 return $this->respond(false, 'Titik lokasi kantor belum dikonfigurasi oleh admin. Hubungi admin sekolah.');
@@ -4186,7 +4309,7 @@ class AttendanceController extends BaseController
             foreach ($locationRows as $loc) {
                 $locLat = (float) $loc->lat;
                 $locLng = (float) $loc->lng;
-                $radius = (float) (!empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
+                $radius = (float) (! empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
                 $dist = distance_meter($lat, $lng, $locLat, $locLng);
                 if ($dist <= $radius) {
                     $validDistance = $dist;
@@ -4221,7 +4344,7 @@ class AttendanceController extends BaseController
             $isDinas ? 'Absen Pulang QR (Dinas)' : ($isWfh ? 'Absen Pulang QR (WFH)' : 'Absen Pulang QR')
         );
 
-        if (!$checkoutResult['ok']) {
+        if (! $checkoutResult['ok']) {
             return $this->respond(false, $checkoutResult['message']);
         }
 
@@ -4247,21 +4370,21 @@ class AttendanceController extends BaseController
                 'lng' => $lng ?: null,
                 'created_at' => date('Y-m-d H:i:s'),
             ];
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+            if (Schema::hasColumn('absensi_qr_log', 'jenis')) {
                 $logData['jenis'] = 'pulang';
             }
             $db->table('absensi_qr_log')->insert($logData);
         } catch (\Throwable $e) {
-            Log::error('[qrCheckout] gagal mencatat log QR pulang: ' . $e->getMessage());
+            Log::error('[qrCheckout] gagal mencatat log QR pulang: '.$e->getMessage());
         }
 
-        $msg = 'Absen Pulang via QR berhasil: ' . ($qr->nama_acara ?? 'acara');
+        $msg = 'Absen Pulang via QR berhasil: '.($qr->nama_acara ?? 'acara');
         if ($isWfh) {
-            $msg = 'Absen Pulang WFH via QR berhasil: ' . ($qr->nama_acara ?? 'acara');
+            $msg = 'Absen Pulang WFH via QR berhasil: '.($qr->nama_acara ?? 'acara');
         }
         $msg .= $mockWarning;
-        if (!$isWfh && ($checkoutResult['status_pulang'] === 'EARLY' || (int) $checkoutResult['pulang_cepat_menit'] > 0)) {
-            $msg .= "\n\n" . $this->getRandomMotivation();
+        if (! $isWfh && ($checkoutResult['status_pulang'] === 'EARLY' || (int) $checkoutResult['pulang_cepat_menit'] > 0)) {
+            $msg .= "\n\n".$this->getRandomMotivation();
         }
 
         return $this->respond(true, $msg, [
@@ -4278,17 +4401,17 @@ class AttendanceController extends BaseController
     private function patchAbsensiQrLogJenis($db): void
     {
         static $done = false;
-        if ($done || !\Illuminate\Support\Facades\Schema::hasTable('absensi_qr_log')) {
+        if ($done || ! Schema::hasTable('absensi_qr_log')) {
             return;
         }
 
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
-                (new \App\Http\Controllers\CiForge())->addColumn('absensi_qr_log', [
+            if (! Schema::hasColumn('absensi_qr_log', 'jenis')) {
+                (new CiForge)->addColumn('absensi_qr_log', [
                     'jenis' => ['type' => 'VARCHAR', 'constraint' => 10, 'default' => 'masuk', 'null' => false],
                 ]);
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+            if (! Schema::hasColumn('absensi_qr_log', 'jenis')) {
                 return;
             }
 
@@ -4309,15 +4432,15 @@ class AttendanceController extends BaseController
                 if ($sorted === $target) {
                     $hasTarget = true;
                 } elseif ($sorted === ['qr_id', 'user_id']) {
-                    $db->select('ALTER TABLE `absensi_qr_log` DROP INDEX `' . str_replace('`', '``', $name) . '`');
+                    $db->select('ALTER TABLE `absensi_qr_log` DROP INDEX `'.str_replace('`', '``', $name).'`');
                 }
             }
-            if (!$hasTarget) {
+            if (! $hasTarget) {
                 $db->select('ALTER TABLE `absensi_qr_log` ADD UNIQUE KEY `uq_qr_user_jenis` (`qr_id`, `user_id`, `jenis`)');
             }
             $done = true;
         } catch (\Throwable $e) {
-            Log::error('[patchAbsensiQrLogJenis] ' . $e->getMessage());
+            Log::error('[patchAbsensiQrLogJenis] '.$e->getMessage());
         }
     }
 
@@ -4337,7 +4460,7 @@ class AttendanceController extends BaseController
         float $accuracy, object $qr, int $isMock = 0
     ): array {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $this->patchAbsensiHarianTable();
             $setting = $this->settingModel->first();
 
@@ -4359,10 +4482,10 @@ class AttendanceController extends BaseController
             // sebelum, tutup 3 jam sesudah — sama seperti check-in face).
             $dayOfWeek = date('N', strtotime($today));
             $jadwal = null;
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
                 $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
             }
-            $shiftModel = new \App\Models\ShiftModel();
+            $shiftModel = new ShiftModel;
             $workSchedule = $shiftModel->getScheduleForUser($userId, (int) $dayOfWeek, $jadwal, $setting);
             $jamMasukLimit = $workSchedule['jam_masuk'];
             $waktuBukaMasuk = date('H:i:s', strtotime($jamMasukLimit) - (1 * 3600));
@@ -4384,7 +4507,7 @@ class AttendanceController extends BaseController
             $lokasiId = null;
             foreach ($locationRows as $loc) {
                 $dist = distance_meter($lat, $lng, (float) $loc->lat, (float) $loc->lng);
-                $radius = (float) (!empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
+                $radius = (float) (! empty($loc->radius_meter) ? $loc->radius_meter : ($setting->radius_meter ?? 100));
                 if ($dist <= $radius) {
                     $validDistance = $dist;
                     $lokasiId = $loc->id;
@@ -4398,12 +4521,12 @@ class AttendanceController extends BaseController
             // ONTIME / LATE + denda progresif (rumus baku AttendancePolicy,
             // identik dengan checkIn wajah).
             $graceMins = (int) ($workSchedule['grace_menit'] ?? ($setting->grace_period ?? 15));
-            $hit = \App\Services\AttendancePolicy::telat($today, $recordedTime, [
-                'jam_masuk'   => $jamMasukLimit,
+            $hit = AttendancePolicy::telat($today, $recordedTime, [
+                'jam_masuk' => $jamMasukLimit,
                 'grace_menit' => $graceMins,
             ]);
-            $statusMasuk     = $hit['status'];
-            $telatMenit      = $hit['telat_menit'];
+            $statusMasuk = $hit['status'];
+            $telatMenit = $hit['telat_menit'];
             $datangAwalMenit = $hit['datang_awal_menit'];
 
             $points = 0;
@@ -4435,39 +4558,39 @@ class AttendanceController extends BaseController
                 'points' => $points ?? 0,
                 'denda' => $denda ?? 0,
                 'keterangan_denda' => $keteranganDenda ?? null,
-                'keterangan' => 'Absen via QR: ' . ($qr->nama_acara ?? '-'),
+                'keterangan' => 'Absen via QR: '.($qr->nama_acara ?? '-'),
             ];
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit')) {
+            if (Schema::hasColumn('absensi_harian', 'telat_menit')) {
                 $data['telat_menit'] = $telatMenit;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit')) {
+            if (Schema::hasColumn('absensi_harian', 'datang_awal_menit')) {
                 $data['datang_awal_menit'] = $datangAwalMenit;
             }
             $reqIp = $this->request ? $this->request->ip() : '127.0.0.1';
             $reqUa = $this->request ? (string) $this->request->userAgent() : 'CLI';
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'ip_address')) {
+            if (Schema::hasColumn('absensi_harian', 'ip_address')) {
                 $data['ip_address'] = $reqIp;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'device_info')) {
-                $data['device_info'] = $reqUa . ' (QR Scan)';
+            if (Schema::hasColumn('absensi_harian', 'device_info')) {
+                $data['device_info'] = $reqUa.' (QR Scan)';
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
+            if (Schema::hasColumn('absensi_harian', 'gps_accuracy')) {
                 $data['gps_accuracy'] = $accuracy > 0 ? $accuracy : null;
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_mock_location')) {
+            if (Schema::hasColumn('absensi_harian', 'is_mock_location')) {
                 $data['is_mock_location'] = $isMock;
             }
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             // Cap denda dihitung di sini (terkunci FOR UPDATE) agar konsisten
             // dengan baris yang akan di-insert tepat di bawah.
             if (($denda ?? 0) > 0) {
-                $penaltyService = new \App\Services\AttendancePenaltyService();
+                $penaltyService = new AttendancePenaltyService;
                 $capped = $penaltyService->applyMonthlyCap($userId, $today, (float) $denda, $setting, null, true);
                 if ($capped['capped']) {
                     $denda = $capped['total'];
                     $capRp = number_format((float) ($setting->max_denda_bulan ?? 0), 0, ',', '.');
-                    $keteranganDenda = trim(($keteranganDenda ?? '') . " (dibatasi cap bulanan Rp{$capRp})");
+                    $keteranganDenda = trim(($keteranganDenda ?? '')." (dibatasi cap bulanan Rp{$capRp})");
                     $data['denda'] = $denda;
                     $data['keterangan_denda'] = $keteranganDenda;
                 }
@@ -4475,34 +4598,36 @@ class AttendanceController extends BaseController
             try {
                 $insertedId = $this->attendanceModel->insert($data);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
                 if ($this->isDuplicateKeyError($e)) {
                     return ['bridged' => false, 'reason' => 'Absen masuk hari ini sudah tercatat sebelumnya.'];
                 }
                 throw $e;
             }
             if ($insertedId === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return ['bridged' => false, 'reason' => 'Gagal mencatat absen harian. Hanya tercatat sebagai peserta acara.'];
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                \App\Services\GuruTerawalService::afterCheckIn($db, $today, $userId);
+                GuruTerawalService::afterCheckIn($db, $today, $userId);
             } catch (\Throwable $e) {
-                Log::error('Pengumuman guru terawal gagal: ' . $e->getMessage());
+                Log::error('Pengumuman guru terawal gagal: '.$e->getMessage());
             }
 
             // Sinkron poin (cermin checkIn).
             try {
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($insertedId);
+                (new PoinHistoryModel)->syncAttendancePoint($insertedId);
             } catch (\Throwable $e) {
-                Log::error('[bridgeQrCheckinToHarian] sync poin: ' . $e->getMessage());
+                Log::error('[bridgeQrCheckinToHarian] sync poin: '.$e->getMessage());
             }
 
             return ['bridged' => true, 'status_masuk' => $statusMasuk, 'telat_menit' => $telatMenit];
         } catch (\Throwable $e) {
-            Log::error('[bridgeQrCheckinToHarian] ' . $e->getMessage());
+            Log::error('[bridgeQrCheckinToHarian] '.$e->getMessage());
+
             return ['bridged' => false, 'reason' => 'Hanya tercatat sebagai peserta acara.'];
         }
     }
@@ -4512,21 +4637,21 @@ class AttendanceController extends BaseController
      */
     public function qrPage($token)
     {
-        if (!session()->get('is_login')) {
+        if (! session()->get('is_login')) {
             return redirect()->to('auth');
         }
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth')->with('error', 'Halaman QR hanya untuk guru.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $qr = \App\Libraries\QrToken::findEvent($db, $token, date('Y-m-d'));
+        $db = DB::connection();
+        $qr = QrToken::findEvent($db, $token, date('Y-m-d'));
 
         // Mode ditentukan dari absensi hari ini: belum masuk → check-in,
         // sudah masuk belum pulang → check-out, sudah lengkap → selesai.
         $userId = (int) session()->get('user_id');
         $todayAttendance = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             try {
                 $todayAttendance = $this->attendanceModel
                     ->where('user_id', $userId)
@@ -4539,9 +4664,9 @@ class AttendanceController extends BaseController
 
         $mode = 'checkin';
         if ($todayAttendance) {
-            if (!empty($todayAttendance->jam_pulang)) {
+            if (! empty($todayAttendance->jam_pulang)) {
                 $mode = 'done';
-            } elseif (!empty($todayAttendance->jam_masuk)) {
+            } elseif (! empty($todayAttendance->jam_masuk)) {
                 $mode = 'checkout';
             }
         }
@@ -4560,12 +4685,12 @@ class AttendanceController extends BaseController
      */
     public function getActiveQrEvents()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_qr')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_qr')) {
             return $this->respond(true, '', []);
         }
 
@@ -4578,7 +4703,7 @@ class AttendanceController extends BaseController
         // Sertakan token kini per event (secret tidak ikut). Untuk rotating,
         // token berubah tiap interval — klien wajib refresh berkala.
         foreach ($events as $e) {
-            $e->current_token = \App\Libraries\QrToken::displayToken($e);
+            $e->current_token = QrToken::displayToken($e);
             unset($e->secret);
         }
 
@@ -4590,8 +4715,9 @@ class AttendanceController extends BaseController
      */
     public function updateLogin()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = (int) session()->get('user_id');
         $idGuru = $this->resolveIdGuru($userId);
@@ -4601,17 +4727,17 @@ class AttendanceController extends BaseController
         if ($username === '') {
             return $this->respond(false, 'Username tidak boleh kosong');
         }
-        if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
+        if (! preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
             return $this->respond(false, 'Username 3-50 karakter, hanya huruf, angka, titik, garis bawah, atau tanda hubung.');
         }
         if ($password !== '' && strlen($password) < 8) {
             return $this->respond(false, 'Password baru minimal 8 karakter.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $guru = $db->table('master_guru')->where('id_guru', $idGuru)->first();
 
-        if (!$guru) {
+        if (! $guru) {
             return $this->respond(false, 'Data guru tidak ditemukan');
         }
 
@@ -4641,42 +4767,45 @@ class AttendanceController extends BaseController
 
             return $this->respond(true, 'Kredensial login berhasil diperbarui.');
         } catch (\Throwable $e) {
-            Log::error('Update Login Error: ' . $e->getMessage());
+            Log::error('Update Login Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal memperbarui kredensial login.', null, null, 500);
         }
     }
 
-        /**
+    /**
      * Terbitkan kode tautan Telegram 15 menit + deep-link bot.
      * POST presensi/telegram-link (guru, CSRF seperti endpoint lain).
      */
     public function telegramLink()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
         $userId = (int) session()->get('user_id');
         try {
-            $model = new \App\Models\UserNotifikasiModel();
+            $model = new UserNotifikasiModel;
             $existing = $model->getByUserId($userId);
-            if ($existing && !empty($existing->telegram_chat_id)) {
+            if ($existing && ! empty($existing->telegram_chat_id)) {
                 return $this->respond(true, 'Telegram sudah tertaut.', ['linked' => true]);
             }
             $token = $model->issueLinkToken($userId);
-            if (!$token) {
+            if (! $token) {
                 return $this->respond(false, 'Gagal membuat kode tautan.');
             }
-            $bot = (new \App\Services\NotificationService())->getBotUsername();
+            $bot = (new NotificationService)->getBotUsername();
             if ($bot === '') {
                 return $this->respond(false, 'Bot Telegram belum dikonfigurasi admin.');
             }
+
             return $this->respond(true, 'Kode tautan dibuat (berlaku 15 menit).', [
                 'linked' => false,
-                'token'  => $token,
-                'link'   => 'https://t.me/' . $bot . '?start=' . $token,
+                'token' => $token,
+                'link' => 'https://t.me/'.$bot.'?start='.$token,
             ]);
         } catch (\Throwable $e) {
-            Log::error('[Attendance::buatKodeTautan] ' . $e->getMessage());
+            Log::error('[Attendance::buatKodeTautan] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal membuat kode tautan — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -4685,13 +4814,14 @@ class AttendanceController extends BaseController
      * Lepas tautan Telegram akun ini. POST presensi/telegram-unlink.
      */
     public function telegramUnlink()
-    {        if (!$this->inGroup('guru')) {
+    {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
         $userId = (int) session()->get('user_id');
         try {
             $idGuru = $this->resolveIdGuru($userId);
-            $ok = \App\Libraries\TelegramLink::detachFromGuru($idGuru, $userId);
+            $ok = TelegramLink::detachFromGuru($idGuru, $userId);
 
             // detachFromGuru() dulu selalu true; sekarang hasilnya jujur.
             // Melaporkan sukses saat penulisan database gagal berarti guru
@@ -4705,7 +4835,8 @@ class AttendanceController extends BaseController
 
             return $this->respond(true, 'Tautan Telegram dilepas.');
         } catch (\Throwable $e) {
-            Log::error('[Attendance::lepasTautan] ' . $e->getMessage());
+            Log::error('[Attendance::lepasTautan] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal melepas tautan — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -4717,7 +4848,7 @@ class AttendanceController extends BaseController
      */
     public function telegramSetId()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
         $userId = (int) session()->get('user_id');
@@ -4726,18 +4857,20 @@ class AttendanceController extends BaseController
             $raw = (string) ($this->request->input('telegram_id') ?? '');
 
             if (trim($raw) === '') {
-                \App\Libraries\TelegramLink::detachFromGuru($idGuru, $userId);
+                TelegramLink::detachFromGuru($idGuru, $userId);
+
                 return $this->respond(true, 'Tautan Telegram dilepas.', ['chat_id' => '']);
             }
 
-            $result = \App\Libraries\TelegramLink::attachToGuru($idGuru, $userId, $raw);
-            if (!$result['ok']) {
+            $result = TelegramLink::attachToGuru($idGuru, $userId, $raw);
+            if (! $result['ok']) {
                 return $this->respond(false, $result['message']);
             }
 
             return $this->respond(true, $result['message'], ['chat_id' => $result['chat_id']]);
         } catch (\Throwable $e) {
-            Log::error('telegramSetId gagal: ' . $e->getMessage());
+            Log::error('telegramSetId gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyimpan ID Telegram.', null, null, 500);
         }
     }
@@ -4748,21 +4881,23 @@ class AttendanceController extends BaseController
      */
     public function telegramPrefs()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
         $userId = (int) session()->get('user_id');
         try {
-            $model = new \App\Models\UserNotifikasiModel();
+            $model = new UserNotifikasiModel;
             $row = $model->getByUserId($userId);
             $idGuru = $this->resolveIdGuru($userId);
+
             return $this->respond(true, 'OK', [
-                'linked'  => !empty($row->telegram_chat_id),
-                'chat_id' => \App\Libraries\TelegramLink::chatIdForGuru($idGuru, $userId),
-                'prefs'   => $model->getPrefs($userId),
+                'linked' => ! empty($row->telegram_chat_id),
+                'chat_id' => TelegramLink::chatIdForGuru($idGuru, $userId),
+                'prefs' => $model->getPrefs($userId),
             ]);
         } catch (\Throwable $e) {
-            Log::error('[Attendance::telegramPrefs] ' . $e->getMessage());
+            Log::error('[Attendance::telegramPrefs] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal memuat preferensi — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -4778,7 +4913,7 @@ class AttendanceController extends BaseController
      */
     public function telegramTest()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -4787,12 +4922,12 @@ class AttendanceController extends BaseController
         try {
             // Rate limit: 1 request / 20 detik per akun
 
-            if ($this->throttleCheck('tg_test_' . $userId, 1, 20) === false) {
+            if ($this->throttleCheck('tg_test_'.$userId, 1, 20) === false) {
                 return $this->respond(false, 'Terlalu sering. Tunggu 20 detik sebelum mengetes lagi.');
             }
 
             $idGuru = $this->resolveIdGuru($userId);
-            $chatId = \App\Libraries\TelegramLink::chatIdForGuru($idGuru, $userId);
+            $chatId = TelegramLink::chatIdForGuru($idGuru, $userId);
 
             if ($chatId === '') {
                 return $this->respond(false, 'Belum ada ID Telegram tersimpan. Isi kolom ID Telegram di profil terlebih dahulu.', [
@@ -4800,10 +4935,10 @@ class AttendanceController extends BaseController
                 ]);
             }
 
-            $svc = new \App\Services\NotificationService();
+            $svc = new NotificationService;
 
             // Token bot harus ada; tanpa ini mustahil menguji apa pun.
-            $setting = (new \App\Models\AttendanceSettingModel())->first();
+            $setting = (new AttendanceSettingModel)->first();
             if (empty($setting->telegram_bot_token)) {
                 return $this->respond(false, 'Bot Token belum diisi admin di Pengaturan → Notifikasi.', [
                     'stage' => 'tanpa-token',
@@ -4816,33 +4951,34 @@ class AttendanceController extends BaseController
             }
 
             $msg = "✅ <b>PESAN TES BERHASIL</b>\n"
-                 . "Halo <b>" . htmlspecialchars($nama, ENT_QUOTES, 'UTF-8') . "</b>,\n"
-                 . "Tautan Telegram Anda aktif. Notifikasi denda, surat teguran, dan "
-                 . "peringatan alpha akan dikirim ke chat ini.\n"
-                 . "─────────────────\n"
-                 . "Chat ID: <code>" . htmlspecialchars($chatId, ENT_QUOTES, 'UTF-8') . "</code>\n"
-                 . "Waktu: " . date('d/m/Y H:i');
+                 .'Halo <b>'.htmlspecialchars($nama, ENT_QUOTES, 'UTF-8')."</b>,\n"
+                 .'Tautan Telegram Anda aktif. Notifikasi denda, surat teguran, dan '
+                 ."peringatan alpha akan dikirim ke chat ini.\n"
+                 ."─────────────────\n"
+                 .'Chat ID: <code>'.htmlspecialchars($chatId, ENT_QUOTES, 'UTF-8')."</code>\n"
+                 .'Waktu: '.date('d/m/Y H:i');
 
             $ok = $svc->sendTelegramTo($chatId, $msg);
 
             if ($ok) {
                 return $this->respond(true, 'Pesan tes terkirim. Cek chat Telegram Anda.', [
-                    'stage'   => 'terkirim',
+                    'stage' => 'terkirim',
                     'chat_id' => $chatId,
-                    'bot'     => $svc->getBotUsername(),
+                    'bot' => $svc->getBotUsername(),
                 ]);
             }
 
             // Kegagalan selalu accompanied alasan yang bisa ditindaklanjuti.
             $reason = trim($svc->lastError) !== '' ? $svc->lastError : 'Telegram menolak pengiriman tanpa keterangan.';
-            Log::notice('[telegram-test] guru user_id=' . $userId . ' chat=' . $chatId . ' gagal: ' . $reason);
+            Log::notice('[telegram-test] guru user_id='.$userId.' chat='.$chatId.' gagal: '.$reason);
 
             return $this->respond(false, $reason, [
-                'stage'   => 'gagal-kirim',
+                'stage' => 'gagal-kirim',
                 'chat_id' => $chatId,
             ], null, 200);
         } catch (\Throwable $e) {
-            Log::error('telegramTest gagal: ' . $e->getMessage());
+            Log::error('telegramTest gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan sistem.', null, null, 500);
         }
     }
@@ -4853,7 +4989,7 @@ class AttendanceController extends BaseController
      */
     public function telegramPrefsSave()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
         $userId = (int) session()->get('user_id');
@@ -4862,15 +4998,17 @@ class AttendanceController extends BaseController
             if (is_string($raw)) {
                 $raw = json_decode($raw, true);
             }
-            if (!is_array($raw)) {
+            if (! is_array($raw)) {
                 return $this->respond(false, 'Format preferensi tidak valid.');
             }
-            $ok = (new \App\Models\UserNotifikasiModel())->setPrefs($userId, $raw);
+            $ok = (new UserNotifikasiModel)->setPrefs($userId, $raw);
+
             return $ok
                 ? $this->respond(true, 'Preferensi disimpan.')
                 : $this->respond(false, 'Gagal menyimpan preferensi.');
         } catch (\Throwable $e) {
-            Log::error('[Attendance::simpanTelegramPrefs] ' . $e->getMessage());
+            Log::error('[Attendance::simpanTelegramPrefs] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyimpan preferensi — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -4904,17 +5042,18 @@ class AttendanceController extends BaseController
             $raw = $this->request->input('wa_number');
             $raw = $raw === null ? '' : (string) $raw;
 
-            $r = \App\Libraries\WhatsAppLink::attachToGuru($idGuru, $userId, $raw);
+            $r = WhatsAppLink::attachToGuru($idGuru, $userId, $raw);
             if (! $r['ok']) {
                 return $this->respond(false, $r['message']);
             }
 
             return $this->respond(true, $r['message'], [
-                'number'   => $r['number'],
-                'verified' => $r['number'] !== '' && (new \App\Models\UserNotifikasiModel())->getVerifiedWaNumber($userId) !== '',
+                'number' => $r['number'],
+                'verified' => $r['number'] !== '' && (new UserNotifikasiModel)->getVerifiedWaNumber($userId) !== '',
             ]);
         } catch (\Throwable $e) {
-            Log::error('waLink gagal: ' . $e->getMessage());
+            Log::error('waLink gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan sistem.', null, null, 500);
         }
     }
@@ -4934,12 +5073,12 @@ class AttendanceController extends BaseController
 
         try {
 
-            if ($this->throttleCheck('wa_test_' . $userId, 1, 20) === false) {
+            if ($this->throttleCheck('wa_test_'.$userId, 1, 20) === false) {
                 return $this->respond(false, 'Terlalu sering. Tunggu 20 detik sebelum mengetes lagi.');
             }
 
             $idGuru = $this->resolveIdGuru($userId);
-            $number = \App\Libraries\WhatsAppLink::numberForGuru($idGuru, $userId);
+            $number = WhatsAppLink::numberForGuru($idGuru, $userId);
 
             if ($number === '') {
                 return $this->respond(false, 'Belum ada nomor WhatsApp tersimpan. Isi kolomnya di halaman Notifikasi terlebih dahulu.', [
@@ -4947,7 +5086,7 @@ class AttendanceController extends BaseController
                 ]);
             }
 
-            $svc = new \App\Services\NotificationService();
+            $svc = new NotificationService;
             if ($svc->waMode() !== 'openwa') {
                 return $this->respond(false, 'Gateway WhatsApp belum diaktifkan admin di Pengaturan → Notifikasi.', [
                     'stage' => 'kanal-off',
@@ -4956,33 +5095,35 @@ class AttendanceController extends BaseController
 
             // Nomor yang belum dikonfirmasi admin tetap boleh diuji: ini
             // justru gunanya, supaya guru memastikan nomornya benar sebelum
-            //dinonaktifkan. Pesan tes tidak memuat data absensi pribadi.
+            // dinonaktifkan. Pesan tes tidak memuat data absensi pribadi.
             $nama = trim((string) (session()->get('name') ?? '')) ?: 'Guru';
             $msg = "<b>PESAN TES</b>\n"
-                 . "Halo <b>" . htmlspecialchars($nama, ENT_QUOTES, 'UTF-8') . "</b>,\n"
-                 . "Jika pesan ini sampai, nomor WhatsApp Anda sudah benar dan notifikasi "
-                 . "denda, surat teguran, serta peringatan alpha akan dikirim ke sini.\n"
-                 . "-----------------\n"
-                 . "Nomor: <code>" . htmlspecialchars($number, ENT_QUOTES, 'UTF-8') . "</code>\n"
-                 . "Waktu: " . date('d/m/Y H:i');
+                 .'Halo <b>'.htmlspecialchars($nama, ENT_QUOTES, 'UTF-8')."</b>,\n"
+                 .'Jika pesan ini sampai, nomor WhatsApp Anda sudah benar dan notifikasi '
+                 ."denda, surat teguran, serta peringatan alpha akan dikirim ke sini.\n"
+                 ."-----------------\n"
+                 .'Nomor: <code>'.htmlspecialchars($number, ENT_QUOTES, 'UTF-8')."</code>\n"
+                 .'Waktu: '.date('d/m/Y H:i');
 
-            $openwa = new \App\Services\OpenWAService();
+            $openwa = new OpenWAService;
             $ok = $openwa->sendText($number, $msg);
 
             if ($ok) {
                 return $this->respond(true, 'Pesan tes terkirim. Cek WhatsApp Anda.', [
-                    'stage'  => 'terkirim',
+                    'stage' => 'terkirim',
                     'number' => $number,
                 ]);
             }
 
-            Log::notice('[wa-test] guru user_id=' . $userId . ' nomor=' . $number . ' gagal: ' . $openwa->lastError);
+            Log::notice('[wa-test] guru user_id='.$userId.' nomor='.$number.' gagal: '.$openwa->lastError);
+
             return $this->respond(false, $openwa->lastError !== '' ? $openwa->lastError : 'Gateway menolak pengiriman.', [
-                'stage'  => 'gagal-kirim',
+                'stage' => 'gagal-kirim',
                 'number' => $number,
             ], null, 200);
         } catch (\Throwable $e) {
-            Log::error('waTest gagal: ' . $e->getMessage());
+            Log::error('waTest gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan sistem.', null, null, 500);
         }
     }
@@ -4993,16 +5134,17 @@ class AttendanceController extends BaseController
      */
     public function getNotifications()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         try {
             $userId = session()->get('user_id');
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $notifications = [];
 
             // 1. Izin/Cuti Status Notifications
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            if (Schema::hasTable('absensi_izin')) {
                 $permits = $db->table('absensi_izin')
                     ->where('user_id', $userId)
                     ->orderBy('updated_at', 'DESC')
@@ -5031,11 +5173,11 @@ class AttendanceController extends BaseController
                         'icon' => $icon,
                         'bgClass' => $bgClass,
                         'title' => $title,
-                        'text' => $permit->jenis . ' dari ' . date('d M', strtotime($permit->tgl_mulai)) .
-                            ' - ' . date('d M Y', strtotime($permit->tgl_selesai)),
+                        'text' => $permit->jenis.' dari '.date('d M', strtotime($permit->tgl_mulai)).
+                            ' - '.date('d M Y', strtotime($permit->tgl_selesai)),
                         'time' => $this->timeAgo($permit->updated_at ?? $permit->created_at),
                         'status' => $permit->status,
-                        'created_at' => $permit->created_at ?? date('Y-m-d H:i:s')
+                        'created_at' => $permit->created_at ?? date('Y-m-d H:i:s'),
                     ];
                 }
             }
@@ -5043,7 +5185,7 @@ class AttendanceController extends BaseController
             // 2. Dinas Status Notifications
             $dinasRecords = $db->table('absensi_harian')
                 ->where('user_id', $userId)
-                ->where('status_masuk LIKE', 'DINAS%')
+                ->where('status_masuk', 'LIKE', 'DINAS%')
                 ->orderBy('updated_at', 'DESC')
                 ->limit(10)
                 ->get();
@@ -5070,15 +5212,15 @@ class AttendanceController extends BaseController
                     'icon' => $icon,
                     'bgClass' => $bgClass,
                     'title' => $title,
-                    'text' => 'Absensi dinas luar pada ' . date('d M Y', strtotime($dinas->tgl)),
+                    'text' => 'Absensi dinas luar pada '.date('d M Y', strtotime($dinas->tgl)),
                     'time' => $this->timeAgo($dinas->updated_at ?? $dinas->created_at),
                     'status' => $dinas->status_masuk,
-                    'created_at' => $dinas->created_at ?? date('Y-m-d H:i:s')
+                    'created_at' => $dinas->created_at ?? date('Y-m-d H:i:s'),
                 ];
             }
 
             // 3. Correction Status Notifications
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+            if (Schema::hasTable('absensi_koreksi')) {
                 $corrections = $db->table('absensi_koreksi')
                     ->where('user_id', $userId)
                     ->orderBy('updated_at', 'DESC')
@@ -5107,11 +5249,11 @@ class AttendanceController extends BaseController
                         'icon' => $icon,
                         'bgClass' => $bgClass,
                         'title' => $title,
-                        'text' => 'Koreksi ' . str_replace('_', ' ', $corr->field_name) . ': ' .
+                        'text' => 'Koreksi '.str_replace('_', ' ', $corr->field_name).': '.
                             ($corr->admin_note ?? $corr->reason),
                         'time' => $this->timeAgo($corr->updated_at ?? $corr->created_at),
                         'status' => $corr->status,
-                        'created_at' => $corr->created_at ?? date('Y-m-d H:i:s')
+                        'created_at' => $corr->created_at ?? date('Y-m-d H:i:s'),
                     ];
                 }
             }
@@ -5127,8 +5269,9 @@ class AttendanceController extends BaseController
                 ->where('user_id', $userId)
                 ->where('tgl', '>=', date('Y-m-d', strtotime('-14 days')))
                 ->get();
-            foreach ($recs as $r)
+            foreach ($recs as $r) {
                 $mapRecent[$r->tgl] = true;
+            }
 
             $consecutiveAbsent = 0;
             // Check backward from yesterday to avoid crying about today if not yet checked in
@@ -5148,11 +5291,11 @@ class AttendanceController extends BaseController
                 }
 
                 // Skip hari libur (mingguan + jadwal sekolah + kalender).
-                if (\App\Services\AttendancePolicy::isLibur($d)) {
+                if (AttendancePolicy::isLibur($d)) {
                     continue;
                 }
 
-                if (!isset($mapRecent[$d])) {
+                if (! isset($mapRecent[$d])) {
                     $consecutiveAbsent++;
                 } else {
                     // Stop if attended
@@ -5169,7 +5312,7 @@ class AttendanceController extends BaseController
                     'text' => "Anda tidak hadir selama {$consecutiveAbsent} hari kerja berturut-turut. Mohon hubungi admin.",
                     'time' => 'Penting',
                     'status' => 'danger',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             } elseif ($consecutiveAbsent >= 3) {
                 $notifications[] = [
@@ -5180,7 +5323,7 @@ class AttendanceController extends BaseController
                     'text' => "Anda tidak hadir {$consecutiveAbsent} hari kerja berturut-turut.",
                     'time' => 'Perhatian',
                     'status' => 'warning',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             }
 
@@ -5195,11 +5338,13 @@ class AttendanceController extends BaseController
             $lateCount = 0;
             $hadirEfektifBulanIni = 0;
             foreach ($statsRecs as $s) {
-                if ($s->status_masuk === 'LATE')
+                if ($s->status_masuk === 'LATE') {
                     $lateCount++;
+                }
                 // ALPHA/ALPA BUKAN kehadiran — jangan dihitung hadir
-                if (!in_array($s->status_masuk ?? '', ['ALPHA', 'ALPA'], true))
+                if (! in_array($s->status_masuk ?? '', ['ALPHA', 'ALPA'], true)) {
                     $hadirEfektifBulanIni++;
+                }
             }
 
             // Calculate Effective Working Days in this month so far
@@ -5212,19 +5357,19 @@ class AttendanceController extends BaseController
             while ($startTs <= $endTs) {
                 $checkD = date('Y-m-d', $startTs);
 
-                if (!\App\Services\AttendancePolicy::isLibur($checkD)) {
+                if (! AttendancePolicy::isLibur($checkD)) {
                     $effectiveDays++;
                 }
                 $startTs = strtotime('+1 day', $startTs);
             }
 
             $totalAbsentMonth = $effectiveDays - $hadirEfektifBulanIni;
-            // Adjustment: If today is effective day but user hasn't clocked in yet (and it's morning), 
-            // effectiveDays counted it, totalHadir didn't. So absent++. 
+            // Adjustment: If today is effective day but user hasn't clocked in yet (and it's morning),
+            // effectiveDays counted it, totalHadir didn't. So absent++.
             // But if it's morning, we shouldn't scold them yet.
             // Let's reduce 1 absent day if today is effective AND time < jam_pulang AND user not present yet.
-            if (!isset($mapRecent[$todayDate]) && date('H:i') < ($setting->jam_pulang ?? '15:00')) {
-                if (!\App\Services\AttendancePolicy::isLibur($todayDate)) {
+            if (! isset($mapRecent[$todayDate]) && date('H:i') < ($setting->jam_pulang ?? '15:00')) {
+                if (! AttendancePolicy::isLibur($todayDate)) {
                     $totalAbsentMonth = max(0, $totalAbsentMonth - 1);
                 }
             }
@@ -5243,13 +5388,14 @@ class AttendanceController extends BaseController
 
             try {
                 $idGuruNotif = 0;
-                if ($db && \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+                if ($db && Schema::hasTable('master_guru')) {
                     $grow = $db->table('master_guru')->select('id_guru')
                         ->where('id_user', $userId)->first();
-                    if ($grow)
+                    if ($grow) {
                         $idGuruNotif = (int) ($grow->id_guru ?? 0);
+                    }
                 }
-                if ($idGuruNotif > 0 && $db && \Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
+                if ($idGuruNotif > 0 && $db && Schema::hasTable('absensi_surat_teguran')) {
                     $blnIni = (int) date('n');
                     $thnIni = (int) date('Y');
                     $namaBulanPendek = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'];
@@ -5266,9 +5412,10 @@ class AttendanceController extends BaseController
                         ->limit(3)->get();
                     foreach ($letters as $lt) {
                         $lvl = (int) ($lt->level ?? 0);
-                        if (!isset($levelMap[$lvl]))
+                        if (! isset($levelMap[$lvl])) {
                             continue;
-                        
+                        }
+
                         // Abaikan surat yang sudah dibatalkan
                         if (($lt->status ?? 'aktif') === 'dibatalkan') {
                             continue;
@@ -5280,7 +5427,7 @@ class AttendanceController extends BaseController
                         }
                         $meta = $levelMap[$lvl];
                         $blnLbl = $namaBulanPendek[$blnSurat] ?? '';
-                        $periode = ($namaBulanPenuh[$blnSurat] ?? '') . ' ' . $thnIni;
+                        $periode = ($namaBulanPenuh[$blnSurat] ?? '').' '.$thnIni;
 
                         // Periksa alpha terkini untuk mendeteksi apakah izin disetujui retroaktif
                         $alphaSurat = $this->alphaForLetterPeriod($userId, $blnSurat, $thnIni, $setting, $db);
@@ -5288,15 +5435,17 @@ class AttendanceController extends BaseController
                             // Jika alpha sudah 0 (izin resmi disetujui setelah surat terbit),
                             // otomatis tandai surat sebagai dibatalkan di DB agar arsip rapi
                             try {
-                                if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_surat_teguran', 'status')) {
+                                if (Schema::hasColumn('absensi_surat_teguran', 'status')) {
                                     $db->table('absensi_surat_teguran')
                                         ->where('id', $lt->id)
                                         ->update([
                                             'status' => 'dibatalkan',
-                                            'keterangan_batal' => 'Izin/dispensasi resmi disetujui'
+                                            'keterangan_batal' => 'Izin/dispensasi resmi disetujui',
                                         ]);
                                 }
-                            } catch (\Throwable $e) {}
+                            } catch (\Throwable $e) {
+                            }
+
                             continue;
                         }
 
@@ -5315,9 +5464,9 @@ class AttendanceController extends BaseController
                             'time' => ($blnSurat === $blnIni) ? 'Bulan ini' : "{$blnLbl} {$thnIni}",
                             'status' => $meta['status'],
                             'action_label' => 'Unduh PDF',
-                            'action_url' => url('presensi/surat/' . (int) ($lt->id ?? 0)),
+                            'action_url' => url('presensi/surat/'.(int) ($lt->id ?? 0)),
                             'action_icon' => 'bi-file-earmark-pdf-fill',
-                            'created_at' => date('Y-m-d H:i:s')
+                            'created_at' => date('Y-m-d H:i:s'),
                         ];
                     }
                 }
@@ -5338,7 +5487,7 @@ class AttendanceController extends BaseController
                     'action_label' => 'Unduh PDF',
                     'action_url' => url('presensi/download-teguran/10'),
                     'action_icon' => 'bi-file-earmark-pdf-fill',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             } elseif ($bandLevel >= 7) {
                 $notifications[] = [
@@ -5352,7 +5501,7 @@ class AttendanceController extends BaseController
                     'action_label' => 'Unduh PDF',
                     'action_url' => url('presensi/download-teguran/7'),
                     'action_icon' => 'bi-file-earmark-pdf-fill',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             } elseif ($bandLevel >= 3) {
                 $notifications[] = [
@@ -5366,10 +5515,9 @@ class AttendanceController extends BaseController
                     'action_label' => 'Unduh PDF',
                     'action_url' => url('presensi/download-teguran/3'),
                     'action_icon' => 'bi-file-earmark-pdf-fill',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             }
-
 
             // C. Late Warning (e.g. > 5 times a month)
             if ($lateCount >= 5) {
@@ -5381,12 +5529,12 @@ class AttendanceController extends BaseController
                     'text' => "Anda tercatat terlambat {$lateCount} kali bulan ini. Harap perbaiki ketepatan waktu.",
                     'time' => 'Bulan ini',
                     'status' => 'warning',
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
                 ];
             }
 
             // 5. Upcoming Holidays/Announcements from hari libur
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_hari_libur')) {
+            if (Schema::hasTable('absensi_hari_libur')) {
                 $upcomingHolidays = $db->table('absensi_hari_libur')
                     ->where('tanggal', '>=', $today)
                     ->where('tanggal', '<=', date('Y-m-d', strtotime('+30 days')))
@@ -5400,10 +5548,10 @@ class AttendanceController extends BaseController
                         'icon' => 'bi-calendar-event',
                         'bgClass' => 'bg-blue-soft',
                         'title' => 'Hari Libur',
-                        'text' => $holiday->keterangan . ' - ' . date('d M Y', strtotime($holiday->tanggal)),
+                        'text' => $holiday->keterangan.' - '.date('d M Y', strtotime($holiday->tanggal)),
                         'time' => $this->timeAgo($holiday->tanggal),
                         'status' => 'info',
-                        'created_at' => $holiday->tanggal
+                        'created_at' => $holiday->tanggal,
                     ];
                 }
             }
@@ -5419,7 +5567,8 @@ class AttendanceController extends BaseController
             return $this->respond(true, 'Notifications fetched', $notifications);
 
         } catch (\Throwable $e) {
-            Log::error('Get Notifications Error: ' . $e->getMessage());
+            Log::error('Get Notifications Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mengambil notifikasi', null, null, 500);
         }
     }
@@ -5429,8 +5578,9 @@ class AttendanceController extends BaseController
      */
     private function timeAgo($datetime)
     {
-        if (!$datetime)
+        if (! $datetime) {
             return 'Baru saja';
+        }
 
         $timestamp = strtotime($datetime);
         $diff = time() - $timestamp;
@@ -5439,16 +5589,20 @@ class AttendanceController extends BaseController
             return 'Baru saja';
         } elseif ($diff < 3600) {
             $mins = floor($diff / 60);
-            return $mins . ' menit yang lalu';
+
+            return $mins.' menit yang lalu';
         } elseif ($diff < 86400) {
             $hours = floor($diff / 3600);
-            return $hours . ' jam yang lalu';
+
+            return $hours.' jam yang lalu';
         } elseif ($diff < 604800) {
             $days = floor($diff / 86400);
-            return $days . ' hari yang lalu';
+
+            return $days.' hari yang lalu';
         } elseif ($diff < 2592000) {
             $weeks = floor($diff / 604800);
-            return $weeks . ' minggu yang lalu';
+
+            return $weeks.' minggu yang lalu';
         } else {
             return date('d M Y', $timestamp);
         }
@@ -5459,11 +5613,12 @@ class AttendanceController extends BaseController
      */
     public function history()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = session()->get('user_id');
-        if (!$userId) {
+        if (! $userId) {
             return $this->respond(false, 'Sesi tidak valid', null, null, 401);
         }
 
@@ -5473,16 +5628,16 @@ class AttendanceController extends BaseController
         // Support optional ?month=YYYY-MM param for browsing past months
         $monthParam = $this->request->query('month');
         if ($monthParam && preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
-            $monthStart = $monthParam . '-01';
-            $monthEnd   = date('Y-m-t', strtotime($monthStart));
+            $monthStart = $monthParam.'-01';
+            $monthEnd = date('Y-m-t', strtotime($monthStart));
         } else {
             $monthStart = date('Y-m-01');
-            $monthEnd   = date('Y-m-t');
+            $monthEnd = date('Y-m-t');
         }
 
         $db = null;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
         } catch (\Throwable $e) {
             $db = null;
         }
@@ -5490,7 +5645,7 @@ class AttendanceController extends BaseController
         $recordsWeek = [];
         $recordsMonth = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if ($db && Schema::hasTable('absensi_harian')) {
                 $recordsWeek = $this->attendanceModel
                     ->where('user_id', $userId)
                     ->where('tgl', '>=', $weekStart)
@@ -5534,7 +5689,7 @@ class AttendanceController extends BaseController
         $jamMasuk = '07:00:00';
         $jamPulang = '15:00:00';
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+            if ($db && Schema::hasTable('absensi_setting')) {
                 $setting = $this->settingModel->first();
                 if ($setting) {
                     $jamMasuk = $setting->jam_masuk ?? $jamMasuk;
@@ -5547,17 +5702,19 @@ class AttendanceController extends BaseController
         $todayRec = $mapWeek[$today] ?? null;
         $warningLate = $todayRec && $todayRec->status_masuk === 'LATE';
         $warningEarly = $todayRec && $todayRec->status_pulang === 'EARLY';
-        $thanksOver = $todayRec && strtotime($todayRec->jam_pulang ?? '') > strtotime(date('Y-m-d ') . $jamPulang) + 3600;
+        $thanksOver = $todayRec && strtotime($todayRec->jam_pulang ?? '') > strtotime(date('Y-m-d ').$jamPulang) + 3600;
 
         // Fetch Approved Leaves (Overlapping Month)
         $leavesMonth = [];
         $izinBulan = [];
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            if ($db && Schema::hasTable('absensi_izin')) {
                 $izinBulan = $this->leaveModel
                     ->where('user_id', $userId)
                     ->where('status', 'approved')
-                    ->where(function ($q) { $q->whereRaw("tgl_mulai <= '$monthEnd'")->$q->whereRaw("tgl_selesai >= '$monthStart'"); })
+                    ->where(function ($q) {
+                        $q->whereRaw("tgl_mulai <= '$monthEnd'")->whereRaw("tgl_selesai >= '$monthStart'");
+                    })
                     ->get();
             }
         } catch (\Throwable $e) {
@@ -5571,7 +5728,7 @@ class AttendanceController extends BaseController
             'telat_menit' => 0,
             'dinas' => 0,
             'izin_hari' => 0,
-            'percentage' => 0
+            'percentage' => 0,
         ];
 
         foreach ($recordsMonth as $r) {
@@ -5614,8 +5771,8 @@ class AttendanceController extends BaseController
 
             // Libur = mingguan + jadwal sekolah (is_libur) + kalender,
             // satu sumber dengan modul absensi lain.
-            if (!\App\Services\AttendancePolicy::isLibur($dateStr)) {
-                if (!isset($leaveMap[$dateStr])) {
+            if (! AttendancePolicy::isLibur($dateStr)) {
+                if (! isset($leaveMap[$dateStr])) {
                     $effectiveWorkDays++;
                 }
             }
@@ -5624,46 +5781,47 @@ class AttendanceController extends BaseController
 
         if ($effectiveWorkDays > 0) {
             $stats['percentage'] = round(($stats['hadir'] / $effectiveWorkDays) * 100, 1);
-            if ($stats['percentage'] > 100)
+            if ($stats['percentage'] > 100) {
                 $stats['percentage'] = 100;
+            }
         } else {
             $stats['percentage'] = $stats['hadir'] > 0 ? 100 : 0;
         }
 
         $disciplineRank = null;
         try {
-            if ($db && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian') && \Illuminate\Support\Facades\Schema::hasTable('users_groups')) {
+            if ($db && Schema::hasTable('absensi_harian') && Schema::hasTable('users_groups')) {
                 $monthPrefix = substr($monthStart, 0, 7);
-                $hasTelatMenit = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit');
-                $hasPulangCepat = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
-                $hasDatangAwal = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit');
-                $hasPulangAkhir = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
+                $hasTelatMenit = Schema::hasColumn('absensi_harian', 'telat_menit');
+                $hasPulangCepat = Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
+                $hasDatangAwal = Schema::hasColumn('absensi_harian', 'datang_awal_menit');
+                $hasPulangAkhir = Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
 
-                $scoreExpr = \App\Services\AttendancePolicy::sqlExprSkorHarian('a', [
-                    'telat_menit'        => $hasTelatMenit,
+                $scoreExpr = AttendancePolicy::sqlExprSkorHarian('a', [
+                    'telat_menit' => $hasTelatMenit,
                     'pulang_cepat_menit' => $hasPulangCepat,
-                    'datang_awal_menit'  => $hasDatangAwal,
+                    'datang_awal_menit' => $hasDatangAwal,
                     'pulang_akhir_menit' => $hasPulangAkhir,
                 ]);
 
                 $userAgg = $db->table('absensi_harian as a')
                     ->select('a.user_id')
-                    ->select("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime", false)
-                    ->select("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late", false)
-                    ->select($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : "0 as total_telat_menit", false)
-                    ->select($hasDatangAwal ? "COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal" : "0 as total_datang_awal", false)
-                    ->select($hasPulangAkhir ? "COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir" : "0 as total_pulang_akhir", false)
-                    ->select("$scoreExpr as score", false)
-                    ->join('users_groups as ug', 'ug.user_id = a.user_id')
+                    ->selectRaw("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime")
+                    ->selectRaw("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late")
+                    ->selectRaw($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : '0 as total_telat_menit')
+                    ->selectRaw($hasDatangAwal ? 'COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal' : '0 as total_datang_awal')
+                    ->selectRaw($hasPulangAkhir ? 'COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir' : '0 as total_pulang_akhir')
+                    ->selectRaw("$scoreExpr as score")
+                    ->join('users_groups as ug', 'ug.user_id', '=', 'a.user_id')
                     ->where('ug.group_id', 2)
                     ->where('a.user_id', $userId)
-                    ->where('a.tgl', 'like', $monthPrefix . '%')
+                    ->where('a.tgl', 'like', $monthPrefix.'%')
                     ->groupBy('a.user_id')
                     ->first();
 
                 if ($userAgg) {
-                    $monthLike = $monthPrefix . '%';
-                    $baseFrom = "FROM absensi_harian a JOIN users_groups ug ON ug.user_id = a.user_id WHERE ug.group_id = 2 AND a.tgl LIKE ?";
+                    $monthLike = $monthPrefix.'%';
+                    $baseFrom = 'FROM absensi_harian a JOIN users_groups ug ON ug.user_id = a.user_id WHERE ug.group_id = 2 AND a.tgl LIKE ?';
 
                     $totalSql = "SELECT COUNT(*) as total FROM (SELECT a.user_id $baseFrom GROUP BY a.user_id) t";
                     $totalRow = $db->select($totalSql, [$monthLike])[0] ?? null;
@@ -5681,7 +5839,7 @@ class AttendanceController extends BaseController
                         'late' => (int) $userAgg->late,
                         'telat_menit' => (int) $userAgg->total_telat_menit,
                         'datang_awal' => (int) $userAgg->total_datang_awal,
-                        'pulang_akhir' => (int) $userAgg->total_pulang_akhir
+                        'pulang_akhir' => (int) $userAgg->total_pulang_akhir,
                     ];
                 }
             }
@@ -5702,11 +5860,11 @@ class AttendanceController extends BaseController
                 'day' => date('j', $currentDate),
                 'dayName' => $dayName,
                 'status' => 'none',
-                'color' => '#e5e7eb' // gray
+                'color' => '#e5e7eb', // gray
             ];
 
             // Holiday (mingguan + jadwal sekolah + kalender)
-            if (\App\Services\AttendancePolicy::isLibur($dateStr)) {
+            if (AttendancePolicy::isLibur($dateStr)) {
                 $dayData['status'] = 'holiday';
                 $dayData['color'] = '#94a3b8';
             }
@@ -5746,56 +5904,58 @@ class AttendanceController extends BaseController
             'warning_absent' => $warningAbsent,
             'warning_late' => $warningLate,
             'warning_early' => $warningEarly,
-            'thanks_over' => $thanksOver
+            'thanks_over' => $thanksOver,
         ]);
     }
 
     public function ranking()
     {
-        Log::debug('Ranking API called: ' . $this->request->getUri());
-        if (!$this->inGroup('guru'))
+        Log::debug('Ranking API called: '.$this->request->getUri());
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiHarianTable();
         $monthPrefix = date('Y-m');
 
-        $hasTelatMenit = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit');
-        $hasPulangCepat = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
-        $hasDatangAwal = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit');
-        $hasPulangAkhir = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
+        $hasTelatMenit = Schema::hasColumn('absensi_harian', 'telat_menit');
+        $hasPulangCepat = Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
+        $hasDatangAwal = Schema::hasColumn('absensi_harian', 'datang_awal_menit');
+        $hasPulangAkhir = Schema::hasColumn('absensi_harian', 'pulang_akhir_menit');
 
-        $scoreExpr = \App\Services\AttendancePolicy::sqlExprSkorHarian('a', [
-            'telat_menit'        => $hasTelatMenit,
+        $scoreExpr = AttendancePolicy::sqlExprSkorHarian('a', [
+            'telat_menit' => $hasTelatMenit,
             'pulang_cepat_menit' => $hasPulangCepat,
-            'datang_awal_menit'  => $hasDatangAwal,
+            'datang_awal_menit' => $hasDatangAwal,
             'pulang_akhir_menit' => $hasPulangAkhir,
         ]);
 
         try {
             $ranking = $db->table('absensi_harian as a')
-                ->select("a.user_id, u.first_name, u.last_name, u.username, u.foto as user_foto, mg.nama_guru, mg.foto as guru_foto")
-                ->select(\App\Services\AttendancePolicy::sqlTermHadir('a') . ' as total_hadir', false)
-                ->select("SUM(CASE WHEN a.status_masuk NOT LIKE 'DINAS%' AND (a.status_pulang IS NULL OR a.status_pulang NOT LIKE 'DINAS%') THEN 1 ELSE 0 END) as hadir_reguler", false)
-                ->select("SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 1 ELSE 0 END) as hadir_dinas", false)
-                ->select("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime", false)
-                ->select("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late", false)
-                ->select($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : "0 as total_telat_menit", false)
-                ->select($hasDatangAwal ? "COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal" : "0 as total_datang_awal", false)
-                ->select($hasPulangAkhir ? "COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir" : "0 as total_pulang_akhir", false)
-                ->select("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda", false)
-                ->select("$scoreExpr as score", false)
-                ->join('users as u', 'u.id = a.user_id')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
-                ->join('master_guru as mg', 'mg.id_user = u.id', 'left')
+                ->select('a.user_id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto as user_foto', 'mg.nama_guru', 'mg.foto as guru_foto')
+                ->selectRaw(AttendancePolicy::sqlTermHadir('a').' as total_hadir')
+                ->selectRaw("SUM(CASE WHEN a.status_masuk NOT LIKE 'DINAS%' AND (a.status_pulang IS NULL OR a.status_pulang NOT LIKE 'DINAS%') THEN 1 ELSE 0 END) as hadir_reguler")
+                ->selectRaw("SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 1 ELSE 0 END) as hadir_dinas")
+                ->selectRaw("SUM(CASE WHEN a.status_masuk = 'ONTIME' OR a.status_masuk LIKE 'DINAS%' THEN 1 ELSE 0 END) as ontime")
+                ->selectRaw("SUM(CASE WHEN a.status_masuk = 'LATE' AND a.status_masuk NOT LIKE 'DINAS%' THEN 1 ELSE 0 END) as late")
+                ->selectRaw($hasTelatMenit ? "COALESCE(SUM(CASE WHEN a.status_masuk LIKE 'DINAS%' THEN 0 ELSE a.telat_menit END), 0) as total_telat_menit" : '0 as total_telat_menit')
+                ->selectRaw($hasDatangAwal ? 'COALESCE(SUM(a.datang_awal_menit), 0) as total_datang_awal' : '0 as total_datang_awal')
+                ->selectRaw($hasPulangAkhir ? 'COALESCE(SUM(a.pulang_akhir_menit), 0) as total_pulang_akhir' : '0 as total_pulang_akhir')
+                ->selectRaw("SUM(COALESCE(CASE WHEN a.status_masuk LIKE 'DINAS%' OR a.status_pulang LIKE 'DINAS%' THEN 0 ELSE a.denda END, 0)) as total_denda")
+                ->selectRaw("$scoreExpr as score")
+                ->join('users as u', 'u.id', '=', 'a.user_id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
-                ->where('a.tgl', 'like', $monthPrefix . '%')
-                ->groupBy('a.user_id, u.first_name, u.last_name, u.username, u.foto, mg.nama_guru, mg.foto')
-                ->orderBy('score', 'DESC', false)
+                ->where('a.tgl', 'like', $monthPrefix.'%')
+                ->groupBy('a.user_id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'mg.nama_guru', 'mg.foto')
+                ->orderBy('score', 'DESC')
                 ->get();
         } catch (\Throwable $e) {
-            Log::error('Ranking API query gagal: ' . $e->getMessage());
+            Log::error('Ranking API query gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Data ranking belum dapat dimuat.', null, null, 500);
         }
 
@@ -5807,13 +5967,13 @@ class AttendanceController extends BaseController
 
         try {
             $alphaFine = (int) ($setting->denda_alpha_per_hari ?? 0);
-            if (!empty($ranking)) {
-                $userIds = array_map(static fn($r) => (int) ($r->user_id ?? 0), $ranking);
+            if (! empty($ranking)) {
+                $userIds = array_map(static fn ($r) => (int) ($r->user_id ?? 0), $ranking);
                 $userIds = array_values(array_filter(array_unique($userIds)));
 
                 if ($alphaFine > 0) {
-                    $penaltySvcMonth = new \App\Services\AttendancePenaltyService();
-                    $mStart = $monthPrefix . '-01';
+                    $penaltySvcMonth = new AttendancePenaltyService;
+                    $mStart = $monthPrefix.'-01';
                     $mEnd = date('Y-m-t', strtotime($mStart));
                     foreach ($ranking as $r) {
                         $uid = (int) ($r->user_id ?? 0);
@@ -5827,34 +5987,34 @@ class AttendanceController extends BaseController
 
                 // Calculate 1-Year YTD Fine, Payments (Cash vs Poin), and Sisa
                 $yearPrefix = date('Y');
-                $yearStart = $yearPrefix . '-01-01';
+                $yearStart = $yearPrefix.'-01-01';
                 $yearEnd = date('Y-m-d');
 
                 $ytdFines = [];
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+                if (Schema::hasTable('absensi_harian')) {
                     $ytdRows = $db->table('absensi_harian')
-                        ->select('user_id, SUM(COALESCE(denda, 0)) as total_denda_harian')
+                        ->select('user_id')->selectRaw('SUM(COALESCE(denda, 0)) as total_denda_harian')
                         ->where('tgl', '>=', $yearStart)
                         ->where('tgl', '<=', $yearEnd)
                         ->groupBy('user_id')
                         ->get();
                     foreach ($ytdRows as $yr) {
-                        $ytdFines[(int)$yr->user_id] = (float)$yr->total_denda_harian;
+                        $ytdFines[(int) $yr->user_id] = (float) $yr->total_denda_harian;
                     }
                 }
 
                 $cashPayments = [];
                 $poinPayments = [];
                 $saldoPayments = [];
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+                if (Schema::hasTable('absensi_pembayaran_denda')) {
                     $pays = $db->table('absensi_pembayaran_denda')
                         ->where('tahun', $yearPrefix)
                         ->where('status', '!=', 'batal')
                         ->get();
                     foreach ($pays as $p) {
-                        $uid = (int)$p->user_id;
-                        $nom = (float)(!empty($p->nominal_bayar) ? $p->nominal_bayar : $p->total_denda);
-                        $kelas = \App\Services\AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
+                        $uid = (int) $p->user_id;
+                        $nom = (float) (! empty($p->nominal_bayar) ? $p->nominal_bayar : $p->total_denda);
+                        $kelas = AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
                         if ($kelas === 'POIN') {
                             $poinPayments[$uid] = ($poinPayments[$uid] ?? 0.0) + $nom;
                         } elseif ($kelas === 'SALDO') {
@@ -5865,22 +6025,23 @@ class AttendanceController extends BaseController
                     }
                 }
 
-                if (\Illuminate\Support\Facades\Schema::hasTable('reward_redemptions') && \Illuminate\Support\Facades\Schema::hasTable('rewards')) {
+                if (Schema::hasTable('reward_redemptions') && Schema::hasTable('rewards')) {
                     try {
-                        $hasRedemptionLink = \Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
+                        $hasRedemptionLink = Schema::hasTable('absensi_pembayaran_denda') && Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
                         $sql = "SELECT rr.user_id, COALESCE(r.nominal, 0) as nominal 
                                 FROM reward_redemptions rr 
                                 JOIN rewards r ON rr.reward_id = r.id 
                                 WHERE rr.status = 'APPROVED' AND YEAR(rr.updated_at) = '{$yearPrefix}'";
                         if ($hasRedemptionLink) {
-                            $sql .= " AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE reward_redemption_id IS NOT NULL)";
+                            $sql .= ' AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE reward_redemption_id IS NOT NULL)';
                         }
                         $rws = $db->select($sql);
                         foreach ($rws as $rw) {
-                            $uid = (int)$rw->user_id;
-                            $poinPayments[$uid] = ($poinPayments[$uid] ?? 0.0) + (float)$rw->nominal;
+                            $uid = (int) $rw->user_id;
+                            $poinPayments[$uid] = ($poinPayments[$uid] ?? 0.0) + (float) $rw->nominal;
                         }
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
                 }
 
                 // Progressive alpha YTD — SATU rentang penuh agar streak kontinu
@@ -5888,8 +6049,8 @@ class AttendanceController extends BaseController
                 $userAlphaMapYear = [];
                 $userAlphaDendaMapYear = [];
                 if ($alphaFine > 0) {
-                    $penaltyRanking = new \App\Services\AttendancePenaltyService();
-                    $scanStartRank = date('Y-m-d', strtotime($yearStart . ' -62 days'));
+                    $penaltyRanking = new AttendancePenaltyService;
+                    $scanStartRank = date('Y-m-d', strtotime($yearStart.' -62 days'));
                     try {
                         $allSummaryRank = $penaltyRanking->calculateAllUsersPeriodAlphaSummary($scanStartRank, $yearEnd, $setting);
                     } catch (\Throwable $e) {
@@ -5900,7 +6061,7 @@ class AttendanceController extends BaseController
                     $recordedRank = [];
                     try {
                         $recRowsRank = $db->table('absensi_harian')
-                            ->select('user_id, tgl')
+                            ->select('user_id', 'tgl')
                             ->where('tgl', '>=', $yearStart)
                             ->where('tgl', '<=', $yearEnd)
                             ->where('denda', '>', 0)
@@ -5908,7 +6069,8 @@ class AttendanceController extends BaseController
                         foreach ($recRowsRank as $rr) {
                             $recordedRank[(int) $rr->user_id][substr($rr->tgl, 0, 10)] = true;
                         }
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
 
                     $todayRank = date('Y-m-d');
                     foreach ($allSummaryRank as $uidTmp => $infoTmp) {
@@ -5923,7 +6085,7 @@ class AttendanceController extends BaseController
                             if (isset($recordedRank[$uidTmp][$t])) {
                                 continue;
                             }
-                            $missDenda += (float)($it['denda'] ?? 0);
+                            $missDenda += (float) ($it['denda'] ?? 0);
                             $missCount++;
                         }
                         if ($missCount > 0) {
@@ -5936,9 +6098,9 @@ class AttendanceController extends BaseController
                 foreach ($ranking as $r) {
                     $uid = (int) ($r->user_id ?? 0);
                     $totDendaHarian = $ytdFines[$uid] ?? 0.0;
-                    $totAlphaYear = (float)($userAlphaDendaMapYear[$uid] ?? 0);
+                    $totAlphaYear = (float) ($userAlphaDendaMapYear[$uid] ?? 0);
                     $totalYtd = $totDendaHarian + $totAlphaYear;
-                    
+
                     $cash = $cashPayments[$uid] ?? 0.0;
                     $poin = $poinPayments[$uid] ?? 0.0;
                     $saldo = $saldoPayments[$uid] ?? 0.0;
@@ -5959,8 +6121,8 @@ class AttendanceController extends BaseController
         // Foto dan nama diselesaikan sekali di sini: view dan tab Leaderboard
         // tinggal memakai, tidak lagi menebak letak file di disk.
         foreach ($ranking as $r) {
-            $r->nama   = \App\Services\AvatarService::namaUtama($r);
-            $r->avatar = \App\Services\AvatarService::untukBaris($r);
+            $r->nama = AvatarService::namaUtama($r);
+            $r->avatar = AvatarService::untukBaris($r);
         }
 
         return $this->respond(true, 'Ranking data', $ranking);
@@ -5968,7 +6130,7 @@ class AttendanceController extends BaseController
 
     public function dendaDetail()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -5980,43 +6142,43 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Parameter user_id tidak valid', null, null, 400);
         }
         $sessionUid = (int) session()->get('user_id');
-        if ($targetUserId !== $sessionUid && !$this->isAdmin() && !$this->inGroup('admin')) {
+        if ($targetUserId !== $sessionUid && ! $this->isAdmin() && ! $this->inGroup('admin')) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $month = (string) ($this->request->query('month') ?? date('Y-m'));
-        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+        if (! preg_match('/^\d{4}-\d{2}$/', $month)) {
             $month = date('Y-m');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiHarianTable();
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian') || !\Illuminate\Support\Facades\Schema::hasTable('users_groups')) {
+        if (! Schema::hasTable('absensi_harian') || ! Schema::hasTable('users_groups')) {
             return $this->respond(true, 'Detail denda', [
                 'user_id' => $targetUserId,
                 'month' => $month,
                 'total_denda' => 0,
-                'items' => []
+                'items' => [],
             ]);
         }
 
-        $hasTelatMenit = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit');
-        $hasPulangCepat = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
+        $hasTelatMenit = Schema::hasColumn('absensi_harian', 'telat_menit');
+        $hasPulangCepat = Schema::hasColumn('absensi_harian', 'pulang_cepat_menit');
 
         $rows = $db->table('absensi_harian as a')
             ->select('a.tgl')
-            ->select('COALESCE(a.denda, 0) as denda', false)
-            ->select('COALESCE(a.points, 0) as points', false)
-            ->select('a.keterangan_denda')
-            ->select($hasTelatMenit ? 'COALESCE(a.telat_menit, 0) as telat_menit' : '0 as telat_menit', false)
-            ->select($hasPulangCepat ? 'COALESCE(a.pulang_cepat_menit, 0) as pulang_cepat_menit' : '0 as pulang_cepat_menit', false)
-            ->select('u.first_name, u.last_name, u.username')
-            ->join('users as u', 'u.id = a.user_id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->selectRaw('COALESCE(a.denda, 0) as denda')
+            ->selectRaw('COALESCE(a.points, 0) as points')
+            ->addSelect('a.keterangan_denda')
+            ->selectRaw($hasTelatMenit ? 'COALESCE(a.telat_menit, 0) as telat_menit' : '0 as telat_menit')
+            ->selectRaw($hasPulangCepat ? 'COALESCE(a.pulang_cepat_menit, 0) as pulang_cepat_menit' : '0 as pulang_cepat_menit')
+            ->addSelect('u.first_name', 'u.last_name', 'u.username')
+            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('a.user_id', $targetUserId)
-            ->where('a.tgl', 'like', $month . '%')
+            ->where('a.tgl', 'like', $month.'%')
             ->where('a.denda', '>', 0)
             ->orderBy('a.tgl', 'ASC')
             ->get();
@@ -6027,10 +6189,10 @@ class AttendanceController extends BaseController
         $existingDates = [];
         foreach ($rows as $r) {
             $totalDenda += (float) ($r->denda ?? 0);
-            if (!empty($r->tgl)) {
+            if (! empty($r->tgl)) {
                 $existingDates[$r->tgl] = true;
             }
-            $displayName = trim(($r->first_name ?? '') . ' ' . ($r->last_name ?? ''));
+            $displayName = trim(($r->first_name ?? '').' '.($r->last_name ?? ''));
             if ($displayName === '') {
                 $displayName = $r->username ?? '';
             }
@@ -6041,7 +6203,7 @@ class AttendanceController extends BaseController
                 'points' => (int) ($r->points ?? 0),
                 'telat_menit' => (int) ($r->telat_menit ?? 0),
                 'pulang_cepat_menit' => (int) ($r->pulang_cepat_menit ?? 0),
-                'keterangan_denda' => $r->keterangan_denda ?? ''
+                'keterangan_denda' => $r->keterangan_denda ?? '',
             ];
         }
 
@@ -6051,7 +6213,7 @@ class AttendanceController extends BaseController
         } catch (\Throwable $e) {
             $setting = null;
         }
-        if (!$setting) {
+        if (! $setting) {
             $setting = $this->getDefaultSettings();
         }
 
@@ -6059,9 +6221,9 @@ class AttendanceController extends BaseController
         $alphaCount = 0;
         if ($alphaFine > 0) {
             // Estimasi kanonik tanggal bolong (recorded-aware, streak kontinu, tanpa hari ini).
-            $startM = $month . '-01';
+            $startM = $month.'-01';
             $endM = date('Y-m-t', strtotime($startM));
-            $penaltySvcDenda = new \App\Services\AttendancePenaltyService();
+            $penaltySvcDenda = new AttendancePenaltyService;
             $miss = $penaltySvcDenda->missingAlphaFines($targetUserId, $startM, $endM, $setting, false);
             $alphaCount = (int) ($miss['count'] ?? 0);
             foreach (($miss['items'] ?? []) as $mi) {
@@ -6071,7 +6233,7 @@ class AttendanceController extends BaseController
                     'points' => -abs((int) ($setting->point_alpa ?? 5)),
                     'telat_menit' => 0,
                     'pulang_cepat_menit' => 0,
-                    'keterangan_denda' => ($mi['keterangan'] ?? '') . ' — Belum tercatat di absensi_harian'
+                    'keterangan_denda' => ($mi['keterangan'] ?? '').' — Belum tercatat di absensi_harian',
                 ];
                 $totalDenda += (float) ($mi['denda'] ?? 0);
             }
@@ -6079,9 +6241,9 @@ class AttendanceController extends BaseController
 
         if ($displayName === '') {
             try {
-                $u = $db->table('users')->select('first_name, last_name, username')->where('id', $targetUserId)->first();
+                $u = $db->table('users')->select('first_name', 'last_name', 'username')->where('id', $targetUserId)->first();
                 if ($u) {
-                    $displayName = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                    $displayName = trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
                     if ($displayName === '') {
                         $displayName = $u->username ?? '';
                     }
@@ -6090,7 +6252,7 @@ class AttendanceController extends BaseController
             }
         }
 
-        usort($items, static fn($a, $b) => strcmp((string)($a['tgl'] ?? ''), (string)($b['tgl'] ?? '')));
+        usort($items, static fn ($a, $b) => strcmp((string) ($a['tgl'] ?? ''), (string) ($b['tgl'] ?? '')));
 
         return $this->respond(true, 'Detail denda', [
             'user_id' => $targetUserId,
@@ -6098,38 +6260,41 @@ class AttendanceController extends BaseController
             'month' => $month,
             'total_denda' => $totalDenda,
             'alpha' => $alphaCount,
-            'items' => $items
+            'items' => $items,
         ]);
     }
 
     public function rekapDenda()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
         }
 
         $userId = session()->get('user_id');
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiHarianTable();
-        
+
         $yearPrefix = date('Y');
-        $startDate = $yearPrefix . '-01-01';
+        $startDate = $yearPrefix.'-01-01';
         $endDate = date('Y-m-d');
 
         // Get basic setting
         $setting = null;
         try {
             $setting = $this->settingModel->first();
-        } catch (\Throwable $e) {}
-        if (!$setting) $setting = $this->getDefaultSettings();
+        } catch (\Throwable $e) {
+        }
+        if (! $setting) {
+            $setting = $this->getDefaultSettings();
+        }
 
         // Items array untuk timeline rekap denda (alpha flat per hari)
         $items = [];
         $totalYtd = 0.0;
-        $penaltySvc = new \App\Services\AttendancePenaltyService();
+        $penaltySvc = new AttendancePenaltyService;
         $baseAlpha = (float) ($setting->denda_alpha_per_hari ?? 5000);
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $records = $db->table('absensi_harian')
                 ->where('user_id', $userId)
                 ->where('tgl', '>=', $startDate)
@@ -6147,7 +6312,7 @@ class AttendanceController extends BaseController
                     // Alpha yang sudah tercatat (oleh cron/manual) — tarif flat
                     $ketDenda = trim((string) ($r->keterangan_denda ?? ''));
                     if ($ketDenda === '') {
-                        $ketDenda = 'Alpa (Rp ' . number_format($baseAlpha, 0, ',', '.') . ')';
+                        $ketDenda = 'Alpa (Rp '.number_format($baseAlpha, 0, ',', '.').')';
                     }
 
                     $items[] = [
@@ -6164,9 +6329,15 @@ class AttendanceController extends BaseController
                 } else {
                     // Keterlambatan / pulang cepat — label asli
                     $keterangan = [];
-                    if (isset($r->telat_menit) && $r->telat_menit > 0) $keterangan[] = "Telat {$r->telat_menit} menit";
-                    if (isset($r->pulang_cepat_menit) && $r->pulang_cepat_menit > 0) $keterangan[] = "Cepat pulang {$r->pulang_cepat_menit} menit";
-                    if (!empty($r->status_masuk) && $r->status_masuk !== 'ONTIME') $keterangan[] = "Status: {$r->status_masuk}";
+                    if (isset($r->telat_menit) && $r->telat_menit > 0) {
+                        $keterangan[] = "Telat {$r->telat_menit} menit";
+                    }
+                    if (isset($r->pulang_cepat_menit) && $r->pulang_cepat_menit > 0) {
+                        $keterangan[] = "Cepat pulang {$r->pulang_cepat_menit} menit";
+                    }
+                    if (! empty($r->status_masuk) && $r->status_masuk !== 'ONTIME') {
+                        $keterangan[] = "Status: {$r->status_masuk}";
+                    }
                     // gunakan keterangan_denda jika ada (sudah berisi breakdown progresif telat)
                     $keteranganDenda = trim((string) ($r->keterangan_denda ?? ''));
                     $keteranganStr = $keteranganDenda !== '' ? $keteranganDenda : (empty($keterangan) ? '-' : implode(', ', $keterangan));
@@ -6188,7 +6359,7 @@ class AttendanceController extends BaseController
         // Alpha yang belum tercatat (missing row) — estimasi kanonik flat:
         // hanya tanggal bolong (tanpa hari ini).
         $alphaFineInt = (int) ($setting->denda_alpha_per_hari ?? 0);
-        if ($alphaFineInt > 0 && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if ($alphaFineInt > 0 && Schema::hasTable('absensi_harian')) {
             $miss = $penaltySvc->missingAlphaFines((int) $userId, $startDate, $endDate, $setting, false);
             foreach (($miss['items'] ?? []) as $mi) {
                 $fineDenda = (float) ($mi['denda'] ?? 0);
@@ -6196,7 +6367,7 @@ class AttendanceController extends BaseController
                     'tgl' => $mi['tgl'],
                     'jenis' => 'Alpha / Tanpa Keterangan',
                     'nominal' => $fineDenda,
-                    'keterangan' => ($mi['keterangan'] ?? '') . ' — Belum tercatat di absensi_harian',
+                    'keterangan' => ($mi['keterangan'] ?? '').' — Belum tercatat di absensi_harian',
                     'is_alpha' => true,
                     'alpha_hari_ke' => 1,
                     'alpha_multiplier' => 1.0,
@@ -6209,11 +6380,11 @@ class AttendanceController extends BaseController
         }
 
         // Sort items by date desc
-        usort($items, static fn($a, $b) => strcmp((string)($b['tgl'] ?? ''), (string)($a['tgl'] ?? '')));
+        usort($items, static fn ($a, $b) => strcmp((string) ($b['tgl'] ?? ''), (string) ($a['tgl'] ?? '')));
 
         // Get all payments (TUNAI, POIN, SALDO)
         $totalDibayar = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
             $allPayments = $db->table('absensi_pembayaran_denda')
                 ->where('user_id', $userId)
                 ->where('tahun', $yearPrefix)
@@ -6222,34 +6393,34 @@ class AttendanceController extends BaseController
                 ->get();
 
             foreach ($allPayments as $p) {
-                $nom = (float)(!empty($p->nominal_bayar) ? $p->nominal_bayar : $p->total_denda);
+                $nom = (float) (! empty($p->nominal_bayar) ? $p->nominal_bayar : $p->total_denda);
                 $totalDibayar += $nom;
-                $metode = strtoupper(trim((string)($p->metode_bayar ?? 'TUNAI')));
-                $tgl = !empty($p->tanggal_bayar) ? $p->tanggal_bayar : substr($p->created_at ?? date('Y-m-d'), 0, 10);
-                $label = !empty($p->keterangan) ? $p->keterangan : ('Pembayaran Denda (' . $metode . ')');
+                $metode = strtoupper(trim((string) ($p->metode_bayar ?? 'TUNAI')));
+                $tgl = ! empty($p->tanggal_bayar) ? $p->tanggal_bayar : substr($p->created_at ?? date('Y-m-d'), 0, 10);
+                $label = ! empty($p->keterangan) ? $p->keterangan : ('Pembayaran Denda ('.$metode.')');
                 $items[] = [
                     'tgl' => $tgl,
                     'jenis' => $label,
                     'nominal' => (-1) * abs($nom),
-                    'keterangan' => 'Periode: Bln ' . $p->bulan . '/' . $p->tahun,
+                    'keterangan' => 'Periode: Bln '.$p->bulan.'/'.$p->tahun,
                 ];
             }
         }
 
         // 4. Calculate Potongan Reward
         $potonganReward = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('reward_redemptions') && \Illuminate\Support\Facades\Schema::hasTable('rewards')) {
+        if (Schema::hasTable('reward_redemptions') && Schema::hasTable('rewards')) {
             try {
-                $userIdQuery = isset($targetUserId) ? (int)$targetUserId : (int)$userId;
-                $hasNominal = \Illuminate\Support\Facades\Schema::hasColumn('rewards', 'nominal');
+                $userIdQuery = isset($targetUserId) ? (int) $targetUserId : (int) $userId;
+                $hasNominal = Schema::hasColumn('rewards', 'nominal');
                 $nominalCol = $hasNominal ? 'COALESCE(r.nominal, 0)' : '0';
 
                 // Cegah pemotongan ganda: voucher yang sudah masuk ke absensi_pembayaran_denda
                 // tidak dihitung ulang di potonganReward
-                $hasRedemptionLink = \Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
+                $hasRedemptionLink = Schema::hasTable('absensi_pembayaran_denda') && Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
                 $excludeRedeemedSql = $hasRedemptionLink
                     ? " AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE user_id = {$userIdQuery} AND reward_redemption_id IS NOT NULL)"
-                    : "";
+                    : '';
 
                 $rewardRedemptions = $db->select("
                     SELECT rr.updated_at as created_at, {$nominalCol} as nominal, r.nama as keterangan
@@ -6258,26 +6429,29 @@ class AttendanceController extends BaseController
                     WHERE rr.user_id = {$userIdQuery} AND rr.status = 'APPROVED' AND YEAR(rr.updated_at) = '{$yearPrefix}'
                     {$excludeRedeemedSql}
                 ");
-                
+
                 foreach ($rewardRedemptions as $rr) {
-                    $potonganReward += (float)$rr->nominal;
+                    $potonganReward += (float) $rr->nominal;
                     if (isset($items)) {
                         $items[] = [
                             'tgl' => substr($rr->created_at, 0, 10),
                             'jenis' => 'Potongan Reward',
-                            'nominal' => (-1) * abs((float)$rr->nominal),
-                            'keterangan' => 'Reward: ' . $rr->keterangan,
+                            'nominal' => (-1) * abs((float) $rr->nominal),
+                            'keterangan' => 'Reward: '.$rr->keterangan,
                         ];
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $sisaDenda = $totalYtd - $totalDibayar - $potonganReward;
-        if ($sisaDenda < 0) $sisaDenda = 0;
+        if ($sisaDenda < 0) {
+            $sisaDenda = 0;
+        }
 
         // Re-sort items by date desc
-        usort($items, static fn($a, $b) => strcmp((string)($b['tgl'] ?? ''), (string)($a['tgl'] ?? '')));
+        usort($items, static fn ($a, $b) => strcmp((string) ($b['tgl'] ?? ''), (string) ($a['tgl'] ?? '')));
 
         return view('members.guru.rekap_denda', [
             'setting' => $setting,
@@ -6285,13 +6459,13 @@ class AttendanceController extends BaseController
             'totalDibayar' => $totalDibayar,
             'sisaDenda' => $sisaDenda,
             'items' => $items,
-            'year' => $yearPrefix
+            'year' => $yearPrefix,
         ]);
     }
 
     public function dendaYtd()
     {
-        if (!$this->inGroup(['guru', 'admin']) && !$this->isAdmin()) {
+        if (! $this->inGroup(['guru', 'admin']) && ! $this->isAdmin()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -6300,22 +6474,22 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Parameter user_id tidak valid', null, null, 400);
         }
         $sessionUid2 = (int) session()->get('user_id');
-        if ($targetUserId !== $sessionUid2 && !$this->isAdmin() && !$this->inGroup('admin')) {
+        if ($targetUserId !== $sessionUid2 && ! $this->isAdmin() && ! $this->inGroup('admin')) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiHarianTable();
-        
+
         $yearPrefix = date('Y');
-        $startDate = $yearPrefix . '-01-01';
+        $startDate = $yearPrefix.'-01-01';
         $endDate = date('Y-m-d');
 
         // 1. Calculate YTD Denda from absensi_harian
         $totalYtd = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $row = $db->table('absensi_harian')
-                ->select('SUM(COALESCE(denda, 0)) as total')
+                ->selectRaw('SUM(COALESCE(denda, 0)) as total')
                 ->where('user_id', $targetUserId)
                 ->where('tgl', '>=', $startDate)
                 ->where('tgl', '<=', $endDate)
@@ -6327,14 +6501,15 @@ class AttendanceController extends BaseController
         $setting = null;
         try {
             $setting = $this->settingModel->first();
-        } catch (\Throwable $e) {}
-        if (!$setting) {
+        } catch (\Throwable $e) {
+        }
+        if (! $setting) {
             $setting = $this->getDefaultSettings();
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             // Estimasi kanonik: hanya tanggal bolong (recorded-aware, tanpa hari ini).
-            $penaltyYtd = new \App\Services\AttendancePenaltyService();
+            $penaltyYtd = new AttendancePenaltyService;
             $missYtd = $penaltyYtd->missingAlphaFines((int) $targetUserId, $startDate, $endDate, $setting, false);
             $totalAlphaProg = (float) ($missYtd['total'] ?? 0);
             $totalYtd += $totalAlphaProg;
@@ -6344,19 +6519,19 @@ class AttendanceController extends BaseController
         $dibayarCash = 0.0;
         $dibayarPoin = 0.0;
         $dibayarSaldo = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
             $records = $db->table('absensi_pembayaran_denda')
                 ->where('user_id', $targetUserId)
                 ->where('tahun', $yearPrefix)
                 ->where('status', '!=', 'batal')
                 ->get();
-            
+
             foreach ($records as $pay) {
-                $nominal = (float) (!empty($pay->nominal_bayar) ? $pay->nominal_bayar : $pay->total_denda);
-                $kelas = \App\Services\AttendancePenaltyService::kelasPembayaranDenda($pay->metode_bayar, $pay->keterangan ?? null);
+                $nominal = (float) (! empty($pay->nominal_bayar) ? $pay->nominal_bayar : $pay->total_denda);
+                $kelas = AttendancePenaltyService::kelasPembayaranDenda($pay->metode_bayar, $pay->keterangan ?? null);
                 if ($kelas === 'POIN') {
                     $dibayarPoin += $nominal;
-                } else if ($kelas === 'SALDO') {
+                } elseif ($kelas === 'SALDO') {
                     $dibayarSaldo += $nominal;
                 } else {
                     $dibayarCash += $nominal;
@@ -6366,9 +6541,9 @@ class AttendanceController extends BaseController
 
         // 4. Calculate Potongan Reward from reward_redemptions (if not linked)
         $potonganReward = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('reward_redemptions') && \Illuminate\Support\Facades\Schema::hasTable('rewards')) {
+        if (Schema::hasTable('reward_redemptions') && Schema::hasTable('rewards')) {
             try {
-                $hasRedemptionLink = \Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
+                $hasRedemptionLink = Schema::hasTable('absensi_pembayaran_denda') && Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
                 if ($hasRedemptionLink) {
                     $rewardRedemptions = $db->select("
                         SELECT COALESCE(r.nominal, 0) as nominal
@@ -6385,11 +6560,12 @@ class AttendanceController extends BaseController
                         WHERE rr.user_id = {$targetUserId} AND rr.status = 'APPROVED' AND YEAR(rr.updated_at) = '{$yearPrefix}'
                     ");
                 }
-                
+
                 foreach ($rewardRedemptions as $rr) {
-                    $potonganReward += (float)($rr->nominal ?? 0);
+                    $potonganReward += (float) ($rr->nominal ?? 0);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
         $dibayarPoin += $potonganReward;
         $totalDibayar = $dibayarCash + $dibayarPoin + $dibayarSaldo;
@@ -6402,9 +6578,9 @@ class AttendanceController extends BaseController
         $monthStart = date('Y-m-01');
         $monthEnd = date('Y-m-t');
         $dendaHarianBulanIni = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $rowBln = $db->table('absensi_harian')
-                ->select('SUM(COALESCE(denda, 0)) as total')
+                ->selectRaw('SUM(COALESCE(denda, 0)) as total')
                 ->where('user_id', $targetUserId)
                 ->where('tgl', '>=', $monthStart)
                 ->where('tgl', '<=', $monthEnd)
@@ -6421,7 +6597,7 @@ class AttendanceController extends BaseController
             'dibayar_cash' => $dibayarCash,
             'dibayar_poin' => $dibayarPoin,
             'dibayar_saldo' => $dibayarSaldo,
-            'sisa_denda' => $sisaDenda
+            'sisa_denda' => $sisaDenda,
         ]);
     }
 
@@ -6430,8 +6606,9 @@ class AttendanceController extends BaseController
      */
     public function leaveRequest()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = session()->get('user_id');
 
@@ -6441,11 +6618,11 @@ class AttendanceController extends BaseController
         // dinormalisasi.
         $pendingCount = $this->leaveModel
             ->where('user_id', $userId)
-            ->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)
+            ->whereIn('status', LeaveModel::STATUS_PENDING)
             ->count();
 
         if ($pendingCount >= 3) {
-            return $this->respond(false, 'Anda memiliki ' . $pendingCount . ' pengajuan yang belum disetujui. Mohon hubungi administrator untuk pengecekan pengajuan sebelumnya.');
+            return $this->respond(false, 'Anda memiliki '.$pendingCount.' pengajuan yang belum disetujui. Mohon hubungi administrator untuk pengecekan pengajuan sebelumnya.');
         }
 
         // Check Duration
@@ -6456,7 +6633,7 @@ class AttendanceController extends BaseController
         // Validasi format tanggal & jenis (dulu: DateTime mentah bisa 500,
         // tgl_mulai > tgl_selesai tetap dihitung positif, jenis bebas vs ENUM DB)
         $allowedJenis = ['ijin', 'izin', 'sakit', 'cuti', 'dinas'];
-        if (!in_array($jenis, $allowedJenis, true)) {
+        if (! in_array($jenis, $allowedJenis, true)) {
             return $this->respond(false, 'Jenis pengajuan tidak valid.');
         }
         if ($jenis === 'izin') {
@@ -6482,7 +6659,7 @@ class AttendanceController extends BaseController
         $hariIni = new \DateTime(date('Y-m-d'));
         if ($start < $hariIni) {
             return $this->respond(false, 'Tanggal pengajuan tidak boleh mundur. Ajukan mulai '
-                . date('d/m/Y') . ' ke depan; untuk tanggal yang sudah lewat, gunakan pengajuan koreksi.');
+                .date('d/m/Y').' ke depan; untuk tanggal yang sudah lewat, gunakan pengajuan koreksi.');
         }
 
         // Cuti punya batas lebih ketat daripada jenis lain: harus diajukan
@@ -6493,7 +6670,7 @@ class AttendanceController extends BaseController
         // Bentuk kanonik dipakai seluruh query di bawah — bukan string
         // POST mentah, supaya tidak ada ruang berbeda antara yang
         // divalidasi dan yang disimpan.
-        $tglMulai   = $start->format('Y-m-d');
+        $tglMulai = $start->format('Y-m-d');
         $tglSelesai = $end->format('Y-m-d');
 
         // ── Kategori cuti (Cuti Tahunan/Besar/Melahirkan/Alasan Penting) ──
@@ -6504,7 +6681,7 @@ class AttendanceController extends BaseController
         $kategoriCuti = null;
         if ($jenis === 'cuti') {
             $kategoriCuti = strtolower(trim((string) $this->request->input('kategori_cuti')));
-            if ($kategoriCuti !== '' && ! \App\Services\CutiKategoriService::valid($kategoriCuti)) {
+            if ($kategoriCuti !== '' && ! CutiKategoriService::valid($kategoriCuti)) {
                 return $this->respond(false, 'Kategori cuti tidak valid.');
             }
             if ($kategoriCuti === '') {
@@ -6512,28 +6689,29 @@ class AttendanceController extends BaseController
             } else {
                 // Eligibilitas: status kepegawaian, jenis kelamin, dan
                 // masa kerja (TMT) dibaca langsung dari master_guru.
-                $profilCuti = \App\Services\CutiKategoriService::profil((int) $userId);
-                $cekElig = \App\Services\CutiKategoriService::cekEligibilitas($kategoriCuti, $profilCuti, $tglMulai);
+                $profilCuti = CutiKategoriService::profil((int) $userId);
+                $cekElig = CutiKategoriService::cekEligibilitas($kategoriCuti, $profilCuti, $tglMulai);
                 if (! $cekElig['ok']) {
                     return $this->respond(false, $cekElig['pesan']);
                 }
 
                 // Batas durasi kategori memakai HARI KALENDER: "3 bulan"
                 // tetap 3 bulan walau defisit hari kerja.
-                $batasKat = \App\Services\CutiKategoriService::batasHariKategori($kategoriCuti);
+                $batasKat = CutiKategoriService::batasHariKategori($kategoriCuti);
                 if ($batasKat > 0) {
-                    $hariKal = \App\Services\CutiKategoriService::hariKalender($tglMulai, $tglSelesai);
+                    $hariKal = CutiKategoriService::hariKalender($tglMulai, $tglSelesai);
                     if ($hariKal > $batasKat) {
-                        $lblKat = \App\Services\CutiKategoriService::label($kategoriCuti);
-                        return $this->respond(false, 'Maksimal durasi ' . $lblKat . ' adalah ' . $batasKat . ' hari. Pengajuan Anda: ' . $hariKal . ' hari.');
+                        $lblKat = CutiKategoriService::label($kategoriCuti);
+
+                        return $this->respond(false, 'Maksimal durasi '.$lblKat.' adalah '.$batasKat.' hari. Pengajuan Anda: '.$hariKal.' hari.');
                     }
                 }
 
                 // Peminjam Cuti Besar hangus hak Cuti Tahunan pada tahun
                 // yang berjalan — pengajuan kategori tahunan/generik pada
                 // tahun yang sama ditolak.
-                if (\App\Services\CutiKategoriService::pakaiKuotaTahunan((string) $kategoriCuti)
-                    && \App\Services\CutiKategoriService::besarAktifTahun(
+                if (CutiKategoriService::pakaiKuotaTahunan((string) $kategoriCuti)
+                    && CutiKategoriService::besarAktifTahun(
                         (int) $userId,
                         (int) substr($tglMulai, 0, 4)
                     )) {
@@ -6546,21 +6724,21 @@ class AttendanceController extends BaseController
         // maju; kategori kedaruratan (cap, melahirkan) dikecualikan karena
         // kejadiannya tidak bisa direncanakan — sumber daftarnya satu tempat
         // di CutiKategoriService, ikut dipakai frontend.
-        if ($jenis === 'cuti' && \App\Services\CutiKategoriService::butuhHariMaju($kategoriCuti)) {
-            $majuCuti = \App\Services\CutiKategoriService::HARI_MAJU_PENGAJUAN;
-            $palingCepat = (clone $hariIni)->modify('+' . $majuCuti . ' days');
+        if ($jenis === 'cuti' && CutiKategoriService::butuhHariMaju($kategoriCuti)) {
+            $majuCuti = CutiKategoriService::HARI_MAJU_PENGAJUAN;
+            $palingCepat = (clone $hariIni)->modify('+'.$majuCuti.' days');
             if ($start < $palingCepat) {
-                return $this->respond(false, 'Cuti harus diajukan minimal ' . $majuCuti . ' hari sebelum tanggal mulai. '
-                    . 'Tanggal mulai paling cepat ' . $palingCepat->format('d/m/Y') . '.');
+                return $this->respond(false, 'Cuti harus diajukan minimal '.$majuCuti.' hari sebelum tanggal mulai. '
+                    .'Tanggal mulai paling cepat '.$palingCepat->format('d/m/Y').'.');
             }
         }
 
         // Satu instance dipakai untuk seluruh perhitungan di method ini
         // (konteks libur cukup dibaca satu kali).
-        $kuota = new \App\Services\IzinKuotaService(\Illuminate\Support\Facades\DB::connection(), $this->settingModel->first());
+        $kuota = new IzinKuotaService(DB::connection(), $this->settingModel->first());
 
         // Lampiran: dicek KETERSEDIAANNYA dulu, file-nya belum disentuh.
-        $fileBukti     = $this->request->file('bukti');
+        $fileBukti = $this->request->file('bukti');
         $errorLampiran = '';
 
         if ($jenis === 'cuti') {
@@ -6574,18 +6752,18 @@ class AttendanceController extends BaseController
             // surat dokter padahal tidak menyentuh kuota.
             $errorLampiran = 'Untuk sakit lebih dari 3 hari kerja, wajib melampirkan surat keterangan dokter.';
         }
-        if ($errorLampiran !== '' && (!$fileBukti || !$fileBukti->isValid() || false /* was: $fileBukti->hasMoved() */)) {
+        if ($errorLampiran !== '' && (! $fileBukti || ! $fileBukti->isValid() || false /* was: $fileBukti->hasMoved() */)) {
             return $this->respond(false, $errorLampiran);
         }
 
         // Validasi mime + ukuran sebelum file dipindahkan, supaya file
         // tidak pernah menyentuh disk hanya untuk ditolak.
-        if ($fileBukti && $fileBukti->isValid() && !false /* was: $fileBukti->hasMoved() */) {
+        if ($fileBukti && $fileBukti->isValid() && ! false /* was: $fileBukti->hasMoved() */) {
             // Tipe dibaca dari ISI file (guessExtension), bukan dari header
             // Content-Type kiriman browser: berkas skrip yang mengaku image/jpeg
             // dulu lolos whitelist klien, lalu getRandomName() memakai MIME asli
             // sehingga berkas yang tersimpan di uploads/izin ikut berekstensi php.
-            if (!in_array(strtolower($fileBukti->guessExtension()), ['pdf', 'jpg', 'jpeg', 'png'], true)) {
+            if (! in_array(strtolower($fileBukti->guessExtension()), ['pdf', 'jpg', 'jpeg', 'png'], true)) {
                 return $this->respond(false, 'Bukti harus berupa PDF/JPG/PNG.');
             }
             if ($fileBukti->getSize() > 2 * 1024 * 1024) {
@@ -6608,17 +6786,17 @@ class AttendanceController extends BaseController
         // Hitung + insert dibungkus transaksi yang mengunci baris guru:
         // dua request yang datang bersamaan untuk guru yang sama tidak
         // lagi bisa membaca snapshot kuota yang sama lalu dua-duanya lolos.
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $cek      = null;
+        $db = DB::connection();
+        $cek = null;
         $namaBaru = '';
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // Serialisasi per guru. Tanpa lock ini, dua tab yang dikirim
             // bersamaan sama-sama membaca kuota yang sama lalu sama-sama
             // lolos, sehingga kuota terlampaui.
-            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+            if (Schema::hasTable('users')) {
                 try {
-                    $db->select('SELECT id FROM ' . 'users' . ' WHERE id = ? FOR UPDATE', [$userId]);
+                    $db->select('SELECT id FROM '.'users'.' WHERE id = ? FOR UPDATE', [$userId]);
                 } catch (\Throwable $e) {
                     // SQLite tidak mendukung FOR UPDATE; transaksi single-
                     // writer-nya sudah cukup untuk unit test SQLite.
@@ -6635,7 +6813,8 @@ class AttendanceController extends BaseController
                 ->where('tgl_selesai', '>=', $tglMulai)
                 ->count();
             if ($overlap > 0) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, 'Rentang tanggal bertabrakan dengan pengajuan lain yang masih aktif.');
             }
 
@@ -6645,55 +6824,56 @@ class AttendanceController extends BaseController
             // tahunan — batasnya sudah divalidasi di atas.
             $cek = $kuota->cek((int) $userId, $jenis, $tglMulai, $tglSelesai, 0, $kategoriCuti);
             if (! $cek['ok']) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, $cek['pesan']);
             }
 
             $buktiPath = null;
-            if ($fileBukti && $fileBukti->isValid() && !false /* was: $fileBukti->hasMoved() */) {
-                $uploadDir = public_path() . '/' . 'uploads/izin/';
+            if ($fileBukti && $fileBukti->isValid() && ! false /* was: $fileBukti->hasMoved() */) {
+                $uploadDir = public_path().'/'.'uploads/izin/';
                 if (! is_dir($uploadDir)) {
                     @mkdir($uploadDir, 0755, true);
                 }
-                $newName     = $fileBukti->hashName();
+                $newName = $fileBukti->hashName();
                 $fileBukti->move($uploadDir, $newName);
-                $buktiPath   = 'uploads/izin/' . $newName;
-                $namaBaru    = $newName;
+                $buktiPath = 'uploads/izin/'.$newName;
+                $namaBaru = $newName;
             }
 
             $this->leaveModel->insert([
-                'user_id'     => $userId,
-                'id_guru'     => $this->resolveIdGuru((int) $userId),
-                'tgl_mulai'   => $tglMulai,
+                'user_id' => $userId,
+                'id_guru' => $this->resolveIdGuru((int) $userId),
+                'tgl_mulai' => $tglMulai,
                 'tgl_selesai' => $tglSelesai,
-                'jenis'       => $jenis,
+                'jenis' => $jenis,
                 // Cuti generik non-ASN → NULL, tidak dipaksa ''
                 'kategori_cuti' => $kategoriCuti,
-                'keterangan'  => $this->request->input('keterangan'),
-                'status'      => 'pending',
-                'bukti'       => $buktiPath,
+                'keterangan' => $this->request->input('keterangan'),
+                'status' => 'pending',
+                'bukti' => $buktiPath,
             ]);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             // Berkas sudah sempat naik ke disk sebelum insert gagal —
             // bersihkan supaya tidak jadi yatim.
-            if (isset($namaBaru) && $namaBaru !== '' && file_exists(public_path() . '/' . 'uploads/izin/' . $namaBaru)) {
-                @unlink(public_path() . '/' . 'uploads/izin/' . $namaBaru);
+            if (isset($namaBaru) && $namaBaru !== '' && file_exists(public_path().'/'.'uploads/izin/'.$namaBaru)) {
+                @unlink(public_path().'/'.'uploads/izin/'.$namaBaru);
             }
-            Log::error('Leave request gagal: ' . $e->getMessage());
+            Log::error('Leave request gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyimpan pengajuan. Silakan coba lagi.', null, null, 500);
         }
-
 
         // Kabari grup agar admin tahu ada antrean menunggu penilaian.
         // Best-effort: kegagalan Telegram tidak boleh membatalkan pengajuan.
         try {
             $guruRow = $db->table('master_guru')->select('nama_guru')
                 ->where('id_user', $userId)->first();
-            $namaGuru = $guruRow->nama_guru ?? ('User ' . $userId);
-            (new \App\Services\NotificationService())->notifyPermitSubmitted(
+            $namaGuru = $guruRow->nama_guru ?? ('User '.$userId);
+            (new NotificationService)->notifyPermitSubmitted(
                 $namaGuru,
                 $jenis,
                 $start->format('d/m/Y'),
@@ -6703,13 +6883,13 @@ class AttendanceController extends BaseController
                 (int) ($cek['hari'] ?? $diff),
                 // Kategori disertakan ke jalur notifikasi agar verifikator
                 // tahu hak mana yang dipakai tanpa membuka DB.
-                trim(($kategoriCuti !== null && \App\Services\CutiKategoriService::valid($kategoriCuti)
-                        ? '[' . \App\Services\CutiKategoriService::label($kategoriCuti) . '] '
-                        : '') . (string) ($this->request->input('keterangan') ?? '')),
+                trim(($kategoriCuti !== null && CutiKategoriService::valid($kategoriCuti)
+                        ? '['.CutiKategoriService::label($kategoriCuti).'] '
+                        : '').(string) ($this->request->input('keterangan') ?? '')),
                 (int) $userId
             );
         } catch (\Throwable $e) {
-            Log::error('Notifikasi pengajuan izin gagal: ' . $e->getMessage());
+            Log::error('Notifikasi pengajuan izin gagal: '.$e->getMessage());
         }
 
         return $this->respond(true, 'Permohonan terkirim');
@@ -6720,14 +6900,15 @@ class AttendanceController extends BaseController
      */
     public function getPendingLeaveCount()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $userId = session()->get('user_id');
 
         $pendingCount = $this->leaveModel
             ->where('user_id', $userId)
-            ->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)
+            ->whereIn('status', LeaveModel::STATUS_PENDING)
             ->count();
 
         return $this->respond(true, 'Pending count fetched', ['count' => $pendingCount]);
@@ -6748,16 +6929,17 @@ class AttendanceController extends BaseController
         }
 
         $userId = (int) session()->get('user_id');
-        $tahun  = (int) ($this->request->query('tahun') ?? date('Y'));
+        $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         if ($tahun < 2000 || $tahun > (int) date('Y') + 1) {
             $tahun = (int) date('Y');
         }
 
         try {
-            $svc    = new \App\Services\IzinKuotaService();
-            $kuota  = $svc->ringkasan($userId, $tahun);
+            $svc = new IzinKuotaService;
+            $kuota = $svc->ringkasan($userId, $tahun);
         } catch (\Throwable $e) {
-            Log::error('Gagal memuat sisa kuota izin: ' . $e->getMessage());
+            Log::error('Gagal memuat sisa kuota izin: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal memuat sisa kuota.', null, null, 500);
         }
 
@@ -6767,13 +6949,12 @@ class AttendanceController extends BaseController
         ]);
     }
 
-
     private function saveBase64Image(string $base64, string $folder): ?string
     {
         if (preg_match('/^data:image\/(\w+);base64,/', $base64, $type)) {
             $base64 = substr($base64, strpos($base64, ',') + 1);
             $type = strtolower($type[1]);
-            if (!in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
+            if (! in_array($type, ['jpg', 'jpeg', 'gif', 'png'])) {
                 return null;
             }
             $decoded = base64_decode($base64, true);
@@ -6783,17 +6964,19 @@ class AttendanceController extends BaseController
             if (strlen($decoded) > 2 * 1024 * 1024) {
                 return null;
             }
-            $folderPath = public_path() . '/' . $folder;
-            if (!is_dir($folderPath)) {
+            $folderPath = public_path().'/'.$folder;
+            if (! is_dir($folderPath)) {
                 mkdir($folderPath, 0755, true);
             }
-            $fileName = uniqid('absen_', true) . '.' . $type;
-            $filePath = $folderPath . '/' . $fileName;
+            $fileName = uniqid('absen_', true).'.'.$type;
+            $filePath = $folderPath.'/'.$fileName;
             if (file_put_contents($filePath, $decoded, LOCK_EX) === false) {
                 return null;
             }
-            return $folder . '/' . $fileName;
+
+            return $folder.'/'.$fileName;
         }
+
         return null;
     }
 
@@ -6810,7 +6993,7 @@ class AttendanceController extends BaseController
         if (preg_match('/^data:image\/(\w+);base64,/', $base64, $type)) {
             $base64 = substr($base64, strpos($base64, ',') + 1);
             $type = strtolower($type[1]);
-            if (!in_array($type, ['jpg', 'jpeg', 'gif', 'png'], true)) {
+            if (! in_array($type, ['jpg', 'jpeg', 'gif', 'png'], true)) {
                 return null;
             }
             $decoded = base64_decode($base64, true);
@@ -6821,19 +7004,21 @@ class AttendanceController extends BaseController
                 return null;
             }
             $folder = 'uploads/absen';
-            $folderPath = public_path() . '/' . $folder;
-            if (!is_dir($folderPath)) {
+            $folderPath = public_path().'/'.$folder;
+            if (! is_dir($folderPath)) {
                 mkdir($folderPath, 0755, true);
             }
 
             // --- Resize + kompres (max 800px, quality 70%) ---
             $img = @imagecreatefromstring($decoded);
             if ($img !== false) {
-                $w = imagesx($img); $h = imagesy($img);
+                $w = imagesx($img);
+                $h = imagesy($img);
                 $max = 800;
                 if ($w > $max || $h > $max) {
                     $ratio = min($max / $w, $max / $h);
-                    $nw = (int)($w * $ratio); $nh = (int)($h * $ratio);
+                    $nw = (int) ($w * $ratio);
+                    $nh = (int) ($h * $ratio);
                     $thumb = imagecreatetruecolor($nw, $nh);
                     imagecopyresampled($thumb, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
                     imagedestroy($img);
@@ -6852,20 +7037,23 @@ class AttendanceController extends BaseController
             } catch (\Throwable $e) {
                 $rand = uniqid();
             }
-            $fileName = $slot . '_' . $userId . '_' . date('Ymd_His') . '_' . $rand . '.' . $type;
-            $filePath = $folderPath . '/' . $fileName;
+            $fileName = $slot.'_'.$userId.'_'.date('Ymd_His').'_'.$rand.'.'.$type;
+            $filePath = $folderPath.'/'.$fileName;
             if (file_put_contents($filePath, $decoded, LOCK_EX) === false) {
                 return null;
             }
 
             // Auto-hapus file user ini > 30 hari
             $cutoff = time() - (30 * 86400);
-            foreach (glob($folderPath . '/' . $slot . '_' . $userId . '_*.*') as $old) {
-                if (is_file($old) && filemtime($old) < $cutoff) @unlink($old);
+            foreach (glob($folderPath.'/'.$slot.'_'.$userId.'_*.*') as $old) {
+                if (is_file($old) && filemtime($old) < $cutoff) {
+                    @unlink($old);
+                }
             }
 
-            return $folder . '/' . $fileName;
+            return $folder.'/'.$fileName;
         }
+
         return null;
     }
 
@@ -6873,10 +7061,7 @@ class AttendanceController extends BaseController
      * @deprecated Tidak lagi dipakai sejak foto memakai nama unik per hari.
      * Dibiarkan sebagai no-op agar riwayat foto hari lama tetap utuh.
      */
-    private function clearOldAbsenPhotos(int $userId, string $today): void
-    {
-        return;
-    }
+    private function clearOldAbsenPhotos(int $userId, string $today): void {}
 
     /**
      * Profile page
@@ -6884,19 +7069,20 @@ class AttendanceController extends BaseController
     public function profile()
     {
         try {
-            if (!$this->inGroup('guru'))
+            if (! $this->inGroup('guru')) {
                 return redirect()->to('auth');
+            }
 
             $userId = (int) session()->get('user_id');
             $idGuru = $this->resolveIdGuru($userId);
 
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             // Prioritize fetching from master_guru
             $builder = $db->table('master_guru as a')
-                ->select('a.*, lg.level as jabatan')
-                ->join('jabatan_guru as jg', 'jg.id_guru = a.id_guru', 'left')
-                ->join('level_guru as lg', 'lg.id_level = jg.id_jabatan', 'left');
+                ->select('a.*', 'lg.level as jabatan')
+                ->leftJoin('jabatan_guru as jg', 'jg.id_guru', '=', 'a.id_guru')
+                ->leftJoin('level_guru as lg', 'lg.id_level', '=', 'jg.id_jabatan');
 
             if ($idGuru) {
                 $builder->where('a.id_guru', $idGuru);
@@ -6909,17 +7095,17 @@ class AttendanceController extends BaseController
             $guru = $builder->first();
 
             // Fallback only if master_guru record is completely missing
-            if (!$guru) {
+            if (! $guru) {
                 $user = $this->authModel->user($userId);
                 $guru = (object) [
                     'id_guru' => 0,
-                    'nama_guru' => $user->first_name . ' ' . $user->last_name,
+                    'nama_guru' => $user->first_name.' '.$user->last_name,
                     'foto' => $user->foto,
                     'nip' => '-', // Fix: Do not use username as NIP
                     'jenis_kelamin' => '-',
                     'kode_guru' => '-',
                     'jabatan' => $user->company ?? 'Staff',
-                    'username' => $user->username
+                    'username' => $user->username,
                 ];
             } else {
                 // Ensure photo path is correct if missing
@@ -6936,24 +7122,25 @@ class AttendanceController extends BaseController
             $waVerified = false;
             try {
                 $userIdForWa = (int) session()->get('user_id');
-                $waNumber = \App\Libraries\WhatsAppLink::numberForGuru(
+                $waNumber = WhatsAppLink::numberForGuru(
                     (int) ($guru->id_guru ?? 0),
                     $userIdForWa
                 );
                 $waVerified = $waNumber !== ''
-                    && (new \App\Models\UserNotifikasiModel())->getVerifiedWaNumber($userIdForWa) !== '';
+                    && (new UserNotifikasiModel)->getVerifiedWaNumber($userIdForWa) !== '';
             } catch (\Throwable $e) {
-                Log::error('Gagal membaca nomor WA notifikasi: ' . $e->getMessage());
+                Log::error('Gagal membaca nomor WA notifikasi: '.$e->getMessage());
             }
 
             return view('members.guru.absen_profile', [
-                'title'          => 'Profil Guru',
-                'guru'           => $guru,
-                'waNotifNumber'  => $waNumber,
+                'title' => 'Profil Guru',
+                'guru' => $guru,
+                'waNotifNumber' => $waNumber,
                 'waNotifVerified' => $waVerified,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Profile Error: ' . $e->getMessage());
+            Log::error('Profile Error: '.$e->getMessage());
+
             return redirect()->to('presensi')->with('error', 'Terjadi kesalahan saat membuka profil');
         }
     }
@@ -6966,36 +7153,38 @@ class AttendanceController extends BaseController
      */
     private function checkIsHoliday(string $date): ?string
     {
-        if (!\App\Services\AttendancePolicy::isLibur($date)) {
+        if (! AttendancePolicy::isLibur($date)) {
             return null;
         }
 
-        if (\App\Services\AttendancePolicy::isLiburNasional($date)) {
-            $ket = \App\Services\AttendancePolicy::liburNasional()[$date] ?? '';
-            return 'Hari ini libur: ' . ($ket !== '' ? $ket : 'hari libur');
+        if (AttendancePolicy::isLiburNasional($date)) {
+            $ket = AttendancePolicy::liburNasional()[$date] ?? '';
+
+            return 'Hari ini libur: '.($ket !== '' ? $ket : 'hari libur');
         }
 
-        $jadwal = \App\Services\AttendancePolicy::jadwalKerja()[\App\Services\AttendancePolicy::isoHari($date)] ?? null;
+        $jadwal = AttendancePolicy::jadwalKerja()[AttendancePolicy::isoHari($date)] ?? null;
         if ($jadwal !== null && (int) ($jadwal->is_libur ?? 0) === 1) {
             return 'Hari ini libur sesuai Jadwal Kerja GTK.';
         }
 
         return 'Hari ini adalah hari libur mingguan ('
-            . \App\Services\AttendancePolicy::namaHariId($date) . ').';
+            .AttendancePolicy::namaHariId($date).').';
     }
 
     private function getRandomMotivation(): string
     {
         $quotes = [
-            "Waktu adalah aset berharga. Mari hargai dengan ketepatan waktu.",
-            "Ketepatan waktu mencerminkan profesionalisme dan dedikasi Anda.",
-            "Menjadi teladan bagi siswa dimulai dari hal kecil seperti tepat waktu.",
-            "Jangan menyerah, esok adalah kesempatan untuk lebih disiplin!",
-            "Keterlambatan bukan kegagalan, tapi pengingat untuk memperbaiki diri.",
-            "Satu menit sangat berharga. Mari manfaatkan setiap detik untuk pendidikan.",
-            "Disiplin adalah jembatan antara tujuan dan pencapaian. Semangat!",
-            "Guru yang disiplin akan melahirkan murid yang berkarakter kuat."
+            'Waktu adalah aset berharga. Mari hargai dengan ketepatan waktu.',
+            'Ketepatan waktu mencerminkan profesionalisme dan dedikasi Anda.',
+            'Menjadi teladan bagi siswa dimulai dari hal kecil seperti tepat waktu.',
+            'Jangan menyerah, esok adalah kesempatan untuk lebih disiplin!',
+            'Keterlambatan bukan kegagalan, tapi pengingat untuk memperbaiki diri.',
+            'Satu menit sangat berharga. Mari manfaatkan setiap detik untuk pendidikan.',
+            'Disiplin adalah jembatan antara tujuan dan pencapaian. Semangat!',
+            'Guru yang disiplin akan melahirkan murid yang berkarakter kuat.',
         ];
+
         return $quotes[array_rand($quotes)];
     }
 
@@ -7004,8 +7193,9 @@ class AttendanceController extends BaseController
      */
     public function correctionRequest()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         try {
             // Ensure table schema is up to date
@@ -7026,7 +7216,7 @@ class AttendanceController extends BaseController
             // Whitelist field: hanya jam masuk/pulang yang bisa dikoreksi.
             // (Dulu: field_name bebas → mass-assignment kolom points/denda/status/user_id.)
             $allowedFields = ['jam_masuk', 'jam_pulang'];
-            if (!in_array($fieldName, $allowedFields, true)) {
+            if (! in_array($fieldName, $allowedFields, true)) {
                 return $this->respond(false, 'Field koreksi tidak didukung. Hanya jam masuk / jam pulang.');
             }
 
@@ -7036,15 +7226,15 @@ class AttendanceController extends BaseController
                 $parts = explode(' ', $newValue);
                 $timeOnly = end($parts);
             }
-            if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $timeOnly)) {
+            if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $timeOnly)) {
                 return $this->respond(false, 'Format jam tidak valid. Gunakan HH:MM (00:00–23:59).');
             }
 
             // --- LIMIT CHECK (rentang tanggal eksplisit, hanya pending+approved yang makan kuota) ---
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $today = date('Y-m-d');
-            $todayStart = $today . ' 00:00:00';
-            $todayEnd = $today . ' 23:59:59';
+            $todayStart = $today.' 00:00:00';
+            $todayEnd = $today.' 23:59:59';
             $countToday = $db->table('absensi_koreksi')
                 ->where('user_id', $userId)
                 ->whereIn('status', ['pending', 'approved'])
@@ -7084,7 +7274,7 @@ class AttendanceController extends BaseController
 
             // Verify the attendance belongs to the user
             $attendance = $this->attendanceModel->find($attendanceId);
-            if (!$attendance || $attendance->user_id != session()->get('user_id')) {
+            if (! $attendance || $attendance->user_id != session()->get('user_id')) {
                 return $this->respond(false, 'Data absensi tidak ditemukan');
             }
 
@@ -7105,18 +7295,18 @@ class AttendanceController extends BaseController
                 // Ensure time format is HH:MM:SS
                 if (strlen($newValue) === 5) {
                     // If user sent HH:MM (from time input), add :00
-                    $formattedNewValue = $newValue . ':00';
+                    $formattedNewValue = $newValue.':00';
                 }
                 // If it's a full datetime field (from old value), preserve date
                 if ($oldValue && strlen($oldValue) > 8) {
                     // Old value is datetime (2026-01-10 07:30:00)
                     $date = substr($oldValue, 0, 10);
-                    $formattedNewValue = $date . ' ' . $formattedNewValue;
+                    $formattedNewValue = $date.' '.$formattedNewValue;
                 }
             }
 
             // Create correction request
-            $correctionModel = new \App\Models\AttendanceCorrectionModel();
+            $correctionModel = new AttendanceCorrectionModel;
             $correctionModel->insert([
                 'attendance_id' => $attendanceId,
                 'user_id' => session()->get('user_id'),
@@ -7124,16 +7314,16 @@ class AttendanceController extends BaseController
                 'old_value' => $oldValue,
                 'new_value' => $formattedNewValue,
                 'reason' => $reason,
-                'status' => 'pending'
+                'status' => 'pending',
             ]);
 
             // Kabari grup agar admin tahu ada koreksi yang perlu diperiksa.
             // Best-effort: kegagalan Telegram tidak boleh membatalkan pengajuan.
             try {
-                $notif = new \App\Services\NotificationService();
+                $notif = new NotificationService;
                 $guruRow = $db->table('master_guru')->select('nama_guru')
                     ->where('id_user', $userId)->first();
-                $namaGuru = $guruRow->nama_guru ?? ('User ' . $userId);
+                $namaGuru = $guruRow->nama_guru ?? ('User '.$userId);
                 $tanggal = $oldValue && preg_match('/(\d{4}-\d{2}-\d{2})/', (string) $oldValue, $m) === 1
                     ? date('d/m/Y', strtotime($m[1]))
                     : date('d/m/Y');
@@ -7147,12 +7337,13 @@ class AttendanceController extends BaseController
                     (int) $userId
                 );
             } catch (\Throwable $e) {
-                Log::error('Notifikasi pengajuan koreksi gagal: ' . $e->getMessage());
+                Log::error('Notifikasi pengajuan koreksi gagal: '.$e->getMessage());
             }
 
             return $this->respond(true, 'Permintaan koreksi terkirim. Menunggu persetujuan admin.');
         } catch (\Throwable $e) {
-            Log::error('Correction Request Error: ' . $e->getMessage());
+            Log::error('Correction Request Error: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan sistem — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -7166,17 +7357,16 @@ class AttendanceController extends BaseController
      */
     private function idGuruPerluDiperbaiki(string $tabel): bool
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable($tabel)) {
+        if (! Schema::hasTable($tabel)) {
             return false;
         }
-        foreach ($db->getFieldData($tabel) as $f) {
-            if ($f->name !== 'id_guru') {
+        foreach (Schema::getColumns($tabel) as $f) {
+            if ($f['name'] !== 'id_guru') {
                 continue;
             }
-            $tipe = strtolower((string) ($f->type ?? ''));
+            $tipe = strtolower((string) ($f['type_name'] ?? ''));
 
-            return !($tipe === 'int' && !empty($f->nullable) && (string) ($f->default ?? '') === '0');
+            return ! ($tipe === 'int' && ! empty($f['nullable']) && (string) ($f['default'] ?? '') === '0');
         }
 
         return false;
@@ -7184,13 +7374,13 @@ class AttendanceController extends BaseController
 
     private function patchAbsensiHarianTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
         $harianFields = [
             'denda' => ['type' => 'DECIMAL', 'constraint' => '15,2', 'default' => 0, 'after' => 'status_masuk'],
             'keterangan_denda' => ['type' => 'TEXT', 'null' => true, 'after' => 'denda'],
-            'points' => ['type' => 'INT', 'default' => 0, 'after' => 'keterangan_denda']
+            'points' => ['type' => 'INT', 'default' => 0, 'after' => 'keterangan_denda'],
         ];
 
         // Ensure id_guru column allows NULL / default 0
@@ -7211,11 +7401,11 @@ class AttendanceController extends BaseController
                     ],
                 ]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiHarianTable] id_guru absensi_harian: ' . $e->getMessage());
+                Log::error('[patchAbsensiHarianTable] id_guru absensi_harian: '.$e->getMessage());
             }
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin') && $this->idGuruPerluDiperbaiki('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin') && $this->idGuruPerluDiperbaiki('absensi_izin')) {
             try {
                 $forge->modifyColumn('absensi_izin', [
                     'id_guru' => [
@@ -7228,16 +7418,16 @@ class AttendanceController extends BaseController
                     ],
                 ]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiHarianTable] id_guru absensi_izin: ' . $e->getMessage());
+                Log::error('[patchAbsensiHarianTable] id_guru absensi_izin: '.$e->getMessage());
             }
         }
 
         foreach ($harianFields as $fieldName => $config) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', $fieldName)) {
+            if (! Schema::hasColumn('absensi_harian', $fieldName)) {
                 try {
                     $forge->addColumn('absensi_harian', [$fieldName => $config]);
                 } catch (\Throwable $e) {
-                    Log::error('[patchAbsensiHarianTable] kolom absensi_harian.' . $fieldName . ': ' . $e->getMessage());
+                    Log::error('[patchAbsensiHarianTable] kolom absensi_harian.'.$fieldName.': '.$e->getMessage());
                 }
             }
         }
@@ -7257,16 +7447,16 @@ class AttendanceController extends BaseController
         ];
 
         foreach ($settingFields as $fieldName => $config) {
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting') && !\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', $fieldName)) {
+            if (Schema::hasTable('absensi_setting') && ! Schema::hasColumn('absensi_setting', $fieldName)) {
                 try {
                     $forge->addColumn('absensi_setting', [$fieldName => $config]);
                 } catch (\Throwable $e) {
-                    Log::error('[patchAbsensiHarianTable] kolom absensi_setting.' . $fieldName . ': ' . $e->getMessage());
+                    Log::error('[patchAbsensiHarianTable] kolom absensi_setting.'.$fieldName.': '.$e->getMessage());
                 }
             }
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('rewards') && !\Illuminate\Support\Facades\Schema::hasColumn('rewards', 'nominal')) {
+        if (Schema::hasTable('rewards') && ! Schema::hasColumn('rewards', 'nominal')) {
             try {
                 $forge->addColumn('rewards', [
                     'nominal' => [
@@ -7277,10 +7467,11 @@ class AttendanceController extends BaseController
                         'null' => false,
                     ],
                 ]);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda') && !\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id')) {
+        if (Schema::hasTable('absensi_pembayaran_denda') && ! Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id')) {
             try {
                 $forge->addColumn('absensi_pembayaran_denda', [
                     'reward_redemption_id' => [
@@ -7292,7 +7483,8 @@ class AttendanceController extends BaseController
                         'after' => 'keterangan',
                     ],
                 ]);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         // NOTE: Jangan pernah menimpa nilai setting di sini (GET harus idempoten).
@@ -7300,63 +7492,70 @@ class AttendanceController extends BaseController
         // diubah kembali ke default. Default hanya berlaku via skema kolom
         // (addColumn di atas) dan fallback `??` di kode pembaca.
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             try {
                 // Clear denda, telat_menit, pulang_cepat_menit on any record marked as Dinas
                 $db->select("UPDATE absensi_harian SET denda = 0, keterangan_denda = NULL, telat_menit = 0, pulang_cepat_menit = 0 WHERE status_masuk LIKE 'DINAS%' OR status_pulang LIKE 'DINAS%'");
                 // If keterangan explicitly mentions dinas, ensure status is DINAS and clean penalties
                 $db->select("UPDATE absensi_harian SET status_masuk = 'DINAS_APPROVED', status_pulang = 'DINAS_APPROVED', denda = 0, keterangan_denda = NULL, telat_menit = 0, pulang_cepat_menit = 0, points = 10 WHERE (keterangan LIKE '%dinas%' OR keterangan LIKE '%tugas luar%') AND (denda > 0 OR telat_menit > 0 OR status_masuk = 'LATE')");
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
     }
 
     private function getAlphaDatesForUserMonth(int $userId, string $monthPrefix, $db, $setting): array
     {
-        if (!preg_match('/^\d{4}-\d{2}$/', $monthPrefix)) {
+        if (! preg_match('/^\d{4}-\d{2}$/', $monthPrefix)) {
             $monthPrefix = date('Y-m');
         }
 
-        $startDate = $monthPrefix . '-01';
+        $startDate = $monthPrefix.'-01';
         $endDate = date('Y-m-t', strtotime($startDate));
 
         try {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
-            $absenSetting = \Illuminate\Support\Facades\Schema::hasTable('absensi_setting') ? $db->table('absensi_setting')->orderBy('id', 'ASC')->first() : $setting;
+            $penaltyService = new AttendancePenaltyService;
+            $absenSetting = Schema::hasTable('absensi_setting') ? $db->table('absensi_setting')->orderBy('id', 'ASC')->first() : $setting;
             $summary = $penaltyService->calculateAllUsersPeriodAlphaSummary($startDate, $endDate, $absenSetting);
             $items = $summary[$userId]['items'] ?? [];
+
             return array_values(array_filter(array_column($items, 'tgl')));
         } catch (\Throwable $e) {
-            Log::error('[getAlphaDatesForUserMonth] ' . $e->getMessage());
+            Log::error('[getAlphaDatesForUserMonth] '.$e->getMessage());
+
             return [];
         }
     }
 
     private function getAlphaCountMapForUsersMonth(array $userIds, string $monthPrefix, $db, $setting): array
     {
-        if (empty($userIds)) return [];
-        if (!preg_match('/^\d{4}-\d{2}$/', $monthPrefix)) {
+        if (empty($userIds)) {
+            return [];
+        }
+        if (! preg_match('/^\d{4}-\d{2}$/', $monthPrefix)) {
             $monthPrefix = date('Y-m');
         }
 
-        $startDate = $monthPrefix . '-01';
+        $startDate = $monthPrefix.'-01';
         $endDate = date('Y-m-t', strtotime($startDate));
 
         try {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
-            $absenSetting = \Illuminate\Support\Facades\Schema::hasTable('absensi_setting') ? $db->table('absensi_setting')->orderBy('id', 'ASC')->first() : $setting;
+            $penaltyService = new AttendancePenaltyService;
+            $absenSetting = Schema::hasTable('absensi_setting') ? $db->table('absensi_setting')->orderBy('id', 'ASC')->first() : $setting;
             $summary = $penaltyService->calculateAllUsersPeriodAlphaSummary($startDate, $endDate, $absenSetting);
 
             $alphaMap = [];
             foreach ($userIds as $uid) {
                 $alphaMap[(int) $uid] = (int) ($summary[(int) $uid]['count'] ?? 0);
             }
+
             return $alphaMap;
         } catch (\Throwable $e) {
-            Log::error('[getAlphaCountMapForUsersMonth] ' . $e->getMessage());
+            Log::error('[getAlphaCountMapForUsersMonth] '.$e->getMessage());
             $alphaMap = [];
             foreach ($userIds as $uid) {
                 $alphaMap[(int) $uid] = 0;
             }
+
             return $alphaMap;
         }
     }
@@ -7366,10 +7565,10 @@ class AttendanceController extends BaseController
      */
     private function patchAbsensiKoreksiTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+        if (! Schema::hasTable('absensi_koreksi')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'attendance_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -7387,6 +7586,7 @@ class AttendanceController extends BaseController
             ]);
             $forge->addPrimaryKey('id');
             $forge->createTable('absensi_koreksi', true);
+
             return;
         }
 
@@ -7397,7 +7597,7 @@ class AttendanceController extends BaseController
         ];
 
         foreach ($requiredColumns as $field => $def) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_koreksi', $field)) {
+            if (! Schema::hasColumn('absensi_koreksi', $field)) {
                 $forge->addColumn('absensi_koreksi', [$field => $def]);
             }
         }
@@ -7408,13 +7608,14 @@ class AttendanceController extends BaseController
      */
     public function myCorrections()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
-        $correctionModel = new \App\Models\AttendanceCorrectionModel();
+        $correctionModel = new AttendanceCorrectionModel;
         $corrections = $correctionModel
-            ->select('absensi_koreksi.*, a.tgl')
-            ->join('absensi_harian as a', 'a.id = absensi_koreksi.attendance_id')
+            ->select('absensi_koreksi.*', 'a.tgl')
+            ->join('absensi_harian as a', 'a.id', '=', 'absensi_koreksi.attendance_id')
             ->where('absensi_koreksi.user_id', session()->get('user_id'))
             ->orderBy('absensi_koreksi.created_at', 'DESC')
             ->get();
@@ -7427,8 +7628,9 @@ class AttendanceController extends BaseController
      */
     public function myAttendance()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $records = $this->attendanceModel
             ->where('user_id', session()->get('user_id'))
@@ -7437,13 +7639,13 @@ class AttendanceController extends BaseController
             ->get();
 
         // Check for existing corrections
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Check if table exists first to avoid error during migration/setup
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+        if (Schema::hasTable('absensi_koreksi')) {
             $corrections = $db->table('absensi_koreksi')
                 ->select('attendance_id')
                 ->where('user_id', session()->get('user_id'))
-                ->get()->map(fn($r) => (array) $r)->all();
+                ->get()->map(fn ($r) => (array) $r)->all();
 
             $attendanceIdsWithCorrection = array_column($corrections, 'attendance_id');
 
@@ -7466,33 +7668,34 @@ class AttendanceController extends BaseController
     private function enableHotspotUser($userId)
     {
         try {
-            $setting = (new DashboardModel())->getSettingRow();
+            $setting = (new DashboardModel)->getSettingRow();
 
             if (empty($setting->mikrotik_host) || empty($setting->mikrotik_user)) {
                 return;
             }
 
             // Get User Identify (Username)
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $user = $db->table('users')->select('username')->where('id', $userId)->first();
 
-            if (!$user || empty($user->username))
+            if (! $user || empty($user->username)) {
                 return;
+            }
 
-            $router = new \App\Libraries\RouterosAPI();
+            $router = new RouterosAPI;
             $router->debug = false;
 
             if ($router->connect($setting->mikrotik_host, $setting->mikrotik_user, $setting->mikrotik_pass, (int) ($setting->mikrotik_port ?? 8728))) {
 
                 // 1. Find the Hotspot User ID by name
                 $router->write('/ip/hotspot/user/print', false);
-                $router->write('?name=' . $user->username);
+                $router->write('?name='.$user->username);
                 $hotspotUser = $router->read();
 
-                if (!empty($hotspotUser) && isset($hotspotUser[0]['.id'])) {
+                if (! empty($hotspotUser) && isset($hotspotUser[0]['.id'])) {
                     // 2. Enable the User
                     $router->write('/ip/hotspot/user/enable', false);
-                    $router->write('=.id=' . $hotspotUser[0]['.id']);
+                    $router->write('=.id='.$hotspotUser[0]['.id']);
                     $router->read();
                     // Log::info('MikroTik Hotspot Enabled for: ' . $user->username);
                 }
@@ -7500,30 +7703,31 @@ class AttendanceController extends BaseController
                 $router->disconnect();
             }
         } catch (\Exception $e) {
-            Log::error('MikroTik Hook Failed: ' . $e->getMessage());
+            Log::error('MikroTik Hook Failed: '.$e->getMessage());
         }
     }
-    /**
 
+    /**
      * Download Surat Teguran PDF
      */
     public function downloadTeguran($level)
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
         }
 
         $userId = (int) session()->get('user_id');
         $idGuru = $this->resolveIdGuru($userId);
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Models
-        $dashboardModel = new DashboardModel();
+        $dashboardModel = new DashboardModel;
 
         // 1. Get Settings
         $attSetting = $this->settingModel->first();
-        if (!$attSetting)
+        if (! $attSetting) {
             $attSetting = $this->getDefaultSettings();
+        }
 
         // Global Setting (for logo, school name, kepsek)
         $globalSetting = $this->getSettingRow();
@@ -7531,32 +7735,36 @@ class AttendanceController extends BaseController
         $setting = clone $attSetting;
         if ($globalSetting) {
             foreach (get_object_vars($globalSetting) as $key => $val) {
-                if (!isset($setting->$key))
+                if (! isset($setting->$key)) {
                     $setting->$key = $val;
+                }
             }
         }
         // Ensure defaults if missing from global
-        if (!isset($setting->logo_kiri))
+        if (! isset($setting->logo_kiri)) {
             $setting->logo_kiri = null;
-        if (!isset($setting->nama_sekolah))
+        }
+        if (! isset($setting->nama_sekolah)) {
             $setting->nama_sekolah = 'Sekolah';
-        if (!isset($setting->kota))
+        }
+        if (! isset($setting->kota)) {
             $setting->kota = 'Kota';
+        }
 
         $currentMonth = (int) date('n');
-        $currentYear  = (int) date('Y');
+        $currentYear = (int) date('Y');
 
         // Hitung alpha bulan berjalan secara kanonik (single source of truth)
-        $penaltyService = new \App\Services\AttendancePenaltyService();
+        $penaltyService = new AttendancePenaltyService;
         $calcAlpha = $penaltyService->calculateTeacherMonthlyAlpha((int) $userId, $currentMonth, $currentYear, $setting);
 
         // Get Teacher Data
         $guru = $db->table('master_guru')->where('id_guru', $idGuru)->first();
-        if (!$guru) {
+        if (! $guru) {
             $guru = $db->table('master_guru')->where('id_user', $userId)->first();
         }
 
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('presensi')->with('error', 'Data profil guru tidak ditemukan. Hubungi operator.');
         }
 
@@ -7565,15 +7773,15 @@ class AttendanceController extends BaseController
         $kepsekNip = $setting->nip_kepsek ?? '..........................';
 
         // Determine Teguran Level Text
-        $teguranText = \App\Libraries\SuratTeguranLevel::label((int) $level);
+        $teguranText = SuratTeguranLevel::label((int) $level);
 
         // Lazy Migration — hanya kalau tabel belum ada sama sekali.
         // Skema yang dibuat di sini sengaja SINGKAP dengan versi migrasi
         // (tanpa unique key, tanpa kolom ack/dibatalkan_otomatis), jadi ini
         // hanya jaring pengaman untuk instalasi yang belum migrate; jalur
         // normalnya tetap php spark migrate.
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
-            $forge = (new \App\Http\Controllers\CiForge());
+        if (! Schema::hasTable('absensi_surat_teguran')) {
+            $forge = (new CiForge);
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'id_guru' => ['type' => 'INT', 'constraint' => 11],
@@ -7594,7 +7802,7 @@ class AttendanceController extends BaseController
         // dari sisi guru sebagai pemicu penerbitan: guru yang meminta
         // level lebih rendah dari yang sudah terbit tetap bisa membuat
         // surat baru, dan slot yang sudah dibatalkan bisa diisi lagi.
-        $svcTeguran = new \App\Services\SuratTeguranService($db);
+        $svcTeguran = new SuratTeguranService($db);
         $svcTeguran->sinkronkan((int) $guru->id_guru, $calcAlpha, (string) $currentMonth, (string) $currentYear);
 
         $existingLetter = $db->table('absensi_surat_teguran')
@@ -7614,7 +7822,7 @@ class AttendanceController extends BaseController
 
             // Pakai snapshot jumlah_alpha yang tersimpan (isi arsip tidak
             // boleh ikut berubah). Kalau 0 — surat lama yang tidak
-            //olerının mengisi kolomnya — pakai angka kanonik.
+            // olerının mengisi kolomnya — pakai angka kanonik.
             $jumlahAlpha = (int) ($existingLetter->jumlah_alpha ?? 0);
             if ($jumlahAlpha <= 0) {
                 $jumlahAlpha = max((int) $level, $calcAlpha);
@@ -7652,10 +7860,10 @@ class AttendanceController extends BaseController
             // Level yang terbit boleh berbeda dari yang diminta (mis. guru
             // minta tingkat I padahal sudah punya tingkat II). Muat yang
             // benar supaya PDF tidak berlabel_level keliru.
-            $level        = (int) $baris->level;
-            $teguranText  = \App\Libraries\SuratTeguranLevel::label($level);
-            $noUrut       = (int) $baris->nomor_urut;
-            $jumlahAlpha  = (int) ($baris->jumlah_alpha ?? 0);
+            $level = (int) $baris->level;
+            $teguranText = SuratTeguranLevel::label($level);
+            $noUrut = (int) $baris->nomor_urut;
+            $jumlahAlpha = (int) ($baris->jumlah_alpha ?? 0);
             if ($jumlahAlpha <= 0) {
                 $jumlahAlpha = max($level, $calcAlpha);
             }
@@ -7666,10 +7874,10 @@ class AttendanceController extends BaseController
         // nomor surat ({tanggal}) dan tanggal surat — selalu tanggal terbit
         // arsip, bukan tanggal cetak.
         $barisTerbit = $existingLetter ?? ($baris ?? null);
-        $tglTerbitSurat = !empty($barisTerbit->created_at) ? date('d-m-Y', strtotime($barisTerbit->created_at)) : null;
+        $tglTerbitSurat = ! empty($barisTerbit->created_at) ? date('d-m-Y', strtotime($barisTerbit->created_at)) : null;
 
         // Format Number (template dapat dikonfigurasi di /settings)
-        $nomorSurat = \App\Libraries\SuratNomor::build(
+        $nomorSurat = SuratNomor::build(
             (int) $noUrut,
             (int) $currentMonth,
             (int) $currentYear,
@@ -7681,19 +7889,19 @@ class AttendanceController extends BaseController
         // Rincian tanggal alpha untuk kalimat rincian di badan surat.
         $alphaDates = [];
         try {
-            $alphaDates = (new \App\Services\AttendancePenaltyService())->teacherMonthlyAlphaDates(
+            $alphaDates = (new AttendancePenaltyService)->teacherMonthlyAlphaDates(
                 (int) $userId, (int) $currentMonth, (int) $currentYear, $setting
             );
         } catch (\Throwable $e) {
-            Log::error('downloadTeguran alpha dates gagal: ' . $e->getMessage());
+            Log::error('downloadTeguran alpha dates gagal: '.$e->getMessage());
         }
 
         // QR TTE pengganti tanda tangan basah Kepsek
-        $tteKode = \App\Libraries\TteQr::verificationCode(
+        $tteKode = TteQr::verificationCode(
             $nomorSurat, (int) $guru->id_guru, (int) $level, (int) $currentMonth, (int) $currentYear
         );
-        $tteQr = \App\Libraries\TteQr::dataUri(
-            \App\Libraries\TteQr::payload(
+        $tteQr = TteQr::dataUri(
+            TteQr::payload(
                 $nomorSurat, (string) ($guru->nama_guru ?? '-'), (string) ($guru->nip ?? '-'),
                 $teguranText, (int) $jumlahAlpha, $tteKode,
                 (string) $kepsekNama, $kepsekNip,
@@ -7703,18 +7911,18 @@ class AttendanceController extends BaseController
 
         // Logo Processing
         $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path() . '/' . $setting->logo_kiri)) {
-            $type = pathinfo(public_path() . '/' . $setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->logo_kiri);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
+            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         // Kop Sekolah Processing
         $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path() . '/' . $setting->kopsekolah)) {
-            $type = pathinfo(public_path() . '/' . $setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->kopsekolah);
-            $kopBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
+            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
+            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         // Baris surat yang dipakai PDF sudah ditentukan di atas
@@ -7734,14 +7942,14 @@ class AttendanceController extends BaseController
             'periode_bulan' => (int) $currentMonth,
             'periode_tahun' => (int) $currentYear,
             // Tanggal surat = tanggal terbit arsip, bukan tanggal cetak.
-            'tanggal_terbit' => !empty($barisTerbit->created_at) ? (string) $barisTerbit->created_at : null,
+            'tanggal_terbit' => ! empty($barisTerbit->created_at) ? (string) $barisTerbit->created_at : null,
             // Daftar tanggal alpha periode surat untuk rincian di badan surat.
             'alpha_dates' => $alphaDates,
         ];
 
         $html = view('members.guru.surat_teguran_pdf', $data);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->set_option('isRemoteEnabled', true);
 
@@ -7751,7 +7959,7 @@ class AttendanceController extends BaseController
 
         $filename = "Surat_Teguran_{$level}_Hari_{$guru->nama_guru}.pdf";
 
-        $dompdf->stream($filename, ["Attachment" => false]);
+        $dompdf->stream($filename, ['Attachment' => false]);
         exit;
     }
 
@@ -7762,10 +7970,12 @@ class AttendanceController extends BaseController
     private function alphaForLetterPeriod(int $userId, int $bulan, int $tahun, $setting, $db): int
     {
         try {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            $penaltyService = new AttendancePenaltyService;
+
             return $penaltyService->calculateTeacherMonthlyAlpha($userId, $bulan, $tahun, $setting);
         } catch (\Throwable $e) {
-            Log::error('alphaForLetterPeriod gagal: ' . $e->getMessage());
+            Log::error('alphaForLetterPeriod gagal: '.$e->getMessage());
+
             return 0;
         }
     }
@@ -7778,25 +7988,25 @@ class AttendanceController extends BaseController
      */
     public function downloadTeguranSurat($id)
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
         }
 
         $userId = (int) session()->get('user_id');
         $idGuru = $this->resolveIdGuru($userId);
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
+        if (! Schema::hasTable('absensi_surat_teguran')) {
             return redirect()->to('presensi')->with('error', 'Data surat tidak ditemukan.');
         }
 
         $letter = $db->table('absensi_surat_teguran as a')
-            ->select('a.*, g.nama_guru, g.nip')
-            ->join('master_guru as g', 'g.id_guru = a.id_guru', 'left')
+            ->select('a.*', 'g.nama_guru', 'g.nip')
+            ->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.id', (int) $id)
             ->first();
 
-        if (!$letter || (int) ($letter->id_guru ?? 0) !== $idGuru) {
+        if (! $letter || (int) ($letter->id_guru ?? 0) !== $idGuru) {
             return redirect()->to('presensi')->with('error', 'Data surat tidak ditemukan.');
         }
 
@@ -7809,24 +8019,29 @@ class AttendanceController extends BaseController
         $tahun = (int) ($letter->tahun ?? date('Y'));
 
         // Models & settings (sama seperti downloadTeguran level)
-        $dashboardModel = new DashboardModel();
+        $dashboardModel = new DashboardModel;
         $attSetting = $this->settingModel->first();
-        if (!$attSetting)
+        if (! $attSetting) {
             $attSetting = $this->getDefaultSettings();
+        }
         $globalSetting = $this->getSettingRow();
         $setting = clone $attSetting;
         if ($globalSetting) {
             foreach (get_object_vars($globalSetting) as $key => $val) {
-                if (!isset($setting->$key))
+                if (! isset($setting->$key)) {
                     $setting->$key = $val;
+                }
             }
         }
-        if (!isset($setting->logo_kiri))
+        if (! isset($setting->logo_kiri)) {
             $setting->logo_kiri = null;
-        if (!isset($setting->nama_sekolah))
+        }
+        if (! isset($setting->nama_sekolah)) {
             $setting->nama_sekolah = 'Sekolah';
-        if (!isset($setting->kota))
+        }
+        if (! isset($setting->kota)) {
             $setting->kota = 'Kota';
+        }
 
         // Alpha sesuai snapshot surat agar dokumen arsip berkekuatan tetap (immutable)
         $jumlahAlpha = (int) ($letter->jumlah_alpha ?? 0);
@@ -7838,43 +8053,45 @@ class AttendanceController extends BaseController
         // Rincian tanggal alpha untuk kalimat rincian di badan surat.
         $alphaDates = [];
         try {
-            $alphaDates = (new \App\Services\AttendancePenaltyService())->teacherMonthlyAlphaDates(
+            $alphaDates = (new AttendancePenaltyService)->teacherMonthlyAlphaDates(
                 $userId, $bulan, $tahun, $setting
             );
         } catch (\Throwable $e) {
-            Log::error('downloadTeguranSurat alpha dates gagal: ' . $e->getMessage());
+            Log::error('downloadTeguranSurat alpha dates gagal: '.$e->getMessage());
         }
 
         // Data guru untuk kop surat
         $guru = $db->table('master_guru')->where('id_guru', $idGuru)->first();
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('presensi')->with('error', 'Data profil guru tidak ditemukan. Hubungi operator.');
         }
-        if (!empty($letter->nama_guru))
+        if (! empty($letter->nama_guru)) {
             $guru->nama_guru = $letter->nama_guru;
-        if (!empty($letter->nip))
+        }
+        if (! empty($letter->nip)) {
             $guru->nip = $letter->nip;
+        }
 
         $kepsekNama = $setting->kepsek ?? ($setting->nama_kepsek ?? '..........................');
         $kepsekNip = $setting->nip_kepsek ?? '..........................';
 
-        $teguranText = \App\Libraries\SuratTeguranLevel::label((int) $level);
+        $teguranText = SuratTeguranLevel::label((int) $level);
 
         // Nomor surat yang SUDAH tersimpan — jangan menerbitkan nomor baru
-        $nomorSurat = \App\Libraries\SuratNomor::build(
+        $nomorSurat = SuratNomor::build(
             (int) ($letter->nomor_urut ?? 0),
             (int) $bulan,
             (int) $tahun,
             $setting,
             (int) $level,
-            !empty($letter->created_at) ? date('d-m-Y', strtotime($letter->created_at)) : null
+            ! empty($letter->created_at) ? date('d-m-Y', strtotime($letter->created_at)) : null
         );
 
-        $tteKode = \App\Libraries\TteQr::verificationCode(
+        $tteKode = TteQr::verificationCode(
             $nomorSurat, (int) $guru->id_guru, (int) $level, (int) $bulan, (int) $tahun
         );
-        $tteQr = \App\Libraries\TteQr::dataUri(
-            \App\Libraries\TteQr::payload(
+        $tteQr = TteQr::dataUri(
+            TteQr::payload(
                 $nomorSurat, (string) ($guru->nama_guru ?? '-'), (string) ($guru->nip ?? '-'),
                 $teguranText, (int) $jumlahAlpha, $tteKode,
                 (string) $kepsekNama, $kepsekNip,
@@ -7883,17 +8100,17 @@ class AttendanceController extends BaseController
         );
 
         $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path() . '/' . $setting->logo_kiri)) {
-            $type = pathinfo(public_path() . '/' . $setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->logo_kiri);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
+            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path() . '/' . $setting->kopsekolah)) {
-            $type = pathinfo(public_path() . '/' . $setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->kopsekolah);
-            $kopBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
+            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
+            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         $data = [
@@ -7911,14 +8128,14 @@ class AttendanceController extends BaseController
             'periode_bulan' => $bulan,
             'periode_tahun' => $tahun,
             // Tanggal surat = tanggal terbit arsip, bukan tanggal cetak.
-            'tanggal_terbit' => !empty($letter->created_at) ? (string) $letter->created_at : null,
+            'tanggal_terbit' => ! empty($letter->created_at) ? (string) $letter->created_at : null,
             // Daftar tanggal alpha periode surat untuk rincian di badan surat.
             'alpha_dates' => $alphaDates,
         ];
 
         $html = view('members.guru.surat_teguran_pdf', $data);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->set_option('isRemoteEnabled', true);
 
@@ -7928,7 +8145,7 @@ class AttendanceController extends BaseController
 
         $filename = "Surat_Teguran_{$level}_Hari_{$guru->nama_guru}.pdf";
 
-        $dompdf->stream($filename, ["Attachment" => false]);
+        $dompdf->stream($filename, ['Attachment' => false]);
         exit;
     }
 
@@ -7952,7 +8169,7 @@ class AttendanceController extends BaseController
         }
 
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
+            if (! Schema::hasTable('absensi_surat_teguran')) {
                 return [];
             }
 
@@ -7961,11 +8178,11 @@ class AttendanceController extends BaseController
                 ->where('bulan', $bulan)
                 ->where('tahun', $tahun);
 
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_surat_teguran', 'status')) {
+            if (Schema::hasColumn('absensi_surat_teguran', 'status')) {
                 $builder->where('status', '!=', 'dibatalkan');
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_surat_teguran', 'ack_at')) {
-                $builder->where('ack_at', null);
+            if (Schema::hasColumn('absensi_surat_teguran', 'ack_at')) {
+                $builder->whereNull('ack_at');
             }
 
             return $builder->orderBy('level', 'ASC')
@@ -7973,7 +8190,8 @@ class AttendanceController extends BaseController
                 ->limit(10)
                 ->get();
         } catch (\Throwable $e) {
-            Log::error('[pendingTeguranGate] ' . $e->getMessage());
+            Log::error('[pendingTeguranGate] '.$e->getMessage());
+
             return [];
         }
     }
@@ -7990,22 +8208,22 @@ class AttendanceController extends BaseController
             $lvl = (int) ($r->level ?? 0);
             $data[] = [
                 'id' => (int) $r->id,
-                'nomor' => \App\Libraries\SuratNomor::build(
+                'nomor' => SuratNomor::build(
                     (int) ($r->nomor_urut ?? 0),
                     (int) ($r->bulan ?? 0),
                     (int) ($r->tahun ?? 0),
                     null,
                     $lvl,
-                    !empty($r->created_at) ? date('d-m-Y', strtotime($r->created_at)) : null
+                    ! empty($r->created_at) ? date('d-m-Y', strtotime($r->created_at)) : null
                 ),
                 'level' => $lvl,
-                'level_text' => isset(\App\Libraries\SuratTeguranLevel::list()[$lvl])
-                    ? \App\Libraries\SuratTeguranLevel::label($lvl)
+                'level_text' => isset(SuratTeguranLevel::list()[$lvl])
+                    ? SuratTeguranLevel::label($lvl)
                     : "TINGKAT ({$lvl} Hari)",
                 'bulan' => (int) ($r->bulan ?? 0),
                 'bulan_text' => $namaBulan[(int) ($r->bulan ?? 0)] ?? '',
                 'tahun' => (int) ($r->tahun ?? 0),
-                'download_url' => url('presensi/surat/' . (int) $r->id),
+                'download_url' => url('presensi/surat/'.(int) $r->id),
             ];
         }
 
@@ -8018,7 +8236,7 @@ class AttendanceController extends BaseController
      */
     public function myTeguran()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -8028,7 +8246,7 @@ class AttendanceController extends BaseController
             return $this->respond(true, 'Tidak ada surat', []);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $rows = $this->pendingTeguranGate($idGuru, (int) date('n'), (int) date('Y'), $db);
 
@@ -8041,13 +8259,13 @@ class AttendanceController extends BaseController
      */
     public function ackTeguran()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
         try {
 
-            $ipKey = 'teguran_ack_' . md5($this->request->ip() . session()->get('user_id'));
+            $ipKey = 'teguran_ack_'.md5($this->request->ip().session()->get('user_id'));
             if ($this->throttleCheck($ipKey, 10, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Coba lagi sebentar.', null, null, 429);
             }
@@ -8059,7 +8277,7 @@ class AttendanceController extends BaseController
             }
 
             $ids = $this->request->input('ids');
-            if (!is_array($ids)) {
+            if (! is_array($ids)) {
                 $ids = $ids !== null ? [(int) $ids] : [];
             }
             $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
@@ -8073,27 +8291,28 @@ class AttendanceController extends BaseController
                 return $this->respond(false, 'Data guru tidak ditemukan.', null, null, 403);
             }
 
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran') || !\Illuminate\Support\Facades\Schema::hasColumn('absensi_surat_teguran', 'ack_at')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('absensi_surat_teguran') || ! Schema::hasColumn('absensi_surat_teguran', 'ack_at')) {
                 return $this->respond(false, 'Fitur konfirmasi belum tersedia.', null, null, 500);
             }
 
             $updated = $db->table('absensi_surat_teguran')
                 ->where('id_guru', $idGuru)
                 ->whereIn('id', $ids)
-                ->where('ack_at', null)
+                ->whereNull('ack_at')
                 ->update([
                     'ack_at' => date('Y-m-d H:i:s'),
                     'ack_text' => substr((string) $this->request->input('konfirmasi'), 0, 60),
                 ]);
 
-            if (!$updated && 1 === 0) {
+            if (! $updated && 1 === 0) {
                 return $this->respond(false, 'Surat tidak ditemukan atau sudah dikonfirmasi.');
             }
 
             return $this->respond(true, 'Terima kasih. Konfirmasi Anda telah dicatat. Silakan lanjutkan absensi.');
         } catch (\Throwable $e) {
-            Log::error('ackTeguran gagal: ' . $e->getMessage());
+            Log::error('ackTeguran gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan sistem.', null, null, 500);
         }
     }
@@ -8106,7 +8325,8 @@ class AttendanceController extends BaseController
     private function countAlphaCurrentMonth($userId)
     {
         try {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            $penaltyService = new AttendancePenaltyService;
+
             return (int) $penaltyService->calculateTeacherMonthlyAlpha(
                 (int) $userId,
                 (int) date('m'),
@@ -8124,6 +8344,7 @@ class AttendanceController extends BaseController
             $diff = ($a[$i] ?? 0) - ($b[$i] ?? 0);
             $sum += $diff * $diff;
         }
+
         return sqrt($sum);
     }
 
@@ -8159,11 +8380,13 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $model = new \App\Models\UserNotifikasiModel();
+            $model = new UserNotifikasiModel;
             $prefs = $model->getPrefs($userId);
+
             return $this->response->setJSON(['status' => true, 'prefs' => $prefs]);
         } catch (\Throwable $e) {
-            Log::error('[NotifPrefs] getNotifPrefs gagal: ' . $e->getMessage());
+            Log::error('[NotifPrefs] getNotifPrefs gagal: '.$e->getMessage());
+
             return $this->response->setStatusCode(500)
                 ->setJSON(['status' => false, 'message' => 'Gagal memuat preferensi']);
         }
@@ -8187,7 +8410,7 @@ class AttendanceController extends BaseController
         return $this->response
             ->setHeader('Cache-Control', 'no-store, max-age=0')
             ->setJSON([
-                'status'   => true,
+                'status' => true,
                 'csrfName' => '_token',
                 'csrfHash' => '_token',
             ]);
@@ -8225,26 +8448,27 @@ class AttendanceController extends BaseController
         }
 
         // Sanitasi: hanya kunci dari PREF_DEFAULTS yang diizinkan
-        $allowed = array_keys(\App\Models\UserNotifikasiModel::PREF_DEFAULTS);
-        $clean   = [];
+        $allowed = array_keys(UserNotifikasiModel::PREF_DEFAULTS);
+        $clean = [];
         foreach ($allowed as $key) {
             // Checkbox yang tidak dicentang tidak dikirim → default false
             $clean[$key] = isset($raw[$key]) && ((int) $raw[$key] === 1 || $raw[$key] === 'on' || $raw[$key] === true);
         }
 
         try {
-            $model = new \App\Models\UserNotifikasiModel();
-            $ok    = $model->setPrefs($userId, $clean);
+            $model = new UserNotifikasiModel;
+            $ok = $model->setPrefs($userId, $clean);
 
             return $this->response->setJSON([
-                'status'  => $ok,
+                'status' => $ok,
                 'message' => $ok
                     ? 'Preferensi notifikasi berhasil disimpan.'
                     : 'Gagal menyimpan preferensi.',
-                'prefs'   => $ok ? $clean : [],
+                'prefs' => $ok ? $clean : [],
             ]);
         } catch (\Throwable $e) {
-            Log::error('[NotifPrefs] saveNotifPrefs gagal: ' . $e->getMessage());
+            Log::error('[NotifPrefs] saveNotifPrefs gagal: '.$e->getMessage());
+
             return $this->response->setStatusCode(500)
                 ->setJSON(['status' => false, 'message' => 'Gagal menyimpan — periksa log aplikasi.']);
         }

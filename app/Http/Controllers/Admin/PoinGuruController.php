@@ -2,30 +2,31 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
+use App\Http\Controllers\CiForge;
+use App\Models\DashboardModel;
 use App\Models\PoinHistoryModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PoinGuruController extends BaseController
 {
     public function index()
     {
         $this->ensureTableExists();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $year = date('Y');
 
         // Read teachers with poin_tahunan (now synced from poin_history)
         $teachers = $db->table('master_guru as mg')
-            ->select('mg.id_guru, mg.nama_guru, mg.nip, mg.poin_tahunan, mg.foto, u.foto as user_foto')
-            ->join('users as u', 'u.id = mg.id_user', 'left')
+            ->select('mg.id_guru', 'mg.nama_guru', 'mg.nip', 'mg.poin_tahunan', 'mg.foto', 'u.foto as user_foto')
+            ->leftJoin('users as u', 'u.id', '=', 'mg.id_user')
             ->orderBy('mg.poin_tahunan', 'DESC')
             ->get();
 
-        $dashboardModel = new \App\Models\DashboardModel();
+        $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['nama_aplikasi' => 'CBT AKM', 'logo_kiri' => null];
         }
 
@@ -34,8 +35,8 @@ class PoinGuruController extends BaseController
 
         // Summary stats from poin_history
         $stats = $db->table('poin_history')
-            ->selectSum('poin', 'total')
-            ->whereRaw("YEAR(created_at) = ?", [$year])
+            ->selectRaw('SUM(poin) as total')
+            ->whereRaw('YEAR(created_at) = ?', [$year])
             ->first();
         $annualTotalPoin = (float) ($stats->total ?? 0);
 
@@ -55,9 +56,9 @@ class PoinGuruController extends BaseController
     public function recalculate()
     {
         $this->ensureTableExists();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $year = date('Y');
-        $poinModel = new PoinHistoryModel();
+        $poinModel = new PoinHistoryModel;
 
         // PoinHistoryModel::seedFromAttendance()/updateTotalPoin() sudah
         // memastikan tabelnya sendiri lewat safeQuery(). Memanggil method
@@ -66,7 +67,7 @@ class PoinGuruController extends BaseController
 
         // 1. Backfill poin_history from attendance data for all teachers
         $teachers = $db->table('master_guru')
-            ->select('id_guru, id_user')
+            ->select('id_guru', 'id_user')
             ->whereRaw('id_user IS NOT NULL')
             ->get();
 
@@ -79,14 +80,14 @@ class PoinGuruController extends BaseController
 
         // 2. Sync master_guru.poin_tahunan = SUM(poin_history.poin) per user
         $subQuery = $db->table('poin_history')
-            ->select('user_id, SUM(poin) as total_poin')
-            ->whereRaw("YEAR(created_at) = ?", [$year])
-            ->groupBy('user_id')
-            ->toSql();
+            ->select('user_id')
+            ->selectRaw('SUM(poin) as total_poin')
+            ->whereRaw('YEAR(created_at) = ?', [$year])
+            ->groupBy('user_id');
 
         $rows = $db->table('master_guru as mg')
-            ->select('mg.id_guru, ph.total_poin')
-            ->join("({$subQuery}) as ph", 'ph.user_id = mg.id_user', 'left')
+            ->select('mg.id_guru', 'ph.total_poin')
+            ->leftJoinSub($subQuery, 'ph', 'ph.user_id', '=', 'mg.id_user')
             ->get();
 
         $count = 0;
@@ -107,20 +108,21 @@ class PoinGuruController extends BaseController
         if ($gagal > 0) {
             $msg = "Sinkronisasi {$year} baru berhasil untuk {$count} guru; {$gagal} guru gagal ditulis. Muat ulang dan ulangi, atau gunakan Sinkron Poin di layar Reward.";
         }
+
         return redirect()->to('admin/poinguru')->with('message', $msg);
     }
 
     public function detail($id_guru)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $teacher = $db->table('master_guru as mg')
-            ->select('mg.*, u.username, u.email, u.foto as user_foto')
-            ->join('users as u', 'u.id = mg.id_user', 'left')
+            ->select('mg.*', 'u.username', 'u.email', 'u.foto as user_foto')
+            ->leftJoin('users as u', 'u.id', '=', 'mg.id_user')
             ->where('mg.id_guru', $id_guru)
             ->first();
 
-        if (!$teacher) {
+        if (! $teacher) {
             return redirect()->to('admin/poinguru')->with('error', 'Data guru tidak ditemukan.');
         }
 
@@ -129,7 +131,7 @@ class PoinGuruController extends BaseController
         // Fetch poin_history for this teacher this year
         $poinHistory = $db->table('poin_history')
             ->where('user_id', $teacher->id_user)
-            ->whereRaw("YEAR(created_at) = ?", [$year])
+            ->whereRaw('YEAR(created_at) = ?', [$year])
             ->orderBy('created_at', 'DESC')
             ->get();
 
@@ -137,7 +139,7 @@ class PoinGuruController extends BaseController
         $monthly_stats = [];
         foreach ($poinHistory as $row) {
             $month = date('F', strtotime($row->created_at));
-            if (!isset($monthly_stats[$month])) {
+            if (! isset($monthly_stats[$month])) {
                 $monthly_stats[$month] = ['points' => 0, 'count' => 0];
             }
             $monthly_stats[$month]['points'] += (float) $row->poin;
@@ -148,14 +150,14 @@ class PoinGuruController extends BaseController
         $typeSummary = [];
         foreach ($poinHistory as $row) {
             $t = $row->tipe;
-            if (!isset($typeSummary[$t])) {
+            if (! isset($typeSummary[$t])) {
                 $typeSummary[$t] = ['poin' => 0, 'count' => 0];
             }
             $typeSummary[$t]['poin'] += (float) $row->poin;
             $typeSummary[$t]['count']++;
         }
 
-        $dashboardModel = new \App\Models\DashboardModel();
+        $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
         $user = $db->table('users')->where('id', session()->get('user_id'))->first();
 
@@ -164,7 +166,7 @@ class PoinGuruController extends BaseController
             'poinHistory' => $poinHistory,
             'monthly_stats' => $monthly_stats,
             'typeSummary' => $typeSummary,
-            'title' => 'Detail Poin: ' . $teacher->nama_guru,
+            'title' => 'Detail Poin: '.$teacher->nama_guru,
             'setting' => $setting,
             'user' => $user,
             'currentYear' => $year,
@@ -175,10 +177,10 @@ class PoinGuruController extends BaseController
 
     private function ensureTableExists()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'poin_tahunan')) {
+        if (! Schema::hasColumn('master_guru', 'poin_tahunan')) {
             $forge->addColumn('master_guru', [
                 'poin_tahunan' => [
                     'type' => 'DECIMAL',

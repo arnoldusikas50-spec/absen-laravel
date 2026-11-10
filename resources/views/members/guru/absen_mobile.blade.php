@@ -2764,7 +2764,7 @@
 
         if (!teacherQrGenerated) {
             const qrEl = document.getElementById('modalTeacherQr');
-            const qrText = {{ json_encode((string) ($qrTeacherVal ?? '')) }};
+            const qrText = {!! json_encode((string) ($qrTeacherVal ?? ''))!!};
             if (qrEl) {
                 if (window.QRCode) {
                     try {
@@ -2806,9 +2806,9 @@
 
     // ── Modal Unduh Rekap Bulanan (PDF) ─────────────────────────
     (function () {
-        const URL_SISWA = {{ json_encode(url('guru/presensi-siswa/rekap/pdf')) }};
-        const URL_GURU  = {{ json_encode(url('presensi/rekap-guru/pdf')) }};
-        const URL_KELAS = {{ json_encode(url('guru/presensi-siswa/rekap/kelas')) }};
+        const URL_SISWA = {!! json_encode(url('guru/presensi-siswa/rekap/pdf'))!!};
+        const URL_GURU  = {!! json_encode(url('presensi/rekap-guru/pdf'))!!};
+        const URL_KELAS = {!! json_encode(url('guru/presensi-siswa/rekap/kelas'))!!};
         let kelasLoaded = false;
 
         function parseMonth() {
@@ -2876,11 +2876,11 @@
     // ── Unduh kartu presensi sebagai gambar (PNG/JPG) ───────────
     // Kartu digambar ulang di <canvas> (bukan screenshot DOM) supaya hasil
     //Always tajam di layar retina dan tidak bergantung html2canvas/CDN.
-    window.TEACHER_CARD = {{ json_encode([
+    window.TEACHER_CARD = {!! json_encode([
         'nama'  => trim((string) ($fullName ?? ($user->nama_guru ?? 'Guru'))),
         'nip'   => (string) $qrTeacherVal,
         'jabatan' => (string) (!empty($user->tgs_tambahan) ? $user->tgs_tambahan : (!empty($user->jenis_ptk) ? $user->jenis_ptk : 'Guru / GTK')),
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }};
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)!!};
 
     function tcRoundRect(ctx, x, y, w, h, r) {
         if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
@@ -3062,7 +3062,7 @@
         currentMode: '{{ (!$attendance) ? "checkin" : ((!$attendance->jam_pulang) ? "checkout" : "done") }}',
         isHoliday: {{ ($is_holiday) ? 'true' : 'false' }},
         holidayReason: '{{ isset($holiday_reason) ? esc($holiday_reason) : '' }}',
-        locations: {{ json_encode($locations ?? []) }},
+        locations: {!! json_encode($locations ?? [])!!},
         userId: '{{ session('user_id') }}',
         // "Hari ini" versi aplikasi (appTimezone), dipakai penanda
         // "Hari Ini" pada daftar koreksi agar tidak bergantung jam perangkat.
@@ -3622,7 +3622,7 @@
         const FOTO_WAJIB = {{ isset($setting->foto_wajib) ? (int) $setting->foto_wajib : 0 }};
         const IS_HOLIDAY = {{ ($is_holiday) ? 'true' : 'false' }};
         const HOLIDAY_REASON = '{{ isset($holiday_reason) ? esc($holiday_reason, 'js') : '' }}';
-        const LOCATIONS = {{ json_encode($locations ?? []) }};
+        const LOCATIONS = {!! json_encode($locations ?? [])!!};
         const MODEL_LOCAL = '{{ asset('assets/models') }}';
         const MODEL_CDN = 'https://justadudewhohacks.github.io/face-api.js/models';
         const TEGURAN_FRASA = 'ya, saya akan meningkatkan disiplin';

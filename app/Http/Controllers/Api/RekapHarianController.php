@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\BaseController;
+use App\Models\DashboardModel;
+use App\Services\PresensiBdrService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
 
 /**
  * API Rekap Kehadiran Harian (akses eksternal via API key).
@@ -23,14 +24,14 @@ use App\Models\DashboardModel;
 class RekapHarianController extends BaseController
 {
     private const KODE = [
-        'HADIR'   => 'H',
-        'SAKIT'   => 'S',
-        'IJIN'    => 'I',
-        'DINAS'   => 'D',
-        'CUTI'    => 'C',
-        'ALPHA'   => 'A',
-        'BDR'     => 'B',
-        'WFH'     => 'W',
+        'HADIR' => 'H',
+        'SAKIT' => 'S',
+        'IJIN' => 'I',
+        'DINAS' => 'D',
+        'CUTI' => 'C',
+        'ALPHA' => 'A',
+        'BDR' => 'B',
+        'WFH' => 'W',
         'PENDING' => 'P',
     ];
 
@@ -39,7 +40,7 @@ class RekapHarianController extends BaseController
         // ── 1. Auth API key ──────────────────────────────────────────
         $key = $this->extractKey();
         try {
-            $dashboard = new DashboardModel();
+            $dashboard = new DashboardModel;
             $setting = $this->getSettingRow();
         } catch (\Throwable $e) {
             return $this->json(false, 'Koneksi database gagal.', null, 500);
@@ -49,17 +50,17 @@ class RekapHarianController extends BaseController
         if ($expected === '') {
             return $this->json(false, 'API key belum dikonfigurasi. Isi api_key di menu Pengaturan.', null, 503);
         }
-        if ($key === '' || !hash_equals($expected, $key)) {
+        if ($key === '' || ! hash_equals($expected, $key)) {
             return $this->json(false, 'API key tidak valid.', null, 401);
         }
 
         // ── 2. Validasi tanggal ──────────────────────────────────────
         $tgl = $this->request->query('tgl') ?: date('Y-m-d');
-        if (!is_string($tgl) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl)) {
+        if (! is_string($tgl) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl)) {
             return $this->json(false, 'Parameter tgl tidak valid. Format: YYYY-MM-DD.', null, 422);
         }
         [$y, $m, $d] = array_map('intval', explode('-', $tgl));
-        if (!checkdate($m, $d, $y)) {
+        if (! checkdate($m, $d, $y)) {
             return $this->json(false, 'Parameter tgl tidak valid (kalender).', null, 422);
         }
         if ($tgl > date('Y-m-d')) {
@@ -68,22 +69,23 @@ class RekapHarianController extends BaseController
 
         // ── 3. TP/SMT aktif ──────────────────────────────────────────
         try {
-            $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
         } catch (\Throwable $e) {
             return $this->json(false, 'Gagal membaca tahun/semester aktif.', null, 500);
         }
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return $this->json(false, 'Tahun pelajaran / semester aktif belum diset.', null, 500);
         }
 
         // ── 4. Rekap ─────────────────────────────────────────────────
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $guru = $this->rekapGuru($db, $tgl);
             $siswa = $this->rekapSiswa($db, $tgl, (int) $tp->id_tp, (int) $smt->id_smt);
         } catch (\Throwable $e) {
-            Log::error('[Api\RekapHarian] ' . $e->getMessage());
+            Log::error('[Api\RekapHarian] '.$e->getMessage());
+
             return $this->json(false, 'Gagal menyusun rekap.', null, 500);
         }
 
@@ -199,15 +201,15 @@ class RekapHarianController extends BaseController
     {
         // Guru aktif
         $users = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, g.nip, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'g.nip', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
             ->where('u.active', 1)
             ->orderBy('g.nama_guru', 'ASC')
             ->get();
 
         // Presensi hari itu
         $rows = $db->table('absensi_harian')
-            ->select('user_id, status_masuk, telat_menit')
+            ->select('user_id', 'status_masuk', 'telat_menit')
             ->where('tgl', $tgl)
             ->get();
         $map = [];
@@ -219,13 +221,13 @@ class RekapHarianController extends BaseController
         $leaves = [];
         try {
             $leaveRows = $db->table('absensi_izin')
-                ->select('user_id, id_guru, jenis')
+                ->select('user_id', 'id_guru', 'jenis')
                 ->where('status', 'approved')
                 ->where('tgl_mulai', '<=', $tgl)
                 ->where('tgl_selesai', '>=', $tgl)
                 ->get();
             foreach ($leaveRows as $lr) {
-                if (!empty($lr->user_id)) {
+                if (! empty($lr->user_id)) {
                     $leaves[(int) $lr->user_id] = $this->normIzin((string) $lr->jenis);
                 }
             }
@@ -237,7 +239,7 @@ class RekapHarianController extends BaseController
         $tidakHadir = [];
 
         foreach ($users as $u) {
-            $nama = $u->nama_guru ?: trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+            $nama = $u->nama_guru ?: trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
             if (isset($map[(int) $u->id])) {
                 $st = $this->normGuru((string) ($map[(int) $u->id]->status_masuk ?? ''));
                 $telat = $st === 'HADIR' && strtoupper((string) ($map[(int) $u->id]->status_masuk ?? '')) === 'LATE';
@@ -282,7 +284,7 @@ class RekapHarianController extends BaseController
             // 'wfh' ditambahkan bersamaan karena normGuru() tidak memetakan
             // WFH, sehingga hari kerja dari rumah dulu dihitung sebagai ALPHA.
             'pending' => $rincian['pending'],
-            'wfh'     => $rincian['wfh'],
+            'wfh' => $rincian['wfh'],
             'rincian' => $rincian,
             'tidak_hadir_list' => $tidakHadir,
             'ringkasan_teks' => sprintf(
@@ -297,7 +299,7 @@ class RekapHarianController extends BaseController
     private function rekapSiswa($db, string $tgl, int $idTp, int $idSmt): array
     {
         $kelasList = $db->table('master_kelas')
-            ->select('id_kelas, nama_kelas')
+            ->select('id_kelas', 'nama_kelas')
             ->where('id_tp', $idTp)
             ->where('id_smt', $idSmt)
             ->orderBy('level_id', 'ASC')
@@ -313,15 +315,17 @@ class RekapHarianController extends BaseController
 
             // Anggota kelas — hanya siswa AKTIF (buku_induk.status = '1').
             $anggotaQ = $db->table('kelas_siswa as ks')
-                ->select('ms.id_siswa, ms.nama, ms.nis')
-                ->join('master_siswa as ms', 'ms.id_siswa = ks.id_siswa')
+                ->select('ms.id_siswa', 'ms.nama', 'ms.nis')
+                ->join('master_siswa as ms', 'ms.id_siswa', '=', 'ks.id_siswa')
                 ->where('ks.id_kelas', $idKelas)
                 ->where('ks.id_tp', $idTp)
                 ->where('ks.id_smt', $idSmt);
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
-                    $anggotaQ->join('buku_induk as bi', 'bi.id_siswa = ks.id_siswa', 'left')
-                        ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+                if (Schema::hasTable('buku_induk')) {
+                    $anggotaQ->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ks.id_siswa')
+                        ->where(function ($q) {
+                            $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                        });
                 }
             } catch (\Throwable $e) {
             }
@@ -330,7 +334,7 @@ class RekapHarianController extends BaseController
 
             // Presensi hari itu
             $pres = $db->table('presensi_siswa')
-                ->select('id_siswa, status')
+                ->select('id_siswa', 'status')
                 ->where('id_kelas', $idKelas)
                 ->where('tgl', $tgl)
                 ->get();
@@ -346,9 +350,9 @@ class RekapHarianController extends BaseController
             // melainkan belajar dari rumah — meski cron 18:00 belum jalan.
             $bdrKelas = null;
             try {
-                $bdrKelas = (new \App\Services\PresensiBdrService())->untukKelas($tgl, $idKelas);
+                $bdrKelas = (new PresensiBdrService)->untukKelas($tgl, $idKelas);
             } catch (\Throwable $e) {
-                Log::error('[Api\RekapHarian] BDR: ' . $e->getMessage());
+                Log::error('[Api\RekapHarian] BDR: '.$e->getMessage());
             }
 
             foreach ($anggota as $s) {
@@ -395,7 +399,7 @@ class RekapHarianController extends BaseController
             }
 
             $names = array_map(
-                static fn ($x) => $x['nama'] . ' (' . $x['kode'] . ')',
+                static fn ($x) => $x['nama'].' ('.$x['kode'].')',
                 $thList
             );
 
@@ -413,7 +417,7 @@ class RekapHarianController extends BaseController
                 'ringkasan_teks' => sprintf(
                     'Kelas %s = H:%d TH:%d%s',
                     $k->nama_kelas, $rincian['hadir'], $tidakHadir,
-                    $names ? ' : ' . implode(', ', $names) : ''
+                    $names ? ' : '.implode(', ', $names) : ''
                 ),
             ];
         }
@@ -430,11 +434,11 @@ class RekapHarianController extends BaseController
     private function renderTeks(string $tgl, array $guru, array $siswa): string
     {
         $lines = [];
-        $lines[] = 'Rekap Kehadiran ' . date('d M Y', strtotime($tgl));
+        $lines[] = 'Rekap Kehadiran '.date('d M Y', strtotime($tgl));
         $lines[] = '';
         $lines[] = $guru['ringkasan_teks'] ?? '';
         foreach ($guru['tidak_hadir_list'] ?? [] as $x) {
-            $lines[] = '- ' . $x['nama'] . ' (' . $x['kode'] . ')';
+            $lines[] = '- '.$x['nama'].' ('.$x['kode'].')';
         }
         $lines[] = '';
         $lines[] = sprintf('Siswa H:%d TH:%d', $siswa['hadir'] ?? 0, $siswa['tidak_hadir'] ?? 0);
@@ -442,6 +446,6 @@ class RekapHarianController extends BaseController
             $lines[] = $k['ringkasan_teks'];
         }
 
-        return implode("\n", $lines) . "\n";
+        return implode("\n", $lines)."\n";
     }
 }

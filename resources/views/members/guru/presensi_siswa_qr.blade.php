@@ -943,25 +943,25 @@ $csrfHash  = '_token';
     const MODE_TAB = {
         masukOpen:  {{ !empty($modeTab['masuk_open']) ? 'true' : 'false' }},
         pulangOpen: {{ !empty($modeTab['pulang_open']) ? 'true' : 'false' }},
-        masukMsg:   {{ json_encode($modeTab['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        pulangMsg:  {{ json_encode($modeTab['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        jamMasuk:   {{ json_encode($modeTab['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        bukaMasuk:  {{ json_encode($modeTab['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        tutupMasuk: {{ json_encode($modeTab['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        jamPulang:  {{ json_encode($modeTab['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        bukaPulang: {{ json_encode($modeTab['buka_pulang'] ?? ($modeTab['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE) }},
+        masukMsg:   {!! json_encode($modeTab['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        pulangMsg:  {!! json_encode($modeTab['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        jamMasuk:   {!! json_encode($modeTab['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        bukaMasuk:  {!! json_encode($modeTab['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        tutupMasuk: {!! json_encode($modeTab['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        jamPulang:  {!! json_encode($modeTab['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        bukaPulang: {!! json_encode($modeTab['buka_pulang'] ?? ($modeTab['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE)!!},
         qrAktif:    {{ !empty($modeTab['qr_aktif']) ? 'true' : 'false' }},
-        qrMulai:    {{ json_encode($modeTab['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE) }},
-        qrSelesai:  {{ json_encode($modeTab['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE) }},
+        qrMulai:    {!! json_encode($modeTab['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+        qrSelesai:  {!! json_encode($modeTab['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
     };
-    let mode           = {{ json_encode($defMode ?? 'masuk') }}; // 'masuk' | 'keluar', bawaan mengikuti jadwal
+    let mode           = {!! json_encode($defMode ?? 'masuk')!!}; // 'masuk' | 'keluar', bawaan mengikuti jadwal
     let isScanning     = false;
     let lastQrValue    = '';
     let debounceTimer  = null;
     const DEBOUNCE_MS  = 2500;
     let selectedKelas  = {{ (int)$selectedKelas }};
     let allHistoryRows = [];
-    const FOTO_CADANGAN = {{ json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }};
+    const FOTO_CADANGAN = {!! json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
 
     // ── GPS perangkat untuk geofence server ───
     let kioskLoc = { lat: null, lng: null, accuracy: null };

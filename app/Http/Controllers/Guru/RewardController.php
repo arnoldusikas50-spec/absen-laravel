@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\BaseController;
-
+use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
+use App\Models\PoinHistoryModel;
+use App\Models\RewardModel;
+use App\Models\RewardRedemptionModel;
+use App\Models\RewardTierModel;
+use App\Services\AttendancePenaltyService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\PoinHistoryModel;
-use App\Models\RewardModel;
-use App\Models\RewardTierModel;
-use App\Models\RewardRedemptionModel;
 
 class RewardController extends BaseController
 {
@@ -19,18 +21,20 @@ class RewardController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->db = DB::connection();
     }
 
     public function index()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
 
-        $poinHistory = new PoinHistoryModel();
-        $tierModel = new RewardTierModel();
-        $rewardModel = new RewardModel();
-        $redemptionModel = new RewardRedemptionModel();
+        $poinHistory = new PoinHistoryModel;
+        $tierModel = new RewardTierModel;
+        $rewardModel = new RewardModel;
+        $redemptionModel = new RewardRedemptionModel;
 
         // Sync monthly discipline score → bonus points
         $bulan = date('m');
@@ -67,7 +71,9 @@ class RewardController extends BaseController
     public function dendaInfo()
     {
         $user = $this->getUser();
-        if (!$user) return $this->respond(false, 'Login required', null, null, 401);
+        if (! $user) {
+            return $this->respond(false, 'Login required', null, null, 401);
+        }
 
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         $dendaInfo = $this->getUserDendaInfo($user->id, $tahun);
@@ -78,26 +84,36 @@ class RewardController extends BaseController
     public function redeem()
     {
         $user = $this->getUser();
-        if (!$user) return $this->respond(false, 'Login required', null, null, 401);
-        if (!$this->isGuru() && !$this->isAdmin()) return $this->respond(false, 'Khusus guru', null, null, 403);
+        if (! $user) {
+            return $this->respond(false, 'Login required', null, null, 401);
+        }
+        if (! $this->isGuru() && ! $this->isAdmin()) {
+            return $this->respond(false, 'Khusus guru', null, null, 403);
+        }
 
         $rewardId = (int) $this->request->input('reward_id');
         $autoApply = (int) ($this->request->input('auto_apply') ?? 0);
 
-        $reward = (new RewardModel())->find($rewardId);
-        if (!$reward || !$reward->is_active) return $this->respond(false, 'Reward tidak tersedia');
-        if ($reward->stok <= 0) return $this->respond(false, 'Stok habis');
+        $reward = (new RewardModel)->find($rewardId);
+        if (! $reward || ! $reward->is_active) {
+            return $this->respond(false, 'Reward tidak tersedia');
+        }
+        if ($reward->stok <= 0) {
+            return $this->respond(false, 'Stok habis');
+        }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $saldo = $poinHistory->getSaldo($user->id);
-        if ($saldo < $reward->poin_dibutuhkan) return $this->respond(false, 'Poin tidak mencukupi');
+        if ($saldo < $reward->poin_dibutuhkan) {
+            return $this->respond(false, 'Poin tidak mencukupi');
+        }
 
         $nominal = (float) $reward->nominal;
         if ($nominal <= 0) {
             $nominal = $this->parseNominal($reward->nama, $reward->deskripsi);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             // Deduct points (ref_id unik per percobaan agar ledger bisa diaudit;
@@ -106,18 +122,18 @@ class RewardController extends BaseController
                 'user_id' => $user->id,
                 'poin' => (-1) * $reward->poin_dibutuhkan,
                 'tipe' => 'REDEEM',
-                'keterangan' => 'Redeem: ' . $reward->nama,
-                'ref_id' => 'reward-' . $rewardId . '-' . $user->id . '-' . uniqid(),
+                'keterangan' => 'Redeem: '.$reward->nama,
+                'ref_id' => 'reward-'.$rewardId.'-'.$user->id.'-'.uniqid(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
             if ($tercatat === false) {
-                $this->tulisGagal('mutasi poin REDEEM user#' . $user->id . ' reward#' . $rewardId);
+                $this->tulisGagal('mutasi poin REDEEM user#'.$user->id.' reward#'.$rewardId);
             }
 
             // Deduct stock — atomik: hanya bila stok>0, cegah stok negatif
             // saat dua redeem paralel lolos cek di luar transaksi.
-            $this->db->table('rewards')->where('id', $rewardId)->where('stok', '>', 0)->set('stok', 'stok-1', false)->update();
-            if (1 !== 1) {
+            $stokTerpotong = $this->db->table('rewards')->where('id', $rewardId)->where('stok', '>', 0)->update(['stok' => DB::raw('stok - 1')]);
+            if ($stokTerpotong !== 1) {
                 throw new \DomainException('Stok habis / diproses user lain. Muat ulang halaman.');
             }
 
@@ -132,7 +148,7 @@ class RewardController extends BaseController
                     throw new \DomainException($cek);
                 }
                 // Create redemption record as CLAIMED
-                $redemptionId = (new RewardRedemptionModel())->insert([
+                $redemptionId = (new RewardRedemptionModel)->insert([
                     'user_id' => $user->id,
                     'reward_id' => $rewardId,
                     'poin_digunakan' => $reward->poin_dibutuhkan,
@@ -141,7 +157,7 @@ class RewardController extends BaseController
                     'claimed_at' => date('Y-m-d H:i:s'),
                 ]);
                 if ($redemptionId === false) {
-                    $this->tulisGagal('klaim voucher user#' . $user->id . ' reward#' . $rewardId);
+                    $this->tulisGagal('klaim voucher user#'.$user->id.' reward#'.$rewardId);
                 }
 
                 // Insert into absensi_pembayaran_denda — distempel ke bulan
@@ -157,7 +173,7 @@ class RewardController extends BaseController
                     'metode_bayar' => 'POIN',
                     'tanggal_bayar' => date('Y-m-d'),
                     'status' => 'lunas',
-                    'keterangan' => 'Pemotongan denda via voucher: ' . $reward->nama,
+                    'keterangan' => 'Pemotongan denda via voucher: '.$reward->nama,
                     'reward_redemption_id' => $redemptionId,
                     'paid_at' => date('Y-m-d H:i:s'),
                     'paid_by' => $user->id,
@@ -165,36 +181,38 @@ class RewardController extends BaseController
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
                 if ($tercatatBayar === false) {
-                    $this->tulisGagal('pembayaran denda voucher user#' . $user->id);
+                    $this->tulisGagal('pembayaran denda voucher user#'.$user->id);
                 }
 
                 $poinHistory->updateTotalPoin($user->id);
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
 
-                return $this->respond(true, 'Voucher berhasil ditukarkan dan denda periode ' . $periodeVoucher['bulan'] . '/' . $periodeVoucher['tahun'] . ' sebesar Rp ' . number_format($nominal, 0, ',', '.') . ' langsung dipotong!');
+                return $this->respond(true, 'Voucher berhasil ditukarkan dan denda periode '.$periodeVoucher['bulan'].'/'.$periodeVoucher['tahun'].' sebesar Rp '.number_format($nominal, 0, ',', '.').' langsung dipotong!');
             } else {
                 // Standard redemption (PENDING)
-                $klaimBaru = (new RewardRedemptionModel())->insert([
+                $klaimBaru = (new RewardRedemptionModel)->insert([
                     'user_id' => $user->id,
                     'reward_id' => $rewardId,
                     'poin_digunakan' => $reward->poin_dibutuhkan,
                     'status' => 'PENDING',
                 ]);
                 if ($klaimBaru === false) {
-                    $this->tulisGagal('pengajuan klaim user#' . $user->id . ' reward#' . $rewardId);
+                    $this->tulisGagal('pengajuan klaim user#'.$user->id.' reward#'.$rewardId);
                 }
 
                 $poinHistory->updateTotalPoin($user->id);
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
 
                 return $this->respond(true, 'Permintaan redeem berhasil dikirim.');
             }
         } catch (\DomainException $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, $e->getMessage());
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Guru\Reward] redeem user#' . $user->id . ' reward#' . $rewardId . ': ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Guru\Reward] redeem user#'.$user->id.' reward#'.$rewardId.': '.$e->getMessage());
+
             return $this->respond(false, 'Penukaran gagal diproses. Poin Anda belum dikurangi — muat ulang halaman dan coba lagi.');
         }
     }
@@ -202,29 +220,43 @@ class RewardController extends BaseController
     public function potongDenda()
     {
         $user = $this->getUser();
-        if (!$user) return $this->respond(false, 'Login required', null, null, 401);
-        if (!$this->isGuru() && !$this->isAdmin()) return $this->respond(false, 'Khusus guru', null, null, 403);
+        if (! $user) {
+            return $this->respond(false, 'Login required', null, null, 401);
+        }
+        if (! $this->isGuru() && ! $this->isAdmin()) {
+            return $this->respond(false, 'Khusus guru', null, null, 403);
+        }
 
         $rewardId = (int) $this->request->input('reward_id');
-        $reward = (new RewardModel())->find($rewardId);
-        if (!$reward || !$reward->is_active) return $this->respond(false, 'Reward tidak tersedia');
+        $reward = (new RewardModel)->find($rewardId);
+        if (! $reward || ! $reward->is_active) {
+            return $this->respond(false, 'Reward tidak tersedia');
+        }
 
         $nominal = (float) $reward->nominal;
         if ($nominal <= 0) {
             $nominal = $this->parseNominal($reward->nama, $reward->deskripsi);
         }
-        if ($nominal <= 0) return $this->respond(false, 'Reward ini bukan voucher pemotongan denda');
-        if ($reward->stok <= 0) return $this->respond(false, 'Stok voucher habis');
+        if ($nominal <= 0) {
+            return $this->respond(false, 'Reward ini bukan voucher pemotongan denda');
+        }
+        if ($reward->stok <= 0) {
+            return $this->respond(false, 'Stok voucher habis');
+        }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $saldo = $poinHistory->getSaldo($user->id);
-        if ($saldo < $reward->poin_dibutuhkan) return $this->respond(false, 'Poin Anda (' . number_format($saldo) . ' pts) tidak mencukupi untuk voucher ini (' . number_format($reward->poin_dibutuhkan) . ' pts)');
+        if ($saldo < $reward->poin_dibutuhkan) {
+            return $this->respond(false, 'Poin Anda ('.number_format($saldo).' pts) tidak mencukupi untuk voucher ini ('.number_format($reward->poin_dibutuhkan).' pts)');
+        }
 
         // Guard sisa tunggakan sebelum poin dipotong (fail-fast di luar transaksi).
         $cek = $this->cekSisaUntukVoucher($user->id, $nominal);
-        if ($cek !== null) return $this->respond(false, $cek);
+        if ($cek !== null) {
+            return $this->respond(false, $cek);
+        }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             // Deduct points
@@ -232,22 +264,22 @@ class RewardController extends BaseController
                 'user_id' => $user->id,
                 'poin' => (-1) * $reward->poin_dibutuhkan,
                 'tipe' => 'REDEEM',
-                'keterangan' => 'Potong Denda: ' . $reward->nama,
-                'ref_id' => 'potong-denda-' . $rewardId . '-' . $user->id . '-' . uniqid(),
+                'keterangan' => 'Potong Denda: '.$reward->nama,
+                'ref_id' => 'potong-denda-'.$rewardId.'-'.$user->id.'-'.uniqid(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
             if ($tercatat === false) {
-                $this->tulisGagal('mutasi poin REDEEM user#' . $user->id . ' reward#' . $rewardId);
+                $this->tulisGagal('mutasi poin REDEEM user#'.$user->id.' reward#'.$rewardId);
             }
 
             // Deduct stock — atomik seperti redeem()
-            $this->db->table('rewards')->where('id', $rewardId)->where('stok', '>', 0)->set('stok', 'stok-1', false)->update();
-            if (1 !== 1) {
+            $stokTerpotong = $this->db->table('rewards')->where('id', $rewardId)->where('stok', '>', 0)->update(['stok' => DB::raw('stok - 1')]);
+            if ($stokTerpotong !== 1) {
                 throw new \DomainException('Stok voucher habis / diproses user lain. Muat ulang halaman.');
             }
 
             // Create redemption record as CLAIMED
-            $redemptionId = (new RewardRedemptionModel())->insert([
+            $redemptionId = (new RewardRedemptionModel)->insert([
                 'user_id' => $user->id,
                 'reward_id' => $rewardId,
                 'poin_digunakan' => $reward->poin_dibutuhkan,
@@ -256,7 +288,7 @@ class RewardController extends BaseController
                 'claimed_at' => date('Y-m-d H:i:s'),
             ]);
             if ($redemptionId === false) {
-                $this->tulisGagal('klaim voucher user#' . $user->id . ' reward#' . $rewardId);
+                $this->tulisGagal('klaim voucher user#'.$user->id.' reward#'.$rewardId);
             }
 
             // Insert into absensi_pembayaran_denda — bulan yang berutang,
@@ -272,7 +304,7 @@ class RewardController extends BaseController
                 'metode_bayar' => 'POIN',
                 'tanggal_bayar' => date('Y-m-d'),
                 'status' => 'lunas',
-                'keterangan' => 'Pemotongan denda via voucher: ' . $reward->nama,
+                'keterangan' => 'Pemotongan denda via voucher: '.$reward->nama,
                 'reward_redemption_id' => $redemptionId,
                 'paid_at' => date('Y-m-d H:i:s'),
                 'paid_by' => $user->id,
@@ -280,25 +312,27 @@ class RewardController extends BaseController
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
             if ($tercatatBayar === false) {
-                $this->tulisGagal('pembayaran denda voucher user#' . $user->id);
+                $this->tulisGagal('pembayaran denda voucher user#'.$user->id);
             }
 
             $poinHistory->updateTotalPoin($user->id);
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             $newDendaInfo = $this->getUserDendaInfo($user->id, (int) date('Y'));
             $newSaldo = $poinHistory->getSaldo($user->id);
 
-            return $this->respond(true, 'Sukses! Denda periode ' . $periodeVoucher['bulan'] . '/' . $periodeVoucher['tahun'] . ' sebesar Rp ' . number_format($nominal, 0, ',', '.') . ' berhasil dipotong.', [
+            return $this->respond(true, 'Sukses! Denda periode '.$periodeVoucher['bulan'].'/'.$periodeVoucher['tahun'].' sebesar Rp '.number_format($nominal, 0, ',', '.').' berhasil dipotong.', [
                 'saldo' => $newSaldo,
-                'denda' => $newDendaInfo
+                'denda' => $newDendaInfo,
             ]);
         } catch (\DomainException $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, $e->getMessage());
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Guru\Reward] potongDenda user#' . $user->id . ' reward#' . $rewardId . ': ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Guru\Reward] potongDenda user#'.$user->id.' reward#'.$rewardId.': '.$e->getMessage());
+
             return $this->respond(false, 'Pemotongan denda gagal diproses. Poin Anda belum dikurangi — muat ulang halaman dan coba lagi.');
         }
     }
@@ -306,31 +340,47 @@ class RewardController extends BaseController
     public function applyVoucher()
     {
         $user = $this->getUser();
-        if (!$user) return $this->respond(false, 'Login required', null, null, 401);
-        if (!$this->isGuru() && !$this->isAdmin()) return $this->respond(false, 'Khusus guru', null, null, 403);
+        if (! $user) {
+            return $this->respond(false, 'Login required', null, null, 401);
+        }
+        if (! $this->isGuru() && ! $this->isAdmin()) {
+            return $this->respond(false, 'Khusus guru', null, null, 403);
+        }
 
         $redemptionId = (int) $this->request->input('redemption_id');
-        $redemptionModel = new RewardRedemptionModel();
+        $redemptionModel = new RewardRedemptionModel;
         $redemption = $redemptionModel->find($redemptionId);
-        if (!$redemption) return $this->respond(false, 'Redemption tidak ditemukan');
-        if ((int) $redemption->user_id !== (int) $user->id) return $this->respond(false, 'Bukan milik Anda');
-        if ($redemption->status !== 'APPROVED') return $this->respond(false, 'Voucher belum disetujui atau sudah dipakai');
+        if (! $redemption) {
+            return $this->respond(false, 'Redemption tidak ditemukan');
+        }
+        if ((int) $redemption->user_id !== (int) $user->id) {
+            return $this->respond(false, 'Bukan milik Anda');
+        }
+        if ($redemption->status !== 'APPROVED') {
+            return $this->respond(false, 'Voucher belum disetujui atau sudah dipakai');
+        }
 
-        $reward = (new RewardModel())->find($redemption->reward_id);
-        if (!$reward) return $this->respond(false, 'Reward tidak ditemukan');
-        
+        $reward = (new RewardModel)->find($redemption->reward_id);
+        if (! $reward) {
+            return $this->respond(false, 'Reward tidak ditemukan');
+        }
+
         $nominal = (float) $reward->nominal;
         if ($nominal <= 0) {
             $nominal = $this->parseNominal($reward->nama, $reward->deskripsi);
         }
-        if ($nominal <= 0) return $this->respond(false, 'Voucher ini tidak memiliki nominal pembayaran/pemotongan denda');
+        if ($nominal <= 0) {
+            return $this->respond(false, 'Voucher ini tidak memiliki nominal pembayaran/pemotongan denda');
+        }
 
         // Guard sisa tunggakan (fail-fast): voucher hanya untuk tunggakan nyata.
         $cek = $this->cekSisaUntukVoucher($user->id, $nominal);
-        if ($cek !== null) return $this->respond(false, $cek);
+        if ($cek !== null) {
+            return $this->respond(false, $cek);
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
 
         try {
             // Klaim atomik dulu: hanya APPROVED yang bisa jadi CLAIMED.
@@ -359,7 +409,7 @@ class RewardController extends BaseController
                 'metode_bayar' => 'POIN',
                 'tanggal_bayar' => date('Y-m-d'),
                 'status' => 'lunas',
-                'keterangan' => 'Pembayaran via voucher: ' . $reward->nama,
+                'keterangan' => 'Pembayaran via voucher: '.$reward->nama,
                 'reward_redemption_id' => $redemptionId,
                 'paid_at' => date('Y-m-d H:i:s'),
                 'paid_by' => $user->id,
@@ -369,17 +419,20 @@ class RewardController extends BaseController
             if ($tercatatBayar === false) {
                 // Tanpa ini voucher tertandai CLAIMED sementara potongannya tidak
                 // pernah masuk pembukuan denda.
-                $this->tulisGagal('pembayaran denda voucher redemption#' . $redemptionId);
+                $this->tulisGagal('pembayaran denda voucher redemption#'.$redemptionId);
             }
 
-            \Illuminate\Support\Facades\DB::commit();
-            return $this->respond(true, 'Voucher berhasil diterapkan untuk memotong denda periode ' . $periodeVoucher['bulan'] . '/' . $periodeVoucher['tahun'] . ' Rp ' . number_format($nominal, 0, ',', '.'));
+            DB::commit();
+
+            return $this->respond(true, 'Voucher berhasil diterapkan untuk memotong denda periode '.$periodeVoucher['bulan'].'/'.$periodeVoucher['tahun'].' Rp '.number_format($nominal, 0, ',', '.'));
         } catch (\DomainException $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, $e->getMessage());
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Guru\Reward] applyVoucher user#' . $user->id . ' redemption#' . $redemptionId . ': ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Guru\Reward] applyVoucher user#'.$user->id.' redemption#'.$redemptionId.': '.$e->getMessage());
+
             return $this->respond(false, 'Voucher gagal diterapkan. Voucher Anda belum terpakai — muat ulang halaman dan coba lagi.');
         }
     }
@@ -392,7 +445,7 @@ class RewardController extends BaseController
      */
     private function tulisGagal(string $konteks): void
     {
-        Log::error('[Guru\Reward] tulis ditolak DB: ' . $konteks);
+        Log::error('[Guru\Reward] tulis ditolak DB: '.$konteks);
 
         throw new \DomainException('Penukaran tidak dapat disimpan. Poin Anda belum berubah — muat ulang halaman lalu coba lagi. Bila berulang, hubungi admin.');
     }
@@ -400,17 +453,25 @@ class RewardController extends BaseController
     public function leaderboard()
     {
         $user = $this->getUser();
-        if (!$user) return $this->respond(false, 'Login required', null, null, 401);
+        if (! $user) {
+            return $this->respond(false, 'Login required', null, null, 401);
+        }
         // Isi leaderboard = nama, foto, dan skor seluruh guru. Jangan sampai
         // peran lain (siswa/panitia) membacanya lewat grup rute 'auth'.
-        if (!$this->isGuru() && !$this->isAdmin()) return $this->respond(false, 'Khusus guru', null, null, 403);
+        if (! $this->isGuru() && ! $this->isAdmin()) {
+            return $this->respond(false, 'Khusus guru', null, null, 403);
+        }
 
         $bulan = (int) ($this->request->query('bulan') ?: date('m'));
         $tahun = (int) ($this->request->query('tahun') ?: date('Y'));
-        if ($bulan < 1 || $bulan > 12) $bulan = (int) date('m');
-        if ($tahun < 2000 || $tahun > (int) date('Y') + 1) $tahun = (int) date('Y');
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) date('m');
+        }
+        if ($tahun < 2000 || $tahun > (int) date('Y') + 1) {
+            $tahun = (int) date('Y');
+        }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $data = $poinHistory->getLeaderboard($bulan, $tahun, 10);
 
         return $this->respond(true, 'OK', $data);
@@ -419,31 +480,34 @@ class RewardController extends BaseController
     public function monthlyReport($bulan = null, $tahun = null)
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
 
         $bulan = $bulan ? str_pad($bulan, 2, '0', STR_PAD_LEFT) : date('m');
         $tahun = $tahun ?? date('Y');
         $tglAwal = sprintf('%04d-%02d-01', (int) $tahun, (int) $bulan);
         $tglAkhir = date('Y-m-t', strtotime($tglAwal));
 
-        $poinModel = new PoinHistoryModel();
+        $poinModel = new PoinHistoryModel;
 
         // Monthly score + bonus
         $monthlyScore = $poinModel->calculateMonthlyScore($user->id, $bulan, $tahun);
 
         // Poin breakdown by type
         $poinBreakdown = $this->db->table('poin_history')
-            ->select('tipe, SUM(poin) as total, COUNT(*) as jumlah')
+            ->select('tipe')
+            ->selectRaw('SUM(poin) as total, COUNT(*) as jumlah')
             ->where('user_id', $user->id)
             ->where('created_at', '>=', $tglAwal)
-            ->where('created_at', '<=', $tglAkhir . ' 23:59:59')
+            ->where('created_at', '<=', $tglAkhir.' 23:59:59')
             ->groupBy('tipe')
             ->orderBy('total', 'DESC')
             ->get();
 
         // Attendance breakdown
         $attStats = $this->db->table('absensi_harian')
-            ->select("
+            ->selectRaw("
                 COUNT(*) as total_hari,
                 SUM(CASE WHEN status_masuk = 'ONTIME' THEN 1 ELSE 0 END) as ontime,
                 SUM(CASE WHEN status_masuk = 'LATE' THEN 1 ELSE 0 END) as telat,
@@ -458,7 +522,7 @@ class RewardController extends BaseController
 
         // Fine total
         $dendaTotal = $this->db->table('absensi_harian')
-            ->selectSum('denda')
+            ->selectRaw('SUM(denda) as denda')
             ->where('user_id', $user->id)
             ->where('tgl', '>=', $tglAwal)
             ->where('tgl', '<=', $tglAkhir)
@@ -466,37 +530,40 @@ class RewardController extends BaseController
 
         // Voucher payments this month
         $voucherTotal = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
             $vRow = $this->db->table('absensi_pembayaran_denda')
-                ->select('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total_denda')
+                ->selectRaw('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total_denda')
                 ->where('user_id', $user->id)
-                ->where('bulan', (int)$bulan)
-                ->where('tahun', (int)$tahun)
+                ->where('bulan', (int) $bulan)
+                ->where('tahun', (int) $tahun)
                 ->where('status', '!=', 'batal')
                 ->first();
             $voucherTotal = (float) ($vRow->total_denda ?? 0);
         }
 
         // Previous month comparison
-        $prevBulan = (int)$bulan - 1;
-        $prevTahun = (int)$tahun;
-        if ($prevBulan < 1) { $prevBulan = 12; $prevTahun--; }
+        $prevBulan = (int) $bulan - 1;
+        $prevTahun = (int) $tahun;
+        if ($prevBulan < 1) {
+            $prevBulan = 12;
+            $prevTahun--;
+        }
         $prevBulanStr = str_pad($prevBulan, 2, '0', STR_PAD_LEFT);
         $prevTglAwal = "{$prevTahun}-{$prevBulanStr}-01";
         $prevTglAkhir = date('Y-m-t', strtotime($prevTglAwal));
 
         $prevPoin = $this->db->table('poin_history')
-            ->selectSum('poin')
+            ->selectRaw('SUM(poin) as poin')
             ->where('user_id', $user->id)
             ->where('created_at', '>=', $prevTglAwal)
-            ->where('created_at', '<=', $prevTglAkhir . ' 23:59:59')
+            ->where('created_at', '<=', $prevTglAkhir.' 23:59:59')
             ->first()->poin ?? 0;
 
         $currentPoin = $this->db->table('poin_history')
-            ->selectSum('poin')
+            ->selectRaw('SUM(poin) as poin')
             ->where('user_id', $user->id)
             ->where('created_at', '>=', $tglAwal)
-            ->where('created_at', '<=', $tglAkhir . ' 23:59:59')
+            ->where('created_at', '<=', $tglAkhir.' 23:59:59')
             ->first()->poin ?? 0;
 
         // Fetch guru info for profile
@@ -507,21 +574,21 @@ class RewardController extends BaseController
         $namaBulan = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
             5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
         ];
 
-        $dashboardModel = new \App\Models\DashboardModel();
+        $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
         $userData = $this->db->table('users')->where('id', session()->get('user_id'))->first();
 
         return view('members.guru.rekap_bulanan', [
-            'title' => 'Rekap Bulanan - ' . ($namaBulan[(int)$bulan] ?? $bulan) . ' ' . $tahun,
+            'title' => 'Rekap Bulanan - '.($namaBulan[(int) $bulan] ?? $bulan).' '.$tahun,
             'setting' => $setting,
             'user' => $userData,
             'guru' => $guru,
             'bulan' => $bulan,
             'tahun' => $tahun,
-            'namaBulan' => $namaBulan[(int)$bulan] ?? $bulan,
+            'namaBulan' => $namaBulan[(int) $bulan] ?? $bulan,
             'monthlyScore' => $monthlyScore,
             'poinBreakdown' => $poinBreakdown,
             'attStats' => $attStats,
@@ -546,7 +613,8 @@ class RewardController extends BaseController
         } catch (\Throwable $e) {
             // Fail-open: bila hitung sisa gagal (DB down), jangan blokir;
             // duplikat tetap dijaga UNIQUE(reward_redemption_id).
-            Log::error('cekSisaUntukVoucher gagal: ' . $e->getMessage());
+            Log::error('cekSisaUntukVoucher gagal: '.$e->getMessage());
+
             return null;
         }
         $sisa = (float) ($info['sisa_denda'] ?? 0);
@@ -554,10 +622,11 @@ class RewardController extends BaseController
             return 'Tidak ada tunggakan denda tahun ini. Voucher tidak bisa dipakai.';
         }
         if ($nominal > $sisa) {
-            return 'Sisa denda Rp ' . number_format($sisa, 0, ',', '.')
-                . ', voucher Rp ' . number_format($nominal, 0, ',', '.')
-                . ' melebihi sisa. Gunakan voucher senilai sisa atau bayar tunai selisihnya via admin.';
+            return 'Sisa denda Rp '.number_format($sisa, 0, ',', '.')
+                .', voucher Rp '.number_format($nominal, 0, ',', '.')
+                .' melebihi sisa. Gunakan voucher senilai sisa atau bayar tunai selisihnya via admin.';
         }
+
         return null;
     }
 
@@ -582,9 +651,10 @@ class RewardController extends BaseController
     {
         $fallback = ['bulan' => (int) date('m'), 'tahun' => $tahun];
         try {
-            $perBulan = (new \App\Services\AttendancePenaltyService())->sisaDendaPerBulan($userId, $tahun);
+            $perBulan = (new AttendancePenaltyService)->sisaDendaPerBulan($userId, $tahun);
         } catch (\Throwable $e) {
-            Log::error('periodePembayaranVoucher gagal: ' . $e->getMessage());
+            Log::error('periodePembayaranVoucher gagal: '.$e->getMessage());
+
             return $fallback;
         }
         foreach ($perBulan as $b) { // sudah terurut tertua → terbaru
@@ -595,6 +665,7 @@ class RewardController extends BaseController
         if ($perBulan !== []) {
             return ['bulan' => (int) $perBulan[0]['bulan'], 'tahun' => (int) $perBulan[0]['tahun']];
         }
+
         return $fallback;
     }
 
@@ -603,13 +674,13 @@ class RewardController extends BaseController
         // Hardening: keduanya diinterpolasi literal di query di bawah.
         $userId = (int) $userId;
         $year = (int) ($year ?? date('Y'));
-        $startDate = $year . '-01-01';
+        $startDate = $year.'-01-01';
         $endDate = date('Y-m-d');
-        
+
         $totalYtd = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $row = $this->db->table('absensi_harian')
-                ->select('SUM(COALESCE(denda, 0)) as total')
+                ->selectRaw('SUM(COALESCE(denda, 0)) as total')
                 ->where('user_id', $userId)
                 ->where('tgl', '>=', $startDate)
                 ->where('tgl', '<=', $endDate)
@@ -620,24 +691,25 @@ class RewardController extends BaseController
         // Alpha yang belum tercatat — estimasi kanonik via service
         // (recorded-aware, streak kontinu, tanpa hari ini) agar sama dengan
         // rekap-denda, denda-ytd, dan tabel admin.
-        $settingModel = new \App\Models\AttendanceSettingModel();
+        $settingModel = new AttendanceSettingModel;
         $setting = null;
         try {
             $setting = $settingModel->first();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $alphaFine = (int) ($setting->denda_alpha_per_hari ?? 0);
-        if ($alphaFine > 0 && \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
-            $penaltySvc = new \App\Services\AttendancePenaltyService();
+        if ($alphaFine > 0 && Schema::hasTable('absensi_harian')) {
+            $penaltySvc = new AttendancePenaltyService;
             $miss = $penaltySvc->missingAlphaFines((int) $userId, $startDate, $endDate, $setting, false);
             $totalYtd += (float) ($miss['total'] ?? 0);
         }
 
         // Total Paid
         $totalDibayar = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
             $payRow = $this->db->table('absensi_pembayaran_denda')
-                ->select('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total')
+                ->selectRaw('SUM(COALESCE(NULLIF(nominal_bayar, 0), total_denda, 0)) as total')
                 ->where('user_id', $userId)
                 ->where('tahun', $year)
                 ->where('status', '!=', 'batal')
@@ -649,11 +721,11 @@ class RewardController extends BaseController
         // (sudah tercatat sebagai POIN tidak dihitung ulang agar sama dengan
         // rekap-denda, denda-ytd, dan tabel admin).
         $potonganReward = 0.0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('reward_redemptions')) {
-            $hasRedemptionLink = \Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
+        if (Schema::hasTable('reward_redemptions')) {
+            $hasRedemptionLink = Schema::hasTable('absensi_pembayaran_denda') && Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
             $excludeLinked = $hasRedemptionLink
                 ? " AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE user_id = {$userId} AND reward_redemption_id IS NOT NULL)"
-                : "";
+                : '';
             $rewardRedemptions = $this->db->select("
                 SELECT COALESCE(r.nominal, 0) as nominal
                 FROM reward_redemptions rr
@@ -662,7 +734,7 @@ class RewardController extends BaseController
                 {$excludeLinked}
             ");
             foreach ($rewardRedemptions as $rr) {
-                $potonganReward += (float)$rr->nominal;
+                $potonganReward += (float) $rr->nominal;
             }
         }
 
@@ -672,22 +744,23 @@ class RewardController extends BaseController
             'total_denda' => $totalYtd,
             'total_dibayar' => $totalDibayar,
             'potongan_voucher' => $potonganReward,
-            'sisa_denda' => $sisaDenda
+            'sisa_denda' => $sisaDenda,
         ];
     }
 
     protected function parseNominal($nama, $deskripsi = '')
     {
-        $text = $nama . ' ' . $deskripsi;
+        $text = $nama.' '.$deskripsi;
         if (preg_match('/(\d+)\s*[kK]/', $text, $m)) {
             return (float) $m[1] * 1000;
         }
         if (preg_match('/(?:Rp|IDR)?\s*([\d\.,]+)/i', $text, $m)) {
             $val = str_replace(['.', ','], '', $m[1]);
-            if (is_numeric($val) && (float)$val >= 1000) {
+            if (is_numeric($val) && (float) $val >= 1000) {
                 return (float) $val;
             }
         }
+
         return 0.0;
     }
 }

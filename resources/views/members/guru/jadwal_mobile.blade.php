@@ -525,8 +525,8 @@
     let currentDaySelected = '{{ $today }}';
     const dayLabels = { '1': 'Senin', '2': 'Selasa', '3': 'Rabu', '4': 'Kamis', '5': 'Jumat', '6': 'Sabtu' };
 
-    const mapelsTeachers = {{ json_encode($mapels ?? []) }};
-    const allKelas = {{ json_encode($kelas ?? []) }};
+    const mapelsTeachers = {!! json_encode($mapels ?? [])!!};
+    const allKelas = {!! json_encode($kelas ?? [])!!};
 
     // Key objek angka selalu dienumerasi naik oleh JavaScript, sehingga urutan
     // nama kelas dari server harus dipulihkan secara eksplisit.

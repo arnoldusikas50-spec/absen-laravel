@@ -68,7 +68,7 @@
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
                                 <label class="inline-flex cursor-pointer items-center gap-2" title="{{ $isActive ? 'Klik untuk menonaktifkan shift' : 'Klik untuk mengaktifkan shift' }}"><input type="checkbox" class="peer sr-only toggle-shift" data-id="{{ $s->id }}" {{ $isActive ? 'checked' : '' }}><span class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/40 after:content-[''] after:absolute after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4"></span></label>
-                                <button type="button" class="btn-tw btn-tw-sm btn-outline-primary btn-edit-shift" data-shift='{{ $shiftJson }}'>
+                                <button type="button" class="btn-tw btn-tw-sm btn-outline-primary btn-edit-shift" data-shift='{!! $shiftJson !!}'>
                                     <i class="bi bi-pencil-square mr-1"></i> Ubah
                                 </button>
                                 <button type="button" class="btn-tw btn-tw-sm btn-outline-danger btn-del-shift" data-id="{{ $s->id }}" data-nama="{{ $s->nama }}">

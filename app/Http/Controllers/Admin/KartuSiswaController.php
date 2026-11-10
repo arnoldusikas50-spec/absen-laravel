@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\BaseController;
+use App\Models\DashboardModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
 
 /**
  * KartuSiswa Controller
@@ -22,7 +22,7 @@ class KartuSiswaController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
+        $this->dashboardModel = new DashboardModel;
     }
 
     /** Maksimal kartu yang muat di satu permintaan cetak tanpa membuat browser macet. */
@@ -36,15 +36,19 @@ class KartuSiswaController extends BaseController
     private function filterSiswaAktif($builder, string $exprSiswa = 'ms.id_siswa'): void
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('buku_induk')) {
                 return;
             }
         } catch (\Throwable $e) {
             return;
         }
-        $builder->join('buku_induk as bi_aktif', "bi_aktif.id_siswa = {$exprSiswa}", 'left')
-            ->where(function ($q) { $q->where('bi_aktif.status', '1')->$q->orWhere('bi_aktif.id_siswa IS NULL', null, false); });
+        $builder->leftJoin('buku_induk as bi_aktif', function ($join) use ($exprSiswa) {
+            $join->on('bi_aktif.id_siswa', '=', DB::raw($exprSiswa));
+        })
+            ->where(function ($q) {
+                $q->where('bi_aktif.status', '1')->orWhereNull('bi_aktif.id_siswa');
+            });
     }
 
     /**
@@ -64,54 +68,55 @@ class KartuSiswaController extends BaseController
         }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
         $ids = [];
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $guru = $db->table('master_guru')
                 ->select('id_guru')->where('id_user', (int) $user->id)
-                ->get()->map(fn($r) => (array) $r)->first();
+                ->get()->map(fn ($r) => (array) $r)->first();
             $idGuru = (int) ($guru['id_guru'] ?? 0);
             if ($idGuru <= 0) {
                 return [];
             }
 
-            $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
 
             // 1. Wali kelas via master_kelas.guru_id
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_kelas') && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'guru_id')) {
+            if (Schema::hasTable('master_kelas') && Schema::hasColumn('master_kelas', 'guru_id')) {
                 $q = $db->table('master_kelas')->select('id_kelas')->where('guru_id', $idGuru);
-                if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) {
+                if ($tp && Schema::hasColumn('master_kelas', 'id_tp')) {
                     $q->where('id_tp', (int) $tp->id_tp);
                 }
-                if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) {
+                if ($smt && Schema::hasColumn('master_kelas', 'id_smt')) {
                     $q->where('id_smt', (int) $smt->id_smt);
                 }
-                foreach ($q->get()->map(fn($r) => (array) $r)->all() as $r) {
+                foreach ($q->get()->map(fn ($r) => (array) $r)->all() as $r) {
                     $ids[] = (int) $r['id_kelas'];
                 }
             }
 
             // 2. Wali via jabatan_guru id_jabatan = 4
-            if (\Illuminate\Support\Facades\Schema::hasTable('jabatan_guru') && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_jabatan')) {
+            if (Schema::hasTable('jabatan_guru') && Schema::hasColumn('jabatan_guru', 'id_jabatan')) {
                 $q = $db->table('jabatan_guru')->select('id_kelas')
                     ->where('id_guru', $idGuru)->where('id_jabatan', 4);
-                if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_tp')) {
+                if ($tp && Schema::hasColumn('jabatan_guru', 'id_tp')) {
                     $q->where('id_tp', (int) $tp->id_tp);
                 }
-                if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_smt')) {
+                if ($smt && Schema::hasColumn('jabatan_guru', 'id_smt')) {
                     $q->where('id_smt', (int) $smt->id_smt);
                 }
-                foreach ($q->get()->map(fn($r) => (array) $r)->all() as $r) {
+                foreach ($q->get()->map(fn ($r) => (array) $r)->all() as $r) {
                     $ids[] = (int) $r['id_kelas'];
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[KartuSiswa::idKelasBolehDilihat] ' . $e->getMessage());
+            Log::error('[KartuSiswa::idKelasBolehDilihat] '.$e->getMessage());
+
             // Kegagalan pembacaan scope = tolak, bukan buka semua.
             return [];
         }
@@ -128,13 +133,13 @@ class KartuSiswaController extends BaseController
     private function periodeKartu(): array
     {
         $tpSmt = $this->getTpSmt();
-        $idTp  = (int) ($tpSmt->tp->id_tp ?? 0);
+        $idTp = (int) ($tpSmt->tp->id_tp ?? 0);
         $idSmt = (int) ($tpSmt->smt->id_smt ?? 0);
 
         $catatan = '';
         if ($idTp <= 0 || $idSmt <= 0) {
             $catatan = 'Tahun Pelajaran / Semester aktif belum ditetapkan, jadi belum ada kartu yang bisa disiapkan. '
-                . 'Tentukan periode aktif di menu Data Tahun Ajaran lebih dulu.';
+                .'Tentukan periode aktif di menu Data Tahun Ajaran lebih dulu.';
         }
 
         return [$idTp, $idSmt, $catatan];
@@ -146,15 +151,17 @@ class KartuSiswaController extends BaseController
     public function index()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
         // Kartu memuat NIS/NISN/foto seluruh siswa — bukan untuk akun siswa.
-        if (!$this->isAdmin() && !$this->isPanitia() && !$this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tpSmt  = $this->getTpSmt();
-        $tp     = $tpSmt->tp;
-        $smt    = $tpSmt->smt;
+        $tpSmt = $this->getTpSmt();
+        $tp = $tpSmt->tp;
+        $smt = $tpSmt->smt;
         [$idTp, $idSmt, $catatan] = $this->periodeKartu();
 
         $idKelas = (int) ($this->request->query('id_kelas') ?? 0);
@@ -163,18 +170,18 @@ class KartuSiswaController extends BaseController
         // Guru biasa hanya boleh menyentuh kelas perwaliannya (pola KartuGuru:
         // guru non-staff discoping ke datanya sendiri, bukan data semua orang).
         $scopeKelas = $this->idKelasBolehDilihat();
-        if ($scopeKelas !== null && $idKelas > 0 && !in_array($idKelas, $scopeKelas, true)) {
+        if ($scopeKelas !== null && $idKelas > 0 && ! in_array($idKelas, $scopeKelas, true)) {
             $idKelas = 0;
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $hasBukuInduk = \Illuminate\Support\Facades\Schema::hasTable('buku_induk');
-        $hasRfidSiswa = \Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'nomor_rfid');
+        $db = DB::connection();
+        $hasBukuInduk = Schema::hasTable('buku_induk');
+        $hasRfidSiswa = Schema::hasColumn('master_siswa', 'nomor_rfid');
 
-        $kelases      = [];
+        $kelases = [];
         $siswaOptions = [];
-        $siswaList    = [];
-        $terpotong    = false;
+        $siswaList = [];
+        $terpotong = false;
 
         if ($catatan === '' && $scopeKelas === []) {
             $catatan = 'Anda tidak memegang wali kelas pada periode aktif, jadi tidak ada kartu siswa yang bisa disiapkan di sini. Kartu Anda sendiri ada di menu Cetak Kartu Guru.';
@@ -190,11 +197,13 @@ class KartuSiswaController extends BaseController
                     ? "(bi_aktif.id_siswa IS NULL OR bi_aktif.status = '1')"
                     : '1 = 1';
                 $qKelas = $db->table('master_kelas as mk')
-                    ->select("mk.id_kelas, mk.nama_kelas, mk.kode_kelas, "
-                        . "COUNT(DISTINCT CASE WHEN {$aktifExpr} THEN ks.id_siswa END) AS jumlah_siswa", false)
-                    ->join('kelas_siswa as ks', "ks.id_kelas = mk.id_kelas AND ks.id_tp = {$idTp} AND ks.id_smt = {$idSmt}", 'left');
+                    ->select('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
+                    ->selectRaw("COUNT(DISTINCT CASE WHEN {$aktifExpr} THEN ks.id_siswa END) AS jumlah_siswa")
+                    ->leftJoin('kelas_siswa as ks', function ($join) use ($idTp, $idSmt) {
+                        $join->on('ks.id_kelas', '=', 'mk.id_kelas')->where('ks.id_tp', '=', $idTp)->where('ks.id_smt', '=', $idSmt);
+                    });
                 if ($hasBukuInduk) {
-                    $qKelas->join('buku_induk as bi_aktif', 'bi_aktif.id_siswa = ks.id_siswa', 'left');
+                    $qKelas->leftJoin('buku_induk as bi_aktif', 'bi_aktif.id_siswa', '=', 'ks.id_siswa');
                 }
                 // Wali hanya melihat daftar kelasnya sendiri (scope [] sudah ditolak lebih awal).
                 if ($scopeKelas !== null) {
@@ -202,32 +211,34 @@ class KartuSiswaController extends BaseController
                 }
                 // nama_kelas/kode_kelas ikut di GROUP BY: secara fungsional memang
                 // bergantung pada PK, tapi hanya mode SQL tertentu yang tahu itu.
-                $kelases = $qKelas->groupBy('mk.id_kelas, mk.nama_kelas, mk.kode_kelas')
+                $kelases = $qKelas->groupBy('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
                     ->orderBy('mk.nama_kelas', 'ASC')
                     ->get();
             } catch (\Throwable $e) {
-                Log::error('[KartuSiswa::index] daftar kelas gagal dibaca: ' . $e->getMessage());
-                $kelases  = [];
-                $catatan  = 'Daftar kelas gagal dibaca dari basis data — periksa log aplikasi.';
+                Log::error('[KartuSiswa::index] daftar kelas gagal dibaca: '.$e->getMessage());
+                $kelases = [];
+                $catatan = 'Daftar kelas gagal dibaca dari basis data — periksa log aplikasi.';
             }
 
             // Jika belum pilih kelas tapi ada kelas tersedia, default pilih kelas pertama yang berisi siswa
-            if ($idKelas === 0 && !empty($kelases)) {
+            if ($idKelas === 0 && ! empty($kelases)) {
                 foreach ($kelases as $k) {
                     if ((int) ($k->jumlah_siswa ?? 0) > 0) {
                         $idKelas = (int) $k->id_kelas;
                         break;
                     }
                 }
-                if ($idKelas === 0) $idKelas = (int) $kelases[0]->id_kelas;
+                if ($idKelas === 0) {
+                    $idKelas = (int) $kelases[0]->id_kelas;
+                }
             }
 
             // Ambil daftar siswa untuk dropdown filter jika kelas dipilih — AKTIF saja.
             if ($idKelas > 0) {
                 try {
                     $optQ = $db->table('master_siswa as ms')
-                        ->select('ms.id_siswa, ms.nama, ms.nis')
-                        ->join('kelas_siswa as ks', 'ks.id_siswa = ms.id_siswa')
+                        ->select('ms.id_siswa', 'ms.nama', 'ms.nis')
+                        ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                         ->where('ks.id_kelas', $idKelas)
                         ->where('ks.id_tp', $idTp)
                         ->where('ks.id_smt', $idSmt);
@@ -235,7 +246,7 @@ class KartuSiswaController extends BaseController
                     $siswaOptions = $optQ->orderBy('ms.nama', 'ASC')
                         ->get();
                 } catch (\Throwable $e) {
-                    Log::error('[KartuSiswa::index] dropdown siswa kelas#' . $idKelas . ' gagal dibaca: ' . $e->getMessage());
+                    Log::error('[KartuSiswa::index] dropdown siswa kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
                     $siswaOptions = [];
                 }
             }
@@ -243,10 +254,10 @@ class KartuSiswaController extends BaseController
             // Query data siswa yang akan ditampilkan kartunya — AKTIF saja.
             try {
                 $builder = $db->table('master_siswa as ms')
-                    ->select('ms.id_siswa, ms.nama, ms.nis, ms.nisn, ms.foto, ms.jenis_kelamin, mk.id_kelas, mk.nama_kelas'
-                        . ($hasRfidSiswa ? ', ms.nomor_rfid' : ''))
-                    ->join('kelas_siswa as ks', 'ks.id_siswa = ms.id_siswa')
-                    ->join('master_kelas as mk', 'mk.id_kelas = ks.id_kelas');
+                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'mk.id_kelas', 'mk.nama_kelas')
+                    ->addSelect($hasRfidSiswa ? ['ms.nomor_rfid'] : [])
+                    ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
+                    ->join('master_kelas as mk', 'mk.id_kelas', '=', 'ks.id_kelas');
                 if ($hasBukuInduk) {
                     $this->filterSiswaAktif($builder);
                 }
@@ -274,9 +285,9 @@ class KartuSiswaController extends BaseController
                     $siswaList = array_slice($siswaList, 0, self::BATAS_CETAK);
                 }
             } catch (\Throwable $e) {
-                Log::error('[KartuSiswa::index] daftar kartu siswa gagal dibaca: ' . $e->getMessage());
+                Log::error('[KartuSiswa::index] daftar kartu siswa gagal dibaca: '.$e->getMessage());
                 $siswaList = [];
-                $catatan   = 'Daftar kartu siswa gagal dibaca dari basis data — periksa log aplikasi.';
+                $catatan = 'Daftar kartu siswa gagal dibaca dari basis data — periksa log aplikasi.';
             }
         }
 
@@ -289,33 +300,35 @@ class KartuSiswaController extends BaseController
         $setting = $this->getSettingRow();
 
         // Base path role-aware: guru memakai prefix guru, admin memakai prefix admin
-        $isGuru   = $this->isGuru();
+        $isGuru = $this->isGuru();
         $basePath = $isGuru ? 'guru/presensi-siswa/kartu' : 'admin/presensi/siswa/kartu';
 
         // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (!in_array($desain, ['landscape', 'portrait'], true)) $desain = 'landscape';
+        if (! in_array($desain, ['landscape', 'portrait'], true)) {
+            $desain = 'landscape';
+        }
 
         $data = [
-            'title'         => 'Cetak Kartu Absen Siswa QR',
-            'judul'         => 'Cetak Kartu Absen Siswa',
-            'subjudul'      => 'Cetak Kartu Berisi QR Code Presensi Siswa per Kelas / Individu',
-            'user'          => $user,
-            'setting'       => $setting,
-            'tp_active'     => $tp,
-            'smt_active'    => $smt,
-            'kelases'       => $kelases,
-            'id_kelas'      => $idKelas,
-            'id_siswa'      => $idSiswa,
+            'title' => 'Cetak Kartu Absen Siswa QR',
+            'judul' => 'Cetak Kartu Absen Siswa',
+            'subjudul' => 'Cetak Kartu Berisi QR Code Presensi Siswa per Kelas / Individu',
+            'user' => $user,
+            'setting' => $setting,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'kelases' => $kelases,
+            'id_kelas' => $idKelas,
+            'id_siswa' => $idSiswa,
             'siswa_options' => $siswaOptions,
-            'siswa_list'    => $siswaList,
-            'terpotong'     => $terpotong,
-            'batas_cetak'   => self::BATAS_CETAK,
-            'catatan'       => $catatan,
-            'logo_url'      => self::resolveLogoUrl($setting),
-            'base_path'     => $basePath,
-            'is_guru'       => $isGuru,
-            'desain'        => $desain,
+            'siswa_list' => $siswaList,
+            'terpotong' => $terpotong,
+            'batas_cetak' => self::BATAS_CETAK,
+            'catatan' => $catatan,
+            'logo_url' => self::resolveLogoUrl($setting),
+            'base_path' => $basePath,
+            'is_guru' => $isGuru,
+            'desain' => $desain,
         ];
 
         return view('admin.presensi.kartu.index', $data);
@@ -327,15 +340,17 @@ class KartuSiswaController extends BaseController
     public function cetak()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
         // Kartu memuat NIS/NISN/foto seluruh siswa — bukan untuk akun siswa.
-        if (!$this->isAdmin() && !$this->isPanitia() && !$this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tpSmt  = $this->getTpSmt();
-        $tp     = $tpSmt->tp;
-        $smt    = $tpSmt->smt;
+        $tpSmt = $this->getTpSmt();
+        $tp = $tpSmt->tp;
+        $smt = $tpSmt->smt;
         [$idTp, $idSmt, $catatan] = $this->periodeKartu();
 
         $idKelas = (int) ($this->request->query('id_kelas') ?? 0);
@@ -344,13 +359,13 @@ class KartuSiswaController extends BaseController
         // Halaman cetak adalah jalur baca yang sama dengan preview — wali juga
         // dibatasi ke kelasnya, dan tanpa kelas di scope → tidak ada yang dicetak.
         $scopeKelas = $this->idKelasBolehDilihat();
-        if ($scopeKelas !== null && $idKelas > 0 && !in_array($idKelas, $scopeKelas, true)) {
+        if ($scopeKelas !== null && $idKelas > 0 && ! in_array($idKelas, $scopeKelas, true)) {
             $idKelas = 0;
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $hasBukuInduk = \Illuminate\Support\Facades\Schema::hasTable('buku_induk');
-        $hasRfidSiswa = \Illuminate\Support\Facades\Schema::hasColumn('master_siswa', 'nomor_rfid');
+        $db = DB::connection();
+        $hasBukuInduk = Schema::hasTable('buku_induk');
+        $hasRfidSiswa = Schema::hasColumn('master_siswa', 'nomor_rfid');
 
         $siswaList = [];
         $terpotong = false;
@@ -362,10 +377,10 @@ class KartuSiswaController extends BaseController
         if ($catatan === '') {
             try {
                 $builder = $db->table('master_siswa as ms')
-                    ->select('ms.id_siswa, ms.nama, ms.nis, ms.nisn, ms.foto, ms.jenis_kelamin, mk.id_kelas, mk.nama_kelas'
-                        . ($hasRfidSiswa ? ', ms.nomor_rfid' : ''))
-                    ->join('kelas_siswa as ks', 'ks.id_siswa = ms.id_siswa')
-                    ->join('master_kelas as mk', 'mk.id_kelas = ks.id_kelas');
+                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'mk.id_kelas', 'mk.nama_kelas')
+                    ->addSelect($hasRfidSiswa ? ['ms.nomor_rfid'] : [])
+                    ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
+                    ->join('master_kelas as mk', 'mk.id_kelas', '=', 'ks.id_kelas');
                 if ($hasBukuInduk) {
                     $this->filterSiswaAktif($builder);
                 }
@@ -393,9 +408,9 @@ class KartuSiswaController extends BaseController
                     $siswaList = array_slice($siswaList, 0, self::BATAS_CETAK);
                 }
             } catch (\Throwable $e) {
-                Log::error('[KartuSiswa::cetak] daftar kartu siswa gagal dibaca: ' . $e->getMessage());
+                Log::error('[KartuSiswa::cetak] daftar kartu siswa gagal dibaca: '.$e->getMessage());
                 $siswaList = [];
-                $catatan   = 'Daftar kartu siswa gagal dibaca dari basis data — periksa log aplikasi.';
+                $catatan = 'Daftar kartu siswa gagal dibaca dari basis data — periksa log aplikasi.';
             }
         }
 
@@ -411,35 +426,39 @@ class KartuSiswaController extends BaseController
         if ($idKelas > 0) {
             try {
                 $kRow = $db->table('master_kelas')->select('nama_kelas')->where('id_kelas', $idKelas)->first();
-                if ($kRow) $namaKelasPilih = 'Kelas ' . $kRow->nama_kelas;
+                if ($kRow) {
+                    $namaKelasPilih = 'Kelas '.$kRow->nama_kelas;
+                }
             } catch (\Throwable $e) {
-                Log::error('[KartuSiswa::cetak] nama kelas#' . $idKelas . ' gagal dibaca: ' . $e->getMessage());
+                Log::error('[KartuSiswa::cetak] nama kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
             }
         }
         if ($idSiswa > 0 && count($siswaList) === 1) {
-            $namaKelasPilih .= ' • ' . ($siswaList[0]->nama ?? '');
+            $namaKelasPilih .= ' • '.($siswaList[0]->nama ?? '');
         }
 
         // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (!in_array($desain, ['landscape', 'portrait'], true)) $desain = 'landscape';
+        if (! in_array($desain, ['landscape', 'portrait'], true)) {
+            $desain = 'landscape';
+        }
 
         // Halaman cetak: jangan di-cache browser/proxy agar revisi desain langsung tampil
         $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         $this->response->setHeader('Pragma', 'no-cache');
 
         $data = [
-            'setting'       => $setting,
-            'tp_active'     => $tp,
-            'smt_active'    => $smt,
-            'siswa_list'    => $siswaList,
-            'nama_kelas'    => $namaKelasPilih,
-            'is_single'     => ($idSiswa > 0 && count($siswaList) === 1),
-            'terpotong'     => $terpotong,
-            'batas_cetak'   => self::BATAS_CETAK,
-            'catatan'       => $catatan,
-            'logo_url'      => self::resolveLogoUrl($setting),
-            'desain'        => $desain,
+            'setting' => $setting,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'siswa_list' => $siswaList,
+            'nama_kelas' => $namaKelasPilih,
+            'is_single' => ($idSiswa > 0 && count($siswaList) === 1),
+            'terpotong' => $terpotong,
+            'batas_cetak' => self::BATAS_CETAK,
+            'catatan' => $catatan,
+            'logo_url' => self::resolveLogoUrl($setting),
+            'desain' => $desain,
         ];
 
         return view('admin.presensi.kartu.cetak', $data);
@@ -450,14 +469,14 @@ class KartuSiswaController extends BaseController
      */
     public function getSiswaByKelas(int $idKelas)
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return $this->response->setStatusCode(401)->setJSON([
-                'status' => false, 'message' => 'Unauthorized', 'data' => []
+                'status' => false, 'message' => 'Unauthorized', 'data' => [],
             ]);
         }
-        if (!$this->isAdmin() && !$this->isPanitia() && !$this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
             return $this->response->setStatusCode(403)->setJSON([
-                'status' => false, 'message' => 'Akses ditolak', 'data' => []
+                'status' => false, 'message' => 'Akses ditolak', 'data' => [],
             ]);
         }
         if ($idKelas <= 0) {
@@ -467,9 +486,9 @@ class KartuSiswaController extends BaseController
         // Endpoint ini mengembalikan nama/NIS seluruh anggota kelas —
         // wali hanya boleh menanyakan kelasnya sendiri.
         $scopeKelas = $this->idKelasBolehDilihat();
-        if ($scopeKelas !== null && !in_array($idKelas, $scopeKelas, true)) {
+        if ($scopeKelas !== null && ! in_array($idKelas, $scopeKelas, true)) {
             return $this->response->setStatusCode(403)->setJSON([
-                'status' => false, 'message' => 'Akses ditolak', 'data' => []
+                'status' => false, 'message' => 'Akses ditolak', 'data' => [],
             ]);
         }
 
@@ -479,10 +498,10 @@ class KartuSiswaController extends BaseController
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $sq = $db->table('master_siswa as ms')
-                ->select('ms.id_siswa, ms.nama, ms.nis')
-                ->join('kelas_siswa as ks', 'ks.id_siswa = ms.id_siswa')
+                ->select('ms.id_siswa', 'ms.nama', 'ms.nis')
+                ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                 ->where('ks.id_kelas', $idKelas)
                 ->where('ks.id_tp', $idTp)
                 ->where('ks.id_smt', $idSmt);
@@ -490,13 +509,14 @@ class KartuSiswaController extends BaseController
             $siswa = $sq->orderBy('ms.nama', 'ASC')
                 ->get();
         } catch (\Throwable $e) {
-            Log::error('[KartuSiswa::getSiswaByKelas] kelas#' . $idKelas . ' gagal dibaca: ' . $e->getMessage());
+            Log::error('[KartuSiswa::getSiswaByKelas] kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Daftar siswa kelas ini gagal dibaca — periksa log aplikasi.', 'data' => []]);
         }
 
         return $this->response->setJSON([
             'status' => true,
-            'data'   => $siswa
+            'data' => $siswa,
         ]);
     }
 
@@ -515,10 +535,10 @@ class KartuSiswaController extends BaseController
         if ($rfid !== '') {
             return $rfid;
         }
-        if (!empty($row->nis)) {
+        if (! empty($row->nis)) {
             return trim((string) $row->nis);
         }
-        if (!empty($row->nisn)) {
+        if (! empty($row->nisn)) {
             return trim((string) $row->nisn);
         }
 
@@ -532,32 +552,32 @@ class KartuSiswaController extends BaseController
     {
         $defaultAvatar = url('assets/img/siswa.png');
 
-        if (!empty($foto) && !in_array(strtolower(trim($foto)), ['siswa.png', 'default.png', 'null'], true)) {
+        if (! empty($foto) && ! in_array(strtolower(trim($foto)), ['siswa.png', 'default.png', 'null'], true)) {
             $cleanFoto = ltrim($foto, '/');
-            if (file_exists(public_path() . '/' . $cleanFoto)) {
+            if (file_exists(public_path().'/'.$cleanFoto)) {
                 return url($cleanFoto);
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto)) {
-                return url('uploads/foto_siswa/' . $cleanFoto);
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto)) {
+                return url('uploads/foto_siswa/'.$cleanFoto);
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.png')) {
-                return url('uploads/foto_siswa/' . $cleanFoto . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.png')) {
+                return url('uploads/foto_siswa/'.$cleanFoto.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.jpg')) {
-                return url('uploads/foto_siswa/' . $cleanFoto . '.jpg');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.jpg')) {
+                return url('uploads/foto_siswa/'.$cleanFoto.'.jpg');
             }
         }
 
-        if (!empty($nis)) {
+        if (! empty($nis)) {
             $cleanNis = trim($nis);
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/_' . $cleanNis . '.png')) {
-                return url('uploads/foto_siswa/_' . $cleanNis . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/_'.$cleanNis.'.png')) {
+                return url('uploads/foto_siswa/_'.$cleanNis.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanNis . '.png')) {
-                return url('uploads/foto_siswa/' . $cleanNis . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanNis.'.png')) {
+                return url('uploads/foto_siswa/'.$cleanNis.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanNis . '.jpg')) {
-                return url('uploads/foto_siswa/' . $cleanNis . '.jpg');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanNis.'.jpg')) {
+                return url('uploads/foto_siswa/'.$cleanNis.'.jpg');
             }
         }
 
@@ -570,17 +590,19 @@ class KartuSiswaController extends BaseController
     public static function resolveLogoUrl(?object $setting): string
     {
         $defaultLogo = url('assets/img/logo.png');
-        if (!$setting) return $defaultLogo;
+        if (! $setting) {
+            return $defaultLogo;
+        }
 
-        if (!empty($setting->logo_kiri)) {
+        if (! empty($setting->logo_kiri)) {
             $cleanLogo = ltrim($setting->logo_kiri, '/');
-            if (file_exists(public_path() . '/' . $cleanLogo)) {
+            if (file_exists(public_path().'/'.$cleanLogo)) {
                 return url($cleanLogo);
             }
         }
-        if (!empty($setting->logo_kanan)) {
+        if (! empty($setting->logo_kanan)) {
             $cleanLogo = ltrim($setting->logo_kanan, '/');
-            if (file_exists(public_path() . '/' . $cleanLogo)) {
+            if (file_exists(public_path().'/'.$cleanLogo)) {
                 return url($cleanLogo);
             }
         }

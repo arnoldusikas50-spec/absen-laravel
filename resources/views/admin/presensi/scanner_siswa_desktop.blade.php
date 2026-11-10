@@ -458,13 +458,13 @@
                     <div class="flex items-center gap-2.5 mb-4 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
                         <button id="btn-mode-masuk" type="button" data-scanmode="masuk"
                             class="mode-btn-tab {{ $defModeD === 'masuk' ? 'active-masuk' : '' }}"
-                            {{ $masukOpenD ? '' : 'disabled title="' . esc($modeTabD['masuk_msg'] ?? 'Di luar jadwal absen masuk') . '"' }}>
+                            {{ $masukOpenD ? '' : 'disabled title="' . e($modeTabD['masuk_msg'] ?? 'Di luar jadwal absen masuk') . '"' }}>
                             <i class="bi bi-box-arrow-in-right text-lg"></i>
                             <span>MODE ABSEN MASUK</span>
                         </button>
                         <button id="btn-mode-keluar" type="button" data-scanmode="keluar"
                             class="mode-btn-tab {{ $defModeD === 'keluar' ? 'active-keluar' : '' }}"
-                            {{ $pulangOpenD ? '' : 'disabled title="' . esc($modeTabD['pulang_msg'] ?? 'Belum waktunya pulang') . '"' }}>
+                            {{ $pulangOpenD ? '' : 'disabled title="' . e($modeTabD['pulang_msg'] ?? 'Belum waktunya pulang') . '"' }}>
                             <i class="bi bi-box-arrow-right text-lg"></i>
                             <span>MODE ABSEN PULANG</span>
                         </button>
@@ -772,26 +772,26 @@
         'use strict';
 
         // ── Avatar cadangan: semuanya lokal, tidak bergantung server eksternal ──
-        const FOTO_CADANGAN = {{ json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }};
-        const FOTO_STANDBY = {{ json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }};
-        const FOTO_PERINGATAN = {{ json_encode(\App\Services\AvatarService::inisial('Alert', 128, '#e11d48'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }};
+        const FOTO_CADANGAN = {!! json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
+        const FOTO_STANDBY = {!! json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
+        const FOTO_PERINGATAN = {!! json_encode(\App\Services\AvatarService::inisial('Alert', 128, '#e11d48'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
 
         // ── STATE VARIABLES ──────────────────────────
         const MODE_TAB = {
             masukOpen:  {{ !empty($modeTabD['masuk_open']) ? 'true' : 'false' }},
             pulangOpen: {{ !empty($modeTabD['pulang_open']) ? 'true' : 'false' }},
-            masukMsg:   {{ json_encode($modeTabD['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            pulangMsg:  {{ json_encode($modeTabD['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            jamMasuk:   {{ json_encode($modeTabD['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            bukaMasuk:  {{ json_encode($modeTabD['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            tutupMasuk: {{ json_encode($modeTabD['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            jamPulang:  {{ json_encode($modeTabD['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            bukaPulang: {{ json_encode($modeTabD['buka_pulang'] ?? ($modeTabD['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE) }},
+            masukMsg:   {!! json_encode($modeTabD['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            pulangMsg:  {!! json_encode($modeTabD['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            jamMasuk:   {!! json_encode($modeTabD['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            bukaMasuk:  {!! json_encode($modeTabD['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            tutupMasuk: {!! json_encode($modeTabD['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            jamPulang:  {!! json_encode($modeTabD['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            bukaPulang: {!! json_encode($modeTabD['buka_pulang'] ?? ($modeTabD['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE)!!},
             qrAktif:    {{ !empty($modeTabD['qr_aktif']) ? 'true' : 'false' }},
-            qrMulai:    {{ json_encode($modeTabD['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE) }},
-            qrSelesai:  {{ json_encode($modeTabD['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE) }},
+            qrMulai:    {!! json_encode($modeTabD['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            qrSelesai:  {!! json_encode($modeTabD['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
         };
-        let scanMode        = {{ json_encode($defModeD ?? 'masuk') }}; // bawaan mengikuti jadwal
+        let scanMode        = {!! json_encode($defModeD ?? 'masuk')!!}; // bawaan mengikuti jadwal
         let html5QrCode     = null;
         let isScanning      = false;
         let isProcessing    = false;

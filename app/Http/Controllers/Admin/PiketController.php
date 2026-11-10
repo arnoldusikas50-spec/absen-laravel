@@ -2,30 +2,34 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\PiketJadwalModel;
+use App\Models\PiketModel;
 use App\Services\HariSekolahService;
-use App\Models\PiketModel; // To see monitoring stats
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema; // To see monitoring stats
 
 class PiketController extends BaseController
 {
     protected $dashboardModel;
+
     protected $piketJadwalModel;
+
     protected $piketModel;
+
     protected $tp;
+
     protected $smt;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->piketJadwalModel = new PiketJadwalModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->piketJadwalModel = new PiketJadwalModel;
         $this->piketJadwalModel->initialize();
-        $this->piketModel = new PiketModel();
+        $this->piketModel = new PiketModel;
         $this->piketModel->initialize();
     }
 
@@ -33,39 +37,39 @@ class PiketController extends BaseController
     {
         $tpSmt = $this->getTpSmt();
 
-        if (!$tpSmt->tp) {
+        if (! $tpSmt->tp) {
             $this->tp = (object) ['id_tp' => 0, 'tahun' => '-'];
         } else {
             $this->tp = $tpSmt->tp;
         }
 
-        if (!$tpSmt->smt) {
+        if (! $tpSmt->smt) {
             $this->smt = (object) ['id_smt' => 0, 'smt' => '-'];
         } else {
             $this->smt = $tpSmt->smt;
         }
     }
 
-
     private function getCommonData($title)
     {
         $this->initData();
         $setting = $this->getSettingRow();
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_sekolah' => 'absensi by ikasmedia', 'logo' => null];
+        }
 
         return [
             'judul' => $title,
             'user' => $this->getUser(),
             'tp_active' => $this->tp,
             'smt_active' => $this->smt,
-            'setting' => $setting
+            'setting' => $setting,
         ];
     }
 
     public function index()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -98,7 +102,7 @@ class PiketController extends BaseController
             $data['hari_list'] = $hari_arr;
 
             // Stats Hari Ini
-            $hariService = new HariSekolahService();
+            $hariService = new HariSekolahService;
             $statusHari = $hariService->status();
             $isHariSekolah = $statusHari['status'] === HariSekolahService::AKTIF;
             $hari_ini_indo = $statusHari['nama_hari'];
@@ -122,18 +126,18 @@ class PiketController extends BaseController
             try {
                 $data['stats_hari_ini'] = $this->piketModel->getStats($tanggal); // Reuse existing model stats logic
             } catch (\Throwable $e) {
-                Log::error('[Piket::index] getStats: ' . $e->getMessage());
+                Log::error('[Piket::index] getStats: '.$e->getMessage());
                 $data['stats_hari_ini'] = ['tamu' => 0, 'kejadian' => 0, 'siswa_absen' => 0];
             }
 
             // Get All Guru for Modal Add (exclude Kepsek)
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $kepsekIds = $this->getKepsekGuruIds($db, $data['setting']);
-            $guruBuilder = $db->table('master_guru')->select('id_guru, nama_guru');
-            if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'deleted_at')) {
+            $guruBuilder = $db->table('master_guru')->select('id_guru', 'nama_guru');
+            if (Schema::hasColumn('master_guru', 'deleted_at')) {
                 $guruBuilder->whereRaw('deleted_at IS NULL');
             }
-            if (!empty($kepsekIds)) {
+            if (! empty($kepsekIds)) {
                 $guruBuilder->whereNotIn('id_guru', $kepsekIds);
             }
             $data['guru_list'] = $guruBuilder->orderBy('nama_guru')->get();
@@ -142,14 +146,15 @@ class PiketController extends BaseController
             return view('admin.piket.jadwal', $data);
 
         } catch (\Throwable $e) {
-            Log::error('[Piket::index] ' . $e->getMessage());
+            Log::error('[Piket::index] '.$e->getMessage());
+
             return redirect()->to('dashboard')->with('error', 'Gagal memuat jadwal piket — periksa log aplikasi.');
         }
     }
 
     public function saveJadwal()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -163,21 +168,21 @@ class PiketController extends BaseController
         $keterangan = mb_substr(trim((string) $this->request->input('keterangan')), 0, 500);
 
         $validHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        if (!in_array($hari, $validHari, true)) {
+        if (! in_array($hari, $validHari, true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Hari tidak valid']);
         }
         if ($id_guru <= 0) {
             return $this->response->setJSON(['status' => false, 'message' => 'Guru wajib dipilih']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->getSettingRow();
         $kepsekIds = $this->getKepsekGuruIds($db, $setting);
         if (in_array($id_guru, $kepsekIds, true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kepala Sekolah tidak dapat ditugaskan sebagai petugas piket']);
         }
 
-        if (!$db->table('master_guru')->where('id_guru', $id_guru)->count()) {
+        if (! $db->table('master_guru')->where('id_guru', $id_guru)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
@@ -189,7 +194,7 @@ class PiketController extends BaseController
             ->where('id_guru', $id_guru)
             ->count();
         if ($exists > 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tersebut sudah terjadwal piket hari ' . $hari]);
+            return $this->response->setJSON(['status' => false, 'message' => 'Guru tersebut sudah terjadwal piket hari '.$hari]);
         }
 
         $insertData = [
@@ -203,15 +208,17 @@ class PiketController extends BaseController
         try {
             $this->piketJadwalModel->insert($insertData);
         } catch (\Throwable $e) {
-            Log::error('[Piket::saveJadwal] ' . $e->getMessage());
+            Log::error('[Piket::saveJadwal] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan jadwal']);
         }
+
         return $this->response->setJSON(['status' => true, 'message' => 'Guru piket ditambahkan']);
     }
 
     public function deleteJadwal()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -219,21 +226,23 @@ class PiketController extends BaseController
         if ($id <= 0) {
             return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
         }
-        if (!$this->piketJadwalModel->find($id)) {
+        if (! $this->piketJadwalModel->find($id)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jadwal tidak ditemukan']);
         }
         try {
             $this->piketJadwalModel->where('id', $id)->delete();
         } catch (\Throwable $e) {
-            Log::error('[Piket::deleteJadwal] ' . $e->getMessage());
+            Log::error('[Piket::deleteJadwal] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
         }
+
         return $this->response->setJSON(['status' => true, 'message' => 'Jadwal dihapus']);
     }
 
     public function monitoring()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -241,7 +250,7 @@ class PiketController extends BaseController
         $data = $this->getCommonData('Monitoring Piket');
 
         $tanggal = $this->request->query('tanggal') ?: date('Y-m-d');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $tanggal) || $tanggal > date('Y-m-d')) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $tanggal) || $tanggal > date('Y-m-d')) {
             $tanggal = date('Y-m-d');
         }
         $data['tanggal'] = $tanggal;
@@ -254,23 +263,24 @@ class PiketController extends BaseController
         // Let's show summary of today's absences count per class.
         // H/T = hadir (selaras dengan PiketModel::konflikKehadiran), jadi
         // rekap ketidakhadiran hanya menghitung S/I/A.
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $rekap_absen = [];
         $sudah_direkap = false;
-        if (\Illuminate\Support\Facades\Schema::hasTable('piket_absensi')) {
+        if (Schema::hasTable('piket_absensi')) {
             try {
                 $sudah_direkap = $db->table('piket_absensi')
                     ->where('tanggal', $tanggal)
                     ->count() > 0;
                 $rekap_absen = $db->table('piket_absensi as p')
-                    ->select('k.nama_kelas, count(p.id) as total_absen')
-                    ->join('master_kelas as k', 'k.id_kelas = p.id_kelas')
+                    ->select('k.nama_kelas')
+                    ->selectRaw('count(p.id) as total_absen')
+                    ->join('master_kelas as k', 'k.id_kelas', '=', 'p.id_kelas')
                     ->where('p.tanggal', $tanggal)
                     ->whereNotIn('p.status', ['H', 'T'])
                     ->groupBy(['p.id_kelas', 'k.nama_kelas'])
                     ->get();
             } catch (\Throwable $e) {
-                Log::error('[Piket::monitoring] rekap_absen: ' . $e->getMessage());
+                Log::error('[Piket::monitoring] rekap_absen: '.$e->getMessage());
             }
         }
 
@@ -285,18 +295,18 @@ class PiketController extends BaseController
         // Jurnal KBM + kehadiran guru (paritas dengan monitoring piket guru).
         // Filter TP/SMT hanya untuk hari ini; tanggal lama tampil apa adanya.
         $isToday = ($tanggal === date('Y-m-d'));
-        $tpF = ($isToday && !empty($data['tp_active']->id_tp)) ? (int) $data['tp_active']->id_tp : 0;
-        $smtF = ($isToday && !empty($data['smt_active']->id_smt)) ? (int) $data['smt_active']->id_smt : 0;
+        $tpF = ($isToday && ! empty($data['tp_active']->id_tp)) ? (int) $data['tp_active']->id_tp : 0;
+        $smtF = ($isToday && ! empty($data['smt_active']->id_smt)) ? (int) $data['smt_active']->id_smt : 0;
         try {
             $data['jurnal'] = $this->piketModel->getJurnalHarian($tanggal, ['id_tp' => $tpF, 'id_smt' => $smtF]);
         } catch (\Throwable $e) {
-            Log::error('[Piket::monitoring] jurnal: ' . $e->getMessage());
+            Log::error('[Piket::monitoring] jurnal: '.$e->getMessage());
             $data['jurnal'] = [];
         }
         try {
             $data['guru_absensi'] = $this->piketModel->getAllGuruWithAbsensi($tanggal);
         } catch (\Throwable $e) {
-            Log::error('[Piket::monitoring] guru_absensi: ' . $e->getMessage());
+            Log::error('[Piket::monitoring] guru_absensi: '.$e->getMessage());
             $data['guru_absensi'] = [];
         }
 
@@ -312,21 +322,21 @@ class PiketController extends BaseController
      */
     public function selarasDivergensi()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tanggal = trim((string) $this->request->input('tanggal'));
         $idSiswa = (int) $this->request->input('id_siswa');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal > date('Y-m-d') || $idSiswa <= 0) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal > date('Y-m-d') || $idSiswa <= 0) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak valid']);
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $piket = $db->table('piket_absensi')
                 ->where('tanggal', $tanggal)->where('id_siswa', $idSiswa)->first();
-            if (!$piket) {
+            if (! $piket) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Data piket tidak ditemukan']);
             }
             $formal = $db->table('presensi_siswa')
@@ -334,7 +344,7 @@ class PiketController extends BaseController
             $piketSt = strtoupper(trim((string) ($piket->status ?? '')));
             // S/I/A piket = patokan → formal yang mengikuti.
             if (in_array($piketSt, ['S', 'I', 'A'], true)) {
-                $targetFormal = \App\Models\PiketModel::piketKeFormal($piketSt);
+                $targetFormal = PiketModel::piketKeFormal($piketSt);
                 if ($targetFormal === null) {
                     return $this->response->setJSON(['status' => false, 'message' => 'Status piket tidak valid']);
                 }
@@ -352,11 +362,12 @@ class PiketController extends BaseController
                 if ((int) ($sync['dibuat'] ?? 0) + (int) ($sync['diupdate'] ?? 0) <= 0) {
                     return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
                 }
-                return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti piket (' . $targetFormal . ')']);
+
+                return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti piket ('.$targetFormal.')']);
             }
-            $target = \App\Models\PiketModel::formalKePiket(
+            $target = PiketModel::formalKePiket(
                 $formal->status ?? null,
-                !empty($formal->jam_masuk)
+                ! empty($formal->jam_masuk)
             );
             if ($target === null) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Sistem belum mencatat siswa ini — selaraskan via halaman Absensi']);
@@ -372,22 +383,24 @@ class PiketController extends BaseController
                 'status' => $target,
                 'updated_by' => $user ? (int) $user->id : null,
             ]]);
-            if (!$ok) {
+            if (! $ok) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
             }
         } catch (\Throwable $e) {
-            Log::error('[Admin\Piket::selarasDivergensi] ' . $e->getMessage());
+            Log::error('[Admin\Piket::selarasDivergensi] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
         }
-        return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti sistem (' . $target . ')']);
+
+        return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti sistem ('.$target.')']);
     }
 
     public function generateJadwal()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON([
                 'status' => false,
-                'message' => 'Akses ditolak'
+                'message' => 'Akses ditolak',
             ]);
         }
 
@@ -395,7 +408,7 @@ class PiketController extends BaseController
         if (empty($this->tp->id_tp) || empty($this->smt->id_smt)) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Tahun Pelajaran atau Semester aktif belum diset.'
+                'message' => 'Tahun Pelajaran atau Semester aktif belum diset.',
             ]);
         }
 
@@ -407,7 +420,7 @@ class PiketController extends BaseController
         }
 
         $hariInput = $this->request->input('hari');
-        if (!is_array($hariInput) || empty($hariInput)) {
+        if (! is_array($hariInput) || empty($hariInput)) {
             $hariInput = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         }
 
@@ -417,26 +430,28 @@ class PiketController extends BaseController
         if (empty($selectedHari)) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Pilih minimal satu hari yang valid.'
+                'message' => 'Pilih minimal satu hari yang valid.',
             ]);
         }
 
         $mode = trim((string) $this->request->input('mode')) === 'append' ? 'append' : 'replace';
         $keterangan = mb_substr(trim((string) ($this->request->input('keterangan') ?: 'Petugas Piket')), 0, 500);
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->getSettingRow();
         $kepsekIds = $this->getKepsekGuruIds($db, $setting);
 
         // Ambil daftar guru (kecualikan Kepala Sekolah)
-        $builder = $db->table('master_guru')->select('id_guru, nama_guru');
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'deleted_at')) {
+        $builder = $db->table('master_guru')->select('id_guru', 'nama_guru');
+        if (Schema::hasColumn('master_guru', 'deleted_at')) {
             $builder->whereRaw('deleted_at IS NULL');
         }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'status_aktif')) {
-            $builder->where(function ($q) { $q->where('status_aktif', '!=', 'Tidak Aktif')->$q->where('status_aktif', '!=', 'Nonaktif')->$q->orWhereRaw('status_aktif IS NULL')->$q->orWhere('status_aktif', ''); });
+        if (Schema::hasColumn('master_guru', 'status_aktif')) {
+            $builder->where(function ($q) {
+                $q->where('status_aktif', '!=', 'Tidak Aktif')->where('status_aktif', '!=', 'Nonaktif')->orWhereRaw('status_aktif IS NULL')->orWhere('status_aktif', '');
+            });
         }
-        if (!empty($kepsekIds)) {
+        if (! empty($kepsekIds)) {
             $builder->whereNotIn('id_guru', $kepsekIds);
         }
         $eligibleTeachers = $builder->get();
@@ -444,7 +459,7 @@ class PiketController extends BaseController
         if (empty($eligibleTeachers)) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Tidak ada data guru yang memenuhi syarat untuk dijadwalkan piket.'
+                'message' => 'Tidak ada data guru yang memenuhi syarat untuk dijadwalkan piket.',
             ]);
         }
 
@@ -523,29 +538,30 @@ class PiketController extends BaseController
             }
         }
 
-        if (!empty($toInsert)) {
+        if (! empty($toInsert)) {
             try {
-                $this->piketJadwalModel->insertBatch($toInsert);
+                $this->piketJadwalModel->insert($toInsert);
             } catch (\Throwable $e) {
-                Log::error('[Piket::generateJadwal] ' . $e->getMessage());
+                Log::error('[Piket::generateJadwal] '.$e->getMessage());
+
                 return $this->response->setJSON([
                     'status' => false,
-                    'message' => 'Gagal menyimpan jadwal hasil generate — periksa log aplikasi.'
+                    'message' => 'Gagal menyimpan jadwal hasil generate — periksa log aplikasi.',
                 ]);
             }
         }
 
         $kepsekCount = count($kepsekIds);
-        $msg = "Berhasil membuat jadwal piket untuk {$totalNew} penugasan guru (" . count($selectedHari) . " hari).";
+        $msg = "Berhasil membuat jadwal piket untuk {$totalNew} penugasan guru (".count($selectedHari).' hari).';
         if ($kepsekCount > 0) {
-            $msg .= " Kepala Sekolah otomatis dikecualikan.";
+            $msg .= ' Kepala Sekolah otomatis dikecualikan.';
         }
 
         return $this->response->setJSON([
             'status' => true,
             'message' => $msg,
             'total_inserted' => $totalNew,
-            'excluded_kepsek' => $kepsekCount
+            'excluded_kepsek' => $kepsekCount,
         ]);
     }
 
@@ -557,13 +573,13 @@ class PiketController extends BaseController
         $kepsekIds = [];
 
         // 1. Dari jabatan_guru (id_jabatan = 1 atau level Kepala Sekolah)
-        if (\Illuminate\Support\Facades\Schema::hasTable('jabatan_guru')) {
+        if (Schema::hasTable('jabatan_guru')) {
             $jg = $db->table('jabatan_guru')
                 ->select('id_guru')
                 ->where('id_jabatan', 1)
                 ->get();
             foreach ($jg as $r) {
-                if (!empty($r->id_guru)) {
+                if (! empty($r->id_guru)) {
                     $kepsekIds[] = (int) $r->id_guru;
                 }
             }
@@ -573,8 +589,8 @@ class PiketController extends BaseController
         $nipSetting = trim($setting->nip ?? '');
         $namaSetting = strtolower(trim($setting->kepsek ?? ''));
 
-        $builder = $db->table('master_guru')->select('id_guru, nip, nama_guru, tgs_tambahan');
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'deleted_at')) {
+        $builder = $db->table('master_guru')->select('id_guru', 'nip', 'nama_guru', 'tgs_tambahan');
+        if (Schema::hasColumn('master_guru', 'deleted_at')) {
             $builder->whereRaw('deleted_at IS NULL');
         }
         $allGuru = $builder->get();
@@ -606,8 +622,9 @@ class PiketController extends BaseController
             'Wednesday' => 'Rabu',
             'Thursday' => 'Kamis',
             'Friday' => 'Jumat',
-            'Saturday' => 'Sabtu'
+            'Saturday' => 'Sabtu',
         ];
+
         return $days[$day] ?? $day;
     }
 }

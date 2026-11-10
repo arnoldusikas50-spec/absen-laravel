@@ -102,11 +102,11 @@ $(document).ready(function () {
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: {{ json_encode(array_values(array_slice($namaBulan, 1))) }},
+                labels: {!! json_encode(array_values(array_slice($namaBulan, 1)))!!},
                 datasets: [{
                     label: 'Poin',
-                    data: {{ json_encode(array_values($monthly ?? [])) }},
-                    backgroundColor: ({{ json_encode(array_values($monthly ?? [])) }}).map(v => v >= 0 ? 'rgba(16,185,129,.6)' : 'rgba(239,68,68,.6)'),
+                    data: {!! json_encode(array_values($monthly ?? []))!!},
+                    backgroundColor: ({!! json_encode(array_values($monthly ?? []))!!}).map(v => v >= 0 ? 'rgba(16,185,129,.6)' : 'rgba(239,68,68,.6)'),
                     borderRadius: 6
                 }]
             },

@@ -2,50 +2,51 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use App\Models\MasterModel;
 use App\Models\DashboardModel;
 use App\Models\LogModel;
+use App\Models\MasterModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DatatahunController extends BaseController
 {
     protected MasterModel $master;
+
     protected DashboardModel $dashboard;
+
     protected LogModel $logging;
 
     public function __construct()
     {
         parent::__construct();
-        $this->master = new MasterModel();
-        $this->dashboard = new DashboardModel();
-        $this->logging = new LogModel();
+        $this->master = new MasterModel;
+        $this->dashboard = new DashboardModel;
+        $this->logging = new LogModel;
     }
 
     public function index()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $data = [
             'user' => $this->authModel->user(),
             'judul' => 'Tahun Pelajaran dan Semester',
             'subjudul' => 'Atur Tahun Pelajaran dan Semester',
             'setting' => $this->getSettingRow(),
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
             'tp_active' => $tp,
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'smt_active' => $smt,
             'tp_active_obj' => $tp,
-            'smt_active_obj' => $smt
+            'smt_active_obj' => $smt,
         ];
 
-        $jml = $this->master->getJmlHariEfektif(($tp->id_tp ?? '') . ($smt->id_smt ?? ''));
+        $jml = $this->master->getJmlHariEfektif(($tp->id_tp ?? '').($smt->id_smt ?? ''));
         $data['jml_hari'] = $jml == null ? '0' : $jml->jml_hari_efektif;
 
         return view('master.tahun.data', $data);
@@ -53,9 +54,10 @@ class DatatahunController extends BaseController
 
     public function data()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->balas(false, 'Unauthorized');
         }
+
         return $this->response->setJSON($this->dashboard->getDataTahun());
     }
 
@@ -83,19 +85,19 @@ class DatatahunController extends BaseController
      */
     private function gantiPeriode(string $fieldJson, string $tabel, string $pk, string $kolomLabel, string $namaManusiawi, int $maksLabel)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->balas(false, 'Unauthorized');
         }
 
         $aktif = (int) ($this->request->input('active') ?? 0);
         $baris = json_decode((string) ($this->request->input($fieldJson) ?? '[]'), true);
-        if (!is_array($baris) || $baris === []) {
-            return $this->balas(false, 'Data ' . strtolower($namaManusiawi) . ' tidak terbaca — tidak ada yang diubah.');
+        if (! is_array($baris) || $baris === []) {
+            return $this->balas(false, 'Data '.strtolower($namaManusiawi).' tidak terbaca — tidak ada yang diubah.');
         }
 
         $update = [];
         foreach ($baris as $tps) {
-            if (!is_array($tps)) {
+            if (! is_array($tps)) {
                 continue;
             }
             $id = (int) ($tps['id'] ?? 0);
@@ -104,53 +106,52 @@ class DatatahunController extends BaseController
             }
             $label = trim((string) ($tps[$kolomLabel] ?? ''));
             if ($label === '' || mb_strlen($label) > $maksLabel) {
-                return $this->balas(false, 'Label ' . strtolower($namaManusiawi) . ' kosong atau lebih dari '
-                    . $maksLabel . ' karakter — tidak ada yang diubah.');
+                return $this->balas(false, 'Label '.strtolower($namaManusiawi).' kosong atau lebih dari '
+                    .$maksLabel.' karakter — tidak ada yang diubah.');
             }
             $update[$id] = [
-                $pk    => $id,
+                $pk => $id,
                 $this->kolomPeriode($tabel) => $label,
                 'active' => $id === $aktif ? 1 : 0,
             ];
         }
 
         if ($update === []) {
-            return $this->balas(false, 'Tidak ada ' . strtolower($namaManusiawi) . ' yang valid — tidak ada yang diubah.');
+            return $this->balas(false, 'Tidak ada '.strtolower($namaManusiawi).' yang valid — tidak ada yang diubah.');
         }
-        if (!isset($update[$aktif])) {
-            return $this->balas(false, $namaManusiawi . ' yang ingin diaktifkan tidak ditemukan di daftar — tidak ada yang diubah.');
+        if (! isset($update[$aktif])) {
+            return $this->balas(false, $namaManusiawi.' yang ingin diaktifkan tidak ditemukan di daftar — tidak ada yang diubah.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
         try {
-            if ($db->table($tabel)->updateBatch(array_values($update), $pk) === false || !true) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('[Datatahun] updateBatch ' . $tabel . ' ditolak DB (aktif=' . $aktif . ')');
-                return $this->balas(false, $namaManusiawi . ' gagal disimpan. Periode berjalan belum berubah — coba lagi.');
+            foreach (array_values($update) as $row) {
+                $db->table($tabel)->where($pk, $row[$pk])->update($row);
             }
             // Jaga invarian "tepat satu aktif" walaupun updateBatch hanya
             // menyentuh sebagian baris.
-            $db->table($tabel)->where($pk . ' <>', $aktif)->where('active', 1)->update(['active' => 0]);
+            $db->table($tabel)->where($pk.' <>', $aktif)->where('active', 1)->update(['active' => 0]);
             $db->table($tabel)->where($pk, $aktif)->update(['active' => 1]);
 
             $jumlahAktif = $db->table($tabel)->where('active', 1)->count();
             if ($jumlahAktif !== 1) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('[Datatahun] ' . $tabel . ' punya ' . $jumlahAktif . ' baris aktif setelah ganti');
-                return $this->balas(false, $namaManusiawi . ' gagal disimpan: jumlah periode aktif tidak tepat satu. Data belum berubah.');
+                DB::rollBack();
+                Log::error('[Datatahun] '.$tabel.' punya '.$jumlahAktif.' baris aktif setelah ganti');
+
+                return $this->balas(false, $namaManusiawi.' gagal disimpan: jumlah periode aktif tidak tepat satu. Data belum berubah.');
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
-            }
-            Log::error('[Datatahun] gantiPeriode ' . $tabel . ' aktif=' . $aktif . ': ' . $e->getMessage());
-            return $this->balas(false, $namaManusiawi . ' gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
+            DB::rollBack();
+            Log::error('[Datatahun] gantiPeriode '.$tabel.' aktif='.$aktif.': '.$e->getMessage());
+
+            return $this->balas(false, $namaManusiawi.' gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
 
-        $this->saveAuditLog(4, 'mengganti ' . strtolower($namaManusiawi) . ' aktif');
-        return $this->balas(true, $namaManusiawi . ' berhasil diganti');
+        $this->saveAuditLog(4, 'mengganti '.strtolower($namaManusiawi).' aktif');
+
+        return $this->balas(true, $namaManusiawi.' berhasil diganti');
     }
 
     private function kolomPeriode(string $tabel): string
@@ -170,7 +171,7 @@ class DatatahunController extends BaseController
 
     public function add()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->balas(false, 'Unauthorized');
         }
 
@@ -181,20 +182,22 @@ class DatatahunController extends BaseController
             return $this->balas(false, 'Label tahun pelajaran wajib diisi (maks 20 karakter).');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         if ($method == 'add') {
             // Satu label tahun hanya sekali; kalau tidak, daftar TP jadi
             // ambigu dan admin salah mengaktifkan periode.
             if ($db->table('master_tp')->where('tahun', $tahun)->count() > 0) {
-                return $this->balas(false, 'Tahun pelajaran "' . $tahun . '" sudah ada.');
+                return $this->balas(false, 'Tahun pelajaran "'.$tahun.'" sudah ada.');
             }
             $tersimpan = $db->table('master_tp')->insert(['tahun' => $tahun, 'active' => 0]);
             if ($tersimpan === false) {
-                Log::error('[Datatahun] insert master_tp ditolak DB (tahun=' . $tahun . ')');
+                Log::error('[Datatahun] insert master_tp ditolak DB (tahun='.$tahun.')');
+
                 return $this->balas(false, 'Tahun pelajaran gagal disimpan. Coba lagi, dan bila berulang lapor ke pengembang.');
             }
             $this->saveAuditLog(3, 'menambah tahun pelajaran');
+
             return $this->balas(true, 'Tahun pelajaran berhasil ditambahkan');
         }
 
@@ -202,17 +205,19 @@ class DatatahunController extends BaseController
         if ($id <= 0) {
             return $this->balas(false, 'Pilih tahun pelajaran yang akan diubah.');
         }
-        $ada = $db->table('master_tp')->where('id_tp', $id)->get()->map(fn($r) => (array) $r)->first();
-        if (!$ada) {
+        $ada = $db->table('master_tp')->where('id_tp', $id)->get()->map(fn ($r) => (array) $r)->first();
+        if (! $ada) {
             return $this->balas(false, 'Tahun pelajaran tidak ditemukan — mungkin sudah dihapus.');
         }
 
         $diubah = $db->table('master_tp')->where('id_tp', $id)->update(['tahun' => $tahun]);
         if ($diubah === false) {
-            Log::error('[Datatahun] update master_tp#' . $id . ' ditolak DB');
+            Log::error('[Datatahun] update master_tp#'.$id.' ditolak DB');
+
             return $this->balas(false, 'Tahun pelajaran gagal disimpan. Data belum berubah.');
         }
         $this->saveAuditLog(4, 'mengedit tahun pelajaran');
+
         // affectedRows() 0 berarti nilainya memang sudah sama, bukan kegagalan.
         return $this->balas(true, 1 > 0
             ? 'Tahun pelajaran berhasil diubah'
@@ -221,13 +226,13 @@ class DatatahunController extends BaseController
 
     public function saveHariEfektif()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->balas(false, 'Unauthorized');
         }
 
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->balas(false, 'Belum ada tahun/semester aktif, jadi hari efektif tidak dapat disimpan. Aktifkan periode dulu.');
         }
 
@@ -236,14 +241,15 @@ class DatatahunController extends BaseController
             return $this->balas(false, 'Jumlah hari efektif harus bilangan bulat 0–366.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tersimpan = $db->table('master_hari_efektif')->replace([
-            'id_hari_efektif'  => (string) ((int) $tp->id_tp . (int) $smt->id_smt),
+            'id_hari_efektif' => (string) ((int) $tp->id_tp.(int) $smt->id_smt),
             'jml_hari_efektif' => $jumlah,
         ]);
 
         if ($tersimpan === false) {
-            Log::error('[Datatahun] replace master_hari_efektif ditolak DB (tp=' . $tp->id_tp . ' smt=' . $smt->id_smt . ')');
+            Log::error('[Datatahun] replace master_hari_efektif ditolak DB (tp='.$tp->id_tp.' smt='.$smt->id_smt.')');
+
             return $this->balas(false, 'Jumlah hari efektif gagal disimpan. Data belum berubah — coba lagi.');
         }
 
@@ -252,7 +258,7 @@ class DatatahunController extends BaseController
 
     public function hapusTahun()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->balas(false, 'Unauthorized');
         }
 
@@ -261,9 +267,9 @@ class DatatahunController extends BaseController
             return $this->balas(false, 'Pilih tahun pelajaran yang akan dihapus.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $row = $db->table('master_tp')->where('id_tp', $id)->get()->map(fn($r) => (array) $r)->first();
-        if (!$row) {
+        $db = DB::connection();
+        $row = $db->table('master_tp')->where('id_tp', $id)->get()->map(fn ($r) => (array) $r)->first();
+        if (! $row) {
             return $this->balas(false, 'Tahun pelajaran tidak ditemukan — mungkin sudah dihapus.');
         }
         // Menghapus periode yang sedang aktif membuat getTahunActive() null
@@ -274,20 +280,22 @@ class DatatahunController extends BaseController
 
         [$dipakai, $diTabel] = $this->cekTahunDipakai($id);
         if ($dipakai) {
-            Log::warning('[Datatahun] hapus master_tp#' . $id . ' ditolak: ' . ($diTabel ?: 'pemakaian tidak dapat diperiksa'));
+            Log::warning('[Datatahun] hapus master_tp#'.$id.' ditolak: '.($diTabel ?: 'pemakaian tidak dapat diperiksa'));
 
             return $diTabel === ''
                 ? $this->balas(false, 'Pemakaian tahun pelajaran ini tidak dapat diperiksa, jadi penghapusan ditolak. '
-                    . 'Coba lagi nanti, atau biarkan tahun ini dalam keadaan nonaktif.')
-                : $this->balas(false, 'Tahun pelajaran ini masih dipakai data lain (' . $diTabel . '). '
-                    . 'Label tahun yang dihapus tidak ikut menghapus barisnya, tapi membuat data itu tidak lagi muncul '
-                    . 'di halaman berbasis periode. Biarkan tahun ini tersimpan dalam keadaan nonaktif.');
+                    .'Coba lagi nanti, atau biarkan tahun ini dalam keadaan nonaktif.')
+                : $this->balas(false, 'Tahun pelajaran ini masih dipakai data lain ('.$diTabel.'). '
+                    .'Label tahun yang dihapus tidak ikut menghapus barisnya, tapi membuat data itu tidak lagi muncul '
+                    .'di halaman berbasis periode. Biarkan tahun ini tersimpan dalam keadaan nonaktif.');
         }
 
         if ($this->dashboard->hapus('master_tp', $id, 'id_tp')) {
             $this->saveAuditLog(5, 'menghapus tahun pelajaran');
+
             return $this->balas(true, 'Tahun Pelajaran berhasil dihapus');
         }
+
         return $this->balas(false, 'Gagal menghapus tahun pelajaran. Data belum berubah.');
     }
 
@@ -313,7 +321,7 @@ class DatatahunController extends BaseController
      */
     private function cekTahunDipakai(int $id): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $sql = "SELECT c.TABLE_NAME AS nama
                   FROM information_schema.COLUMNS c
                   JOIN information_schema.TABLES t
@@ -335,7 +343,7 @@ class DatatahunController extends BaseController
         // berbagi result set yang belum tuntas di koneksi yang sama.
         $kandidat = array_map(
             static fn (array $b): string => (string) ($b['nama'] ?? ''),
-            array_map(fn($r) => (array) $r, $q)
+            array_map(fn ($r) => (array) $r, $q)
         );
 
         foreach ($kandidat as $tabel) {
@@ -349,16 +357,18 @@ class DatatahunController extends BaseController
                 // akan terbaca "kosong" dan penghapusan lolos.
                 $galat = ['code' => 0, 'message' => ''];
                 if (! empty($galat['code'])) {
-                    Log::error('[Datatahun] cek pemakai master_tp#' . $id . ' di ' . $tabel
-                        . ': ' . json_encode($galat));
+                    Log::error('[Datatahun] cek pemakai master_tp#'.$id.' di '.$tabel
+                        .': '.json_encode($galat));
+
                     return [true, ''];
                 }
             } catch (\Throwable $e) {
-                Log::error('[Datatahun] cek pemakai master_tp#' . $id . ' di ' . $tabel . ': ' . $e->getMessage());
+                Log::error('[Datatahun] cek pemakai master_tp#'.$id.' di '.$tabel.': '.$e->getMessage());
+
                 return [true, ''];
             }
             if ($jumlah > 0) {
-                return [true, $tabel . ': ' . $jumlah . ' baris'];
+                return [true, $tabel.': '.$jumlah.' baris'];
             }
         }
 

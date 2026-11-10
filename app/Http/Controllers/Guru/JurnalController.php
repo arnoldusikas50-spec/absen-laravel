@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Guru;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\ElearningModel;
 use App\Models\JurnalGuruModel;
 use App\Models\PiketModel;
 use App\Models\SiswaPresensiModel;
+use App\Services\AttendancePolicy;
+use App\Services\NotificationService;
+use App\Services\WajibJurnalPulangService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Jurnal Mengajar Guru
@@ -22,15 +26,17 @@ use App\Models\SiswaPresensiModel;
 class JurnalController extends BaseController
 {
     protected $dashboardModel;
+
     protected $elearningModel;
+
     protected $jurnalModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->elearningModel = new ElearningModel();
-        $this->jurnalModel = new JurnalGuruModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->elearningModel = new ElearningModel;
+        $this->jurnalModel = new JurnalGuruModel;
 
         // Pastikan tabel dan kolom guru_jurnal tersedia
         $this->jurnalModel->initialize();
@@ -44,30 +50,32 @@ class JurnalController extends BaseController
     private function getTeacherData(): ?array
     {
         $user = $this->getUser();
-        if (!$user) return null;
+        if (! $user) {
+            return null;
+        }
 
         $tpSmt = $this->getTpSmt();
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $guru = $db->table('master_guru')->where('id_user', $user->id)->first();
 
         // Fallback jika id_guru di session ada
         $sessIdGuru = session()->get('id_guru');
-        if (!$guru && $sessIdGuru) {
+        if (! $guru && $sessIdGuru) {
             $guru = $db->table('master_guru')->where('id_guru', $sessIdGuru)->first();
         }
 
         // Fallback untuk admin
-        if (!$guru && session()->get('role') == '1') {
+        if (! $guru && session()->get('role') == '1') {
             $guru = $db->table('master_guru')->first();
         }
 
         return [
             'user' => $user,
-            'tp'   => $tp,
-            'smt'  => $smt,
+            'tp' => $tp,
+            'smt' => $smt,
             'guru' => $guru,
         ];
     }
@@ -80,35 +88,35 @@ class JurnalController extends BaseController
      */
     private function kelasOptions(int $idTp, int $idSmt, ?object $jurnal = null): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $builder = $db->table('master_kelas')->select('id_kelas, nama_kelas');
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) {
+        $db = DB::connection();
+        $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
+        if (Schema::hasColumn('master_kelas', 'id_tp')) {
             $builder->where('id_tp', $idTp);
         }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) {
+        if (Schema::hasColumn('master_kelas', 'id_smt')) {
             $builder->where('id_smt', $idSmt);
         }
         $kelases = $builder->orderBy('nama_kelas', 'ASC')->get();
 
         if (empty($kelases)) {
-            $kelases = $db->table('master_kelas')->select('id_kelas, nama_kelas')
+            $kelases = $db->table('master_kelas')->select('id_kelas', 'nama_kelas')
                 ->orderBy('nama_kelas', 'ASC')->get();
         }
 
         if ($jurnal) {
             $kelasId = (int) $jurnal->id_kelas;
             $ada = in_array($kelasId, array_map(
-                static fn($k): int => (int) (is_object($k) ? $k->id_kelas : $k),
+                static fn ($k): int => (int) (is_object($k) ? $k->id_kelas : $k),
                 $kelases
             ), true);
-            if (!$ada) {
-                $row = $db->table('master_kelas')->select('id_kelas, nama_kelas')
+            if (! $ada) {
+                $row = $db->table('master_kelas')->select('id_kelas', 'nama_kelas')
                     ->where('id_kelas', $kelasId)->first();
                 // Kelas bisa saja sudah dihapus; tetap tampilkan sebagai arsip
                 // agar jurnal lama masih bisa diubah tanpa kehilangan relasi.
                 $kelases[] = $row ?: (object) [
-                    'id_kelas'   => $kelasId,
-                    'nama_kelas' => 'Kelas #' . $kelasId . ' (arsip)',
+                    'id_kelas' => $kelasId,
+                    'nama_kelas' => 'Kelas #'.$kelasId.' (arsip)',
                 ];
             }
         }
@@ -125,7 +133,7 @@ class JurnalController extends BaseController
             'Gotong Royong',
             'Mandiri',
             'Bernalar Kritis',
-            'Kreatif'
+            'Kreatif',
         ];
     }
 
@@ -141,7 +149,7 @@ class JurnalController extends BaseController
             'Cooperative Learning',
             'Ceramah Interaktif & Diskusi',
             'Demonstrasi & Praktik Langsung',
-            'Diferensiasi Konten / Proses'
+            'Diferensiasi Konten / Proses',
         ];
     }
 
@@ -152,23 +160,27 @@ class JurnalController extends BaseController
     private function filterPeriode(): array
     {
         $bulan = (int) ($this->request->query('bulan') ?: date('m'));
-        if ($bulan < 1 || $bulan > 12) $bulan = (int) date('m');
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) date('m');
+        }
         $bulan = sprintf('%02d', $bulan);
 
         $tahun = (int) ($this->request->query('tahun') ?: date('Y'));
-        if ($tahun < 2000 || $tahun > 2100) $tahun = (int) date('Y');
+        if ($tahun < 2000 || $tahun > 2100) {
+            $tahun = (int) date('Y');
+        }
 
-        $mulai = $tahun . '-' . $bulan . '-01';
+        $mulai = $tahun.'-'.$bulan.'-01';
         $selesai = date('Y-m-t', strtotime($mulai));
 
         return [
-            'bulan'    => $bulan,
-            'tahun'    => $tahun,
-            'mulai'    => $mulai,
-            'selesai'  => $selesai,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'mulai' => $mulai,
+            'selesai' => $selesai,
             'id_kelas' => (int) ($this->request->query('id_kelas') ?: 0),
             'id_mapel' => (int) ($this->request->query('id_mapel') ?: 0),
-            'q'        => mb_substr(trim((string) $this->request->query('q')), 0, 100),
+            'q' => mb_substr(trim((string) $this->request->query('q')), 0, 100),
         ];
     }
 
@@ -183,8 +195,8 @@ class JurnalController extends BaseController
      */
     private function statusJadwalHariIni(int $idGuru, int $idTp, int $idSmt): array
     {
-        $hanyaTervalidasi = \App\Services\WajibJurnalPulangService::butuhValidasi(
-            \App\Services\AttendancePolicy::setting()
+        $hanyaTervalidasi = WajibJurnalPulangService::butuhValidasi(
+            AttendancePolicy::setting()
         );
 
         $status = $this->jurnalModel->getStatusJurnalHarian(
@@ -200,7 +212,7 @@ class JurnalController extends BaseController
         }
 
         $idTerpakai = array_values(array_filter(array_map(
-            static fn(array $row): int => (int) ($row['id_jurnal'] ?? 0),
+            static fn (array $row): int => (int) ($row['id_jurnal'] ?? 0),
             $status
         )));
         $jurnalRows = $this->jurnalModel->getByIds($idTerpakai);
@@ -212,17 +224,18 @@ class JurnalController extends BaseController
                 ? PiketModel::parseSiswaAbsent($jurnalRow->siswa_absent ?? null)
                 : ['ids' => [], 'nama' => [], 'nihil' => true];
             $out[] = [
-                'slot'         => $row['slot'],
-                'sudah'        => (bool) ($row['sudah_dijurnal'] ?? false),
-                'menunggu'     => (bool) ($row['menunggu_validasi'] ?? false),
-                'ditolak'      => strtoupper((string) ($row['validasi_status'] ?? '')) === JurnalGuruModel::VALIDASI_REJECTED,
-                'id_jurnal'    => (int) ($row['id_jurnal'] ?? 0),
-                'materi'       => $jurnalRow ? trim((string) ($jurnalRow->materi_pokok ?? '')) : '',
+                'slot' => $row['slot'],
+                'sudah' => (bool) ($row['sudah_dijurnal'] ?? false),
+                'menunggu' => (bool) ($row['menunggu_validasi'] ?? false),
+                'ditolak' => strtoupper((string) ($row['validasi_status'] ?? '')) === JurnalGuruModel::VALIDASI_REJECTED,
+                'id_jurnal' => (int) ($row['id_jurnal'] ?? 0),
+                'materi' => $jurnalRow ? trim((string) ($jurnalRow->materi_pokok ?? '')) : '',
                 'absen_jumlah' => $absen['nihil']
                     ? 0
                     : max(count($absen['ids']), count($absen['nama'])),
             ];
         }
+
         return $out;
     }
 
@@ -236,16 +249,18 @@ class JurnalController extends BaseController
     public function index()
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) return redirect()->to('auth');
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
 
         $guru = $tData['guru'];
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('dashboard')->with('error', 'Profil Guru tidak ditemukan. Harap hubungi admin.');
         }
 
         $idGuru = (int) $guru->id_guru;
-        $idTp   = (int) ($tData['tp']->id_tp ?? 1);
-        $idSmt  = (int) ($tData['smt']->id_smt ?? 1);
+        $idTp = (int) ($tData['tp']->id_tp ?? 1);
+        $idSmt = (int) ($tData['smt']->id_smt ?? 1);
 
         // Filter periode + kelas/mapel/kata kunci.
         $f = $this->filterPeriode();
@@ -262,7 +277,7 @@ class JurnalController extends BaseController
         $stat = $this->jurnalModel->getStatistik($idGuru, $idTp, $idSmt, $f['mulai'], $f['selesai']);
 
         $jadwalHariIni = $this->statusJadwalHariIni($idGuru, $idTp, $idSmt);
-        $jadwalHariIniTerisi = count(array_filter($jadwalHariIni, static fn(array $row): bool => $row['sudah']));
+        $jadwalHariIniTerisi = count(array_filter($jadwalHariIni, static fn (array $row): bool => $row['sudah']));
 
         $mapelOptions = $this->elearningModel->getMapelArray() ?: [];
         asort($mapelOptions, SORT_NATURAL | SORT_FLAG_CASE);
@@ -271,27 +286,27 @@ class JurnalController extends BaseController
         $kelases = $this->kelasOptions($idTp, $idSmt);
 
         $data = [
-            'title'     => 'Jurnal Mengajar',
-            'judul'     => 'Jurnal Mengajar Guru',
-            'subjudul'  => 'Catatan Pelaksanaan Pembelajaran Mandiri',
-            'user'      => $tData['user'],
-            'guru'      => $guru,
-            'setting'   => $this->getSettingRow(),
+            'title' => 'Jurnal Mengajar',
+            'judul' => 'Jurnal Mengajar Guru',
+            'subjudul' => 'Catatan Pelaksanaan Pembelajaran Mandiri',
+            'user' => $tData['user'],
+            'guru' => $guru,
+            'setting' => $this->getSettingRow(),
             'tp_active' => $tData['tp'],
             'smt_active' => $tData['smt'],
-            'jurnals'   => $jurnals,
-            'total_jurnal'      => (int) ($stat->total_bulan ?? 0),
-            'jurnal_hari_ini'   => (int) ($stat->jurnal_hari_ini ?? 0),
-            'total_minggu_ini'  => (int) ($stat->minggu_ini ?? 0),
-            'jadwal_hari_ini'   => $jadwalHariIni,
+            'jurnals' => $jurnals,
+            'total_jurnal' => (int) ($stat->total_bulan ?? 0),
+            'jurnal_hari_ini' => (int) ($stat->jurnal_hari_ini ?? 0),
+            'total_minggu_ini' => (int) ($stat->minggu_ini ?? 0),
+            'jadwal_hari_ini' => $jadwalHariIni,
             'jadwal_hari_ini_terisi' => $jadwalHariIniTerisi,
-            'bulan_pilih'   => $f['bulan'],
-            'tahun_pilih'   => $f['tahun'],
+            'bulan_pilih' => $f['bulan'],
+            'tahun_pilih' => $f['tahun'],
             'id_kelas_pilih' => $f['id_kelas'],
             'id_mapel_pilih' => $f['id_mapel'],
-            'search_pilih'  => $f['q'],
+            'search_pilih' => $f['q'],
             'kelases' => $kelases,
-            'mapels'  => $mapelOptions,
+            'mapels' => $mapelOptions,
         ];
 
         return view('guru.jurnal.index', $data);
@@ -317,6 +332,7 @@ class JurnalController extends BaseController
         $prefill['tanggal'] = date('Y-m-d');
         $prefill['id_jadwal'] = '';
         $prefill['siswa_absent'] = '';
+
         return $prefill;
     }
 
@@ -326,22 +342,24 @@ class JurnalController extends BaseController
     public function form($id = null)
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) return redirect()->to('auth');
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
 
         $guru = $tData['guru'];
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('dashboard')->with('error', 'Profil Guru tidak ditemukan.');
         }
 
         $idGuru = (int) $guru->id_guru;
-        $idTp   = (int) ($tData['tp']->id_tp ?? 1);
-        $idSmt  = (int) ($tData['smt']->id_smt ?? 1);
+        $idTp = (int) ($tData['tp']->id_tp ?? 1);
+        $idSmt = (int) ($tData['smt']->id_smt ?? 1);
 
         // Mode "Edit": jurnal harus milik guru yang login.
         $jurnal = null;
         if ((int) $id > 0) {
             $jurnal = $this->jurnalModel->findMilikGuru((int) $id, $idGuru);
-            if (!$jurnal) {
+            if (! $jurnal) {
                 return redirect()->to('guru/jurnal')->with('error', 'Jurnal tidak ditemukan atau Anda tidak memiliki akses.');
             }
         }
@@ -350,9 +368,9 @@ class JurnalController extends BaseController
         $copySource = null;
         $prefillData = [];
         $copyId = (int) ($this->request->query('copy') ?? 0);
-        if (!$jurnal && $copyId > 0) {
+        if (! $jurnal && $copyId > 0) {
             $copySource = $this->jurnalModel->findSumberSalin($copyId, $idGuru, $idTp, $idSmt);
-            if (!$copySource) {
+            if (! $copySource) {
                 return redirect()->to('guru/jurnal/create')
                     ->with('error', 'Jurnal sumber tidak ditemukan pada periode aktif.');
             }
@@ -364,14 +382,16 @@ class JurnalController extends BaseController
 
         // Jadwal KBM hari ini untuk pilihan cepat (Minggu memakai jadwal Senin).
         $hariIni = (int) date('N');
-        if ($hariIni === 7) $hariIni = 1;
+        if ($hariIni === 7) {
+            $hariIni = 1;
+        }
         $jadwalHariIni = $this->elearningModel->getJadwalKbmGuruHariIni($idGuru, $hariIni, $idTp, $idSmt) ?: [];
 
         // Opsi kelas & mapel; jurnal periode lama tetap mendapat relasinya sebagai arsip.
         $kelases = $this->kelasOptions($idTp, $idSmt, $jurnal);
         $mapels = $this->elearningModel->getMapelArray() ?: [];
-        if ($jurnal && !isset($mapels[(int) $jurnal->id_mapel])) {
-            $mapels[(int) $jurnal->id_mapel] = 'Mapel #' . (int) $jurnal->id_mapel . ' (arsip)';
+        if ($jurnal && ! isset($mapels[(int) $jurnal->id_mapel])) {
+            $mapels[(int) $jurnal->id_mapel] = 'Mapel #'.(int) $jurnal->id_mapel.' (arsip)';
         }
 
         // Prefill dari tautan, mis. kartu jadwal: ?id_jadwal=..&kelas=..&mapel=..
@@ -381,69 +401,77 @@ class JurnalController extends BaseController
         $prefillJam = '';
 
         if ($copySource) {
-            if ($prefillKelas === 0) $prefillKelas = (int) $copySource->id_kelas;
-            if ($prefillMapel === 0) $prefillMapel = (int) $copySource->id_mapel;
+            if ($prefillKelas === 0) {
+                $prefillKelas = (int) $copySource->id_kelas;
+            }
+            if ($prefillMapel === 0) {
+                $prefillMapel = (int) $copySource->id_mapel;
+            }
         }
 
         // Prefill slot jadwal: hanya bila slot ada di periode aktif dan diampu guru ini.
         $prefillJadwalId = (int) ($this->request->query('id_jadwal') ?? 0);
-        if (!$jurnal && !$copySource && $prefillJadwalId > 0) {
-            $db = \Illuminate\Support\Facades\DB::connection();
+        if (! $jurnal && ! $copySource && $prefillJadwalId > 0) {
+            $db = DB::connection();
             $slot = $db->table('kelas_jadwal_mapel')
                 ->where('id_jadwal', $prefillJadwalId)
                 ->where('id_tp', $idTp)
                 ->where('id_smt', $idSmt)
                 ->first();
-            if ($slot && isset($assignedPairs[(int) $slot->id_kelas . ':' . (int) $slot->id_mapel])) {
+            if ($slot && isset($assignedPairs[(int) $slot->id_kelas.':'.(int) $slot->id_mapel])) {
                 $prefillJadwal = (int) $slot->id_jadwal;
                 $prefillJam = (string) ($slot->jam_ke ?? '');
-                if ($prefillKelas === 0) $prefillKelas = (int) $slot->id_kelas;
-                if ($prefillMapel === 0) $prefillMapel = (int) $slot->id_mapel;
+                if ($prefillKelas === 0) {
+                    $prefillKelas = (int) $slot->id_kelas;
+                }
+                if ($prefillMapel === 0) {
+                    $prefillMapel = (int) $slot->id_mapel;
+                }
             }
         }
 
         // Dimensi Profil Pancasila terpilih (centang awal saat edit/salin).
         $profilSource = $jurnal ?: $copySource;
         $selectedProfil = [];
-        if ($profilSource && !empty($profilSource->profil_pancasila)) {
+        if ($profilSource && ! empty($profilSource->profil_pancasila)) {
             $selectedProfil = json_decode((string) $profilSource->profil_pancasila, true) ?: [];
         }
 
         // Tombol "salin jurnal terakhir" hanya ditawarkan pada mode tulis baru.
-        $lastJurnal = (!$jurnal && !$copySource)
+        $lastJurnal = (! $jurnal && ! $copySource)
             ? $this->jurnalModel->jurnalTerakhir($idGuru, $idTp, $idSmt)
             : null;
 
         $mode = $jurnal ? 'Edit' : ($copySource ? 'Salin' : 'Tulis');
 
         $data = [
-            'title'    => $mode . ' Jurnal Mengajar',
-            'judul'    => $mode . ' Jurnal Mengajar',
+            'title' => $mode.' Jurnal Mengajar',
+            'judul' => $mode.' Jurnal Mengajar',
             'subjudul' => $copySource ? 'Salin dari jurnal sebelumnya' : 'Agenda Harian Pembelajaran',
-            'user'      => $tData['user'],
-            'guru'      => $guru,
-            'setting'   => $this->getSettingRow(),
+            'user' => $tData['user'],
+            'guru' => $guru,
+            'setting' => $this->getSettingRow(),
             'tp_active' => $tData['tp'],
             'smt_active' => $tData['smt'],
-            'jurnal'       => $jurnal,
-            'copy_source'  => $copySource,
+            'jurnal' => $jurnal,
+            'copy_source' => $copySource,
             'prefill_data' => $prefillData,
-            'last_jurnal'  => $lastJurnal,
+            'last_jurnal' => $lastJurnal,
             'jadwal_hari_ini' => $jadwalHariIni,
             'tanpa_penugasan' => empty($assignedPairs),
             'kelases' => $kelases,
-            'mapels'  => $mapels,
+            'mapels' => $mapels,
             'profil_options' => self::profilPancasilaOptions(),
-            'model_options'  => self::modelBelajarOptions(),
+            'model_options' => self::modelBelajarOptions(),
             'selected_profil' => $selectedProfil,
-            'prefill_kelas'  => $prefillKelas,
-            'prefill_mapel'  => $prefillMapel,
+            'prefill_kelas' => $prefillKelas,
+            'prefill_mapel' => $prefillMapel,
             'prefill_jadwal' => $prefillJadwal,
-            'prefill_jam'    => $prefillJam,
+            'prefill_jam' => $prefillJam,
             // Konteks kembali: tautan dari gerbang absen pulang mengirim
             // kembali=absen agar setelah simpan guru langsung ke halaman absen.
             'kembali' => $this->request->query('kembali') === 'absen' ? 'absen' : '',
-            'hideBottomNav' => true
+            'hideBottomNav' => true,
         ];
 
         return view('guru.jurnal.form', $data);
@@ -462,7 +490,7 @@ class JurnalController extends BaseController
     public function siswa($idKelas)
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) {
+        if (! $tData || ! $tData['user']) {
             return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
         }
 
@@ -470,21 +498,21 @@ class JurnalController extends BaseController
         $idTp = (int) ($tData['tp']->id_tp ?? 1);
         $idSmt = (int) ($tData['smt']->id_smt ?? 1);
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $kelas = $db->table('master_kelas')
             ->where('id_kelas', $idKelas)
             ->where('id_tp', $idTp)
             ->where('id_smt', $idSmt)
             ->first();
-        if (!$kelas) {
+        if (! $kelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif.']);
         }
 
         $rows = [];
-        foreach ((new SiswaPresensiModel())->getSiswaByKelas($idKelas, $idTp, $idSmt) as $s) {
+        foreach ((new SiswaPresensiModel)->getSiswaByKelas($idKelas, $idTp, $idSmt) as $s) {
             $rows[] = [
                 'id_siswa' => (int) $s->id_siswa,
-                'nama'     => (string) $s->nama,
+                'nama' => (string) $s->nama,
             ];
         }
 
@@ -502,22 +530,24 @@ class JurnalController extends BaseController
         if ($trimmed === '' || $trimmed === '[]') {
             return '';
         }
-        if (!str_starts_with($trimmed, '[')) {
+        if (! str_starts_with($trimmed, '[')) {
             return $trimmed; // teks bebas legacy dari form lama
         }
 
         $ids = json_decode($trimmed, true);
-        if (!is_array($ids)) {
+        if (! is_array($ids)) {
             return ''; // JSON rusak → kosongkan
         }
 
         $diKelas = [];
-        foreach ((new SiswaPresensiModel())->getSiswaByKelas($idKelas, $idTp, $idSmt) as $s) {
+        foreach ((new SiswaPresensiModel)->getSiswaByKelas($idKelas, $idTp, $idSmt) as $s) {
             $diKelas[(int) $s->id_siswa] = true;
         }
         $ids = array_values(array_filter(array_map('intval', $ids),
-            static fn($id): bool => isset($diKelas[$id])
-        ));        return !empty($ids) ? json_encode(array_values(array_unique($ids))) : '';
+            static fn ($id): bool => isset($diKelas[$id])
+        ));
+
+        return ! empty($ids) ? json_encode(array_values(array_unique($ids))) : '';
     }
 
     /* ==================================================================
@@ -527,26 +557,26 @@ class JurnalController extends BaseController
     /** Kumpulkan & bersihkan seluruh input POST sesuai struktur payload jurnal. */
     private function inputJurnal(): array
     {
-        $post = fn(string $name): string => trim((string) ($this->request->input($name) ?? ''));
+        $post = fn (string $name): string => trim((string) ($this->request->input($name) ?? ''));
 
         return [
-            'id_jurnal'            => (int) $this->request->input('id_jurnal'),
-            'tanggal'              => $post('tanggal'),
-            'id_kelas'             => (int) $this->request->input('id_kelas'),
-            'id_mapel'             => (int) $this->request->input('id_mapel'),
-            'jam_ke'               => $post('jam_ke'),
-            'id_jadwal'            => (int) $this->request->input('id_jadwal'),
-            'materi_pokok'         => $post('materi_pokok'),
-            'tujuan_pembelajaran'  => $post('tujuan_pembelajaran'),
-            'model_belajar'        => $post('model_belajar'),
-            'kegiatan_belajar'     => $post('kegiatan_belajar'),
-            'profil_pancasila'     => (array) $this->request->input('profil_pancasila'),
-            'jenis_asesmen'        => $post('jenis_asesmen'),
-            'refleksi'             => $post('refleksi'),
-            'media_alat'           => $post('media_alat'),
-            'siswa_absent'         => $post('siswa_absent'),
-            'tindak_lanjut'        => $post('tindak_lanjut'),
-            'catatan_khusus'       => $post('catatan_khusus'),
+            'id_jurnal' => (int) $this->request->input('id_jurnal'),
+            'tanggal' => $post('tanggal'),
+            'id_kelas' => (int) $this->request->input('id_kelas'),
+            'id_mapel' => (int) $this->request->input('id_mapel'),
+            'jam_ke' => $post('jam_ke'),
+            'id_jadwal' => (int) $this->request->input('id_jadwal'),
+            'materi_pokok' => $post('materi_pokok'),
+            'tujuan_pembelajaran' => $post('tujuan_pembelajaran'),
+            'model_belajar' => $post('model_belajar'),
+            'kegiatan_belajar' => $post('kegiatan_belajar'),
+            'profil_pancasila' => (array) $this->request->input('profil_pancasila'),
+            'jenis_asesmen' => $post('jenis_asesmen'),
+            'refleksi' => $post('refleksi'),
+            'media_alat' => $post('media_alat'),
+            'siswa_absent' => $post('siswa_absent'),
+            'tindak_lanjut' => $post('tindak_lanjut'),
+            'catatan_khusus' => $post('catatan_khusus'),
         ];
     }
 
@@ -562,7 +592,7 @@ class JurnalController extends BaseController
             return 'Tanggal jurnal wajib diisi.';
         }
         $d = \DateTimeImmutable::createFromFormat('!Y-m-d', $in['tanggal']);
-        if (!$d || $d->format('Y-m-d') !== $in['tanggal']) {
+        if (! $d || $d->format('Y-m-d') !== $in['tanggal']) {
             return 'Format tanggal tidak valid.';
         }
         if ($in['tanggal'] > date('Y-m-d')) {
@@ -570,7 +600,7 @@ class JurnalController extends BaseController
         }
 
         // ── Wajib.
-        if (!$in['id_kelas'] || !$in['id_mapel'] || $in['materi_pokok'] === '') {
+        if (! $in['id_kelas'] || ! $in['id_mapel'] || $in['materi_pokok'] === '') {
             return 'Harap lengkapi Kelas, Mata Pelajaran, dan Materi Pokok.';
         }
 
@@ -597,12 +627,13 @@ class JurnalController extends BaseController
     private function saringProfilPancasila(array $profil, ?object $existing): array
     {
         $allowedProfil = self::profilPancasilaOptions();
-        if ($existing && !empty($existing->profil_pancasila)) {
+        if ($existing && ! empty($existing->profil_pancasila)) {
             $legacyProfil = json_decode((string) $existing->profil_pancasila, true);
             if (is_array($legacyProfil)) {
                 $allowedProfil = array_values(array_unique(array_merge($allowedProfil, $legacyProfil)));
             }
         }
+
         return array_values(array_intersect($profil, $allowedProfil));
     }
 
@@ -612,17 +643,21 @@ class JurnalController extends BaseController
      */
     private function validasiRelasi(int $idKelas, int $idMapel, ?object $existing, int $ownerTp, int $ownerSmt): ?string
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $kelasBuilder = $db->table('master_kelas')->where('id_kelas', $idKelas);
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) $kelasBuilder->where('id_tp', $ownerTp);
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) $kelasBuilder->where('id_smt', $ownerSmt);
-        if (!$kelasBuilder->first() && !($existing && (int) $existing->id_kelas === $idKelas)) {
+        if (Schema::hasColumn('master_kelas', 'id_tp')) {
+            $kelasBuilder->where('id_tp', $ownerTp);
+        }
+        if (Schema::hasColumn('master_kelas', 'id_smt')) {
+            $kelasBuilder->where('id_smt', $ownerSmt);
+        }
+        if (! $kelasBuilder->first() && ! ($existing && (int) $existing->id_kelas === $idKelas)) {
             return 'Kelas yang dipilih tidak ditemukan pada tahun pelajaran jurnal.';
         }
 
         $mapel = $db->table('master_mapel')->where('id_mapel', $idMapel)->first();
-        if (!$mapel && !($existing && (int) $existing->id_mapel === $idMapel)) {
+        if (! $mapel && ! ($existing && (int) $existing->id_mapel === $idMapel)) {
             return 'Mata pelajaran yang dipilih tidak ditemukan.';
         }
 
@@ -632,12 +667,13 @@ class JurnalController extends BaseController
     /** Nama kelas & mapel untuk pesan kesalahan penugasan. */
     private function labelKelasMapel(int $idKelas, int $idMapel): string
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $kelas = $db->table('master_kelas')->where('id_kelas', $idKelas)->first();
         $mapel = $db->table('master_mapel')->where('id_mapel', $idMapel)->first();
-        $kelasLabel = trim((string) ($kelas->nama_kelas ?? ('Kelas #' . $idKelas)));
-        $mapelLabel = trim((string) ($mapel->nama_mapel ?? ('Mapel #' . $idMapel)));
-        return $kelasLabel . ' - ' . $mapelLabel;
+        $kelasLabel = trim((string) ($kelas->nama_kelas ?? ('Kelas #'.$idKelas)));
+        $mapelLabel = trim((string) ($mapel->nama_mapel ?? ('Mapel #'.$idMapel)));
+
+        return $kelasLabel.' - '.$mapelLabel;
     }
 
     /**
@@ -654,11 +690,11 @@ class JurnalController extends BaseController
             $hariTanggal = 1;
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $idJadwal = $in['id_jadwal'];
 
         if ($idJadwal > 0) {
-            $jadwalRow = \Illuminate\Support\Facades\Schema::hasTable('kelas_jadwal_mapel')
+            $jadwalRow = Schema::hasTable('kelas_jadwal_mapel')
                 ? $db->table('kelas_jadwal_mapel')->where('id_jadwal', $idJadwal)->first()
                 : null;
             $slotCocok = $jadwalRow
@@ -667,7 +703,7 @@ class JurnalController extends BaseController
                 && (int) ($jadwalRow->id_tp ?? 0) === $ownerTp
                 && (int) ($jadwalRow->id_smt ?? 0) === $ownerSmt
                 && (int) ($jadwalRow->id_hari ?? 0) === $hariTanggal;
-            if (!$slotCocok) {
+            if (! $slotCocok) {
                 $idJadwal = 0;
             }
         }
@@ -713,20 +749,21 @@ class JurnalController extends BaseController
     public function save()
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) {
+        if (! $tData || ! $tData['user']) {
             if ($this->request->ajax()) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
             }
+
             return redirect()->to('auth');
         }
 
-        if (!$tData['guru']) {
+        if (! $tData['guru']) {
             return $this->failSave('Profil Guru tidak ditemukan. Harap hubungi admin.');
         }
 
         $idGuru = (int) $tData['guru']->id_guru;
-        $idTp   = (int) ($tData['tp']->id_tp ?? 1);
-        $idSmt  = (int) ($tData['smt']->id_smt ?? 1);
+        $idTp = (int) ($tData['tp']->id_tp ?? 1);
+        $idSmt = (int) ($tData['smt']->id_smt ?? 1);
 
         $in = $this->inputJurnal();
 
@@ -739,7 +776,7 @@ class JurnalController extends BaseController
         $existing = null;
         if ($in['id_jurnal'] > 0) {
             $existing = $this->jurnalModel->find($in['id_jurnal']);
-            if (!$existing || ((int) $existing->id_guru !== $idGuru && session()->get('role') != '1')) {
+            if (! $existing || ((int) $existing->id_guru !== $idGuru && session()->get('role') != '1')) {
                 return $this->failSave('Akses ditolak untuk mengedit jurnal ini.');
             }
         }
@@ -765,9 +802,9 @@ class JurnalController extends BaseController
             && (int) $existing->id_kelas === $in['id_kelas']
             && (int) $existing->id_mapel === $in['id_mapel'];
         $pairs = $this->elearningModel->getGuruAssignedPairs($ownerGuruId, $ownerTp, $ownerSmt);
-        if (!$pairTetap && !isset($pairs[$in['id_kelas'] . ':' . $in['id_mapel']])) {
-            return $this->failSave('Anda tidak ditugaskan mengajar ' . $this->labelKelasMapel($in['id_kelas'], $in['id_mapel'])
-                . ' pada tahun pelajaran/semester jurnal ini. Pilih kelas dan mapel yang sesuai atau minta admin memperbarui penugasan.');
+        if (! $pairTetap && ! isset($pairs[$in['id_kelas'].':'.$in['id_mapel']])) {
+            return $this->failSave('Anda tidak ditugaskan mengajar '.$this->labelKelasMapel($in['id_kelas'], $in['id_mapel'])
+                .' pada tahun pelajaran/semester jurnal ini. Pilih kelas dan mapel yang sesuai atau minta admin memperbarui penugasan.');
         }
 
         // ── 7. Slot jadwal rujukan.
@@ -783,29 +820,29 @@ class JurnalController extends BaseController
             $in['id_jurnal']
         )) {
             return $this->failSave('Jurnal untuk kelas, mapel, dan jam tersebut pada tanggal '
-                . date('d/m/Y', strtotime($in['tanggal'])) . ' sudah ada.');
+                .date('d/m/Y', strtotime($in['tanggal'])).' sudah ada.');
         }
 
         $payload = [
-            'id_guru'              => $ownerGuruId,
-            'id_jadwal'            => $idJadwal ?: null,
-            'id_kelas'             => $in['id_kelas'],
-            'id_mapel'             => $in['id_mapel'],
-            'id_tp'                => $ownerTp,
-            'id_smt'               => $ownerSmt,
-            'tanggal'              => $in['tanggal'],
-            'jam_ke'               => $in['jam_ke'],
-            'materi_pokok'         => $in['materi_pokok'],
-            'tujuan_pembelajaran'  => $in['tujuan_pembelajaran'],
-            'model_belajar'        => $in['model_belajar'],
-            'kegiatan_belajar'     => $in['kegiatan_belajar'],
-            'profil_pancasila'     => !empty($profil) ? json_encode($profil) : null,
-            'jenis_asesmen'        => $in['jenis_asesmen'],
-            'refleksi'             => $in['refleksi'],
-            'media_alat'           => $in['media_alat'],
-            'siswa_absent'         => $in['siswa_absent'],
-            'tindak_lanjut'        => $in['tindak_lanjut'],
-            'catatan_khusus'       => $in['catatan_khusus'],
+            'id_guru' => $ownerGuruId,
+            'id_jadwal' => $idJadwal ?: null,
+            'id_kelas' => $in['id_kelas'],
+            'id_mapel' => $in['id_mapel'],
+            'id_tp' => $ownerTp,
+            'id_smt' => $ownerSmt,
+            'tanggal' => $in['tanggal'],
+            'jam_ke' => $in['jam_ke'],
+            'materi_pokok' => $in['materi_pokok'],
+            'tujuan_pembelajaran' => $in['tujuan_pembelajaran'],
+            'model_belajar' => $in['model_belajar'],
+            'kegiatan_belajar' => $in['kegiatan_belajar'],
+            'profil_pancasila' => ! empty($profil) ? json_encode($profil) : null,
+            'jenis_asesmen' => $in['jenis_asesmen'],
+            'refleksi' => $in['refleksi'],
+            'media_alat' => $in['media_alat'],
+            'siswa_absent' => $in['siswa_absent'],
+            'tindak_lanjut' => $in['tindak_lanjut'],
+            'catatan_khusus' => $in['catatan_khusus'],
         ];
 
         try {
@@ -852,16 +889,17 @@ class JurnalController extends BaseController
 
             if ($this->request->ajax()) {
                 return $this->response->setJSON([
-                    'status'    => true,
-                    'message'   => $msg,
+                    'status' => true,
+                    'message' => $msg,
                     'id_jurnal' => $idJurnal,
-                    'redirect'  => url($redirect['url'])
+                    'redirect' => url($redirect['url']),
                 ]);
             }
 
             return redirect()->to($redirect['url'])->with('success', $msg);
         } catch (\Throwable $e) {
-            Log::error('[guru/jurnal/save] ' . $e->getMessage());
+            Log::error('[guru/jurnal/save] '.$e->getMessage());
+
             return $this->failSave('Gagal menyimpan jurnal. Silakan coba lagi.');
         }
     }
@@ -878,12 +916,12 @@ class JurnalController extends BaseController
      *
      * Kegagalan kirim tidak boleh menggagalkan penyimpanan jurnal.
      *
-     * @param array{tanggal:string,jam_ke:string,id_kelas:int,id_mapel:int} $in
+     * @param  array{tanggal:string,jam_ke:string,id_kelas:int,id_mapel:int}  $in
      */
     private function kabariPiketValidasi(int $ownerGuruId, array $in, bool $validasiUlang): void
     {
         try {
-            if (!\App\Services\WajibJurnalPulangService::butuhValidasi(\App\Services\AttendancePolicy::setting())) {
+            if (! WajibJurnalPulangService::butuhValidasi(AttendancePolicy::setting())) {
                 return;
             }
 
@@ -892,23 +930,25 @@ class JurnalController extends BaseController
                 return;
             }
 
-            $akun = \App\Services\WajibJurnalPulangService::akunPetugasValidasi(date('Y-m-d'));
+            $akun = WajibJurnalPulangService::akunPetugasValidasi(date('Y-m-d'));
             if (empty($akun)) {
                 return;
             }
 
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $menunggu = (int) $db->table('guru_jurnal')
                 ->where('id_guru', $ownerGuruId)
                 ->where('tanggal', $tanggal)
-                ->where(function ($q) { $q->where('validasi_status', null)->$q->orWhere('validasi_status', '!=', JurnalGuruModel::VALIDASI_APPROVED); })
+                ->where(function ($q) {
+                    $q->where('validasi_status', null)->orWhere('validasi_status', '!=', JurnalGuruModel::VALIDASI_APPROVED);
+                })
                 ->count();
             if ($menunggu <= 0) {
                 return;
             }
 
             // Satu kabar per guru per tanggal per hari.
-            $kunci = 'jurnal-validasi-notif|' . $ownerGuruId . '|' . $tanggal . '|' . date('Y-m-d');
+            $kunci = 'jurnal-validasi-notif|'.$ownerGuruId.'|'.$tanggal.'|'.date('Y-m-d');
             if (cache($kunci) !== null) {
                 return;
             }
@@ -916,17 +956,17 @@ class JurnalController extends BaseController
             $guru = $db->table('master_guru')
                 ->select('nama_guru')->where('id_guru', $ownerGuruId)->first();
 
-            (new \App\Services\NotificationService())->notifyJurnalMenungguValidasi(
-                (string) ($guru->nama_guru ?? ('Guru #' . $ownerGuruId)),
+            (new NotificationService)->notifyJurnalMenungguValidasi(
+                (string) ($guru->nama_guru ?? ('Guru #'.$ownerGuruId)),
                 $tanggal,
                 $menunggu,
                 $akun,
                 $validasiUlang
             );
 
-            \Illuminate\Support\Facades\Cache::put($kunci, 1, max(60, strtotime(date('Y-m-d 23:59:59')) - time()));
+            Cache::put($kunci, 1, max(60, strtotime(date('Y-m-d 23:59:59')) - time()));
         } catch (\Throwable $e) {
-            Log::error('[guru/jurnal] notifikasi antrean validasi gagal: ' . $e->getMessage());
+            Log::error('[guru/jurnal] notifikasi antrean validasi gagal: '.$e->getMessage());
         }
     }
 
@@ -943,9 +983,9 @@ class JurnalController extends BaseController
 
         if ($after === 'again' && $idJurnal > 0 && $in['id_jurnal'] <= 0) {
             return [
-                'url'    => 'guru/jurnal/create?kelas=' . $in['id_kelas'] . '&mapel=' . $in['id_mapel'],
+                'url' => 'guru/jurnal/create?kelas='.$in['id_kelas'].'&mapel='.$in['id_mapel'],
                 'lanjut' => true,
-                'absen'  => false,
+                'absen' => false,
             ];
         }
         if ($kembaliAbsen) {
@@ -953,10 +993,10 @@ class JurnalController extends BaseController
         }
 
         return [
-            'url'    => 'guru/jurnal?bulan=' . date('m', strtotime($in['tanggal']))
-                . '&tahun=' . date('Y', strtotime($in['tanggal'])),
+            'url' => 'guru/jurnal?bulan='.date('m', strtotime($in['tanggal']))
+                .'&tahun='.date('Y', strtotime($in['tanggal'])),
             'lanjut' => false,
-            'absen'  => false,
+            'absen' => false,
         ];
     }
 
@@ -968,7 +1008,7 @@ class JurnalController extends BaseController
         }
 
         $idJurnal = (int) $this->request->input('id_jurnal');
-        $target = $idJurnal > 0 ? 'guru/jurnal/edit/' . $idJurnal : 'guru/jurnal/create';
+        $target = $idJurnal > 0 ? 'guru/jurnal/edit/'.$idJurnal : 'guru/jurnal/create';
         if ($this->request->input('kembali') === 'absen') {
             $target .= '?kembali=absen';
         }
@@ -986,51 +1026,55 @@ class JurnalController extends BaseController
     public function detail($id)
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) return redirect()->to('auth');
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
 
         $jurnal = $this->jurnalModel->getJurnalDetail((int) $id);
-        if (!$jurnal) {
+        if (! $jurnal) {
             if ($this->request->ajax()) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Jurnal tidak ditemukan']);
             }
+
             return redirect()->to('guru/jurnal')->with('error', 'Jurnal tidak ditemukan.');
         }
 
         $isOwner = $tData['guru'] && (int) $jurnal->id_guru === (int) $tData['guru']->id_guru;
-        if (!$isOwner && !$this->isAdmin()) {
+        if (! $isOwner && ! $this->isAdmin()) {
             if ($this->request->ajax()) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke jurnal ini']);
             }
+
             return redirect()->to('guru/jurnal')->with('error', 'Anda tidak memiliki akses ke jurnal ini.');
         }
 
         // Ringkasan siswa absen memakai parser yang sama dengan halaman riwayat,
         // sehingga JSON ID dan teks mentah tidak tampil polos di detail/modal.
-        $absenInfo = (new PiketModel())->infoAbsenJurnal($jurnal);
+        $absenInfo = (new PiketModel)->infoAbsenJurnal($jurnal);
         $absenJumlah = (int) ($absenInfo['jumlah'] ?? 0);
         $absenLabel = implode(', ', (array) ($absenInfo['nama'] ?? []));
 
         if ($this->request->ajax()) {
             return $this->response->setJSON([
-                'status'       => true,
-                'data'         => $jurnal,
-                'profil_list'  => !empty($jurnal->profil_pancasila) ? json_decode($jurnal->profil_pancasila, true) : [],
+                'status' => true,
+                'data' => $jurnal,
+                'profil_list' => ! empty($jurnal->profil_pancasila) ? json_decode($jurnal->profil_pancasila, true) : [],
                 'absen_jumlah' => $absenJumlah,
-                'absen_label'  => $absenLabel
+                'absen_label' => $absenLabel,
             ]);
         }
 
         $data = [
-            'title'    => 'Detail Jurnal Mengajar',
-            'judul'    => 'Detail Jurnal Mengajar',
+            'title' => 'Detail Jurnal Mengajar',
+            'judul' => 'Detail Jurnal Mengajar',
             'subjudul' => 'Informasi Pelaksanaan KBM',
-            'user'     => $tData['user'],
-            'guru'     => $tData['guru'],
-            'setting'  => $this->getSettingRow(),
-            'jurnal'   => $jurnal,
-            'profil_list' => !empty($jurnal->profil_pancasila) ? json_decode($jurnal->profil_pancasila, true) : [],
+            'user' => $tData['user'],
+            'guru' => $tData['guru'],
+            'setting' => $this->getSettingRow(),
+            'jurnal' => $jurnal,
+            'profil_list' => ! empty($jurnal->profil_pancasila) ? json_decode($jurnal->profil_pancasila, true) : [],
             'absen_jumlah' => $absenJumlah,
-            'absen_label'  => $absenLabel
+            'absen_label' => $absenLabel,
         ];
 
         return view('guru.jurnal.detail', $data);
@@ -1047,10 +1091,12 @@ class JurnalController extends BaseController
     public function delete($id)
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) return redirect()->to('auth');
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
 
         $jurnal = $this->jurnalModel->find((int) $id);
-        if (!$jurnal) {
+        if (! $jurnal) {
             return redirect()->to($this->journalIndexUrl())->with('error', 'Jurnal tidak ditemukan.');
         }
 
@@ -1061,10 +1107,11 @@ class JurnalController extends BaseController
 
         if (strtoupper(trim((string) ($jurnal->validasi_status ?? ''))) === JurnalGuruModel::VALIDASI_APPROVED) {
             return redirect()->to($this->journalIndexUrl())->with('error', 'Jurnal yang sudah divalidasi tidak bisa dihapus. '
-                . 'Sunting isinya bila ada yang perlu dikoreksi — jurnal akan masuk antrean validasi ulang dan setelah itu dapat dihapus.');
+                .'Sunting isinya bila ada yang perlu dikoreksi — jurnal akan masuk antrean validasi ulang dan setelah itu dapat dihapus.');
         }
 
         $this->jurnalModel->where('id', (int) $id)->delete();
+
         return redirect()->to($this->journalIndexUrl())->with('success', 'Jurnal mengajar berhasil dihapus.');
     }
 
@@ -1088,7 +1135,7 @@ class JurnalController extends BaseController
             $params['q'] = $q;
         }
 
-        return 'guru/jurnal?' . http_build_query($params);
+        return 'guru/jurnal?'.http_build_query($params);
     }
 
     /* ==================================================================
@@ -1101,10 +1148,12 @@ class JurnalController extends BaseController
     public function cetak($id = null)
     {
         $tData = $this->getTeacherData();
-        if (!$tData || !$tData['user']) return redirect()->to('auth');
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
 
         $guru = $tData['guru'];
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('dashboard')->with('error', 'Profil Guru tidak ditemukan.');
         }
 
@@ -1113,19 +1162,21 @@ class JurnalController extends BaseController
         if ((int) $id > 0) {
             // ── Cetak 1 jurnal.
             $jurnal = $this->jurnalModel->getJurnalDetail((int) $id);
-            if (!$jurnal) return redirect()->to('guru/jurnal')->with('error', 'Jurnal tidak ditemukan.');
+            if (! $jurnal) {
+                return redirect()->to('guru/jurnal')->with('error', 'Jurnal tidak ditemukan.');
+            }
 
             $isOwner = $guru && (int) $jurnal->id_guru === (int) $guru->id_guru;
-            if (!$isOwner && !$this->isAdmin() && !$this->isKepsek()) {
+            if (! $isOwner && ! $this->isAdmin() && ! $this->isKepsek()) {
                 return redirect()->to('guru/jurnal')->with('error', 'Anda tidak memiliki akses ke jurnal ini.');
             }
 
             $data = [
-                'setting'    => $setting,
-                'guru'       => $guru,
-                'jurnal'     => $jurnal,
-                'is_single'  => true,
-                'tp_active'  => $tData['tp'],
+                'setting' => $setting,
+                'guru' => $guru,
+                'jurnal' => $jurnal,
+                'is_single' => true,
+                'tp_active' => $tData['tp'],
                 'smt_active' => $tData['smt'],
             ];
         } else {
@@ -1142,13 +1193,13 @@ class JurnalController extends BaseController
             );
 
             $data = [
-                'setting'    => $setting,
-                'guru'       => $guru,
-                'jurnals'    => $jurnals,
-                'bulan'      => $f['bulan'],
-                'tahun'      => $f['tahun'],
-                'is_single'  => false,
-                'tp_active'  => $tData['tp'],
+                'setting' => $setting,
+                'guru' => $guru,
+                'jurnals' => $jurnals,
+                'bulan' => $f['bulan'],
+                'tahun' => $f['tahun'],
+                'is_single' => false,
+                'tp_active' => $tData['tp'],
                 'smt_active' => $tData['smt'],
             ];
         }

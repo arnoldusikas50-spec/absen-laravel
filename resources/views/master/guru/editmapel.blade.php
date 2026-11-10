@@ -126,9 +126,9 @@
 @section('scripts')
 <script>
 $(document).ready(function () {
-    const kelass = {{ json_encode($kelass) }};
-    const initialMapels = Array.isArray({{ json_encode($guru->mapel_kelas) }}) ? {{ json_encode($guru->mapel_kelas) }} : [];
-    const initialEkstras = Array.isArray({{ json_encode($guru->ekstra_kelas) }}) ? {{ json_encode($guru->ekstra_kelas) }} : [];
+    const kelass = {!! json_encode($kelass)!!};
+    const initialMapels = Array.isArray({!! json_encode($guru->mapel_kelas)!!}) ? {!! json_encode($guru->mapel_kelas)!!} : [];
+    const initialEkstras = Array.isArray({!! json_encode($guru->ekstra_kelas)!!}) ? {!! json_encode($guru->ekstra_kelas)!!} : [];
 
     // Key objek angka selalu dienumerasi naik oleh JavaScript, sehingga urutan
     // nama kelas dari server harus dipulihkan secara eksplisit.

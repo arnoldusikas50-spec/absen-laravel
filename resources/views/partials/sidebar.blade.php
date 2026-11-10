@@ -313,32 +313,31 @@ $userName      = !empty($user->nama_lengkap) ? $user->nama_lengkap : 'User';
 $userRoleName  = session('role_name') ?? 'Admin';
 
 // Badge notifikasi pending untuk menu verifikasi (khusus admin).
-// Dihitung sekali per request dengan COUNT ringan + guard tableExists agar
-// tidak mengganggu render bila tabel belum ada.
+// Dihitung sekali per request dengan COUNT ringan + guard Schema::hasTable
+// agar tidak mengganggu render bila tabel belum ada.
 $badgePending = ['izin' => 0, 'dinas' => 0, 'lembur' => 0, 'koreksi' => 0, 'wajah' => 0, 'verifikasi' => 0];
 if ($userRole == '1') {
     try {
-        $dbBadge = \Config\Database::connect();
-        if ($dbBadge->tableExists('absensi_izin')) {
-            $badgePending['izin'] = (int) $dbBadge->table('absensi_izin')
+        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+            $badgePending['izin'] = (int) \Illuminate\Support\Facades\DB::table('absensi_izin')
                 ->whereIn('status', \App\Models\LeaveModel::STATUS_PENDING)
-                ->countAllResults();
+                ->count();
         }
-        if ($dbBadge->tableExists('absensi_harian')) {
-            $badgePending['dinas'] = (int) $dbBadge->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->countAllResults();
-            $badgePending['verifikasi'] = (int) $dbBadge->table('absensi_harian')->where('status_masuk', 'PENDING_VERIFICATION')->countAllResults();
+        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            $badgePending['dinas'] = (int) \Illuminate\Support\Facades\DB::table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
+            $badgePending['verifikasi'] = (int) \Illuminate\Support\Facades\DB::table('absensi_harian')->where('status_masuk', 'PENDING_VERIFICATION')->count();
         }
-        if ($dbBadge->tableExists('presensi_lembur')) {
-            $badgePending['lembur'] = (int) $dbBadge->table('presensi_lembur')->where('status', 'PENDING')->countAllResults();
+        if (\Illuminate\Support\Facades\Schema::hasTable('presensi_lembur')) {
+            $badgePending['lembur'] = (int) \Illuminate\Support\Facades\DB::table('presensi_lembur')->where('status', 'PENDING')->count();
         }
-        if ($dbBadge->tableExists('absensi_koreksi')) {
-            $badgePending['koreksi'] = (int) $dbBadge->table('absensi_koreksi')->where('status', 'pending')->countAllResults();
+        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+            $badgePending['koreksi'] = (int) \Illuminate\Support\Facades\DB::table('absensi_koreksi')->where('status', 'pending')->count();
         }
-        if ($dbBadge->tableExists('face_registration_requests')) {
-            $badgePending['wajah'] = (int) $dbBadge->table('face_registration_requests')->where('status', 'pending')->countAllResults();
+        if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+            $badgePending['wajah'] = (int) \Illuminate\Support\Facades\DB::table('face_registration_requests')->where('status', 'pending')->count();
         }
     } catch (\Throwable $e) {
-        log_message('error', '[sidebar badge] ' . $e->getMessage());
+        \Illuminate\Support\Facades\Log::error('[sidebar badge] ' . $e->getMessage());
     }
 }
 $badgeByLink = [

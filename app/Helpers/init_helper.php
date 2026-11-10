@@ -8,10 +8,11 @@
  * diganti DB/Schema facade; service('session') diganti helper session().
  */
 
+use App\Models\DashboardModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-if (!function_exists('database_connected')) {
+if (! function_exists('database_connected')) {
     /**
      * Check if database is connected
      */
@@ -19,14 +20,15 @@ if (!function_exists('database_connected')) {
     {
         try {
             DB::connection()->getPdo();
+
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
 }
 
-if (!function_exists('is_database_empty')) {
+if (! function_exists('is_database_empty')) {
     /**
      * Check if database has required tables
      */
@@ -36,19 +38,19 @@ if (!function_exists('is_database_empty')) {
             $requiredTables = ['users', 'setting', 'groups'];
 
             foreach ($requiredTables as $table) {
-                if (!Schema::hasTable($table)) {
+                if (! Schema::hasTable($table)) {
                     return true;
                 }
             }
 
             return false;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return true;
         }
     }
 }
 
-if (!function_exists('is_setting_empty')) {
+if (! function_exists('is_setting_empty')) {
     /**
      * Check if settings table has data
      */
@@ -56,13 +58,13 @@ if (!function_exists('is_setting_empty')) {
     {
         try {
             return DB::table('setting')->count() === 0;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return true;
         }
     }
 }
 
-if (!function_exists('get_setting')) {
+if (! function_exists('get_setting')) {
     /**
      * Get application settings
      */
@@ -70,61 +72,120 @@ if (!function_exists('get_setting')) {
     {
         try {
             return DB::table('setting')->first();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
 }
 
-if (!function_exists('tp_aktif')) {
+if (! function_exists('uri_string')) {
+    /**
+     * CI4 uri_string() — path request saat ini tanpa query string,
+     * dipakai view porting untuk mencocokkan menu aktif.
+     */
+    function uri_string(): string
+    {
+        return request()->path();
+    }
+}
+
+if (! function_exists('esc')) {
+    /**
+     * Port helper esc() CodeIgniter 4 → Laravel.
+     *
+     * Banyak view hasil porting masih memanggil esc(). Laravel tidak
+     * menyediakan helper tersebut sehingga halaman gagal dirender dengan
+     * "Call to undefined function esc()". Implementasi ini mengikuti
+     * kontrak CI4: html, attr, js, css, dan url.
+     *
+     * @param  mixed  $data
+     */
+    function esc($data, string $context = 'html', ?string $encoding = null): string
+    {
+        if (is_array($data) || is_object($data)) {
+            return '';
+        }
+
+        $data = (string) $data;
+        $encoding = $encoding ?? 'UTF-8';
+
+        switch ($context) {
+            case 'js':
+                return substr(
+                    json_encode(
+                        $data,
+                        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
+                    ),
+                    1,
+                    -1
+                );
+
+            case 'css':
+                return preg_replace('/([^a-zA-Z0-9\-.])/', '\\\\$1', $data) ?? '';
+
+            case 'url':
+                return rawurlencode($data);
+
+            case 'attr':
+            case 'html':
+            default:
+                return htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, $encoding, true);
+        }
+    }
+}
+
+if (! function_exists('tp_aktif')) {
     /**
      * Get active tahun pelajaran
      */
     function tp_aktif(): ?int
     {
         $setting = get_setting();
+
         return $setting ? (int) $setting->tp_aktif : null;
     }
 }
 
-if (!function_exists('smt_aktif')) {
+if (! function_exists('smt_aktif')) {
     /**
      * Get active semester
      */
     function smt_aktif(): ?int
     {
         $setting = get_setting();
+
         return $setting ? (int) $setting->smt_aktif : null;
     }
 }
 
-if (!function_exists('singkat_tanggal')) {
+if (! function_exists('singkat_tanggal')) {
     function singkat_tanggal($str)
     {
-        $str = str_replace("Jan", "Jan", $str);
-        $str = str_replace("Feb", "Feb", $str);
-        $str = str_replace("Mar", "Mar", $str);
-        $str = str_replace("Apr", "Apr", $str);
-        $str = str_replace("May", "Mei", $str);
-        $str = str_replace("Jun", "Jun", $str);
-        $str = str_replace("Jul", "Jul", $str);
-        $str = str_replace("Aug", "Agt", $str);
-        $str = str_replace("Sep", "Sep", $str);
-        $str = str_replace("Oct", "Okt", $str);
-        $str = str_replace("Nov", "Nov", $str);
-        $str = str_replace("Dec", "Des", $str);
-        $str = str_replace("Mon", "Senin", $str);
-        $str = str_replace("Tue", "Selasa", $str);
-        $str = str_replace("Wed", "Rabu", $str);
-        $str = str_replace("Thu", "Kamis", $str);
-        $str = str_replace("Fri", "Jumat", $str);
-        $str = str_replace("Sat", "Sabtu", $str);
-        $str = str_replace("Sun", "Minggu", $str);
+        $str = str_replace('Jan', 'Jan', $str);
+        $str = str_replace('Feb', 'Feb', $str);
+        $str = str_replace('Mar', 'Mar', $str);
+        $str = str_replace('Apr', 'Apr', $str);
+        $str = str_replace('May', 'Mei', $str);
+        $str = str_replace('Jun', 'Jun', $str);
+        $str = str_replace('Jul', 'Jul', $str);
+        $str = str_replace('Aug', 'Agt', $str);
+        $str = str_replace('Sep', 'Sep', $str);
+        $str = str_replace('Oct', 'Okt', $str);
+        $str = str_replace('Nov', 'Nov', $str);
+        $str = str_replace('Dec', 'Des', $str);
+        $str = str_replace('Mon', 'Senin', $str);
+        $str = str_replace('Tue', 'Selasa', $str);
+        $str = str_replace('Wed', 'Rabu', $str);
+        $str = str_replace('Thu', 'Kamis', $str);
+        $str = str_replace('Fri', 'Jumat', $str);
+        $str = str_replace('Sat', 'Sabtu', $str);
+        $str = str_replace('Sun', 'Minggu', $str);
+
         return $str;
     }
 }
 
-if (!function_exists('buat_tanggal')) {
+if (! function_exists('buat_tanggal')) {
     /**
      * Convert English date format to Indonesian
      * Translates day names (Mon, Tue, etc.) and month names (Jan, Feb, etc.)
@@ -133,54 +194,54 @@ if (!function_exists('buat_tanggal')) {
     function buat_tanggal($str)
     {
         // Translate months
-        $str = str_replace("January", "Januari", $str);
-        $str = str_replace("February", "Februari", $str);
-        $str = str_replace("March", "Maret", $str);
-        $str = str_replace("April", "April", $str);
-        $str = str_replace("May", "Mei", $str);
-        $str = str_replace("June", "Juni", $str);
-        $str = str_replace("July", "Juli", $str);
-        $str = str_replace("August", "Agustus", $str);
-        $str = str_replace("September", "September", $str);
-        $str = str_replace("October", "Oktober", $str);
-        $str = str_replace("November", "November", $str);
-        $str = str_replace("December", "Desember", $str);
+        $str = str_replace('January', 'Januari', $str);
+        $str = str_replace('February', 'Februari', $str);
+        $str = str_replace('March', 'Maret', $str);
+        $str = str_replace('April', 'April', $str);
+        $str = str_replace('May', 'Mei', $str);
+        $str = str_replace('June', 'Juni', $str);
+        $str = str_replace('July', 'Juli', $str);
+        $str = str_replace('August', 'Agustus', $str);
+        $str = str_replace('September', 'September', $str);
+        $str = str_replace('October', 'Oktober', $str);
+        $str = str_replace('November', 'November', $str);
+        $str = str_replace('December', 'Desember', $str);
 
         // Translate short months
-        $str = str_replace("Jan", "Jan", $str);
-        $str = str_replace("Feb", "Feb", $str);
-        $str = str_replace("Mar", "Mar", $str);
-        $str = str_replace("Apr", "Apr", $str);
-        $str = str_replace("Jun", "Jun", $str);
-        $str = str_replace("Jul", "Jul", $str);
-        $str = str_replace("Aug", "Agt", $str);
-        $str = str_replace("Sep", "Sep", $str);
-        $str = str_replace("Oct", "Okt", $str);
-        $str = str_replace("Nov", "Nov", $str);
-        $str = str_replace("Dec", "Des", $str);
+        $str = str_replace('Jan', 'Jan', $str);
+        $str = str_replace('Feb', 'Feb', $str);
+        $str = str_replace('Mar', 'Mar', $str);
+        $str = str_replace('Apr', 'Apr', $str);
+        $str = str_replace('Jun', 'Jun', $str);
+        $str = str_replace('Jul', 'Jul', $str);
+        $str = str_replace('Aug', 'Agt', $str);
+        $str = str_replace('Sep', 'Sep', $str);
+        $str = str_replace('Oct', 'Okt', $str);
+        $str = str_replace('Nov', 'Nov', $str);
+        $str = str_replace('Dec', 'Des', $str);
 
         // Translate days
-        $str = str_replace("Monday", "Senin", $str);
-        $str = str_replace("Tuesday", "Selasa", $str);
-        $str = str_replace("Wednesday", "Rabu", $str);
-        $str = str_replace("Thursday", "Kamis", $str);
-        $str = str_replace("Friday", "Jumat", $str);
-        $str = str_replace("Saturday", "Sabtu", $str);
-        $str = str_replace("Sunday", "Minggu", $str);
+        $str = str_replace('Monday', 'Senin', $str);
+        $str = str_replace('Tuesday', 'Selasa', $str);
+        $str = str_replace('Wednesday', 'Rabu', $str);
+        $str = str_replace('Thursday', 'Kamis', $str);
+        $str = str_replace('Friday', 'Jumat', $str);
+        $str = str_replace('Saturday', 'Sabtu', $str);
+        $str = str_replace('Sunday', 'Minggu', $str);
 
         // Translate short days
-        $str = str_replace("Mon", "Sen", $str);
-        $str = str_replace("Tue", "Sel", $str);
-        $str = str_replace("Wed", "Rab", $str);
-        $str = str_replace("Thu", "Kam", $str);
-        $str = str_replace("Fri", "Jum", $str);
-        $str = str_replace("Sat", "Sab", $str);
-        $str = str_replace("Sun", "Min", $str);
+        $str = str_replace('Mon', 'Sen', $str);
+        $str = str_replace('Tue', 'Sel', $str);
+        $str = str_replace('Wed', 'Rab', $str);
+        $str = str_replace('Thu', 'Kam', $str);
+        $str = str_replace('Fri', 'Jum', $str);
+        $str = str_replace('Sat', 'Sab', $str);
+        $str = str_replace('Sun', 'Min', $str);
 
         return $str;
     }
 }
-if (!function_exists('maybe_unserialize')) {
+if (! function_exists('maybe_unserialize')) {
     function maybe_unserialize($original)
     {
         if (is_string($original)) {
@@ -196,11 +257,12 @@ if (!function_exists('maybe_unserialize')) {
                 return $data;
             }
         }
+
         return $original;
     }
 }
 
-if (!function_exists('is_kepsek')) {
+if (! function_exists('is_kepsek')) {
     /**
      * Deteksi akun Kepala Sekolah. Sumber berlapis mengikuti
      * PresensiSiswaQr::isKepalaSekolah agar hak akses konsisten:
@@ -226,12 +288,13 @@ if (!function_exists('is_kepsek')) {
 
         try {
             DB::connection()->getPdo();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return $cache[$userId] = false;
         }
 
         $containsKepsek = static function (?string $v): bool {
             $v = strtolower(trim((string) $v));
+
             return $v !== '' && (str_contains($v, 'kepala sekolah') || str_contains($v, 'kepsek'));
         };
 
@@ -243,7 +306,7 @@ if (!function_exists('is_kepsek')) {
                     return $cache[$userId] = true;
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
 
         // 2. master_guru.tugas_tambahan / tgs_tambahan
@@ -264,12 +327,12 @@ if (!function_exists('is_kepsek')) {
                     }
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
 
         // 3. Jabatan struktural (id_jabatan = 1 atau level mengandung kepsek)
         try {
-            if (Schema::hasTable('jabatan_guru') && $guruRow && !empty($guruRow->id_guru)) {
+            if (Schema::hasTable('jabatan_guru') && $guruRow && ! empty($guruRow->id_guru)) {
                 $jg = DB::table('jabatan_guru')->select('id_jabatan')
                     ->where('id_guru', (int) $guruRow->id_guru)->get();
                 foreach ($jg as $r) {
@@ -289,13 +352,13 @@ if (!function_exists('is_kepsek')) {
                     return $cache[$userId] = true;
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
 
         // 4. Kecocokan nama / NIP dengan profil sekolah
         try {
             if ($guruRow) {
-                $setting = (new \App\Models\DashboardModel())->getSetting();
+                $setting = (new DashboardModel)->getSetting();
                 $kepsekNama = strtolower(trim((string) ($setting->kepsek ?? '')));
                 $kepsekNip = trim((string) ($setting->nip ?? ''));
                 $namaGuru = strtolower(trim((string) ($guruRow->nama_guru ?? '')));
@@ -308,7 +371,7 @@ if (!function_exists('is_kepsek')) {
                     return $cache[$userId] = true;
                 }
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
         }
 
         return $cache[$userId] = false;

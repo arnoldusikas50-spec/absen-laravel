@@ -255,7 +255,7 @@
     
     // Monthly labels in order
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const stats = {{ json_encode($monthly_stats) }};
+    const stats = {!! json_encode($monthly_stats)!!};
     
     const data = months.map(m => stats[m] ? stats[m].points : 0);
 

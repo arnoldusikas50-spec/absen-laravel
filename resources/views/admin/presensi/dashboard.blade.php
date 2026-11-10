@@ -285,7 +285,7 @@
         };
 
         // Late Trend Chart
-        const lateTrendData = {{ json_encode($lateTrend) }};
+        const lateTrendData = {!! json_encode($lateTrend)!!};
         const lateTrendCtx = document.getElementById('lateTrendChart').getContext('2d');
         new Chart(lateTrendCtx, {
             type: 'line',
@@ -320,7 +320,7 @@
         });
 
         // Comparison Chart
-        const comparisonData = {{ json_encode($comparison) }};
+        const comparisonData = {!! json_encode($comparison)!!};
         const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
         new Chart(comparisonCtx, {
             type: 'bar',

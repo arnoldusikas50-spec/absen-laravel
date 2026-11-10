@@ -698,7 +698,7 @@ $(function () {
 
     if (!$input.length || !$btn.length) return;
 
-    var expected = {{ json_encode($namaGuru, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) }};
+    var expected = {!! json_encode($namaGuru, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
     var originalHtml = $btn.html();
     var submitting = false;
 

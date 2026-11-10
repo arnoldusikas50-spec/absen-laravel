@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\ElearningModel;
@@ -13,22 +9,28 @@ use App\Models\JurnalGuruModel;
 use App\Models\PiketModel;
 use App\Services\AttendancePolicy;
 use App\Services\WajibJurnalPulangService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class JurnalController extends BaseController
 {
     protected $dashboardModel;
+
     protected $elearningModel;
+
     protected $jurnalModel;
+
     protected $piketModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->elearningModel = new ElearningModel();
-        $this->jurnalModel = new JurnalGuruModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->elearningModel = new ElearningModel;
+        $this->jurnalModel = new JurnalGuruModel;
         $this->jurnalModel->initialize();
-        $this->piketModel = new PiketModel();
+        $this->piketModel = new PiketModel;
     }
 
     /** Admin, panitia/pengawas, dan kepala sekolah boleh memantau jurnal. */
@@ -43,13 +45,15 @@ class JurnalController extends BaseController
     public function index()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idTp = (int) ($tp->id_tp ?? 1);
         $idSmt = (int) ($smt->id_smt ?? 1);
 
@@ -64,21 +68,21 @@ class JurnalController extends BaseController
 
         // Ambil daftar guru, kelas, dan mapel untuk filter. Opsi kelas mengikuti
         // TP/SMT aktif agar kelas tahun lalu tidak muncul.
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $gurus = $db->table('master_guru')->orderBy('nama_guru', 'ASC')->get();
-        $kelasBuilder = $db->table('master_kelas')->select('id_kelas, nama_kelas');
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) {
+        $kelasBuilder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
+        if (Schema::hasColumn('master_kelas', 'id_tp')) {
             $kelasBuilder->where('id_tp', $idTp);
         }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) {
+        if (Schema::hasColumn('master_kelas', 'id_smt')) {
             $kelasBuilder->where('id_smt', $idSmt);
         }
         $kelases = $kelasBuilder->orderBy('nama_kelas', 'ASC')->get();
         if (empty($kelases)) {
-            $kelases = $db->table('master_kelas')->select('id_kelas, nama_kelas')
+            $kelases = $db->table('master_kelas')->select('id_kelas', 'nama_kelas')
                 ->orderBy('nama_kelas', 'ASC')->get();
         }
-        $mapels = $db->table('master_mapel')->select('id_mapel, nama_mapel')
+        $mapels = $db->table('master_mapel')->select('id_mapel', 'nama_mapel')
             ->orderBy('nama_mapel', 'ASC')->get();
 
         // Ringkasan sesi terpilih.
@@ -105,9 +109,9 @@ class JurnalController extends BaseController
         $guruHadirList = [];
         foreach ($presensiRows as $ph) {
             $gid = (int) $ph->id_guru;
-            $guruHadirMap[$ph->tgl . '|' . $gid] = $ph;
+            $guruHadirMap[$ph->tgl.'|'.$gid] = $ph;
 
-            if (!$modeBulanan && $this->hasCheckIn($ph) && $gid > 0 && !isset($guruHadirList[$gid])) {
+            if (! $modeBulanan && $this->hasCheckIn($ph) && $gid > 0 && ! isset($guruHadirList[$gid])) {
                 $guruHadirList[$gid] = $ph;
             }
         }
@@ -131,7 +135,7 @@ class JurnalController extends BaseController
         // memenuhi kewajiban — angka monitoring harus sama dengan gerbang
         // absen pulang guru, tidak boleh lebih optimis.
         $modeKetat = $kolomValidasi && WajibJurnalPulangService::butuhValidasi(AttendancePolicy::setting());
-        if (!$modeBulanan) {
+        if (! $modeBulanan) {
             $scheduledSessions = $this->scheduledSessions($idTp, $idSmt, $p);
             $totalTerjadwal = count($scheduledSessions);
             foreach ($scheduledSessions as $sesi) {
@@ -139,25 +143,28 @@ class JurnalController extends BaseController
                 if ($gid > 0) {
                     $guruWajibJurnal[$gid] = true;
                 }
-                if (!empty($sesi['terisi'])) {
-                    $menunggu = $modeKetat && !empty($sesi['menunggu_validasi']);
-                    if (!$menunggu) {
+                if (! empty($sesi['terisi'])) {
+                    $menunggu = $modeKetat && ! empty($sesi['menunggu_validasi']);
+                    if (! $menunggu) {
                         $totalTerjadwalSudah++;
                         if ($gid > 0) {
                             $guruSudahJurnal[$gid] = true;
                         }
+
                         continue;
                     }
 
                     $totalTerjadwalMenunggu++;
-                    $berjalan = !empty($sesi['berjalan']);
+                    $berjalan = ! empty($sesi['berjalan']);
                     if ($gid > 0 && $berjalan) {
                         $sesiBelumPerGuru[$gid][] = $this->sesiBelumLabel($sesi);
                     }
+
                     continue;
                 }
                 if (empty($sesi['berjalan'])) {
                     $totalTerjadwalAkan++;
+
                     continue;
                 }
 
@@ -176,15 +183,15 @@ class JurnalController extends BaseController
         $guruBelumJurnal = [];
         $totalGuruHadirBerjadwal = 0;
         $totalGuruSudahJurnal = count($guruSudahJurnal);
-        if (!$modeBulanan) {
+        if (! $modeBulanan) {
             foreach ($guruHadirList as $gid => $ph) {
                 // Tanpa jadwal pada tanggal ini, guru tidak diwajibkan menulis
                 // jurnal — sekalipun ia tercatat hadir.
-                if (!isset($guruWajibJurnal[$gid])) {
+                if (! isset($guruWajibJurnal[$gid])) {
                     continue;
                 }
                 $totalGuruHadirBerjadwal++;
-                if (!empty($sesiBelumPerGuru[$gid])) {
+                if (! empty($sesiBelumPerGuru[$gid])) {
                     $guruBelumJurnal[] = $ph;
                 }
             }
@@ -217,7 +224,7 @@ class JurnalController extends BaseController
             $totalGuruWajibJurnal = count($wajibBulanan);
             $totalGuruSudahJurnal = count(array_filter(
                 $wajibBulanan,
-                static fn(int $gid): bool => isset($penulisBulanan[$gid])
+                static fn (int $gid): bool => isset($penulisBulanan[$gid])
             ));
             $totalBelumJurnal = max(0, $totalGuruWajibJurnal - $totalGuruSudahJurnal);
         } else {
@@ -227,7 +234,7 @@ class JurnalController extends BaseController
         // Backlog validasi pada periode + filter yang sama, dihitung tanpa
         // saring status agar angkanya tidak berubah saat layar disaring.
         $validasiStats = $this->validasiCounts($idTp, $idSmt, $p);
-        $petugasValidasi = ($modeKetat && !$modeBulanan && $p['tanggal'] !== '')
+        $petugasValidasi = ($modeKetat && ! $modeBulanan && $p['tanggal'] !== '')
             ? WajibJurnalPulangService::petugasValidasi($p['tanggal'], $db)
             : [];
 
@@ -297,25 +304,33 @@ class JurnalController extends BaseController
     private function scheduledSessions(int $idTp, int $idSmt, array $p): array
     {
         $tanggal = (string) ($p['tanggal'] ?? '');
-        if ($tanggal === '') return [];
+        if ($tanggal === '') {
+            return [];
+        }
 
         $weekday = (int) date('N', strtotime($tanggal));
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $builder = $db->table('kelas_jadwal_mapel as jm')
-            ->select('jm.id_jadwal, jm.id_kelas, jm.id_mapel, jm.jam_ke, jm.dari, jm.sampai, k.nama_kelas, m.nama_mapel')
-            ->join('master_kelas as k', 'k.id_kelas = jm.id_kelas', 'left')
-            ->join('master_mapel as m', 'm.id_mapel = jm.id_mapel', 'left')
+            ->select('jm.id_jadwal', 'jm.id_kelas', 'jm.id_mapel', 'jm.jam_ke', 'jm.dari', 'jm.sampai', 'k.nama_kelas', 'm.nama_mapel')
+            ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'jm.id_kelas')
+            ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'jm.id_mapel')
             ->where('jm.id_tp', $idTp)
             ->where('jm.id_smt', $idSmt)
             ->where('jm.id_hari', $weekday)
             ->where('jm.id_mapel', '>', 0);
 
-        if (!empty($p['id_kelas'])) $builder->where('jm.id_kelas', (int) $p['id_kelas']);
-        if (!empty($p['id_mapel'])) $builder->where('jm.id_mapel', (int) $p['id_mapel']);
+        if (! empty($p['id_kelas'])) {
+            $builder->where('jm.id_kelas', (int) $p['id_kelas']);
+        }
+        if (! empty($p['id_mapel'])) {
+            $builder->where('jm.id_mapel', (int) $p['id_mapel']);
+        }
 
         $rows = $builder->orderBy('jm.dari', 'ASC')->get();
-        if (empty($rows)) return [];
+        if (empty($rows)) {
+            return [];
+        }
 
         $assignments = $this->elearningModel->getGuruAssignmentMap($idTp, $idSmt);
 
@@ -326,8 +341,8 @@ class JurnalController extends BaseController
         $kolomValidasi = $this->adaKolomValidasi();
         foreach ($db->table('guru_jurnal')
             ->select($kolomValidasi
-                ? 'id_guru, id_jurnal, id_jadwal, id_kelas, id_mapel, jam_ke, validasi_status'
-                : 'id_guru, id_jurnal, id_jadwal, id_kelas, id_mapel, jam_ke')
+                ? ['id_guru', 'id_jurnal', 'id_jadwal', 'id_kelas', 'id_mapel', 'jam_ke', 'validasi_status']
+                : ['id_guru', 'id_jurnal', 'id_jadwal', 'id_kelas', 'id_mapel', 'jam_ke'])
             ->where('id_tp', $idTp)
             ->where('id_smt', $idSmt)
             ->where('tanggal', $tanggal)
@@ -345,7 +360,7 @@ class JurnalController extends BaseController
         $namaByGuru = [];
 
         foreach ($rows as $row) {
-            $key = (int) $row->id_kelas . ':' . (int) $row->id_mapel;
+            $key = (int) $row->id_kelas.':'.(int) $row->id_mapel;
             $teachers = $assignments[$key] ?? [];
 
             $base = [
@@ -369,12 +384,15 @@ class JurnalController extends BaseController
                 // Slot tanpa guru pengampu tidak pernah bisa dijurnal; tetap
                 // ditampilkan agar admin bisa melengkapi penugasannya.
                 $tanpaGuru[] = $base;
+
                 continue;
             }
 
             foreach ($teachers as $idGuru => $namaGuru) {
                 $idGuru = (int) $idGuru;
-                if (!empty($p['id_guru']) && $idGuru !== (int) $p['id_guru']) continue;
+                if (! empty($p['id_guru']) && $idGuru !== (int) $p['id_guru']) {
+                    continue;
+                }
 
                 $namaByGuru[$idGuru] = (string) $namaGuru;
                 $slotsByGuru[$idGuru][] = (object) [
@@ -397,7 +415,7 @@ class JurnalController extends BaseController
                 $dari = (string) ($slot->dari ?? '');
                 $sampai = (string) ($slot->sampai ?? '');
                 $validasi = (string) ($validasiByJurnal[(int) ($row['id_jurnal'] ?? 0)] ?? '');
-                $terisi = !empty($row['sudah_dijurnal']);
+                $terisi = ! empty($row['sudah_dijurnal']);
 
                 $sessions[] = [
                     'id_jadwal' => (int) ($slot->id_jadwal ?? 0),
@@ -426,8 +444,8 @@ class JurnalController extends BaseController
 
         usort($sessions, static function ($a, $b) {
             return strcmp(
-                $a['dari'] . $a['nama_kelas'] . sprintf('%02d', $a['jam_ke']),
-                $b['dari'] . $b['nama_kelas'] . sprintf('%02d', $b['jam_ke'])
+                $a['dari'].$a['nama_kelas'].sprintf('%02d', $a['jam_ke']),
+                $b['dari'].$b['nama_kelas'].sprintf('%02d', $b['jam_ke'])
             );
         });
 
@@ -449,7 +467,7 @@ class JurnalController extends BaseController
             'nama_mapel' => (string) ($sesi['nama_mapel'] ?? ''),
             'id_jurnal' => (int) ($sesi['id_jurnal'] ?? 0),
             'validasi_status' => (string) ($sesi['validasi_status'] ?? ''),
-            'menunggu_validasi' => !empty($sesi['menunggu_validasi']),
+            'menunggu_validasi' => ! empty($sesi['menunggu_validasi']),
         ];
     }
 
@@ -461,12 +479,18 @@ class JurnalController extends BaseController
     private function sesiSudahMulai(string $tanggal, string $dari, string $sampai): bool
     {
         $hariIni = date('Y-m-d');
-        if ($tanggal < $hariIni) return true;
-        if ($tanggal > $hariIni) return false;
+        if ($tanggal < $hariIni) {
+            return true;
+        }
+        if ($tanggal > $hariIni) {
+            return false;
+        }
 
         // Slot tanpa jam mulai dan jam selesai tidak bisa dinilai sudah lewat;
         // gerbang absen pulang guru juga tidak menahannya.
-        if ($dari === '' && $sampai === '') return false;
+        if ($dari === '' && $sampai === '') {
+            return false;
+        }
 
         $sekarang = date('H:i');
         if ($dari !== '') {
@@ -501,9 +525,9 @@ class JurnalController extends BaseController
             return $out;
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $slots = $db->table('kelas_jadwal_mapel')
-            ->select('id_hari, id_kelas, id_mapel')
+            ->select('id_hari', 'id_kelas', 'id_mapel')
             ->where('id_tp', $idTp)
             ->where('id_smt', $idSmt)
             ->where('id_mapel', '>', 0)
@@ -515,9 +539,11 @@ class JurnalController extends BaseController
         $assignmentMap = $this->elearningModel->getGuruAssignmentMap($idTp, $idSmt);
         foreach ($slots as $slot) {
             $mult = $dayCounts[(int) $slot->id_hari] ?? 0;
-            if ($mult <= 0) continue;
+            if ($mult <= 0) {
+                continue;
+            }
 
-            $teachers = $assignmentMap[(int) $slot->id_kelas . ':' . (int) $slot->id_mapel] ?? [];
+            $teachers = $assignmentMap[(int) $slot->id_kelas.':'.(int) $slot->id_mapel] ?? [];
             foreach (array_keys($teachers) as $idGuru) {
                 $out['per_guru'][(int) $idGuru] = ($out['per_guru'][(int) $idGuru] ?? 0) + $mult;
                 $out['total'] += $mult;
@@ -549,7 +575,7 @@ class JurnalController extends BaseController
         }
 
         $validasi = strtoupper(trim((string) ($this->request->query('validasi') ?? '')));
-        if (!in_array($validasi, JurnalGuruModel::validasiStatusList(), true)) {
+        if (! in_array($validasi, JurnalGuruModel::validasiStatusList(), true)) {
             $validasi = '';
         }
 
@@ -571,7 +597,7 @@ class JurnalController extends BaseController
         static $ada = null;
         if ($ada === null) {
             try {
-                $ada = \Illuminate\Support\Facades\DB::connection()->fieldExists('validasi_status', 'guru_jurnal');
+                $ada = Schema::hasColumn('guru_jurnal', 'validasi_status');
             } catch (\Throwable $e) {
                 $ada = false;
             }
@@ -592,16 +618,16 @@ class JurnalController extends BaseController
 
     private function monitoringBuilder(int $idTp, int $idSmt, array $p, bool $saringValidasi = true)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $builder = $db->table('guru_jurnal as j')
             ->select('j.*')
-            ->select('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru', false)
+            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru')
             ->select('g.nip')
-            ->select('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas', false)
-            ->select('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel', false)
-            ->join('master_guru as g', 'g.id_guru = j.id_guru', 'left')
-            ->join('master_kelas as k', 'k.id_kelas = j.id_kelas', 'left')
-            ->join('master_mapel as m', 'm.id_mapel = j.id_mapel', 'left');
+            ->selectRaw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas')
+            ->selectRaw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel')
+            ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
+            ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')
+            ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel');
 
         return $this->terapkanFilterMonitoring($builder, $idTp, $idSmt, $p, $saringValidasi);
     }
@@ -626,16 +652,24 @@ class JurnalController extends BaseController
             $builder->where('j.tanggal', $p['tanggal']);
         }
 
-        if ($p['id_guru'] > 0) $builder->where('j.id_guru', $p['id_guru']);
-        if ($p['id_kelas'] > 0) $builder->where('j.id_kelas', $p['id_kelas']);
-        if ($p['id_mapel'] > 0) $builder->where('j.id_mapel', $p['id_mapel']);
+        if ($p['id_guru'] > 0) {
+            $builder->where('j.id_guru', $p['id_guru']);
+        }
+        if ($p['id_kelas'] > 0) {
+            $builder->where('j.id_kelas', $p['id_kelas']);
+        }
+        if ($p['id_mapel'] > 0) {
+            $builder->where('j.id_mapel', $p['id_mapel']);
+        }
 
         $validasi = (string) ($p['validasi'] ?? '');
         if ($saringValidasi && $validasi !== '' && $this->adaKolomValidasi()) {
             if ($validasi === JurnalGuruModel::VALIDASI_PENDING) {
                 // Jurnal lama dibuat sebelum fitur validasi ada, jadi ikut
                 // antrean "menunggu" dan tidak hilang dari hasil.
-                $builder->where(function ($q) { $q->where('j.validasi_status', JurnalGuruModel::VALIDASI_PENDING)->$q->orWhere('j.validasi_status', '')->$q->orWhere('j.validasi_status', null); });
+                $builder->where(function ($q) {
+                    $q->where('j.validasi_status', JurnalGuruModel::VALIDASI_PENDING)->orWhere('j.validasi_status', '')->orWhere('j.validasi_status', null);
+                });
             } else {
                 $builder->where('j.validasi_status', $validasi);
             }
@@ -652,13 +686,13 @@ class JurnalController extends BaseController
     private function validasiCounts(int $idTp, int $idSmt, array $p): array
     {
         $out = ['total' => 0, 'disetujui' => 0, 'menunggu' => 0, 'ditolak' => 0];
-        if (!$this->adaKolomValidasi()) {
+        if (! $this->adaKolomValidasi()) {
             return $out;
         }
 
         try {
             $rows = $this->terapkanFilterMonitoring(
-                \Illuminate\Support\Facades\DB::connection()->table('guru_jurnal as j')->select('j.validasi_status', false),
+                DB::connection()->table('guru_jurnal as j')->select('j.validasi_status'),
                 $idTp,
                 $idSmt,
                 $p,
@@ -677,7 +711,7 @@ class JurnalController extends BaseController
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[Admin\Jurnal] hitungan validasi gagal: ' . $e->getMessage());
+            Log::error('[Admin\Jurnal] hitungan validasi gagal: '.$e->getMessage());
         }
 
         return $out;
@@ -686,37 +720,44 @@ class JurnalController extends BaseController
     /** Baris presensi guru pada rentang tanggal (untuk cross-check jurnal). */
     private function presensiRange(string $mulai, string $selesai): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         return $db->table('absensi_harian as a')
-            ->select('a.id_guru, a.tgl, a.status_masuk, a.jam_masuk')
-            ->select('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) AS nama_guru', false)
+            ->select('a.id_guru', 'a.tgl', 'a.status_masuk', 'a.jam_masuk')
+            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", a.id_guru)) AS nama_guru')
             ->select('g.nip')
-            ->join('master_guru as g', 'g.id_guru = a.id_guru', 'left')
+            ->leftJoin('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.tgl', '>=', $mulai)
             ->where('a.tgl', '<=', $selesai)
             ->orderBy('a.jam_masuk', 'ASC')
-            ->get();
+            ->get()
+            ->all();
     }
 
     private function hasCheckIn(?object $row): bool
     {
-        if (!$row) return false;
+        if (! $row) {
+            return false;
+        }
 
         $jam = trim((string) ($row->jam_masuk ?? ''));
-        return $jam !== '' && $jam !== '00:00:00' && !str_starts_with($jam, '0000-00-00');
+
+        return $jam !== '' && $jam !== '00:00:00' && ! str_starts_with($jam, '0000-00-00');
     }
 
     /** Label status presensi guru yang ramah dibaca (tanpa menampilkan tanggal). */
     private function presenceMeta(?object $row): string
     {
-        if (!$row) return 'Belum Absen';
+        if (! $row) {
+            return 'Belum Absen';
+        }
 
         $status = strtoupper(trim((string) ($row->status_masuk ?? '')));
         if ($this->hasCheckIn($row)) {
             $jam = (string) $row->jam_masuk;
             $clock = strlen($jam) >= 16 ? substr($jam, 11, 5) : substr($jam, 0, 5);
-            return 'Hadir (' . $clock . ')';
+
+            return 'Hadir ('.$clock.')';
         }
 
         return match ($status) {
@@ -734,13 +775,15 @@ class JurnalController extends BaseController
     public function export()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idTp = (int) ($tp->id_tp ?? 1);
         $idSmt = (int) ($smt->id_smt ?? 1);
         $p = $this->monitoringParams();
@@ -757,7 +800,7 @@ class JurnalController extends BaseController
 
         $hadirMap = [];
         foreach ($this->presensiRange($mulai, $selesai) as $ph) {
-            $hadirMap[$ph->tgl . '|' . (int) $ph->id_guru] = $ph;
+            $hadirMap[$ph->tgl.'|'.(int) $ph->id_guru] = $ph;
         }
 
         $kolomValidasi = $this->adaKolomValidasi();
@@ -774,10 +817,10 @@ class JurnalController extends BaseController
 
         $hari = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
         foreach ($jurnals as $j) {
-            $profil = !empty($j->profil_pancasila)
+            $profil = ! empty($j->profil_pancasila)
                 ? (implode(', ', json_decode((string) $j->profil_pancasila, true) ?: []))
                 : '';
-            $hadir = $hadirMap[$j->tanggal . '|' . (int) $j->id_guru] ?? null;
+            $hadir = $hadirMap[$j->tanggal.'|'.(int) $j->id_guru] ?? null;
 
             $baris = array_map([$this, 'csvSafe'], [
                 $j->tanggal,
@@ -820,13 +863,13 @@ class JurnalController extends BaseController
         $csv = stream_get_contents($fh, -1, 0);
         fclose($fh);
 
-        $filename = 'jurnal-mengajar-' . ($p['mode_bulanan']
+        $filename = 'jurnal-mengajar-'.($p['mode_bulanan']
             ? sprintf('%04d-%02d', $p['tahun'], $p['bulan'])
-            : $p['tanggal']) . '.csv';
+            : $p['tanggal']).'.csv';
 
         return $this->response
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($csv);
     }
 
@@ -834,7 +877,7 @@ class JurnalController extends BaseController
      * Nama penanda tangan validasi: users.id => nama. validasi_oleh menyimpan
      * id akun, bukan id_guru, jadi lookup-nya ke tabel users.
      *
-     * @param array<int, object> $jurnals
+     * @param  array<int, object>  $jurnals
      * @return array<int, string>
      */
     private function validatorNames(array $jurnals): array
@@ -853,15 +896,16 @@ class JurnalController extends BaseController
         $nama = [];
         try {
             // users tidak punya kolom `name`; nama dirakit dari first/last name.
-            $rows = \Illuminate\Support\Facades\DB::connection()->table('users')
-                ->select('id, TRIM(CONCAT_WS(" ", first_name, last_name)) AS nama', false)
+            $rows = DB::connection()->table('users')
+                ->select('id')
+                ->selectRaw('TRIM(CONCAT_WS(" ", first_name, last_name)) AS nama')
                 ->whereIn('id', array_keys($ids))
                 ->get();
             foreach ($rows as $r) {
                 $nama[(int) $r->id] = trim((string) ($r->nama ?? ''));
             }
         } catch (\Throwable $e) {
-            Log::error('[Admin\Jurnal] nama validator gagal dimuat: ' . $e->getMessage());
+            Log::error('[Admin\Jurnal] nama validator gagal dimuat: '.$e->getMessage());
         }
 
         return $nama;
@@ -875,7 +919,8 @@ class JurnalController extends BaseController
         if ($value === '-' || $value === '') {
             return $value;
         }
-        return preg_match('/^[=+\-@\t\r]/', $value) ? "'" . $value : $value;
+
+        return preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
     }
 
     /**
@@ -884,8 +929,10 @@ class JurnalController extends BaseController
     public function detail($id)
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -894,25 +941,25 @@ class JurnalController extends BaseController
             return redirect()->to('admin/jurnal')->with('error', 'Jurnal tidak ditemukan.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $jurnal = $db->table('guru_jurnal as j')
             ->select('j.*')
-            ->select('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru', false)
+            ->selectRaw('COALESCE(g.nama_guru, CONCAT("Guru #", j.id_guru)) AS nama_guru')
             ->select('g.nip')
-            ->select('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas', false)
-            ->select('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel', false)
-            ->join('master_guru as g', 'g.id_guru = j.id_guru', 'left')
-            ->join('master_kelas as k', 'k.id_kelas = j.id_kelas', 'left')
-            ->join('master_mapel as m', 'm.id_mapel = j.id_mapel', 'left')
+            ->selectRaw('COALESCE(k.nama_kelas, CONCAT("Kelas #", j.id_kelas)) AS nama_kelas')
+            ->selectRaw('COALESCE(m.nama_mapel, CONCAT("Mapel #", j.id_mapel)) AS nama_mapel')
+            ->leftJoin('master_guru as g', 'g.id_guru', '=', 'j.id_guru')
+            ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'j.id_kelas')
+            ->leftJoin('master_mapel as m', 'm.id_mapel', '=', 'j.id_mapel')
             ->where('j.id_jurnal', $id)
             ->first();
 
-        if (!$jurnal) {
+        if (! $jurnal) {
             return redirect()->to('admin/jurnal')->with('error', 'Jurnal tidak ditemukan.');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $kolomValidasi = $this->adaKolomValidasi();
         $statusValidasi = $kolomValidasi ? $this->normalisasiValidasi($jurnal->validasi_status ?? '') : '';
@@ -920,7 +967,7 @@ class JurnalController extends BaseController
         // Parse siswa_absent (JSON ID siswa) menjadi daftar nama untuk ditampilkan
         $absensi = $this->piketModel->parseSiswaAbsent($jurnal->siswa_absent ?? null);
         $siswaAbsentNama = $absensi['nama'];
-        if (!empty($absensi['ids'])) {
+        if (! empty($absensi['ids'])) {
             $siswaAbsentNama = $this->piketModel->getSiswaNamesByIds($absensi['ids']);
         }
 
@@ -938,7 +985,7 @@ class JurnalController extends BaseController
             'nama_validator' => $kolomValidasi && $statusValidasi !== JurnalGuruModel::VALIDASI_PENDING
                 ? ($this->validatorNames([$jurnal])[(int) ($jurnal->validasi_oleh ?? 0)] ?? '')
                 : '',
-            'profil_list' => !empty($jurnal->profil_pancasila)
+            'profil_list' => ! empty($jurnal->profil_pancasila)
                 ? (json_decode($jurnal->profil_pancasila, true) ?: [])
                 : [],
             'can_print' => $this->isAdmin() || $this->isKepsek(),
@@ -953,8 +1000,10 @@ class JurnalController extends BaseController
     public function rekap()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -990,38 +1039,43 @@ class JurnalController extends BaseController
     /** Data rekap yang dipakai halaman, CSV, dan cetak. */
     private function rekapData(): array
     {
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idTp = (int) ($tp->id_tp ?? 1);
         $idSmt = (int) ($smt->id_smt ?? 1);
 
         $bulan = (int) ($this->request->query('bulan') ?: date('m'));
-        if ($bulan < 1 || $bulan > 12) $bulan = (int) date('m');
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) date('m');
+        }
         $bulan = sprintf('%02d', $bulan);
         $tahun = (int) ($this->request->query('tahun') ?: date('Y'));
-        if ($tahun < 2000 || $tahun > 2100) $tahun = (int) date('Y');
+        if ($tahun < 2000 || $tahun > 2100) {
+            $tahun = (int) date('Y');
+        }
 
         $q = mb_substr(trim((string) $this->request->query('q')), 0, 100);
         $hanyaBelum = (string) $this->request->query('hanya_belum') === '1';
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $allGurus = $db->table('master_guru')
-            ->select('id_guru, nama_guru, nip')
+            ->select('id_guru', 'nama_guru', 'nip')
             ->orderBy('nama_guru', 'ASC')
             ->get();
 
         $kolomValidasi = $this->adaKolomValidasi();
         $statBuilder = $db->table('guru_jurnal')
-            ->select('id_guru, COUNT(*) AS total_jurnal, COUNT(DISTINCT tanggal) AS hari_aktif, MAX(tanggal) AS last_tanggal')
-            ->where('tanggal', '>=', $tahun . '-' . $bulan . '-01')
-            ->where('tanggal', '<=', date('Y-m-t', strtotime($tahun . '-' . $bulan . '-01')))
+            ->select('id_guru')
+            ->selectRaw('COUNT(*) AS total_jurnal, COUNT(DISTINCT tanggal) AS hari_aktif, MAX(tanggal) AS last_tanggal')
+            ->where('tanggal', '>=', $tahun.'-'.$bulan.'-01')
+            ->where('tanggal', '<=', date('Y-m-t', strtotime($tahun.'-'.$bulan.'-01')))
             ->where('id_tp', $idTp)
             ->where('id_smt', $idSmt);
         if ($kolomValidasi) {
             // Saring per status agar rekap tidak lagi hanya menghitung "ada
             // jurnal", tapi juga berapa banyak yang benar-benar disetujui.
-            $statBuilder->select("SUM(validasi_status = '" . JurnalGuruModel::VALIDASI_APPROVED . "') AS jumlah_disetujui", false)
-                ->select("SUM(validasi_status = '" . JurnalGuruModel::VALIDASI_REJECTED . "') AS jumlah_ditolak", false);
+            $statBuilder->selectRaw("SUM(validasi_status = '".JurnalGuruModel::VALIDASI_APPROVED."') AS jumlah_disetujui")
+                ->selectRaw("SUM(validasi_status = '".JurnalGuruModel::VALIDASI_REJECTED."') AS jumlah_ditolak");
         }
 
         $statRows = $statBuilder->groupBy('id_guru')->get();
@@ -1041,7 +1095,7 @@ class JurnalController extends BaseController
         $totalMenunggu = $kolomValidasi ? max(0, $totalJurnal - $totalDisetujui - $totalDitolak) : 0;
 
         // Sesi terjadwal bulan terpilih, dihitung per guru hingga hari ini.
-        $firstDay = $tahun . '-' . $bulan . '-01';
+        $firstDay = $tahun.'-'.$bulan.'-01';
         $endDay = min(date('Y-m-t', strtotime($firstDay)), date('Y-m-d'));
         $scheduled = $this->scheduledCountPerGuru($idTp, $idSmt, $firstDay, $endDay);
         $scheduledMap = $scheduled['per_guru'];
@@ -1056,7 +1110,7 @@ class JurnalController extends BaseController
         }
         if ($hanyaBelum) {
             $gurus = array_values(array_filter($gurus, static function ($g) use ($statMap) {
-                return !isset($statMap[(int) $g->id_guru]);
+                return ! isset($statMap[(int) $g->id_guru]);
             }));
         }
 
@@ -1086,8 +1140,10 @@ class JurnalController extends BaseController
     public function rekapExport()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -1115,13 +1171,13 @@ class JurnalController extends BaseController
                 $jurnal,
                 $kepatuhan === null ? '-' : $kepatuhan,
                 $stat ? (int) $stat->hari_aktif : 0,
-                $stat && !empty($stat->last_tanggal)
+                $stat && ! empty($stat->last_tanggal)
                     ? date('d/m/Y', strtotime($stat->last_tanggal))
                     : '-',
             ];
             if ($r['kolomValidasi']) {
                 $disetujui = $stat ? (int) ($stat->jumlah_disetujui ?? 0) : 0;
-                $ditolak   = $stat ? (int) ($stat->jumlah_ditolak ?? 0) : 0;
+                $ditolak = $stat ? (int) ($stat->jumlah_ditolak ?? 0) : 0;
                 $baris[] = $disetujui;
                 $baris[] = max(0, $jurnal - $disetujui - $ditolak);
                 $baris[] = $ditolak;
@@ -1132,11 +1188,11 @@ class JurnalController extends BaseController
         $csv = stream_get_contents($fh, -1, 0);
         fclose($fh);
 
-        $filename = 'rekap-jurnal-' . $r['tahun'] . '-' . $r['bulan'] . '.csv';
+        $filename = 'rekap-jurnal-'.$r['tahun'].'-'.$r['bulan'].'.csv';
 
         return $this->response
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($csv);
     }
 
@@ -1144,8 +1200,10 @@ class JurnalController extends BaseController
     public function rekapCetak()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->canMonitor()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->canMonitor()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 

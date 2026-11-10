@@ -2,18 +2,42 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Api\TelegramBotController;
+use App\Http\Controllers\BaseController;
+use App\Http\Controllers\CiForge;
+use App\Http\Controllers\CronControllerController;
+use App\Libraries\QrToken;
+use App\Libraries\SuratNomor;
+use App\Libraries\SuratTeguranLevel;
+use App\Libraries\Theme;
+use App\Libraries\TteQr;
+use App\Models\AttendanceCorrectionModel;
+use App\Models\AttendanceLocationModel;
+use App\Models\AttendanceModel;
+use App\Models\AttendanceSettingModel;
+use App\Models\AuditLogModel;
+use App\Models\DashboardModel;
+use App\Models\LeaveModel;
+use App\Models\NotifChannelConfigModel;
+use App\Models\PoinHistoryModel;
+use App\Models\ShiftModel;
+use App\Models\UserNotifikasiModel;
+use App\Services\AttendancePenaltyService;
+use App\Services\AttendancePolicy;
+use App\Services\CutiKategoriService;
+use App\Services\GuruTerawalService;
+use App\Services\HariSekolahService;
+use App\Services\IzinKuotaService;
+use App\Services\NotificationService;
+use App\Services\OpenWAService;
+use App\Services\RekapPdfService;
+use App\Services\SuratPanggilanService;
+use App\Services\SuratTeguranService;
+use Dompdf\Dompdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Http;
-use App\Http\Controllers\BaseController;
-use App\Models\AttendanceModel;
-use App\Models\DashboardModel;
-use App\Models\AuditLogModel;
-use App\Models\LeaveModel;
-use App\Models\FaceRegistrationRequestModel;
-use Dompdf\Dompdf;
-
 
 /**
  * Admin Controller for Attendance Management
@@ -22,13 +46,14 @@ use Dompdf\Dompdf;
 class PresensiAdminController extends BaseController
 {
     protected $attendanceModel;
+
     protected $dashboardModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->attendanceModel = new AttendanceModel();
-        $this->dashboardModel = new DashboardModel();
+        $this->attendanceModel = new AttendanceModel;
+        $this->dashboardModel = new DashboardModel;
     }
 
     /**
@@ -39,22 +64,22 @@ class PresensiAdminController extends BaseController
      */
     public function index()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiSettingTable();
         $this->patchAbsensiHarianTable();
 
         $date = $this->request->query('date') ?? date('Y-m-d');
         // Validasi format tanggal (dulu: string sembarang → strtotime gagal → 1970)
         $dtCheck = \DateTime::createFromFormat('Y-m-d', $date);
-        if (!$dtCheck || $dtCheck->format('Y-m-d') !== $date) {
+        if (! $dtCheck || $dtCheck->format('Y-m-d') !== $date) {
             $date = date('Y-m-d');
         }
         $isFuture = $date > date('Y-m-d');
-        $isToday  = $date === date('Y-m-d');
+        $isToday = $date === date('Y-m-d');
         $tahun = date('Y'); // For dashboard analytics
 
         // --- 1. DAILY MONITORING DATA ---
@@ -63,10 +88,10 @@ class PresensiAdminController extends BaseController
         // agar guru yang belum punya baris master tetap muncul di monitoring
         // (sebelumnya inner join menyembunyikan mereka dari tabel & KPI).
         $users = $db->table('users as u')
-            ->select("u.id, u.first_name, u.last_name, u.username, u.foto, g.nip,
-                      COALESCE(NULLIF(g.nama_guru, ''), TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), u.username) AS nama_guru")
-            ->join('users_groups as ug', 'ug.user_id = u.id')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'g.nip')
+            ->selectRaw("COALESCE(NULLIF(g.nama_guru, ''), TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), u.username) AS nama_guru")
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->orderBy('nama_guru', 'ASC')
@@ -74,9 +99,9 @@ class PresensiAdminController extends BaseController
 
         // Get attendance for the date
         $attendance = $db->table('absensi_harian as a')
-            ->select('a.*, loc_in.nama_lokasi as nama_lokasi_masuk, loc_out.nama_lokasi as nama_lokasi_pulang')
-            ->join('absensi_lokasi as loc_in', 'loc_in.id = a.lokasi_masuk_id', 'left')
-            ->join('absensi_lokasi as loc_out', 'loc_out.id = a.lokasi_pulang_id', 'left')
+            ->select('a.*', 'loc_in.nama_lokasi as nama_lokasi_masuk', 'loc_out.nama_lokasi as nama_lokasi_pulang')
+            ->leftJoin('absensi_lokasi as loc_in', 'loc_in.id', '=', 'a.lokasi_masuk_id')
+            ->leftJoin('absensi_lokasi as loc_out', 'loc_out.id', '=', 'a.lokasi_pulang_id')
             ->where('a.tgl', $date)
             ->get();
 
@@ -87,19 +112,20 @@ class PresensiAdminController extends BaseController
         }
 
         // --- NEW: Monthly Recap for Table Columns ---
-        $bulanIni   = date('Y-m', strtotime($date));
-        $bulanAwal  = $bulanIni . '-01';
+        $bulanIni = date('Y-m', strtotime($date));
+        $bulanAwal = $bulanIni.'-01';
         $bulanAkhir = date('Y-m-t', strtotime($bulanAwal));
         $rekapRaw = $db->table('absensi_harian')
-            ->select('user_id, status_masuk, COUNT(*) as jumlah')
+            ->select('user_id', 'status_masuk')
+            ->selectRaw('COUNT(*) as jumlah')
             ->where('tgl', '>=', $bulanAwal)
             ->where('tgl', '<=', $bulanAkhir)
-            ->groupBy('user_id, status_masuk')
+            ->groupBy('user_id', 'status_masuk')
             ->get();
 
         $rekapBulanan = [];
         foreach ($rekapRaw as $r) {
-            if (!isset($rekapBulanan[$r->user_id])) {
+            if (! isset($rekapBulanan[$r->user_id])) {
                 $rekapBulanan[$r->user_id] = [
                     'hadir' => 0,
                     'telat' => 0,
@@ -109,7 +135,7 @@ class PresensiAdminController extends BaseController
                     'dinas' => 0,
                     'wfh' => 0,
                     'alpha' => 0,
-                    'pending' => 0
+                    'pending' => 0,
                 ];
             }
             // Map status to category (semua enum; dulu IZIN/CUTI/ALPHA/PENDING hilang)
@@ -138,28 +164,28 @@ class PresensiAdminController extends BaseController
             }
         }
 
-
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         // Status hari memakai service yang sama dengan dashboard & piket:
         // libur mingguan → jadwal kerja per hari → kalender libur sekolah.
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
-        if (!$absenSetting) {
+        if (! $absenSetting) {
             $absenSetting = $setting;
         }
 
-        $hariSekolah    = new \App\Services\HariSekolahService($absenSetting);
-        $statusHari     = $hariSekolah->status($date);
-        $isWorkingDay   = $statusHari['status'] === \App\Services\HariSekolahService::AKTIF;
-        $isHoliday      = !$isWorkingDay;
-        $hariStatus     = $statusHari['status'];
+        $hariSekolah = new HariSekolahService($absenSetting);
+        $statusHari = $hariSekolah->status($date);
+        $isWorkingDay = $statusHari['status'] === HariSekolahService::AKTIF;
+        $isHoliday = ! $isWorkingDay;
+        $hariStatus = $statusHari['status'];
         $hariKeterangan = $statusHari['keterangan'];
         $peringatanKalender = $hariSekolah->peringatanKalender($date);
 
@@ -175,10 +201,11 @@ class PresensiAdminController extends BaseController
 
         foreach ($users as $u) {
             $att = $map[$u->id] ?? null;
-            if (!$att) {
-                if ($isWorkingDay && !$isFuture) {
+            if (! $att) {
+                if ($isWorkingDay && ! $isFuture) {
                     $rekapHari['belum_absen']++;
                 }
+
                 continue;
             }
 
@@ -210,13 +237,13 @@ class PresensiAdminController extends BaseController
             }
         }
 
-        $totalGuru          = count($users);
+        $totalGuru = count($users);
         $hadirTerverifikasi = $rekapHari['tepat'] + $rekapHari['telat'] + $rekapHari['wfh'] + $rekapHari['dinas'];
         $menungguVerifikasi = $rekapHari['pending_verifikasi'] + $rekapHari['pending_dinas'];
-        $sudahAbsen         = $hadirTerverifikasi + $menungguVerifikasi;
-        $izinSah            = $rekapHari['izin'] + $rekapHari['sakit'] + $rekapHari['cuti'];
-        $tidakHadir         = $rekapHari['belum_absen'] + $rekapHari['alpha'] + $rekapHari['ditolak'] + $rekapHari['lainnya'];
-        $persenHadir        = $totalGuru > 0 ? round(($sudahAbsen / $totalGuru) * 100, 1) : 0.0;
+        $sudahAbsen = $hadirTerverifikasi + $menungguVerifikasi;
+        $izinSah = $rekapHari['izin'] + $rekapHari['sakit'] + $rekapHari['cuti'];
+        $tidakHadir = $rekapHari['belum_absen'] + $rekapHari['alpha'] + $rekapHari['ditolak'] + $rekapHari['lainnya'];
+        $persenHadir = $totalGuru > 0 ? round(($sudahAbsen / $totalGuru) * 100, 1) : 0.0;
 
         // --- 2. ANTREAN PERSETUJUAN (global, lintas tanggal) ---
 
@@ -228,7 +255,8 @@ class PresensiAdminController extends BaseController
                 ->where('tgl', '>=', $bulanAwal)
                 ->where('tgl', '<=', $bulanAkhir)
                 ->count();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $pendingDinas = 0;
         $pendingVerifikasi = 0;
@@ -237,38 +265,42 @@ class PresensiAdminController extends BaseController
                 ->where('status_masuk', 'DINAS_PENDING')->count();
             $pendingVerifikasi = $db->table('absensi_harian')
                 ->where('status_masuk', 'PENDING_VERIFICATION')->count();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $pendingKoreksi = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+        if (Schema::hasTable('absensi_koreksi')) {
             try {
                 $pendingKoreksi = $db->table('absensi_koreksi')
                     ->where('status', 'pending')->count();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $pendingIzin = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin')) {
             try {
                 $pendingIzin = $db->table('absensi_izin')
                     ->where('status', 'pending')->count();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $pendingWajah = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+        if (Schema::hasTable('face_registration_requests')) {
             try {
                 $pendingWajah = $db->table('face_registration_requests')
                     ->where('status', 'pending')->count();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $pendingReview = [
-            'dinas'      => $pendingDinas,
-            'koreksi'    => $pendingKoreksi,
-            'izin'       => $pendingIzin,
+            'dinas' => $pendingDinas,
+            'koreksi' => $pendingKoreksi,
+            'izin' => $pendingIzin,
             'verifikasi' => $pendingVerifikasi,
-            'wajah'      => $pendingWajah,
+            'wajah' => $pendingWajah,
         ];
         $pendingReview['total'] = array_sum($pendingReview);
 
@@ -276,24 +308,26 @@ class PresensiAdminController extends BaseController
         // denda tercatat sudah masuk $dendaMap, jadi di sini hanya missing agar
         // tidak double-count. Kolom A memakai count recorded+missing.
         $monthStart = $bulanAwal;
-        $monthEnd   = $bulanAkhir;
+        $monthEnd = $bulanAkhir;
         $alphaMap = [];
         $alphaMissingMap = [];
         $alphaDendaMap = [];
         try {
             $alphaFilteredMap = $this->filteredAlphaMonthMap($monthStart, $monthEnd, $absenSetting);
             foreach ($alphaFilteredMap as $uId => $aInfo) {
-                $alphaMap[$uId]        = (int) ($aInfo['count'] ?? 0);
+                $alphaMap[$uId] = (int) ($aInfo['count'] ?? 0);
                 $alphaMissingMap[$uId] = (int) ($aInfo['missing_count'] ?? 0);
-                $alphaDendaMap[$uId]   = (float) ($aInfo['total_denda'] ?? 0);
+                $alphaDendaMap[$uId] = (float) ($aInfo['total_denda'] ?? 0);
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         // Total denda per user bulan ini (untuk kolom Denda; ranking sudah dihapus)
         $dendaMap = [];
         try {
             $dendaRaw = $db->table('absensi_harian')
-                ->select('user_id, SUM(denda) as total_denda')
+                ->select('user_id')
+                ->selectRaw('SUM(denda) as total_denda')
                 ->where('tgl', '>=', $bulanAwal)
                 ->where('tgl', '<=', $bulanAkhir)
                 ->groupBy('user_id')
@@ -318,7 +352,7 @@ class PresensiAdminController extends BaseController
         $tahunAngka = (int) date('Y', strtotime($bulanAwal));
         $bulanSudahMulai = $bulanAwal <= date('Y-m-d');
         if ((int) ($absenSetting->alert_kehadiran_enabled ?? 1) === 1 && $bulanSudahMulai) {
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            $penaltyService = new AttendancePenaltyService;
 
             foreach ($users as $u) {
                 $result = $penaltyService->hitungPersentaseKehadiran(
@@ -326,18 +360,18 @@ class PresensiAdminController extends BaseController
                 );
                 if ($result['status'] !== 'aman') {
                     $alertKehadiran[] = [
-                        'user_id'    => $u->id,
-                        'nama_guru'  => $u->nama_guru,
-                        'persen'     => $result['persen'],
-                        'hadir'      => $result['total_hadir'],
-                        'efektif'    => $result['total_hari_efektif'],
-                        'alpha'      => $result['total_alpha'],
-                        'status'     => $result['status'],
+                        'user_id' => $u->id,
+                        'nama_guru' => $u->nama_guru,
+                        'persen' => $result['persen'],
+                        'hadir' => $result['total_hadir'],
+                        'efektif' => $result['total_hari_efektif'],
+                        'alpha' => $result['total_alpha'],
+                        'status' => $result['status'],
                     ];
                 }
             }
             // Urutkan dari paling rendah
-            usort($alertKehadiran, fn($a, $b) => $a['persen'] <=> $b['persen']);
+            usort($alertKehadiran, fn ($a, $b) => $a['persen'] <=> $b['persen']);
         }
 
         return view('admin.presensi.index', [
@@ -392,18 +426,18 @@ class PresensiAdminController extends BaseController
      */
     public function pendingDinas()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $bulanIni = date('m');
         $tahunIni = date('Y');
 
         $pending = $db->table('absensi_harian as a')
-            ->select('a.*, COALESCE(mg.nama_guru, TRIM(CONCAT_WS(\' \', u.first_name, u.last_name)), u.username) as nama_guru, u.username, u.foto, mg.nip')
-            ->join('users as u', 'u.id = a.user_id', 'left')
-            ->join('master_guru as mg', 'mg.id_user = u.id', 'left')
+            ->select('a.*', 'u.username', 'u.foto', 'mg.nip')->selectRaw('COALESCE(mg.nama_guru, TRIM(CONCAT_WS(\' \', u.first_name, u.last_name)), u.username) as nama_guru')
+            ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+            ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'u.id')
             ->where('a.status_masuk', 'DINAS_PENDING')
             ->orderBy('a.created_at', 'DESC')
             ->limit(200)
@@ -411,9 +445,9 @@ class PresensiAdminController extends BaseController
 
         // Riwayat dinas yang sudah diverifikasi pada bulan berjalan
         $history = $db->table('absensi_harian as a')
-            ->select('a.*, COALESCE(mg.nama_guru, TRIM(CONCAT_WS(\' \', u.first_name, u.last_name)), u.username) as nama_guru, u.username, u.foto, mg.nip')
-            ->join('users as u', 'u.id = a.user_id', 'left')
-            ->join('master_guru as mg', 'mg.id_user = u.id', 'left')
+            ->select('a.*', 'u.username', 'u.foto', 'mg.nip')->selectRaw('COALESCE(mg.nama_guru, TRIM(CONCAT_WS(\' \', u.first_name, u.last_name)), u.username) as nama_guru')
+            ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+            ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'u.id')
             ->whereIn('a.status_masuk', ['DINAS_APPROVED', 'DINAS_REJECTED', 'DINAS'])
             ->whereRaw('MONTH(a.tgl) = ?', [$bulanIni])
             ->whereRaw('YEAR(a.tgl) = ?', [$tahunIni])
@@ -435,31 +469,32 @@ class PresensiAdminController extends BaseController
             ->count();
 
         $stats = [
-            'pending'   => $countPending,
-            'approved'  => $countApproved,
-            'rejected'  => $countRejected,
+            'pending' => $countPending,
+            'approved' => $countApproved,
+            'rejected' => $countRejected,
             // Total = seluruh antrean pending + yang sudah diproses bulan ini
-            'total'     => $countPending + $countApproved + $countRejected,
+            'total' => $countPending + $countApproved + $countRejected,
         ];
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.pending_dinas', [
-            'title'     => 'Verifikasi Dinas Luar',
-            'judul'     => 'Verifikasi Dinas',
-            'setting'   => $setting,
+            'title' => 'Verifikasi Dinas Luar',
+            'judul' => 'Verifikasi Dinas',
+            'setting' => $setting,
             'tp_active' => $tp_active,
-            'smt_active'=> $smt_active,
-            'user'      => $this->getUser(),
-            'pending'   => $pending,
-            'history'   => $history,
-            'stats'     => $stats
+            'smt_active' => $smt_active,
+            'user' => $this->getUser(),
+            'pending' => $pending,
+            'history' => $history,
+            'stats' => $stats,
         ]);
     }
 
@@ -468,28 +503,29 @@ class PresensiAdminController extends BaseController
      */
     public function pendingPermits()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        
+        $db = DB::connection();
+
         // Use LeaveModel logic but with join
         $pending = $db->table('absensi_izin as a')
-            ->select('a.*, mg.nama_guru, u.username, u.foto, mg.nip')
-            ->join('users as u', 'u.id = a.user_id')
-            ->join('master_guru as mg', 'mg.id_user = u.id')
+            ->select('a.*', 'mg.nama_guru', 'u.username', 'u.foto', 'mg.nip')
+            ->join('users as u', 'u.id', '=', 'a.user_id')
+            ->join('master_guru as mg', 'mg.id_user', '=', 'u.id')
             ->where('a.status', 'pending') // fixed: was `0` (integer), now proper VARCHAR
             ->orderBy('a.created_at', 'DESC')
             ->get();
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.pending_permits', [
             'title' => 'Verifikasi Izin/Sakit',
@@ -498,7 +534,7 @@ class PresensiAdminController extends BaseController
             'tp_active' => $tp_active,
             'smt_active' => $smt_active,
             'user' => $this->getUser(),
-            'pending' => $pending
+            'pending' => $pending,
         ]);
     }
 
@@ -507,21 +543,21 @@ class PresensiAdminController extends BaseController
      */
     public function approvePermit($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $this->patchAbsensiIzinTable();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $builder = $db->table('absensi_izin');
         $permit = $builder->where('id', $id)->first();
 
-        if (!$permit) {
+        if (! $permit) {
             return $this->respond(false, 'Data pengajuan tidak ditemukan');
         }
 
-        $statusStr = strtolower(trim((string)$permit->status));
+        $statusStr = strtolower(trim((string) $permit->status));
         if ($statusStr === 'approved' || $statusStr === '1') {
             return $this->respond(false, 'Pengajuan ini sudah disetujui sebelumnya');
         }
@@ -535,218 +571,222 @@ class PresensiAdminController extends BaseController
         }
 
         // Transaksi: gagal di tengah jalan tidak menyisakan setengah hari terproses.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-        // 1. Update Permit Status to 'approved' — atomik: hanya baris pending
-        // yang bisa berpindah, cegah double-approve dua admin paralel.
-        $updateData = [
-            'status' => 'approved',
-            'verified_by' => session()->get('user_id'),
-            'verified_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
-        ];
-        $db->table('absensi_izin')
-            ->where('id', $id)->where('status', 'pending')
-            ->update($updateData);
-
-        if (1 !== 1) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            return $this->respond(false, 'Status sudah diproses admin lain. Muat ulang halaman.');
-        }
-
-        // 2. Get Settings for Points
-        $settingModel = new \App\Models\AttendanceSettingModel();
-        $setting = $settingModel->first();
-        $pointIzin = $setting->point_izin ?? 0;
-        $pointSakit = $setting->point_sakit ?? 0;
-        
-        $jenisUpper = strtoupper($permit->jenis);
-        if ($jenisUpper === 'SAKIT') {
-            $point = $pointSakit;
-            $statusMasuk = 'SAKIT';
-        } elseif ($jenisUpper === 'CUTI') {
-            $point = 0;
-            $statusMasuk = 'CUTI';
-        } elseif ($jenisUpper === 'DINAS' || strpos($jenisUpper, 'DINAS') !== false) {
-            $point = (int)($setting->point_hadir_ontime ?? $setting->point_hadir ?? 10);
-            $statusMasuk = 'DINAS_APPROVED';
-        } else {
-            $point = $pointIzin;
-            $statusMasuk = 'IJIN';
-        }
-
-        // 3. Update Attendance for Date Range
-        $start = strtotime($permit->tgl_mulai);
-        $end   = strtotime($permit->tgl_selesai);
-        $attendanceModel = new AttendanceModel();
-
-        // Konteks libur dari IzinKuotaService — definisi "libur" yang sama
-        // dengan yang dipakai saat menghitung kuota guru. Sebelumnya approve
-        // punya salinan sendiri (mingguan + jadwal kerja + nasional) yang
-        // bisa berbeda dari IzinKuotaService, sehingga kuota yang dibaca
-        // guru dan baris absensi yang ditulis approve bisa menghitung
-        // jumlah hari yang tidak sama.
-        $svcLibur = new \App\Services\IzinKuotaService($db);
-
-        // Dipakai sync surat teguran setelah commit.
-        $globalSetting = $this->getSettingRow();
-
-        $punyaIzinId = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'izin_id');
-
-        // IJIN/SAKIT/CUTI adalah status absen netral: tidak punya jam
-        // kehadiran. DINAS_APPROVED dihitung sebagai HADIR.
-        $isAbsenNetral = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
-
-        // Bulan-bulan yang benar-benar ditulis (untuk sync surat teguran).
-        $bulanTersentuh = [];
-
-        // Tanggal yang dilewati karena sudah ada scan asli guru.
-        $dilewatiScanAsli = [];
-
-        for ($i = $start; $i <= $end; $i = strtotime('+1 day', $i)) {
-            $date = date('Y-m-d', $i);
-
-            if ($svcLibur->isLibur($date)) {
-                continue;
-            }
-
-            $existing = $attendanceModel->where('user_id', $permit->user_id)->where('tgl', $date)->first();
-
-            // Menimpanya ke baris yang SUDAH berisi scan asli menghapus
-            // bukti kehadiran guru. Setelah itu deletePermit() melihat
-            // "jam kosong + status izin" dan menganggap baris itu otomatis,
-            // lalu MENGHAPUSNYA — scan asli lenyap tanpa jejak.
-            //
-            // Aturan: hari yang sudah ada scan asli dibiarkan utuh dan
-            // dilaporkan balik ke admin, untuk SEMUA jenis pengajuan.
-            // Termasuk dinas: status DINAS_APPROVED yang menimpa scan
-            // ONTIME/LATE ikut menol-kan denda (kredit hantu bila bulan itu
-            // sudah dibayar) dan menghapus telat_menit, lalu penolakan
-            // pengajuan mengubah hari yang sebenarnya hadir itu menjadi ALPHA.
-            if ($existing && ! empty($existing->jam_masuk)) {
-                $dilewatiScanAsli[] = $date;
-                continue;
-            }
-
-            $bulanTersentuh[date('Y-m', $i)] = true;
-
-            $data = [
-                'user_id' => $permit->user_id,
-                'tgl' => $date,
-                'status_masuk' => $statusMasuk,
-                'status_pulang' => $statusMasuk,
-                'points' => $point,
-                'denda' => 0,
-                'keterangan_denda' => null,
-                'telat_menit' => 0,
-                'pulang_cepat_menit' => 0,
-                'keterangan' => $permit->keterangan ?? "Pengajuan {$permit->jenis}"
+            // 1. Update Permit Status to 'approved' — atomik: hanya baris pending
+            // yang bisa berpindah, cegah double-approve dua admin paralel.
+            $updateData = [
+                'status' => 'approved',
+                'verified_by' => session()->get('user_id'),
+                'verified_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
             ];
+            $db->table('absensi_izin')
+                ->where('id', $id)->where('status', 'pending')
+                ->update($updateData);
 
-            // Penanda asal: tanpa ini revert tidak bisa membedakan baris
-            // yang dibuat pengajuan ini dari baris milik guru/admin.
-            if ($punyaIzinId) {
-                $data['izin_id'] = (int) $permit->id;
+            if (1 !== 1) {
+                DB::rollBack();
+
+                return $this->respond(false, 'Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            // Dinas (DINAS_APPROVED) mempertahankan jam_masuk/jam_pulang
-            // karena dihitung sebagai HADIR (guru bertugas, bukan bolos).
-            // IJIN/SAKIT/CUTI tetap mengosongkan jam — tapi baris seperti
-            // itu hanya mungkin kosong di titik ini, karena hari yang punya
-            // scan asli sudah dilewati di atas.
-            if ($existing) {
-                if ($isAbsenNetral) {
-                    $data['jam_masuk']  = null;
-                    $data['jam_pulang'] = null;
-                }
-                $attendanceModel->where('id', $existing->id)->update($data);
-                $logAction = 'UPDATE';
-                $logId = $existing->id;
+            // 2. Get Settings for Points
+            $settingModel = new AttendanceSettingModel;
+            $setting = $settingModel->first();
+            $pointIzin = $setting->point_izin ?? 0;
+            $pointSakit = $setting->point_sakit ?? 0;
+
+            $jenisUpper = strtoupper($permit->jenis);
+            if ($jenisUpper === 'SAKIT') {
+                $point = $pointSakit;
+                $statusMasuk = 'SAKIT';
+            } elseif ($jenisUpper === 'CUTI') {
+                $point = 0;
+                $statusMasuk = 'CUTI';
+            } elseif ($jenisUpper === 'DINAS' || strpos($jenisUpper, 'DINAS') !== false) {
+                $point = (int) ($setting->point_hadir_ontime ?? $setting->point_hadir ?? 10);
+                $statusMasuk = 'DINAS_APPROVED';
             } else {
-                $data['jam_masuk']  = null;
-                $data['jam_pulang'] = null;
-                $logId = $attendanceModel->insert($data);
-                $logAction = 'INSERT';
+                $point = $pointIzin;
+                $statusMasuk = 'IJIN';
             }
 
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($logId);
-        }
+            // 3. Update Attendance for Date Range
+            $start = strtotime($permit->tgl_mulai);
+            $end = strtotime($permit->tgl_selesai);
+            $attendanceModel = new AttendanceModel;
 
-        \Illuminate\Support\Facades\DB::commit();
+            // Konteks libur dari IzinKuotaService — definisi "libur" yang sama
+            // dengan yang dipakai saat menghitung kuota guru. Sebelumnya approve
+            // punya salinan sendiri (mingguan + jadwal kerja + nasional) yang
+            // bisa berbeda dari IzinKuotaService, sehingga kuota yang dibaca
+            // guru dan baris absensi yang ditulis approve bisa menghitung
+            // jumlah hari yang tidak sama.
+            $svcLibur = new IzinKuotaService($db);
 
-        // Jejak keputusan penyetuju. Sebelum ini hanya absensi_izin.updated_at
-        // yang tersisa — tidak ada yang mencatat siapa menyetujui, kapan, dan
-        // hari mana yang sengaja tidak diubah.
-        try {
-            (new AuditLogModel())->log('absensi_izin', (int) $id, 'APPROVE', (int) $permit->user_id, $this->getUserId(),
-                ['status' => (string) ($permit->status ?? '')],
-                [
-                    'status'            => 'approved',
-                    'hari_dilewati'     => $dilewatiScanAsli,
-                    'bulan_tersentuh'   => array_keys($bulanTersentuh),
-                ],
-                'Persetujuan ' . $permit->jenis . ' ' . date('d/m/Y', $start) . '–' . date('d/m/Y', $end));
-        } catch (\Throwable $ex) {
-            Log::error('Audit approvePermit gagal: ' . $ex->getMessage());
-        }
+            // Dipakai sync surat teguran setelah commit.
+            $globalSetting = $this->getSettingRow();
 
-        // Evaluasi dan sinkronisasi pembatalan surat teguran untuk SEMUA bulan
-        // yang tersentuh (izin lintas bulan sebelumnya hanya sync bulan awal).
-        try {
-            $penaltySvc = new \App\Services\AttendancePenaltyService();
-            $periode = array_keys($bulanTersentuh);
-            if (empty($periode)) {
-                $periode = [date('Y-m', $start)];
+            $punyaIzinId = Schema::hasColumn('absensi_harian', 'izin_id');
+
+            // IJIN/SAKIT/CUTI adalah status absen netral: tidak punya jam
+            // kehadiran. DINAS_APPROVED dihitung sebagai HADIR.
+            $isAbsenNetral = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
+
+            // Bulan-bulan yang benar-benar ditulis (untuk sync surat teguran).
+            $bulanTersentuh = [];
+
+            // Tanggal yang dilewati karena sudah ada scan asli guru.
+            $dilewatiScanAsli = [];
+
+            for ($i = $start; $i <= $end; $i = strtotime('+1 day', $i)) {
+                $date = date('Y-m-d', $i);
+
+                if ($svcLibur->isLibur($date)) {
+                    continue;
+                }
+
+                $existing = $attendanceModel->where('user_id', $permit->user_id)->where('tgl', $date)->first();
+
+                // Menimpanya ke baris yang SUDAH berisi scan asli menghapus
+                // bukti kehadiran guru. Setelah itu deletePermit() melihat
+                // "jam kosong + status izin" dan menganggap baris itu otomatis,
+                // lalu MENGHAPUSNYA — scan asli lenyap tanpa jejak.
+                //
+                // Aturan: hari yang sudah ada scan asli dibiarkan utuh dan
+                // dilaporkan balik ke admin, untuk SEMUA jenis pengajuan.
+                // Termasuk dinas: status DINAS_APPROVED yang menimpa scan
+                // ONTIME/LATE ikut menol-kan denda (kredit hantu bila bulan itu
+                // sudah dibayar) dan menghapus telat_menit, lalu penolakan
+                // pengajuan mengubah hari yang sebenarnya hadir itu menjadi ALPHA.
+                if ($existing && ! empty($existing->jam_masuk)) {
+                    $dilewatiScanAsli[] = $date;
+
+                    continue;
+                }
+
+                $bulanTersentuh[date('Y-m', $i)] = true;
+
+                $data = [
+                    'user_id' => $permit->user_id,
+                    'tgl' => $date,
+                    'status_masuk' => $statusMasuk,
+                    'status_pulang' => $statusMasuk,
+                    'points' => $point,
+                    'denda' => 0,
+                    'keterangan_denda' => null,
+                    'telat_menit' => 0,
+                    'pulang_cepat_menit' => 0,
+                    'keterangan' => $permit->keterangan ?? "Pengajuan {$permit->jenis}",
+                ];
+
+                // Penanda asal: tanpa ini revert tidak bisa membedakan baris
+                // yang dibuat pengajuan ini dari baris milik guru/admin.
+                if ($punyaIzinId) {
+                    $data['izin_id'] = (int) $permit->id;
+                }
+
+                // Dinas (DINAS_APPROVED) mempertahankan jam_masuk/jam_pulang
+                // karena dihitung sebagai HADIR (guru bertugas, bukan bolos).
+                // IJIN/SAKIT/CUTI tetap mengosongkan jam — tapi baris seperti
+                // itu hanya mungkin kosong di titik ini, karena hari yang punya
+                // scan asli sudah dilewati di atas.
+                if ($existing) {
+                    if ($isAbsenNetral) {
+                        $data['jam_masuk'] = null;
+                        $data['jam_pulang'] = null;
+                    }
+                    $attendanceModel->where('id', $existing->id)->update($data);
+                    $logAction = 'UPDATE';
+                    $logId = $existing->id;
+                } else {
+                    $data['jam_masuk'] = null;
+                    $data['jam_pulang'] = null;
+                    $logId = $attendanceModel->insert($data);
+                    $logAction = 'INSERT';
+                }
+
+                (new PoinHistoryModel)->syncAttendancePoint($logId);
             }
-            foreach ($periode as $ym) {
-                [$thnSync, $blnSync] = array_map('intval', explode('-', $ym));
-                $penaltySvc->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnSync, $thnSync, $globalSetting);
+
+            DB::commit();
+
+            // Jejak keputusan penyetuju. Sebelum ini hanya absensi_izin.updated_at
+            // yang tersisa — tidak ada yang mencatat siapa menyetujui, kapan, dan
+            // hari mana yang sengaja tidak diubah.
+            try {
+                (new AuditLogModel)->log('absensi_izin', (int) $id, 'APPROVE', (int) $permit->user_id, $this->getUserId(),
+                    ['status' => (string) ($permit->status ?? '')],
+                    [
+                        'status' => 'approved',
+                        'hari_dilewati' => $dilewatiScanAsli,
+                        'bulan_tersentuh' => array_keys($bulanTersentuh),
+                    ],
+                    'Persetujuan '.$permit->jenis.' '.date('d/m/Y', $start).'–'.date('d/m/Y', $end));
+            } catch (\Throwable $ex) {
+                Log::error('Audit approvePermit gagal: '.$ex->getMessage());
             }
-        } catch (\Throwable $ex) {}
 
-        // Notifikasi izin disetujui (best-effort)
-        try {
-            $catatan = (string) ($this->request->input('catatan') ?? $this->request->input('note') ?? '');
+            // Evaluasi dan sinkronisasi pembatalan surat teguran untuk SEMUA bulan
+            // yang tersentuh (izin lintas bulan sebelumnya hanya sync bulan awal).
+            try {
+                $penaltySvc = new AttendancePenaltyService;
+                $periode = array_keys($bulanTersentuh);
+                if (empty($periode)) {
+                    $periode = [date('Y-m', $start)];
+                }
+                foreach ($periode as $ym) {
+                    [$thnSync, $blnSync] = array_map('intval', explode('-', $ym));
+                    $penaltySvc->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnSync, $thnSync, $globalSetting);
+                }
+            } catch (\Throwable $ex) {
+            }
 
-            // Admin wajib tahu hari mana yang TIDAK berubah dan kenapa —
-            // tanpa iniapprove terlihat berhasil padahal absensi tidak
-            // sama sekali bergerak untuk tanggal-tanggal itu.
-            if (! empty($dilewatiScanAsli)) {
-                $catatan = trim(
-                    ($catatan !== '' ? $catatan . ' | ' : '')
-                    . count($dilewatiScanAsli)
-                    . ' hari dilewati karena sudah ada scan kehadiran: '
-                    . implode(', ', $dilewatiScanAsli)
+            // Notifikasi izin disetujui (best-effort)
+            try {
+                $catatan = (string) ($this->request->input('catatan') ?? $this->request->input('note') ?? '');
+
+                // Admin wajib tahu hari mana yang TIDAK berubah dan kenapa —
+                // tanpa iniapprove terlihat berhasil padahal absensi tidak
+                // sama sekali bergerak untuk tanggal-tanggal itu.
+                if (! empty($dilewatiScanAsli)) {
+                    $catatan = trim(
+                        ($catatan !== '' ? $catatan.' | ' : '')
+                        .count($dilewatiScanAsli)
+                        .' hari dilewati karena sudah ada scan kehadiran: '
+                        .implode(', ', $dilewatiScanAsli)
+                    );
+                }
+
+                $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $permit->user_id)->first();
+                $namaGuru = $guruRow->nama_guru ?? 'Guru';
+                (new NotificationService)->notifyPermitApproved(
+                    $namaGuru,
+                    (string) ($permit->jenis ?? ''),
+                    date('d/m/Y', $start),
+                    date('d/m/Y', $end),
+                    (int) ($permit->user_id ?? 0),
+                    $catatan
                 );
+            } catch (\Throwable $ex) {
+                Log::error('Notifikasi izin disetujui gagal: '.$ex->getMessage());
             }
-
-            $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $permit->user_id)->first();
-            $namaGuru = $guruRow->nama_guru ?? 'Guru';
-            (new \App\Services\NotificationService())->notifyPermitApproved(
-                $namaGuru,
-                (string) ($permit->jenis ?? ''),
-                date('d/m/Y', $start),
-                date('d/m/Y', $end),
-                (int) ($permit->user_id ?? 0),
-                $catatan
-            );
-        } catch (\Throwable $ex) {
-            Log::error('Notifikasi izin disetujui gagal: ' . $ex->getMessage());
-        }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Approve permit gagal: ' . $e->getMessage() . ' @ ' . $e->file() . ':' . $e->getLine() . "\n" . $e->getTraceAsString());
+            DB::rollBack();
+            Log::error('Approve permit gagal: '.$e->getMessage().' @ '.$e->file().':'.$e->getLine()."\n".$e->getTraceAsString());
+
             return $this->respond(false, 'Gagal menyetujui pengajuan — periksa log aplikasi.', null, null, 500);
         }
 
-        $pesan = 'Pengajuan ' . $permit->jenis . ' berhasil disetujui dan absensi diperbarui';
+        $pesan = 'Pengajuan '.$permit->jenis.' berhasil disetujui dan absensi diperbarui';
         if (empty($bulanTersentuh)) {
             $pesan .= ' (catatan: tidak ada hari kerja yang perlu ditulis pada rentang ini)';
         }
         if (! empty($dilewatiScanAsli)) {
-            $pesan .= ' (catatan: ' . count($dilewatiScanAsli)
-                . ' hari tidak diubah karena sudah ada scan kehadiran: '
-                . implode(', ', $dilewatiScanAsli) . ')';
+            $pesan .= ' (catatan: '.count($dilewatiScanAsli)
+                .' hari tidak diubah karena sudah ada scan kehadiran: '
+                .implode(', ', $dilewatiScanAsli).')';
         }
 
         return $this->respond(true, $pesan);
@@ -757,21 +797,21 @@ class PresensiAdminController extends BaseController
      */
     public function rejectPermit($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $this->patchAbsensiIzinTable();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $builder = $db->table('absensi_izin');
         $permit = $builder->where('id', $id)->first();
 
-        if (!$permit) {
+        if (! $permit) {
             return $this->respond(false, 'Data pengajuan tidak ditemukan');
         }
 
-        $statusStr = strtolower(trim((string)$permit->status));
+        $statusStr = strtolower(trim((string) $permit->status));
         if ($statusStr === 'rejected' || $statusStr === '2') {
             return $this->respond(false, 'Pengajuan ini sudah ditolak sebelumnya');
         }
@@ -790,10 +830,10 @@ class PresensiAdminController extends BaseController
             'verifikasi_catatan' => $alasan,
             'verified_by' => session()->get('user_id'),
             'verified_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // Atomik: hanya baris pending/approved yang bisa ditolak.
             // Cegah double-reject dua admin paralel (keduanya menulis ALPHA).
@@ -801,7 +841,8 @@ class PresensiAdminController extends BaseController
                 ->where('id', $id)->whereIn('status', ['pending', 'approved'])
                 ->update($updateData);
             if (1 !== 1) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, 'Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
@@ -811,13 +852,13 @@ class PresensiAdminController extends BaseController
             // dihitung sebagai ALPHA/ALPA jika memang tidak hadir.
             // Nominal mengikuti cron: flat + poin alpa (dengan cap bulanan),
             // bukan 0 — agar tidak ada alpha gratis sebelum recalc berjalan.
-            $absenSetReject = (new \App\Models\AttendanceSettingModel())->first() ?? (object) [];
+            $absenSetReject = (new AttendanceSettingModel)->first() ?? (object) [];
             $baseAlphaReject = (float) ($absenSetReject->denda_alpha_per_hari ?? 5000);
             $pointAlphaReject = abs((int) ($absenSetReject->point_alpa ?? 5));
-            $penaltyReject = new \App\Services\AttendancePenaltyService();
+            $penaltyReject = new AttendancePenaltyService;
             $start = strtotime($permit->tgl_mulai);
-            $end   = strtotime($permit->tgl_selesai);
-            $globalSetting  = $this->getSettingRow();
+            $end = strtotime($permit->tgl_selesai);
+            $globalSetting = $this->getSettingRow();
             $bulanTersentuhReject = [];
             $jadiAlphaReject = 0;
 
@@ -831,25 +872,31 @@ class PresensiAdminController extends BaseController
             // menagih denda ke guru yang justru sedang menyetujui izin.
             $pernahDisetujui = strtolower(trim((string) ($permit->status ?? ''))) === 'approved';
             $permitStatusReject = $penaltyReject->normalizeIzinStatus((string) ($permit->jenis ?? ''));
-            $svcLiburReject = $pernahDisetujui ? new \App\Services\IzinKuotaService($db) : null;
+            $svcLiburReject = $pernahDisetujui ? new IzinKuotaService($db) : null;
 
             for ($i = $start; $pernahDisetujui && $i <= $end; $i = strtotime('+1 day', $i)) {
                 $date = date('Y-m-d', $i);
 
-                if ($svcLiburReject->isLibur($date)) continue;
+                if ($svcLiburReject->isLibur($date)) {
+                    continue;
+                }
 
                 $existing = $db->table('absensi_harian')
                     ->where('user_id', $permit->user_id)
                     ->where('tgl', $date)
                     ->first();
 
-                if (!$existing) continue;
+                if (! $existing) {
+                    continue;
+                }
 
                 $currentStatus = strtoupper((string) ($existing->status_masuk ?? ''));
-                $isIzinStatus  = in_array($currentStatus, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'DINAS'], true)
+                $isIzinStatus = in_array($currentStatus, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'DINAS'], true)
                                   || strpos($currentStatus, 'DINAS') === 0;
 
-                if (!$isIzinStatus) continue;
+                if (! $isIzinStatus) {
+                    continue;
+                }
 
                 // Hanya baris yang benar-benar ditulis pengajuan ini yang
                 // boleh diubah jadi ALPHA. Tanpa penyaringan ini, hari yang
@@ -863,44 +910,44 @@ class PresensiAdminController extends BaseController
                 // Hapus jejak izin: kembalikan ke ALPHA (tanpa catatan izin)
                 // Cap dengan lock (dalam transaksi) seperti check-in/cron agar
                 // dua writer paralel tidak sama-sama lolos batas bulanan.
-                $ketAlphaReject = 'Alpa (Rp ' . number_format($baseAlphaReject, 0, ',', '.') . ')';
+                $ketAlphaReject = 'Alpa (Rp '.number_format($baseAlphaReject, 0, ',', '.').')';
                 $cappedReject = $penaltyReject->applyMonthlyCap((int) $permit->user_id, $date, $baseAlphaReject, $absenSetReject, (int) $existing->id, true);
                 $dendaReject = (float) $cappedReject['total'];
                 if ($cappedReject['capped']) {
-                    $ketAlphaReject .= ' (dibatasi cap bulanan Rp ' . number_format($dendaReject, 0, ',', '.') . ')';
+                    $ketAlphaReject .= ' (dibatasi cap bulanan Rp '.number_format($dendaReject, 0, ',', '.').')';
                 }
                 $bulanTersentuhReject[substr($date, 0, 7)] = true;
                 $db->table('absensi_harian')->where('id', $existing->id)->update([
-                    'status_masuk'     => 'ALPHA',
-                    'status_pulang'    => 'ALPHA',
-                    'points'           => -$pointAlphaReject,
-                    'denda'            => $dendaReject,
+                    'status_masuk' => 'ALPHA',
+                    'status_pulang' => 'ALPHA',
+                    'points' => -$pointAlphaReject,
+                    'denda' => $dendaReject,
                     'keterangan_denda' => $ketAlphaReject,
-                    'keterangan'       => 'Ditolak: ' . $alasan,
-                    'catatan'          => $alasan,
-                    'updated_at'       => date('Y-m-d H:i:s'),
+                    'keterangan' => 'Ditolak: '.$alasan,
+                    'catatan' => $alasan,
+                    'updated_at' => date('Y-m-d H:i:s'),
                 ]);
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
+                (new PoinHistoryModel)->syncAttendancePoint($existing->id);
                 $jadiAlphaReject++;
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Jejak keputusan penolakan: penolakan mengubah hari izin menjadi
             // ALPHA + denda, jadi "siapa yang menolak dan berapa hari yang
             // ikut jadi alpa" harus tercatat, bukan cuma verifikasi_catatan.
             try {
-                (new AuditLogModel())->log('absensi_izin', (int) $id, 'REJECT', (int) $permit->user_id, $this->getUserId(),
+                (new AuditLogModel)->log('absensi_izin', (int) $id, 'REJECT', (int) $permit->user_id, $this->getUserId(),
                     ['status' => (string) ($permit->status ?? '')],
                     [
-                        'status'         => 'rejected',
-                        'alasan'         => $alasan,
-                        'jadi_alpha'     => $jadiAlphaReject,
+                        'status' => 'rejected',
+                        'alasan' => $alasan,
+                        'jadi_alpha' => $jadiAlphaReject,
                         'bulan_terpengaruh' => array_keys($bulanTersentuhReject),
                     ],
-                    'Penolakan ' . $permit->jenis . ' ' . date('d/m/Y', $start) . '–' . date('d/m/Y', $end));
+                    'Penolakan '.$permit->jenis.' '.date('d/m/Y', $start).'–'.date('d/m/Y', $end));
             } catch (\Throwable $ex) {
-                Log::error('Audit rejectPermit gagal: ' . $ex->getMessage());
+                Log::error('Audit rejectPermit gagal: '.$ex->getMessage());
             }
 
             // Surat yang seharusnya hidup lagi (revert ke ALPHA) disinkronkan
@@ -915,10 +962,12 @@ class PresensiAdminController extends BaseController
                     [$thnR, $blnR] = array_map('intval', explode('-', $ym));
                     $penaltyReject->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnR, $thnR, $globalSetting);
                 }
-            } catch (\Throwable $ex2) {}
+            } catch (\Throwable $ex2) {
+            }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Reject permit gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Reject permit gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak pengajuan — periksa log aplikasi.', null, null, 500);
         }
 
@@ -926,7 +975,7 @@ class PresensiAdminController extends BaseController
         try {
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $permit->user_id)->first();
             $namaGuru = $guruRow->nama_guru ?? 'Guru';
-            $notifService = new \App\Services\NotificationService();
+            $notifService = new NotificationService;
             // Pakai $alasan (sudah di-fallback 'Ditolak oleh admin/panitia') —
             // bukan getPost('catatan'/'note') yang tidak pernah dikirim form
             // ini (field-nya bernama 'alasan'), sehingga guru tidak tahu alasan.
@@ -937,7 +986,7 @@ class PresensiAdminController extends BaseController
                 (string) $alasan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi izin ditolak gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi izin ditolak gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Pengajuan ditolak');
@@ -950,7 +999,7 @@ class PresensiAdminController extends BaseController
      */
     public function approveDinas($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -959,9 +1008,9 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID dinas tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $attendance = $this->attendanceModel->find($id);
-        if (!$attendance) {
+        if (! $attendance) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
 
@@ -974,12 +1023,14 @@ class PresensiAdminController extends BaseController
         }
 
         // Poin dinas konsisten dengan modul lain via service terpusat
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $setting = $absenSettingModel->first();
         $pointHadir = $setting
-            ? (new \App\Services\AttendancePenaltyService())->getStatusPoints('DINAS', $setting)
+            ? (new AttendancePenaltyService)->getStatusPoints('DINAS', $setting)
             : 10;
-        if ($pointHadir <= 0) $pointHadir = 10;
+        if ($pointHadir <= 0) {
+            $pointHadir = 10;
+        }
 
         $updateData = [
             'status_masuk' => 'DINAS_APPROVED',
@@ -988,10 +1039,10 @@ class PresensiAdminController extends BaseController
             'denda' => 0,
             'keterangan_denda' => null,
             'telat_menit' => 0,
-            'pulang_cepat_menit' => 0
+            'pulang_cepat_menit' => 0,
         ];
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $db->table('absensi_harian')
                 ->where('id', $id)->where('status_masuk', 'DINAS_PENDING')
@@ -1001,23 +1052,24 @@ class PresensiAdminController extends BaseController
                 throw new \RuntimeException('Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+            (new PoinHistoryModel)->syncAttendancePoint($id);
 
             // Dinas retroaktif bisa menggugurkan alpha: sinkronkan surat teguran
             // seperti approve izin/koreksi agar surat usang otomatis dibatalkan.
             try {
                 $tglDinas = substr((string) ($attendance->tgl ?? date('Y-m-d')), 0, 10);
-                (new \App\Services\AttendancePenaltyService())->syncSuratTeguranOnAttendanceChange(
+                (new AttendancePenaltyService)->syncSuratTeguranOnAttendanceChange(
                     (int) $attendance->user_id,
                     (int) date('m', strtotime($tglDinas)),
                     (int) date('Y', strtotime($tglDinas)),
                     $setting
                 );
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
 
             // AUDIT LOG
             try {
-                $auditModel = new AuditLogModel();
+                $auditModel = new AuditLogModel;
                 $auditModel->log(
                     'absensi_harian',
                     $id,
@@ -1029,13 +1081,14 @@ class PresensiAdminController extends BaseController
                     'Dinas Disetujui Admin'
                 );
             } catch (\Throwable $ex) {
-                Log::error('Failed to create audit log: ' . $ex->getMessage());
+                Log::error('Failed to create audit log: '.$ex->getMessage());
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Approve dinas gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Approve dinas gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyetujui dinas — periksa log aplikasi.', null, null, 500);
         }
 
@@ -1044,7 +1097,7 @@ class PresensiAdminController extends BaseController
             $dinasUserId = (int) ($attendance->user_id ?? 0);
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $dinasUserId)->first();
             $namaGuru = $guruRow->nama_guru ?? 'Guru';
-            $notifService = new \App\Services\NotificationService();
+            $notifService = new NotificationService;
             $notifService->notifyDinasApproved(
                 $namaGuru,
                 (string) ($attendance->tgl ?? date('Y-m-d')),
@@ -1052,10 +1105,10 @@ class PresensiAdminController extends BaseController
                 (string) ($this->request->input('catatan') ?? $this->request->input('note') ?? '')
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi dinas gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi dinas gagal: '.$ex->getMessage());
         }
 
-        return $this->respond(true, 'Dinas disetujui. Poin +' . (int) $pointHadir . ' diberikan.');
+        return $this->respond(true, 'Dinas disetujui. Poin +'.(int) $pointHadir.' diberikan.');
     }
 
     /**
@@ -1065,7 +1118,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectDinas($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -1074,9 +1127,9 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID dinas tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $attendance = $this->attendanceModel->find($id);
-        if (!$attendance) {
+        if (! $attendance) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
 
@@ -1095,7 +1148,7 @@ class PresensiAdminController extends BaseController
 
         // Preservasi keterangan awal guru agar tidak hilang tertimpa
         $ketAwal = trim((string) ($attendance->keterangan ?? ''));
-        $ketTolak = 'Dinas ditolak: ' . $alasan . ($ketAwal !== '' ? ' | Ket awal: ' . mb_substr($ketAwal, 0, 200) : '');
+        $ketTolak = 'Dinas ditolak: '.$alasan.($ketAwal !== '' ? ' | Ket awal: '.mb_substr($ketAwal, 0, 200) : '');
         $updateData = [
             'status_masuk' => 'DINAS_REJECTED',
             'status_pulang' => 'DINAS_REJECTED',
@@ -1105,7 +1158,7 @@ class PresensiAdminController extends BaseController
             'keterangan' => mb_substr($ketTolak, 0, 500),
         ];
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $db->table('absensi_harian')
                 ->where('id', $id)->where('status_masuk', 'DINAS_PENDING')
@@ -1115,11 +1168,11 @@ class PresensiAdminController extends BaseController
                 throw new \RuntimeException('Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+            (new PoinHistoryModel)->syncAttendancePoint($id);
 
             // AUDIT LOG
             try {
-                $auditModel = new AuditLogModel();
+                $auditModel = new AuditLogModel;
                 $auditModel->log(
                     'absensi_harian',
                     $id,
@@ -1128,16 +1181,17 @@ class PresensiAdminController extends BaseController
                     $this->getUserId(),
                     (array) $attendance,
                     $updateData,
-                    'Dinas Ditolak Admin: ' . $alasan
+                    'Dinas Ditolak Admin: '.$alasan
                 );
             } catch (\Throwable $ex) {
-                Log::error('Failed to create audit log: ' . $ex->getMessage());
+                Log::error('Failed to create audit log: '.$ex->getMessage());
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Reject dinas gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Reject dinas gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak dinas — periksa log aplikasi.', null, null, 500);
         }
 
@@ -1146,7 +1200,7 @@ class PresensiAdminController extends BaseController
             $dinasUserId = (int) ($attendance->user_id ?? 0);
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $dinasUserId)->first();
             $namaGuru = $guruRow->nama_guru ?? 'Guru';
-            $notifService = new \App\Services\NotificationService();
+            $notifService = new NotificationService;
             // Alasan wajib diisi admin (min 5 karakter) — kirim ke guru agar
             // pengajuan yang ditolak tidak menggantung tanpa penjelasan.
             $notifService->notifyDinasRejected(
@@ -1156,12 +1210,11 @@ class PresensiAdminController extends BaseController
                 $alasan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi dinas ditolak gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi dinas ditolak gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Dinas ditolak. Poin dikembalikan ke 0.');
     }
-
 
     /**
      * Periode (bulan, tahun) untuk halaman rekap.
@@ -1195,7 +1248,7 @@ class PresensiAdminController extends BaseController
      */
     public function rekap()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1204,16 +1257,20 @@ class PresensiAdminController extends BaseController
             $this->request->query('tahun') ?? date('Y')
         );
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $users = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, u.username, g.nip, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'g.nip', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
             ->orderBy('g.nama_guru', 'ASC')
             ->get();
 
@@ -1226,45 +1283,47 @@ class PresensiAdminController extends BaseController
         // Map attendance by user_id
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id])) {
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
             }
             $mapByUser[$att->user_id][$att->tgl] = $att;
         }
 
         // Get holidays for the month (peta libur AttendancePolicy)
-        $holidays = \App\Services\AttendancePolicy::liburNasional();
+        $holidays = AttendancePolicy::liburNasional();
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         // Jadwal kerja dari AttendancePolicy (peta hari ISO => baris jadwal).
-        $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
         // Get lunas status
         $lunasMap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
             $lunasRows = $db->table('absensi_pembayaran_denda')
                 ->where('bulan', $bulan)
                 ->where('tahun', $tahun)
                 ->where('status', 'lunas')
                 ->get();
-            foreach ($lunasRows as $lr)
+            foreach ($lunasRows as $lr) {
                 $lunasMap[$lr->user_id] = $lr;
+            }
         }
 
         // Peta izin approved bulan ini agar rekap tidak menghitung alpha pada
         // tanggal dispensasi (konsisten dengan halaman denda via service).
         $leaveMap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin')) {
             try {
                 $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
                 $endDate = date('Y-m-t', strtotime($startDate));
@@ -1281,7 +1340,8 @@ class PresensiAdminController extends BaseController
                         $cur = strtotime('+1 day', $cur);
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         return view('admin.presensi.rekap', [
@@ -1296,11 +1356,11 @@ class PresensiAdminController extends BaseController
             'mapByUser' => $mapByUser,
             'holidays' => $holidays,
             'jadwalKerja' => $jadwalKerja,
-            'hariLiburMingguan' => \App\Services\AttendancePolicy::hariLiburMingguan(),
+            'hariLiburMingguan' => AttendancePolicy::hariLiburMingguan(),
             'bulan' => $bulan,
             'tahun' => $tahun,
             'lunasMap' => $lunasMap,
-            'leaveMap' => $leaveMap
+            'leaveMap' => $leaveMap,
         ]);
     }
 
@@ -1309,7 +1369,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportRekap()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1318,7 +1378,7 @@ class PresensiAdminController extends BaseController
             $this->request->query('tahun') ?? date('Y')
         );
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Get all users
         // Get Setting for Sorting Kepsek
@@ -1327,23 +1387,31 @@ class PresensiAdminController extends BaseController
 
         // Get all users
         $users = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, u.username, g.nip, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'g.nip', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->get();
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->get()
+            ->all();
 
         usort($users, function ($a, $b) use ($kepsekNip) {
-            $isA = !empty($kepsekNip) && trim($a->nip) == $kepsekNip;
-            $isB = !empty($kepsekNip) && trim($b->nip) == $kepsekNip;
+            $isA = ! empty($kepsekNip) && trim($a->nip) == $kepsekNip;
+            $isB = ! empty($kepsekNip) && trim($b->nip) == $kepsekNip;
 
-            if ($isA && !$isB)
+            if ($isA && ! $isB) {
                 return -1;
-            if (!$isA && $isB)
+            }
+            if (! $isA && $isB) {
                 return 1;
+            }
+
             return strcasecmp($a->nama_guru, $b->nama_guru);
         });
 
@@ -1355,71 +1423,72 @@ class PresensiAdminController extends BaseController
 
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id]))
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
+            }
             $mapByUser[$att->user_id][$att->tgl] = $att;
         }
 
         // Get Holidays (peta libur AttendancePolicy)
-        $holidays = \App\Services\AttendancePolicy::liburNasional();
+        $holidays = AttendancePolicy::liburNasional();
 
-        $filename = 'Rekap_Presensi_' . sprintf('%02d-%04d', $bulan, $tahun) . '.xls';
+        $filename = 'Rekap_Presensi_'.sprintf('%02d-%04d', $bulan, $tahun).'.xls';
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
 
         $setting = $this->getSettingRow();
-    if (!$setting)
-        $setting = (object) ['nama_sekolah' => 'absensi by ikasmedia'];
-
-    // Jadwal kerja dari AttendancePolicy (peta hari ISO => baris jadwal).
-    $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
-
-    // Peta izin approved bulan ini. Tanpa ini view Excel menandai guru yang
-    // izinnya sudah disetujui sebagai ALPHA, padahal halaman Rekap dan PDF
-    // sudah menampilkannya sebagai kolom kosong.
-    $leaveMap = [];
-    if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
-        try {
-            $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-            $endDate = date('Y-m-t', strtotime($startDate));
-            $leaveRows = $db->table('absensi_izin')
-                ->where('status', 'approved')
-                ->where('tgl_mulai', '<=', $endDate)
-                ->where('tgl_selesai', '>=', $startDate)
-                ->get();
-            foreach ($leaveRows as $l) {
-                $cur = strtotime(max($startDate, (string) $l->tgl_mulai));
-                $end = strtotime(min($endDate, (string) $l->tgl_selesai));
-                while ($cur <= $end) {
-                    $leaveMap[(int) $l->user_id][date('Y-m-d', $cur)] = true;
-                    $cur = strtotime('+1 day', $cur);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('[exportRekap] leaveMap: ' . $e->getMessage());
+        if (! $setting) {
+            $setting = (object) ['nama_sekolah' => 'absensi by ikasmedia'];
         }
-    }
 
-    $data = [
-        'users' => $users,
-        'mapByUser' => $mapByUser,
-        'holidays' => $holidays,
-        'bulan' => $bulan,
-        'tahun' => $tahun,
-        'setting' => $setting,
-        'absenSetting' => $absenSetting,
-        'jadwalKerja' => $jadwalKerja,
-        'leaveMap' => $leaveMap
-    ];
+        // Jadwal kerja dari AttendancePolicy (peta hari ISO => baris jadwal).
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
+
+        // Peta izin approved bulan ini. Tanpa ini view Excel menandai guru yang
+        // izinnya sudah disetujui sebagai ALPHA, padahal halaman Rekap dan PDF
+        // sudah menampilkannya sebagai kolom kosong.
+        $leaveMap = [];
+        if (Schema::hasTable('absensi_izin')) {
+            try {
+                $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
+                $endDate = date('Y-m-t', strtotime($startDate));
+                $leaveRows = $db->table('absensi_izin')
+                    ->where('status', 'approved')
+                    ->where('tgl_mulai', '<=', $endDate)
+                    ->where('tgl_selesai', '>=', $startDate)
+                    ->get();
+                foreach ($leaveRows as $l) {
+                    $cur = strtotime(max($startDate, (string) $l->tgl_mulai));
+                    $end = strtotime(min($endDate, (string) $l->tgl_selesai));
+                    while ($cur <= $end) {
+                        $leaveMap[(int) $l->user_id][date('Y-m-d', $cur)] = true;
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error('[exportRekap] leaveMap: '.$e->getMessage());
+            }
+        }
+
+        $data = [
+            'users' => $users,
+            'mapByUser' => $mapByUser,
+            'holidays' => $holidays,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'setting' => $setting,
+            'absenSetting' => $absenSetting,
+            'jadwalKerja' => $jadwalKerja,
+            'leaveMap' => $leaveMap,
+        ];
 
         // Render view first
         $body = view('admin.presensi.rekap_excel', $data);
-        $db->close(); // Explicitly close DB connection
 
         return $this->response
             ->setHeader('Content-Type', 'application/vnd.ms-excel')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($body);
     }
 
@@ -1428,7 +1497,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportPdf()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1437,7 +1506,7 @@ class PresensiAdminController extends BaseController
             $this->request->query('tahun') ?? date('Y')
         );
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Get all users
         // Get Setting for Sorting Kepsek
@@ -1446,23 +1515,31 @@ class PresensiAdminController extends BaseController
 
         // Get all users
         $users = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, u.username, g.nip, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'g.nip', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->get();
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->get()
+            ->all();
 
         usort($users, function ($a, $b) use ($kepsekNip) {
-            $isA = !empty($kepsekNip) && trim($a->nip) == $kepsekNip;
-            $isB = !empty($kepsekNip) && trim($b->nip) == $kepsekNip;
+            $isA = ! empty($kepsekNip) && trim($a->nip) == $kepsekNip;
+            $isB = ! empty($kepsekNip) && trim($b->nip) == $kepsekNip;
 
-            if ($isA && !$isB)
+            if ($isA && ! $isB) {
                 return -1;
-            if (!$isA && $isB)
+            }
+            if (! $isA && $isB) {
                 return 1;
+            }
+
             return strcasecmp($a->nama_guru, $b->nama_guru);
         });
 
@@ -1474,63 +1551,66 @@ class PresensiAdminController extends BaseController
 
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id]))
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
+            }
             $mapByUser[$att->user_id][$att->tgl] = $att;
         }
 
         // Get Holidays (peta libur AttendancePolicy)
-        $holidays = \App\Services\AttendancePolicy::liburNasional();
+        $holidays = AttendancePolicy::liburNasional();
 
         $setting = $this->getSettingRow();
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['nama_sekolah' => 'absensi by ikasmedia'];
+        }
 
-        $filename = 'Rekap_Presensi_' . sprintf('%02d-%04d', $bulan, $tahun);
+        $filename = 'Rekap_Presensi_'.sprintf('%02d-%04d', $bulan, $tahun);
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
 
-    // Jadwal kerja dari AttendancePolicy (peta hari ISO => baris jadwal).
-    $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        // Jadwal kerja dari AttendancePolicy (peta hari ISO => baris jadwal).
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
-    // Peta izin approved bulan ini (konsisten dengan halaman rekap & denda)
-    $leaveMap = [];
-    if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
-        try {
-            $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-            $endDate = date('Y-m-t', strtotime($startDate));
-            $leaveRows = $db->table('absensi_izin')
-                ->where('status', 'approved')
-                ->where('tgl_mulai', '<=', $endDate)
-                ->where('tgl_selesai', '>=', $startDate)
-                ->get();
-            foreach ($leaveRows as $l) {
-                $cur = strtotime(max($startDate, (string) $l->tgl_mulai));
-                $end = strtotime(min($endDate, (string) $l->tgl_selesai));
-                while ($cur <= $end) {
-                    $leaveMap[(int) $l->user_id][date('Y-m-d', $cur)] = true;
-                    $cur = strtotime('+1 day', $cur);
+        // Peta izin approved bulan ini (konsisten dengan halaman rekap & denda)
+        $leaveMap = [];
+        if (Schema::hasTable('absensi_izin')) {
+            try {
+                $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
+                $endDate = date('Y-m-t', strtotime($startDate));
+                $leaveRows = $db->table('absensi_izin')
+                    ->where('status', 'approved')
+                    ->where('tgl_mulai', '<=', $endDate)
+                    ->where('tgl_selesai', '>=', $startDate)
+                    ->get();
+                foreach ($leaveRows as $l) {
+                    $cur = strtotime(max($startDate, (string) $l->tgl_mulai));
+                    $end = strtotime(min($endDate, (string) $l->tgl_selesai));
+                    while ($cur <= $end) {
+                        $leaveMap[(int) $l->user_id][date('Y-m-d', $cur)] = true;
+                        $cur = strtotime('+1 day', $cur);
+                    }
                 }
+            } catch (\Throwable $e) {
             }
-        } catch (\Throwable $e) {}
-    }
+        }
 
-    $data = [
-        'users' => $users,
-        'mapByUser' => $mapByUser,
-        'holidays' => $holidays,
-        'bulan' => $bulan,
-        'tahun' => $tahun,
-        'setting' => $setting,
-        'absenSetting' => $absenSetting,
-        'jadwalKerja' => $jadwalKerja,
-        'leaveMap' => $leaveMap
-    ];
+        $data = [
+            'users' => $users,
+            'mapByUser' => $mapByUser,
+            'holidays' => $holidays,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'setting' => $setting,
+            'absenSetting' => $absenSetting,
+            'jadwalKerja' => $jadwalKerja,
+            'leaveMap' => $leaveMap,
+        ];
 
         $html = view('admin.presensi.rekap_pdf', $data);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
@@ -1539,11 +1619,10 @@ class PresensiAdminController extends BaseController
 
         // Fix for hosting: Use CI4 Response to ensure correct headers
         $output = $dompdf->output();
-        $db->close(); // Explicitly close DB connection
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="' . $filename . '.pdf"')
+            ->setHeader('Content-Disposition', 'inline; filename="'.$filename.'.pdf"')
             ->setBody($output)
             ->setStatusCode(200);
     }
@@ -1553,7 +1632,7 @@ class PresensiAdminController extends BaseController
      */
     public function suratTeguran()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1567,26 +1646,27 @@ class PresensiAdminController extends BaseController
 
         // Fetch Settings & User Data FIRST (Required for Layout)
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         $user = $this->getUser();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Lazy check table
-        $adaTabel = \Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran');
+        $adaTabel = Schema::hasTable('absensi_surat_teguran');
 
-        $letters  = [];
+        $letters = [];
         $kandidat = [];
 
         if ($adaTabel) {
             $letters = $db->table('absensi_surat_teguran as a')
-                ->select('a.*, g.nama_guru, g.nip, g.id_user') // Join to get guru info
-                ->join('master_guru as g', 'g.id_guru = a.id_guru')
+                ->select('a.*', 'g.nama_guru', 'g.nip', 'g.id_user') // Join to get guru info
+                ->join('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
                 ->where('a.bulan', $bulan)
                 ->where('a.tahun', $tahun)
                 ->orderBy('a.nomor_urut', 'DESC')
@@ -1606,7 +1686,7 @@ class PresensiAdminController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp_active,
             'smt_active' => $smt_active,
-            'user' => $user
+            'user' => $user,
         ];
 
         return view('admin.presensi.surat_teguran', $data);
@@ -1625,15 +1705,15 @@ class PresensiAdminController extends BaseController
      */
     private function kandidatSuratTeguran($db, array $letters, int $bulan, int $tahun): array
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('master_guru')) {
+        if (! Schema::hasTable('master_guru')) {
             return [];
         }
 
         try {
             $guruList = $db->table('users as u')
-                ->select('u.id, g.id_guru, g.nama_guru, g.nip')
-                ->join('master_guru as g', 'g.id_user = u.id', 'inner')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->select('u.id', 'g.id_guru', 'g.nama_guru', 'g.nip')
+                ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
                 ->groupBy('u.id')
@@ -1647,10 +1727,10 @@ class PresensiAdminController extends BaseController
                 $sudahPunya[(int) $l->id_guru] = true;
             }
 
-            $absenSetting = (new \App\Models\AttendanceSettingModel())->first();
-            $penaltySvc   = new \App\Services\AttendancePenaltyService();
-            $ambangAwal   = \App\Libraries\SuratTeguranLevel::ambang()[0];
-            $svcTeguran   = new \App\Services\SuratTeguranService($db);
+            $absenSetting = (new AttendanceSettingModel)->first();
+            $penaltySvc = new AttendancePenaltyService;
+            $ambangAwal = SuratTeguranLevel::ambang()[0];
+            $svcTeguran = new SuratTeguranService($db);
 
             $kandidat = [];
             foreach ($guruList as $g) {
@@ -1672,26 +1752,26 @@ class PresensiAdminController extends BaseController
                     $absenSetting
                 );
 
-                $level = \App\Libraries\SuratTeguranLevel::levelUntukAlpha($alpha);
+                $level = SuratTeguranLevel::levelUntukAlpha($alpha);
                 if ($level === null || $alpha < $ambangAwal) {
                     continue;
                 }
 
                 $kandidat[] = [
-                    'id_guru'  => $idGuru,
+                    'id_guru' => $idGuru,
                     'nama_guru' => (string) ($g->nama_guru ?? '-'),
-                    'nip'      => (string) ($g->nip ?? ''),
-                    'alpha'    => $alpha,
-                    'level'    => $level,
+                    'nip' => (string) ($g->nip ?? ''),
+                    'alpha' => $alpha,
+                    'level' => $level,
                 ];
             }
 
             // Yang paling parah di atas (urutan alpha menurun).
-            usort($kandidat, static fn($a, $b) => $b['alpha'] <=> $a['alpha']);
+            usort($kandidat, static fn ($a, $b) => $b['alpha'] <=> $a['alpha']);
 
             return $kandidat;
         } catch (\Throwable $e) {
-            Log::error('[suratTeguran] gagal hitung kandidat: ' . $e->getMessage());
+            Log::error('[suratTeguran] gagal hitung kandidat: '.$e->getMessage());
 
             return [];
         }
@@ -1704,12 +1784,15 @@ class PresensiAdminController extends BaseController
     private function alphaForLetterPeriod(int $userId, int $bulan, int $tahun, $setting, $db): int
     {
         try {
-            if ($userId <= 0)
+            if ($userId <= 0) {
                 return 0;
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            }
+            $penaltyService = new AttendancePenaltyService;
+
             return $penaltyService->calculateTeacherMonthlyAlpha($userId, $bulan, $tahun, $setting);
         } catch (\Throwable $e) {
-            Log::error('alphaForLetterPeriod gagal: ' . $e->getMessage());
+            Log::error('alphaForLetterPeriod gagal: '.$e->getMessage());
+
             return 0;
         }
     }
@@ -1724,7 +1807,7 @@ class PresensiAdminController extends BaseController
      */
     private function filteredAlphaMonthMap(string $startDate, string $endDate, $setting): array
     {
-        return (new \App\Services\RekapPdfService())->filteredAlphaMonthMap($startDate, $endDate, $setting);
+        return (new RekapPdfService)->filteredAlphaMonthMap($startDate, $endDate, $setting);
     }
 
     /**
@@ -1736,30 +1819,35 @@ class PresensiAdminController extends BaseController
      */
     private function dataPdfSuratTeguran(object $letter): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // 1. Settings
-        $attSetting = new \App\Models\AttendanceSettingModel();
+        $attSetting = new AttendanceSettingModel;
         $baseSetting = $attSetting->first();
-        if (!$baseSetting)
-            $baseSetting = (object) []; // Prevent crash if empty
+        if (! $baseSetting) {
+            $baseSetting = (object) [];
+        } // Prevent crash if empty
 
         $globalSetting = $this->getSettingRow();
         // Merge
         $setting = clone $baseSetting;
         if ($globalSetting) {
             foreach (get_object_vars($globalSetting) as $key => $val) {
-                if (!isset($setting->$key))
+                if (! isset($setting->$key)) {
                     $setting->$key = $val;
+                }
             }
         }
         // Defaults
-        if (!isset($setting->logo_kiri))
+        if (! isset($setting->logo_kiri)) {
             $setting->logo_kiri = null;
-        if (!isset($setting->nama_sekolah))
+        }
+        if (! isset($setting->nama_sekolah)) {
             $setting->nama_sekolah = 'Sekolah';
-        if (!isset($setting->kota))
+        }
+        if (! isset($setting->kota)) {
             $setting->kota = 'Kota';
+        }
 
         // 2. Gunakan snapshot jumlah_alpha dari database agar isi arsip tetap (immutable)
         $jumlahAlpha = (int) ($letter->jumlah_alpha ?? 0);
@@ -1778,7 +1866,7 @@ class PresensiAdminController extends BaseController
         $guru = $letter; // Already joined
 
         // Text
-        $teguranText = \App\Libraries\SuratTeguranLevel::label((int) ($letter->level ?? 0));
+        $teguranText = SuratTeguranLevel::label((int) ($letter->level ?? 0));
 
         // Rincian tanggal alpha (sumber tunggal yang sama dengan angka
         // snapshot di atas) untuk kalimat "tanggal 1, 3 dan 4 ..." di PDF.
@@ -1786,33 +1874,33 @@ class PresensiAdminController extends BaseController
         $userIdSurat = (int) ($letter->id_user ?? 0);
         if ($userIdSurat > 0) {
             try {
-                $alphaDates = (new \App\Services\AttendancePenaltyService())->teacherMonthlyAlphaDates(
+                $alphaDates = (new AttendancePenaltyService)->teacherMonthlyAlphaDates(
                     $userIdSurat,
                     (int) ($letter->bulan ?? date('n')),
                     (int) ($letter->tahun ?? date('Y')),
                     $setting
                 );
             } catch (\Throwable $e) {
-                Log::error('[SuratTeguran] rincian tanggal alpha gagal: ' . $e->getMessage());
+                Log::error('[SuratTeguran] rincian tanggal alpha gagal: '.$e->getMessage());
             }
         }
 
         // Images
         $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path() . '/' . $setting->logo_kiri)) {
-            $type = pathinfo(public_path() . '/' . $setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->logo_kiri);
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
+            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
         $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path() . '/' . $setting->kopsekolah)) {
-            $type = pathinfo(public_path() . '/' . $setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path() . '/' . $setting->kopsekolah);
-            $kopBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
+            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
+            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
+            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
         }
 
         // Nomor Surat (format dapat dikonfigurasi di /settings)
-        $nomorSurat = \App\Libraries\SuratNomor::build(
+        $nomorSurat = SuratNomor::build(
             (int) ($letter->nomor_urut ?? 0),
             (int) ($letter->bulan ?? date('n')),
             (int) ($letter->tahun ?? date('Y')),
@@ -1835,18 +1923,18 @@ class PresensiAdminController extends BaseController
             'periode_bulan' => (int) ($letter->bulan ?? date('n')),
             'periode_tahun' => (int) ($letter->tahun ?? date('Y')),
             // Tanggal surat = tanggal terbit arsip, bukan tanggal cetak.
-            'tanggal_terbit' => !empty($letter->created_at) ? (string) $letter->created_at : null,
+            'tanggal_terbit' => ! empty($letter->created_at) ? (string) $letter->created_at : null,
             // Daftar tanggal alpha periode surat untuk rincian di badan surat.
-            'alpha_dates' => $alphaDates
+            'alpha_dates' => $alphaDates,
         ];
 
         // QR TTE pengganti tanda tangan basah Kepsek
-        $tteKode = \App\Libraries\TteQr::verificationCode(
+        $tteKode = TteQr::verificationCode(
             $nomorSurat, (int) $letter->id_guru, (int) $letter->level, (int) $letter->bulan, (int) $letter->tahun
         );
         $viewData['tte_kode'] = $tteKode;
-        $viewData['tte_qr'] = \App\Libraries\TteQr::dataUri(
-            \App\Libraries\TteQr::payload(
+        $viewData['tte_qr'] = TteQr::dataUri(
+            TteQr::payload(
                 $nomorSurat, (string) ($guru->nama_guru ?? '-'), (string) ($guru->nip ?? '-'),
                 $teguranText, (int) $jumlahAlpha, $tteKode,
                 (string) ($setting->kepsek ?? ''), (string) ($setting->nip ?? ''),
@@ -1862,18 +1950,18 @@ class PresensiAdminController extends BaseController
      */
     public function downloadTeguran($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $letter = $db->table('absensi_surat_teguran as a')
-            ->join('master_guru as g', 'g.id_guru = a.id_guru')
+            ->join('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.id', $id)
             ->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return redirect()->back()->with('error', 'Data surat tidak ditemukan');
         }
 
@@ -1887,7 +1975,7 @@ class PresensiAdminController extends BaseController
         // Reuse the teacher view since it's the same letter
         $html = view('members.guru.surat_teguran_pdf', $viewData);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->set_option('isRemoteEnabled', true);
         $dompdf->loadHtml($html);
@@ -1896,7 +1984,7 @@ class PresensiAdminController extends BaseController
 
         $filename = "Surat_Teguran_{$letter->level}_Hari_{$letter->nama_guru}.pdf";
 
-        $dompdf->stream($filename, ["Attachment" => false]);
+        $dompdf->stream($filename, ['Attachment' => false]);
         exit;
     }
 
@@ -1905,14 +1993,14 @@ class PresensiAdminController extends BaseController
      */
     public function pendingKoreksi()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         // Ensure correction table schema
         $this->patchAbsensiKoreksiTable();
 
-        $correctionModel = new \App\Models\AttendanceCorrectionModel();
+        $correctionModel = new AttendanceCorrectionModel;
         $pending = $correctionModel->getPendingWithDetails();
         $history = $correctionModel->getHistoryWithDetails(100);
 
@@ -1930,11 +2018,12 @@ class PresensiAdminController extends BaseController
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.pending_koreksi', [
             'title' => 'Koreksi Absensi Manual',
@@ -1957,7 +2046,7 @@ class PresensiAdminController extends BaseController
      */
     public function approveKoreksi($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -1966,10 +2055,10 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID koreksi tidak valid');
         }
 
-        $correctionModel = new \App\Models\AttendanceCorrectionModel();
+        $correctionModel = new AttendanceCorrectionModel;
         $correction = $correctionModel->find($id);
 
-        if (!$correction) {
+        if (! $correction) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
 
@@ -1988,8 +2077,9 @@ class PresensiAdminController extends BaseController
 
         // Whitelist field: cegah mass-assignment kolom points/denda/status/user_id
         // lewat field_name koreksi.
-        if (!in_array($correction->field_name, ['jam_masuk', 'jam_pulang'], true)) {
+        if (! in_array($correction->field_name, ['jam_masuk', 'jam_pulang'], true)) {
             $autoReject('Field koreksi tidak didukung (otomatis ditolak sistem)');
+
             return $this->respond(false, 'Field koreksi tidak didukung');
         }
 
@@ -2001,40 +2091,42 @@ class PresensiAdminController extends BaseController
             $datePart = $parts[0] ?? null;
             $timeOnly = end($parts);
         }
-        if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', (string) $timeOnly)) {
+        if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', (string) $timeOnly)) {
             $autoReject('Nilai jam tidak valid (otomatis ditolak sistem)');
+
             return $this->respond(false, 'Nilai jam koreksi tidak valid');
         }
 
         // Apply the correction to attendance — data absen harus masih ada
         $att = $this->attendanceModel->find($correction->attendance_id);
-        if (!$att) {
+        if (! $att) {
             $autoReject('Data absensi terkait tidak ditemukan (otomatis ditolak sistem)');
+
             return $this->respond(false, 'Data absensi terkait sudah tidak ditemukan');
         }
 
         // Baris proteksi (dinas/WFH/izin sah/alpha) tidak boleh diubah via koreksi jam —
         // koreksi jam pada baris tersebut akan menimpa status resmi menjadi ONTIME/LATE.
-        {
-            $attStMasuk = strtoupper((string) (is_array($att) ? ($att['status_masuk'] ?? '') : ($att->status_masuk ?? '')));
-            $attStPulang = strtoupper((string) (is_array($att) ? ($att['status_pulang'] ?? '') : ($att->status_pulang ?? '')));
-            $attIsWfh = (!empty(is_array($att) ? ($att['is_wfh'] ?? 0) : ($att->is_wfh ?? 0))) || $attStMasuk === 'WFH' || $attStPulang === 'WFH';
-            $attIsLeave = in_array($attStMasuk, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true)
-                || in_array($attStPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true);
-            if ($attIsWfh || $attIsLeave || in_array($attStMasuk, ['ALPHA', 'ALPA'], true)) {
-                $autoReject('Baris ' . $attStMasuk . ' tidak bisa dikoreksi jamnya (otomatis ditolak sistem)');
-                return $this->respond(false, 'Baris ' . $attStMasuk . ' tidak bisa dikoreksi jamnya');
-            }
+
+        $attStMasuk = strtoupper((string) (is_array($att) ? ($att['status_masuk'] ?? '') : ($att->status_masuk ?? '')));
+        $attStPulang = strtoupper((string) (is_array($att) ? ($att['status_pulang'] ?? '') : ($att->status_pulang ?? '')));
+        $attIsWfh = (! empty(is_array($att) ? ($att['is_wfh'] ?? 0) : ($att->is_wfh ?? 0))) || $attStMasuk === 'WFH' || $attStPulang === 'WFH';
+        $attIsLeave = in_array($attStMasuk, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true)
+            || in_array($attStPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true);
+        if ($attIsWfh || $attIsLeave || in_array($attStMasuk, ['ALPHA', 'ALPA'], true)) {
+            $autoReject('Baris '.$attStMasuk.' tidak bisa dikoreksi jamnya (otomatis ditolak sistem)');
+
+            return $this->respond(false, 'Baris '.$attStMasuk.' tidak bisa dikoreksi jamnya');
         }
 
         // --- Auto Recalculate Status and Points ---
         $updateData = [];
 
         // Get Settings
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSet = $absenSettingModel->first();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tgl = is_array($att) ? $att['tgl'] : $att->tgl;
         $dayOfWeek = date('N', strtotime($tgl));
         $attUserId = (int) (is_array($att) ? ($att['user_id'] ?? 0) : ($att->user_id ?? 0));
@@ -2043,132 +2135,133 @@ class PresensiAdminController extends BaseController
         // Nilai disimpan dinormalisasi mengikuti tanggal absen (hindari selisih hari).
         if ($datePart && $datePart !== substr((string) $tgl, 0, 10)) {
             $autoReject('Tanggal koreksi tidak sama dengan tanggal absen (otomatis ditolak sistem)');
+
             return $this->respond(false, 'Tanggal koreksi harus sama dengan tanggal absen');
         }
-        $updateData[$correction->field_name] = date('Y-m-d H:i:s', strtotime($tgl . ' ' . $timeOnly));
+        $updateData[$correction->field_name] = date('Y-m-d H:i:s', strtotime($tgl.' '.$timeOnly));
 
-            // Jadwal global opsional (tabel boleh belum ada) — fallback ke setting/shift
-            $jadwal = null;
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
-                try {
-                    $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
-                } catch (\Throwable $e) {
-                    Log::error('[approveKoreksi] jadwal: ' . $e->getMessage());
-                    $jadwal = null;
-                }
+        // Jadwal global opsional (tabel boleh belum ada) — fallback ke setting/shift
+        $jadwal = null;
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
+            try {
+                $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
+            } catch (\Throwable $e) {
+                Log::error('[approveKoreksi] jadwal: '.$e->getMessage());
+                $jadwal = null;
+            }
+        }
+
+        // Determine Limits: shift per guru (bila ditugaskan) → jadwal → setting
+        $shiftModel = new ShiftModel;
+        $workSchedule = $shiftModel->getScheduleForUser($attUserId, (int) $dayOfWeek, $jadwal, $absenSet);
+        $jamMasukLimit = $workSchedule['jam_masuk'];
+        $jamPulangLimit = $workSchedule['jam_pulang'];
+        $shiftGrace = (int) ($workSchedule['grace_menit'] ?? ($absenSet->grace_period ?? 15));
+
+        // --- 1. Handle Masuk Correction ---
+        if ($correction->field_name === 'jam_masuk') {
+            // Rumus baku AttendancePolicy — identik dengan check-in wajah,
+            // scan QR, rekap, dan recalculasi bulanan.
+            $hit = AttendancePolicy::telat($tgl, $timeOnly, [
+                'jam_masuk' => $jamMasukLimit,
+                'grace_menit' => $shiftGrace,
+            ]);
+
+            $masukDenda = 0;
+            $masukKeteranganDenda = null;
+
+            if ($hit['status'] === 'ONTIME') {
+                $updateData['status_masuk'] = 'ONTIME';
+                $updateData['telat_menit'] = 0;
+                $masukPoints = ($hit['datang_awal_menit'] > 0)
+                    ? $this->calculateProgressiveRewardPoints($hit['datang_awal_menit'], $absenSet)
+                    : 0;
+            } else {
+                $updateData['status_masuk'] = 'LATE';
+                $updateData['telat_menit'] = $hit['telat_menit'];
+                $calc = $this->calculateProgressivePenalty($hit['telat_menit'], $absenSet, 'Telat Masuk');
+                $masukPoints = -1 * $calc['points'];
+                $masukDenda = $calc['denda'];
+                $masukKeteranganDenda = $calc['keterangan'];
             }
 
-            // Determine Limits: shift per guru (bila ditugaskan) → jadwal → setting
-            $shiftModel = new \App\Models\ShiftModel();
-            $workSchedule = $shiftModel->getScheduleForUser($attUserId, (int) $dayOfWeek, $jadwal, $absenSet);
-            $jamMasukLimit = $workSchedule['jam_masuk'];
-            $jamPulangLimit = $workSchedule['jam_pulang'];
-            $shiftGrace = (int) ($workSchedule['grace_menit'] ?? ($absenSet->grace_period ?? 15));
+            $updateData['datang_awal_menit'] = $hit['datang_awal_menit'];
 
-            // --- 1. Handle Masuk Correction ---
-            if ($correction->field_name === 'jam_masuk') {
-                // Rumus baku AttendancePolicy — identik dengan check-in wajah,
-                // scan QR, rekap, dan recalculasi bulanan.
-                $hit = \App\Services\AttendancePolicy::telat($tgl, $timeOnly, [
-                    'jam_masuk'   => $jamMasukLimit,
-                    'grace_menit' => $shiftGrace,
-                ]);
+            // Calculate Pulang Points (Keep existing status)
+            $pulangPoints = 0;
+            $pulangDenda = 0;
+            $pulangKeteranganDenda = null;
+            $statusPulang = is_array($att) ? $att['status_pulang'] : $att->status_pulang;
+            $pulangCepatMenit = is_array($att) ? ($att['pulang_cepat_menit'] ?? 0) : ($att->pulang_cepat_menit ?? 0);
+            if ($statusPulang === 'EARLY') {
+                $calcOut = $this->calculateProgressivePenalty($pulangCepatMenit, $absenSet, 'Pulang Awal');
+                $pulangPoints = -1 * $calcOut['points'];
+                $pulangDenda = $calcOut['denda'];
+                $pulangKeteranganDenda = $calcOut['keterangan'];
+            }
 
-                $masukDenda = 0;
-                $masukKeteranganDenda = null;
+            $updateData['points'] = $masukPoints + $pulangPoints;
+            $updateData['denda'] = $masukDenda + $pulangDenda;
+            $kets = array_values(array_filter([$masukKeteranganDenda, $pulangKeteranganDenda]));
+            $updateData['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
+        }
 
-                if ($hit['status'] === 'ONTIME') {
-                    $updateData['status_masuk'] = 'ONTIME';
-                    $updateData['telat_menit']  = 0;
-                    $masukPoints = ($hit['datang_awal_menit'] > 0)
-                        ? $this->calculateProgressiveRewardPoints($hit['datang_awal_menit'], $absenSet)
-                        : 0;
-                } else {
-                    $updateData['status_masuk'] = 'LATE';
-                    $updateData['telat_menit']  = $hit['telat_menit'];
-                    $calc = $this->calculateProgressivePenalty($hit['telat_menit'], $absenSet, 'Telat Masuk');
-                    $masukPoints = -1 * $calc['points'];
-                    $masukDenda = $calc['denda'];
-                    $masukKeteranganDenda = $calc['keterangan'];
-                }
+        // --- 2. Handle Pulang Correction ---
+        elseif ($correction->field_name === 'jam_pulang') {
+            $thresholdPulang = strtotime($tgl.' '.$jamPulangLimit);
 
-                $updateData['datang_awal_menit'] = $hit['datang_awal_menit'];
+            $correctionParamsTime = strtotime($tgl.' '.$timeOnly);
 
-                // Calculate Pulang Points (Keep existing status)
+            $pulangAkhirMenit = 0;
+            $pulangDenda = 0;
+            $pulangKeteranganDenda = null;
+
+            if ($correctionParamsTime < $thresholdPulang) {
+                $updateData['status_pulang'] = 'EARLY';
+                $diff = $thresholdPulang - $correctionParamsTime;
+                $updateData['pulang_cepat_menit'] = ceil($diff / 60);
+                $updateData['pulang_akhir_menit'] = 0;
+                $calc = $this->calculateProgressivePenalty($updateData['pulang_cepat_menit'], $absenSet, 'Pulang Awal');
+                $pulangPoints = -1 * $calc['points'];
+                $pulangDenda = $calc['denda'];
+                $pulangKeteranganDenda = $calc['keterangan'];
+            } else {
+                $updateData['status_pulang'] = 'ONTIME';
+                $updateData['pulang_cepat_menit'] = 0;
                 $pulangPoints = 0;
-                $pulangDenda = 0;
-                $pulangKeteranganDenda = null;
-                $statusPulang = is_array($att) ? $att['status_pulang'] : $att->status_pulang;
-                $pulangCepatMenit = is_array($att) ? ($att['pulang_cepat_menit'] ?? 0) : ($att->pulang_cepat_menit ?? 0);
-                if ($statusPulang === 'EARLY') {
-                    $calcOut = $this->calculateProgressivePenalty($pulangCepatMenit, $absenSet, 'Pulang Awal');
-                    $pulangPoints = -1 * $calcOut['points'];
-                    $pulangDenda = $calcOut['denda'];
-                    $pulangKeteranganDenda = $calcOut['keterangan'];
-                }
-
-                $updateData['points'] = $masukPoints + $pulangPoints;
-                $updateData['denda'] = $masukDenda + $pulangDenda;
-                $kets = array_values(array_filter([$masukKeteranganDenda, $pulangKeteranganDenda]));
-                $updateData['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
-            }
-            
-            // --- 2. Handle Pulang Correction ---
-            elseif ($correction->field_name === 'jam_pulang') {
-                $thresholdPulang = strtotime($tgl . ' ' . $jamPulangLimit);
-                
-                $correctionParamsTime = strtotime($tgl . ' ' . $timeOnly);
-
-                $pulangAkhirMenit = 0;
-                $pulangDenda = 0;
-                $pulangKeteranganDenda = null;
-
-                if ($correctionParamsTime < $thresholdPulang) {
-                    $updateData['status_pulang'] = 'EARLY';
-                    $diff = $thresholdPulang - $correctionParamsTime;
-                    $updateData['pulang_cepat_menit'] = ceil($diff / 60);
-                    $updateData['pulang_akhir_menit'] = 0;
-                    $calc = $this->calculateProgressivePenalty($updateData['pulang_cepat_menit'], $absenSet, 'Pulang Awal');
-                    $pulangPoints = -1 * $calc['points'];
-                    $pulangDenda = $calc['denda'];
-                    $pulangKeteranganDenda = $calc['keterangan'];
-                } else {
-                    $updateData['status_pulang'] = 'ONTIME';
-                    $updateData['pulang_cepat_menit'] = 0;
-                    $pulangPoints = 0;
-                    if ($correctionParamsTime > $thresholdPulang) {
-                        $diffMinutes = (int) floor(($correctionParamsTime - $thresholdPulang) / 60);
-                        $pulangAkhirMenit = ($diffMinutes >= 60) ? ($diffMinutes - 60) : 0;
-                        if ($pulangAkhirMenit > 0) {
-                            $pulangPoints = $this->calculateProgressiveRewardPoints($pulangAkhirMenit, $absenSet);
-                        }
+                if ($correctionParamsTime > $thresholdPulang) {
+                    $diffMinutes = (int) floor(($correctionParamsTime - $thresholdPulang) / 60);
+                    $pulangAkhirMenit = ($diffMinutes >= 60) ? ($diffMinutes - 60) : 0;
+                    if ($pulangAkhirMenit > 0) {
+                        $pulangPoints = $this->calculateProgressiveRewardPoints($pulangAkhirMenit, $absenSet);
                     }
                 }
-                $updateData['pulang_akhir_menit'] = $pulangAkhirMenit;
-
-                // Calculate Masuk Points (Keep existing status)
-                $masukPoints = 0;
-                $masukDenda = 0;
-                $masukKeteranganDenda = null;
-                $statusMasuk = is_array($att) ? $att['status_masuk'] : $att->status_masuk;
-                $telatMenit = is_array($att) ? ($att['telat_menit'] ?? 0) : ($att->telat_menit ?? 0);
-                if ($statusMasuk === 'LATE'
-                    || ($statusMasuk === 'PENDING_VERIFICATION' && (int) $telatMenit > 0)) {
-                    // Baris PENDING_VERIFICATION yang punya telat_menit tetap
-                    // berdenda telat: sebelumnya hanya status 'LATE' yang
-                    // dihitung, jadi mengoreksi jam PULANG saja menghapus denda
-                    // masuknya tanpa pernah memulihkan status masuknya.
-                    $calcIn = $this->calculateProgressivePenalty($telatMenit, $absenSet, 'Telat Masuk');
-                    $masukPoints = -1 * $calcIn['points'];
-                    $masukDenda = $calcIn['denda'];
-                    $masukKeteranganDenda = $calcIn['keterangan'];
-                }
-
-                $updateData['points'] = $masukPoints + $pulangPoints;
-                $updateData['denda'] = $masukDenda + $pulangDenda;
-                $kets = array_values(array_filter([$masukKeteranganDenda, $pulangKeteranganDenda]));
-                $updateData['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
             }
+            $updateData['pulang_akhir_menit'] = $pulangAkhirMenit;
+
+            // Calculate Masuk Points (Keep existing status)
+            $masukPoints = 0;
+            $masukDenda = 0;
+            $masukKeteranganDenda = null;
+            $statusMasuk = is_array($att) ? $att['status_masuk'] : $att->status_masuk;
+            $telatMenit = is_array($att) ? ($att['telat_menit'] ?? 0) : ($att->telat_menit ?? 0);
+            if ($statusMasuk === 'LATE'
+                || ($statusMasuk === 'PENDING_VERIFICATION' && (int) $telatMenit > 0)) {
+                // Baris PENDING_VERIFICATION yang punya telat_menit tetap
+                // berdenda telat: sebelumnya hanya status 'LATE' yang
+                // dihitung, jadi mengoreksi jam PULANG saja menghapus denda
+                // masuknya tanpa pernah memulihkan status masuknya.
+                $calcIn = $this->calculateProgressivePenalty($telatMenit, $absenSet, 'Telat Masuk');
+                $masukPoints = -1 * $calcIn['points'];
+                $masukDenda = $calcIn['denda'];
+                $masukKeteranganDenda = $calcIn['keterangan'];
+            }
+
+            $updateData['points'] = $masukPoints + $pulangPoints;
+            $updateData['denda'] = $masukDenda + $pulangDenda;
+            $kets = array_values(array_filter([$masukKeteranganDenda, $pulangKeteranganDenda]));
+            $updateData['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
+        }
         // ----------------------------------------------
 
         // Koreksi biasanya menurunkan denda hari itu. Kalau bulan itu sudah
@@ -2183,20 +2276,20 @@ class PresensiAdminController extends BaseController
                 (int) date('Y', strtotime($tgl)),
                 $dibayarCache
             );
-            $dendaLama    = (float) (is_array($att) ? ($att['denda'] ?? 0) : ($att->denda ?? 0));
+            $dendaLama = (float) (is_array($att) ? ($att['denda'] ?? 0) : ($att->denda ?? 0));
             if ($dibayarBulan > 0 && (float) $updateData['denda'] < $dendaLama) {
                 unset($updateData['denda'], $updateData['keterangan_denda']);
             }
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             // Tegakkan cap denda bulanan DI DALAM transaksi dengan lock agar
             // dua approval paralel tidak sama-sama lolos batas (sebelumnya
             // dihitung sebelum transBegin sehingga FOR UPDATE tak berpengaruh).
             if (isset($updateData['denda'], $tgl) && (float) $updateData['denda'] > 0 && isset($absenSet)) {
-                $capService = new \App\Services\AttendancePenaltyService();
+                $capService = new AttendancePenaltyService;
                 $capped = $capService->applyMonthlyCap(
                     (int) ($correction->user_id ?? 0),
                     substr((string) $tgl, 0, 10),
@@ -2207,18 +2300,18 @@ class PresensiAdminController extends BaseController
                 );
                 if ($capped['capped']) {
                     $updateData['denda'] = $capped['total'];
-                    $updateData['keterangan_denda'] = trim(($updateData['keterangan_denda'] ?? '') . ' (dibatasi cap bulanan Rp ' . number_format((float) $capped['total'], 0, ',', '.') . ')');
+                    $updateData['keterangan_denda'] = trim(($updateData['keterangan_denda'] ?? '').' (dibatasi cap bulanan Rp '.number_format((float) $capped['total'], 0, ',', '.').')');
                 }
             }
             $this->attendanceModel->where('id', $correction->attendance_id)->update($updateData);
             // Sync poin sekali setelah update selesai
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($correction->attendance_id);
+            (new PoinHistoryModel)->syncAttendancePoint($correction->attendance_id);
 
             // Transisi status atomik: gagal bila admin lain sudah memproses duluan
             $correctionModel->where('id', $id)->where('status', 'pending')->set([
                 'status' => 'approved',
                 'processed_by' => $this->getUserId(),
-                'processed_at' => date('Y-m-d H:i:s')
+                'processed_at' => date('Y-m-d H:i:s'),
             ])->update();
 
             if (1 !== 1) {
@@ -2243,31 +2336,35 @@ class PresensiAdminController extends BaseController
                         'processed_at' => date('Y-m-d H:i:s'),
                         'admin_note' => 'Otomatis ditolak: sudah digantikan koreksi lain yang disetujui',
                     ]);
-                    if (1 === 1) $staleCount++;
+                    if (1 === 1) {
+                        $staleCount++;
+                    }
                 }
             } catch (\Throwable $ex) {
-                Log::error('Sibling koreksi cleanup: ' . $ex->getMessage());
+                Log::error('Sibling koreksi cleanup: '.$ex->getMessage());
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Evaluasi dan sinkronisasi pembatalan surat teguran jika hari alpha gugur
             try {
-                $penaltySvc = new \App\Services\AttendancePenaltyService();
+                $penaltySvc = new AttendancePenaltyService;
                 $tglCorr = $tgl ?? date('Y-m-d');
                 $blnCorr = (int) date('n', strtotime($tglCorr));
                 $thnCorr = (int) date('Y', strtotime($tglCorr));
                 $penaltySvc->syncSuratTeguranOnAttendanceChange((int) ($correction->user_id ?? 0), $blnCorr, $thnCorr, $absenSet ?? null);
-            } catch (\Throwable $ex) {}
+            } catch (\Throwable $ex) {
+            }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Approve Koreksi Error: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Approve Koreksi Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyetujui koreksi — periksa log aplikasi.', null, null, 500);
         }
 
         // AUDIT LOG (di luar transaksi utama agar kegagalan log tak membatalkan koreksi)
         try {
-            $auditModel = new AuditLogModel();
+            $auditModel = new AuditLogModel;
             $auditModel->log(
                 'absensi_harian',
                 $correction->attendance_id,
@@ -2276,15 +2373,15 @@ class PresensiAdminController extends BaseController
                 $this->getUserId(),
                 [$correction->field_name => $correction->old_value],
                 $updateData,
-                'Koreksi Disetujui: ' . $correction->field_name . ' -> ' . $correction->new_value
+                'Koreksi Disetujui: '.$correction->field_name.' -> '.$correction->new_value
             );
         } catch (\Throwable $ex) {
-            Log::error('Failed to create audit log: ' . $ex->getMessage());
+            Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
         // Notifikasi ke guru + grup. Best-effort, setelah transaksi selesai.
         try {
-            $notif = new \App\Services\NotificationService();
+            $notif = new NotificationService;
             $corrUserId = (int) ($correction->user_id ?? 0);
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $corrUserId)->first();
             $namaGuru = $guruRow->nama_guru ?? 'Guru';
@@ -2299,11 +2396,14 @@ class PresensiAdminController extends BaseController
                 (string) ($this->request->input('note') ?? '')
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi koreksi disetujui gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi koreksi disetujui gagal: '.$ex->getMessage());
         }
 
         $msg = 'Koreksi disetujui dan status diperbarui otomatis';
-        if ($staleCount > 0) $msg .= " ({$staleCount} pengajuan basi lain ikut ditolak otomatis)";
+        if ($staleCount > 0) {
+            $msg .= " ({$staleCount} pengajuan basi lain ikut ditolak otomatis)";
+        }
+
         return $this->respond(true, $msg);
     }
 
@@ -2312,7 +2412,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectKoreksi($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2321,10 +2421,10 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID koreksi tidak valid');
         }
 
-        $correctionModel = new \App\Models\AttendanceCorrectionModel();
+        $correctionModel = new AttendanceCorrectionModel;
         $correction = $correctionModel->find($id);
 
-        if (!$correction) {
+        if (! $correction) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
 
@@ -2337,15 +2437,15 @@ class PresensiAdminController extends BaseController
             $note = mb_substr($note, 0, 500);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
 
         try {
             $correctionModel->where('id', $id)->where('status', 'pending')->set([
                 'status' => 'rejected',
                 'processed_by' => $this->getUserId(),
                 'processed_at' => date('Y-m-d H:i:s'),
-                'admin_note' => $note
+                'admin_note' => $note,
             ])->update();
 
             if (1 !== 1) {
@@ -2354,7 +2454,7 @@ class PresensiAdminController extends BaseController
 
             // AUDIT LOG
             try {
-                $auditModel = new AuditLogModel();
+                $auditModel = new AuditLogModel;
                 $auditModel->log(
                     'absensi_koreksi',
                     $id,
@@ -2366,19 +2466,20 @@ class PresensiAdminController extends BaseController
                     'Koreksi Ditolak Admin'
                 );
             } catch (\Throwable $ex) {
-                Log::error('Failed to create audit log: ' . $ex->getMessage());
+                Log::error('Failed to create audit log: '.$ex->getMessage());
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Reject koreksi gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Reject koreksi gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak koreksi — periksa log aplikasi.', null, null, 500);
         }
 
         // Notifikasi ke guru + grup. Best-effort, setelah transaksi selesai.
         try {
-            $notif = new \App\Services\NotificationService();
+            $notif = new NotificationService;
             $corrUserId = (int) ($correction->user_id ?? 0);
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $corrUserId)->first();
             $namaGuru = $guruRow->nama_guru ?? 'Guru';
@@ -2394,7 +2495,7 @@ class PresensiAdminController extends BaseController
                 $note
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi koreksi ditolak gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi koreksi ditolak gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Koreksi ditolak');
@@ -2409,28 +2510,28 @@ class PresensiAdminController extends BaseController
      */
     public function pendingVerifikasi()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $pending = [];
         try {
             $pending = $db->table('absensi_harian as ah')
-                ->select('ah.*, mg.nama_guru, mg.nip')
-                ->join('master_guru as mg', 'mg.id_user = ah.user_id', 'left')
+                ->select('ah.*', 'mg.nama_guru', 'mg.nip')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'ah.user_id')
                 ->where('ah.status_masuk', 'PENDING_VERIFICATION')
                 ->orderBy('ah.tgl', 'ASC')
                 ->get();
         } catch (\Throwable $e) {
-            Log::error('pendingVerifikasi gagal: ' . $e->getMessage());
+            Log::error('pendingVerifikasi gagal: '.$e->getMessage());
         }
 
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
@@ -2452,7 +2553,7 @@ class PresensiAdminController extends BaseController
      */
     public function verifyVerifikasi($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2461,9 +2562,9 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $db->table('absensi_harian')->where('id', $id)->first();
-        if (!$row) {
+        if (! $row) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (strtoupper((string) ($row->status_masuk ?? '')) !== 'PENDING_VERIFICATION') {
@@ -2474,22 +2575,22 @@ class PresensiAdminController extends BaseController
         }
 
         $this->patchAbsensiHarianVerifColumns();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $catatan = mb_substr(trim((string) ($this->request->input('note') ?? '')), 0, 500);
-        $settingModel = new \App\Models\AttendanceSettingModel();
+        $settingModel = new AttendanceSettingModel;
         $setting = $settingModel->first();
         $tanggal = substr((string) $row->tgl, 0, 10);
         $userId = (int) $row->user_id;
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $update = [];
             // pickTime(): zero-date ('0000-00-00 00:00:00') lolos empty() tetapi
             // membuat strtotime gagal, lalu date() atas false mengembalikan
             // epoch — jam masuk terbaca jadi 08:00:00 dan dendanya salah.
-            $jamMasukTs  = \App\Services\AttendancePolicy::pickTime($row->jam_masuk ?? null);
-            $jamPulangTs = \App\Services\AttendancePolicy::pickTime($row->jam_pulang ?? null);
+            $jamMasukTs = AttendancePolicy::pickTime($row->jam_masuk ?? null);
+            $jamPulangTs = AttendancePolicy::pickTime($row->jam_pulang ?? null);
             if ($jamMasukTs === null) {
                 throw new \RuntimeException('Jam masuk pada baris ini tidak terbaca; tidak bisa diverifikasi.');
             }
@@ -2499,12 +2600,12 @@ class PresensiAdminController extends BaseController
             }
             // Cap dengan lock (dalam transaksi).
             if (($update['denda'] ?? 0) > 0) {
-                $capped = (new \App\Services\AttendancePenaltyService())->applyMonthlyCap(
+                $capped = (new AttendancePenaltyService)->applyMonthlyCap(
                     $userId, $tanggal, (float) $update['denda'], $setting, $id, true
                 );
                 if ($capped['capped']) {
                     $update['denda'] = $capped['total'];
-                    $update['keterangan_denda'] = trim(($update['keterangan_denda'] ?? '') . ' (dibatasi cap bulanan Rp ' . number_format((float) $capped['total'], 0, ',', '.') . ')');
+                    $update['keterangan_denda'] = trim(($update['keterangan_denda'] ?? '').' (dibatasi cap bulanan Rp '.number_format((float) $capped['total'], 0, ',', '.').')');
                 }
             }
             // Sama seperti jalur hitung ulang harian: sisa denda dihitung live
@@ -2521,10 +2622,10 @@ class PresensiAdminController extends BaseController
                 && (float) $update['denda'] < (float) ($row->denda ?? 0)) {
                 unset($update['denda'], $update['keterangan_denda']);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_by')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_by')) {
                 $update['verified_by'] = session()->get('user_id');
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_at')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
             }
             $update['updated_at'] = date('Y-m-d H:i:s');
@@ -2536,37 +2637,43 @@ class PresensiAdminController extends BaseController
                 throw new \RuntimeException('Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+            (new PoinHistoryModel)->syncAttendancePoint($id);
 
             try {
-                (new \App\Services\AttendancePenaltyService())->syncSuratTeguranOnAttendanceChange(
+                (new AttendancePenaltyService)->syncSuratTeguranOnAttendanceChange(
                     $userId, (int) date('n', strtotime($tanggal)), (int) date('Y', strtotime($tanggal)), $setting
                 );
-            } catch (\Throwable $ex) {}
+            } catch (\Throwable $ex) {
+            }
 
             try {
-                (new AuditLogModel())->log('absensi_harian', $id, 'UPDATE', $userId, $this->getUserId(),
-                    ['status_masuk' => 'PENDING_VERIFICATION'], $update, 'Verifikasi Kehadiran Diterima' . ($catatan !== '' ? ': ' . $catatan : ''));
-            } catch (\Throwable $ex) {}
+                (new AuditLogModel)->log('absensi_harian', $id, 'UPDATE', $userId, $this->getUserId(),
+                    ['status_masuk' => 'PENDING_VERIFICATION'], $update, 'Verifikasi Kehadiran Diterima'.($catatan !== '' ? ': '.$catatan : ''));
+            } catch (\Throwable $ex) {
+            }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
             $statusBaru = (string) ($update['status_masuk'] ?? 'ONTIME');
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('Verify verifikasi gagal: ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('Verify verifikasi gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal memverifikasi — periksa log aplikasi.', null, null, 500);
         }
 
         try {
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $userId)->first();
-            (new \App\Services\NotificationService())->notifyVerifikasiDiterima(
+            (new NotificationService)->notifyVerifikasiDiterima(
                 $guruRow->nama_guru ?? 'Guru', $tanggal, $statusBaru, $userId, $catatan !== '' ? $catatan : null
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi verifikasi diterima gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi verifikasi diterima gagal: '.$ex->getMessage());
         }
 
-        return $this->respond(true, 'Kehadiran diverifikasi menjadi ' . $statusBaru);
+        return $this->respond(true, 'Kehadiran diverifikasi menjadi '.$statusBaru);
     }
 
     /**
@@ -2575,7 +2682,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectVerifikasi($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2584,9 +2691,9 @@ class PresensiAdminController extends BaseController
             return $this->respond(false, 'ID tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $db->table('absensi_harian')->where('id', $id)->first();
-        if (!$row) {
+        if (! $row) {
             return $this->respond(false, 'Data tidak ditemukan');
         }
         if (strtoupper((string) ($row->status_masuk ?? '')) !== 'PENDING_VERIFICATION') {
@@ -2595,21 +2702,21 @@ class PresensiAdminController extends BaseController
 
         $alasan = mb_substr(trim((string) ($this->request->input('note') ?? 'Ditolak oleh admin/panitia')), 0, 500);
         $this->patchAbsensiHarianVerifColumns();
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $setting = (new \App\Models\AttendanceSettingModel())->first() ?? (object) [];
+        $db = DB::connection();
+        $setting = (new AttendanceSettingModel)->first() ?? (object) [];
         $baseAlpha = (float) ($setting->denda_alpha_per_hari ?? 5000);
         $pointAlpha = abs((int) ($setting->point_alpa ?? 5));
         $tanggal = substr((string) $row->tgl, 0, 10);
         $userId = (int) $row->user_id;
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            $capped = (new \App\Services\AttendancePenaltyService())->applyMonthlyCap(
+            $capped = (new AttendancePenaltyService)->applyMonthlyCap(
                 $userId, $tanggal, $baseAlpha, $setting, $id, true
             );
             $denda = (float) $capped['total'];
-            $ket = 'Alpa (Rp ' . number_format($baseAlpha, 0, ',', '.') . ')'
-                . ($capped['capped'] ? ' (dibatasi cap bulanan Rp ' . number_format($denda, 0, ',', '.') . ')' : '');
+            $ket = 'Alpa (Rp '.number_format($baseAlpha, 0, ',', '.').')'
+                .($capped['capped'] ? ' (dibatasi cap bulanan Rp '.number_format($denda, 0, ',', '.').')' : '');
 
             $updateTolak = [
                 'status_masuk' => 'ALPHA',
@@ -2617,7 +2724,7 @@ class PresensiAdminController extends BaseController
                 'points' => -$pointAlpha,
                 'denda' => $denda,
                 'keterangan_denda' => $ket,
-                'keterangan' => 'Verifikasi ditolak: ' . $alasan,
+                'keterangan' => 'Verifikasi ditolak: '.$alasan,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
 
@@ -2634,10 +2741,10 @@ class PresensiAdminController extends BaseController
             if ($dibayarTolak > 0 && $denda < (float) ($row->denda ?? 0)) {
                 unset($updateTolak['denda'], $updateTolak['keterangan_denda']);
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_by')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_by')) {
                 $updateTolak['verified_by'] = session()->get('user_id');
             }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_at')) {
+            if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $updateTolak['verified_at'] = date('Y-m-d H:i:s');
             }
 
@@ -2648,45 +2755,50 @@ class PresensiAdminController extends BaseController
                 throw new \RuntimeException('Status sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+            (new PoinHistoryModel)->syncAttendancePoint($id);
 
             try {
-                (new \App\Services\AttendancePenaltyService())->syncSuratTeguranOnAttendanceChange(
+                (new AttendancePenaltyService)->syncSuratTeguranOnAttendanceChange(
                     $userId, (int) date('n', strtotime($tanggal)), (int) date('Y', strtotime($tanggal)), $setting
                 );
-            } catch (\Throwable $ex) {}
+            } catch (\Throwable $ex) {
+            }
 
             try {
-                (new AuditLogModel())->log('absensi_harian', $id, 'UPDATE', $userId, $this->getUserId(),
-                    ['status_masuk' => 'PENDING_VERIFICATION'], ['status_masuk' => 'ALPHA'], 'Verifikasi Kehadiran Ditolak: ' . $alasan);
-            } catch (\Throwable $ex) {}
+                (new AuditLogModel)->log('absensi_harian', $id, 'UPDATE', $userId, $this->getUserId(),
+                    ['status_masuk' => 'PENDING_VERIFICATION'], ['status_masuk' => 'ALPHA'], 'Verifikasi Kehadiran Ditolak: '.$alasan);
+            } catch (\Throwable $ex) {
+            }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('Reject verifikasi gagal: ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('Reject verifikasi gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak verifikasi — periksa log aplikasi.', null, null, 500);
         }
 
         try {
             $guruRow = $db->table('master_guru')->select('nama_guru')->where('id_user', $userId)->first();
-            (new \App\Services\NotificationService())->notifyVerifikasiDitolak(
+            (new NotificationService)->notifyVerifikasiDitolak(
                 $guruRow->nama_guru ?? 'Guru', $tanggal, $userId, $alasan
             );
         } catch (\Throwable $ex) {
-            Log::error('Notifikasi verifikasi ditolak gagal: ' . $ex->getMessage());
+            Log::error('Notifikasi verifikasi ditolak gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, 'Verifikasi ditolak, baris menjadi ALPHA');
     }
-
 
     /**
      * Attendance Settings Page
      */
     public function setting()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -2696,14 +2808,14 @@ class PresensiAdminController extends BaseController
         $this->patchAbsensiHarianTable();
 
         // --- AUTO UGRADE DB (MAX IZIN/CUTI) ---
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+        $db = DB::connection();
+        $forge = (new CiForge);
+        if (Schema::hasTable('absensi_setting')) {
             $fields = $db->getFieldNames('absensi_setting');
-            if (!in_array('max_izin_hari', $fields)) {
+            if (! in_array('max_izin_hari', $fields)) {
                 $forge->addColumn('absensi_setting', [
                     'max_izin_hari' => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
-                    'max_cuti_hari' => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true]
+                    'max_cuti_hari' => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true],
                 ]);
             }
 
@@ -2711,16 +2823,16 @@ class PresensiAdminController extends BaseController
             // Default sengaja dibuat sama dengan nilai lama supaya
             // instalasi yang sudah ada tidak berubah perilaku saat upgrade.
             $tambahanKuota = [
-                'max_izin_per_pengajuan'   => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
-                'max_cuti_per_pengajuan'   => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true],
-                'max_sakit_per_pengajuan'  => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
-                'max_dinas_per_pengajuan'  => ['type' => 'INT', 'constraint' => 3, 'default' => 30, 'null' => true],
-                'max_sakit_hari'           => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true],
-                'kuota_hari_kerja'         => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
+                'max_izin_per_pengajuan' => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
+                'max_cuti_per_pengajuan' => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true],
+                'max_sakit_per_pengajuan' => ['type' => 'INT', 'constraint' => 3, 'default' => 3, 'null' => true],
+                'max_dinas_per_pengajuan' => ['type' => 'INT', 'constraint' => 3, 'default' => 30, 'null' => true],
+                'max_sakit_hari' => ['type' => 'INT', 'constraint' => 3, 'default' => 12, 'null' => true],
+                'kuota_hari_kerja' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
             ];
             $baru = [];
             foreach ($tambahanKuota as $kolom => $def) {
-                if (!in_array($kolom, $fields, true)) {
+                if (! in_array($kolom, $fields, true)) {
                     $baru[$kolom] = $def;
                 }
             }
@@ -2730,16 +2842,16 @@ class PresensiAdminController extends BaseController
         }
         // --- END UPGRADE ---
 
-        $settingModel = new \App\Models\AttendanceSettingModel();
-        $locationModel = new \App\Models\AttendanceLocationModel();
+        $settingModel = new AttendanceSettingModel;
+        $locationModel = new AttendanceLocationModel;
 
         $setting = $settingModel->first();
-        if (!$setting) {
+        if (! $setting) {
             // Create default if not exists
             $settingModel->insert([
                 'jam_masuk' => '07:30:00',
                 'jam_pulang' => '15:00:00',
-                'radius_meter' => 100
+                'radius_meter' => 100,
             ]);
             $setting = $settingModel->first();
         }
@@ -2750,32 +2862,33 @@ class PresensiAdminController extends BaseController
         $this->patchSettingNomorTable();
 
         $appSetting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$appSetting)
+        if (! $appSetting) {
             $appSetting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->get();
+        $tp = DB::table('master_tp')->orderBy('id_tp', 'DESC')->get();
+        $smt = DB::table('master_smt')->get();
 
         return view('admin.presensi.setting', [
-            'title'        => 'Pengaturan & Konfigurasi Sistem',
-            'judul'        => 'Pengaturan & Konfigurasi Sistem',
-            'subjudul'     => 'Profil Sekolah & Kebijakan Presensi',
-            'setting'      => $appSetting,
-            'tp'           => $tp,
-            'tp_active'    => $tp_active,
-            'smt'          => $smt,
-            'smt_active'   => $smt_active,
-            'user'         => $this->getUser(),
+            'title' => 'Pengaturan & Konfigurasi Sistem',
+            'judul' => 'Pengaturan & Konfigurasi Sistem',
+            'subjudul' => 'Profil Sekolah & Kebijakan Presensi',
+            'setting' => $appSetting,
+            'tp' => $tp,
+            'tp_active' => $tp_active,
+            'smt' => $smt,
+            'smt_active' => $smt_active,
+            'user' => $this->getUser(),
             'absenSetting' => $setting,
-            'locations'    => $locations,
-            'jadwal'       => $jadwal,
+            'locations' => $locations,
+            'jadwal' => $jadwal,
             // Kartu "Tema Warna Aplikasi" di view ini butuh keduanya; sebelumnya
             // hanya Settings::index yang mengirim, sehingga route ini fatal.
-            'theme'        => \App\Libraries\Theme::current(),
-            'themePresets' => \App\Libraries\Theme::presetOptions(),
+            'theme' => Theme::current(),
+            'themePresets' => Theme::presetCards(),
         ]);
     }
 
@@ -2784,239 +2897,239 @@ class PresensiAdminController extends BaseController
      */
     public function saveSetting()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         // Ensure table schema is up to date
         $this->patchAbsensiSettingTable();
 
-        $settingModel = new \App\Models\AttendanceSettingModel();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $settingModel = new AttendanceSettingModel;
+        $db = DB::connection();
 
         // Nilai lama dipakai hanya supaya kolom hari_libur_mingguan tidak
         // ikut ter-reset jadi kosong sebelum sync dari jadwal dijalankan.
         $absenSettingRow = $db->table('absensi_setting')->where('id', 1)->first();
 
         // 1. Save Global Setting
-    $data = [
-        'radius_meter' => (int) $this->request->input('radius_meter'),
-        'foto_wajib' => $this->request->input('foto_wajib') ? 1 : 0,
-        'libur_kalender' => $this->request->input('libur_kalender') ? 1 : 0,
-        // Sakelar basis hitung kuota. Checkbox, jadi 0 (tidak dikirim)
-        // berarti "hitung hari kalender" — itu/default nilai yang disengaja,
-        // bukan POST parsial yang harus diabaikan.
-        'kuota_hari_kerja' => $this->request->input('kuota_hari_kerja') ? 1 : 0,
-        // hari_libur_mingguan TIDAK lagi dikirim dari form. Nilainya diturunkan
-        // dari absensi_jadwal_kerja.is_libur di syncWeeklyHolidayFromJadwal(),
-        // jadi kolom ini tidak lagi punya jalur edit yang bisa menggagalkan.
-        'hari_libur_mingguan' => $absenSettingRow->hari_libur_mingguan ?? 'Sun',
-        'max_izin_hari' => (int) $this->request->input('max_izin_hari'),
-        'max_cuti_hari' => (int) $this->request->input('max_cuti_hari'),
-        'max_sakit_hari' => (int) $this->request->input('max_sakit_hari'),
-        'max_izin_per_pengajuan' => (int) $this->request->input('max_izin_per_pengajuan'),
-        'max_cuti_per_pengajuan' => (int) $this->request->input('max_cuti_per_pengajuan'),
-        'max_sakit_per_pengajuan' => (int) $this->request->input('max_sakit_per_pengajuan'),
-        'max_dinas_per_pengajuan' => (int) $this->request->input('max_dinas_per_pengajuan'),
-        'point_telat' => (int) $this->request->input('point_telat'),
-        'point_alpa' => (int) $this->request->input('point_alpa'),
-        'point_pulang_awal' => (int) $this->request->input('point_pulang_awal'),
-        // Pengurang poin guru yang masuk tapi tidak absen pulang. 0 = sekolah
-        // tidak menerapkan aturan ini; cron membaca nilai ini dan melewat
-        // seluruh langkahnya bila 0. Batas atas 100 cuma penjaga salah ketik
-        // (satu digit_extra membuat poin setahun guru anjlok drastis).
-        'point_lupa_pulang' => max(0, min(100, (int) $this->request->input('point_lupa_pulang'))),
-        'denda_alpha_per_hari' => (int) $this->request->input('denda_alpha_per_hari'),
-        // Denda siswa: alpha (tidak masuk tanpa keterangan) dan bolos (masuk
-        // tanpa absen pulang). 0 = tidak ditagih. Nominal negatif akan membuat
-        // total bulanan siswa berkurang, jadi dipangkas di sisi server.
-        'denda_alpha_siswa_per_hari' => max(0, (int) $this->request->input('denda_alpha_siswa_per_hari')),
-        'denda_bolos_siswa_per_hari' => max(0, (int) $this->request->input('denda_bolos_siswa_per_hari')),
-        'max_denda_siswa_bulan'      => max(0.0, (float) $this->request->input('max_denda_siswa_bulan')),
+        $data = [
+            'radius_meter' => (int) $this->request->input('radius_meter'),
+            'foto_wajib' => $this->request->input('foto_wajib') ? 1 : 0,
+            'libur_kalender' => $this->request->input('libur_kalender') ? 1 : 0,
+            // Sakelar basis hitung kuota. Checkbox, jadi 0 (tidak dikirim)
+            // berarti "hitung hari kalender" — itu/default nilai yang disengaja,
+            // bukan POST parsial yang harus diabaikan.
+            'kuota_hari_kerja' => $this->request->input('kuota_hari_kerja') ? 1 : 0,
+            // hari_libur_mingguan TIDAK lagi dikirim dari form. Nilainya diturunkan
+            // dari absensi_jadwal_kerja.is_libur di syncWeeklyHolidayFromJadwal(),
+            // jadi kolom ini tidak lagi punya jalur edit yang bisa menggagalkan.
+            'hari_libur_mingguan' => $absenSettingRow->hari_libur_mingguan ?? 'Sun',
+            'max_izin_hari' => (int) $this->request->input('max_izin_hari'),
+            'max_cuti_hari' => (int) $this->request->input('max_cuti_hari'),
+            'max_sakit_hari' => (int) $this->request->input('max_sakit_hari'),
+            'max_izin_per_pengajuan' => (int) $this->request->input('max_izin_per_pengajuan'),
+            'max_cuti_per_pengajuan' => (int) $this->request->input('max_cuti_per_pengajuan'),
+            'max_sakit_per_pengajuan' => (int) $this->request->input('max_sakit_per_pengajuan'),
+            'max_dinas_per_pengajuan' => (int) $this->request->input('max_dinas_per_pengajuan'),
+            'point_telat' => (int) $this->request->input('point_telat'),
+            'point_alpa' => (int) $this->request->input('point_alpa'),
+            'point_pulang_awal' => (int) $this->request->input('point_pulang_awal'),
+            // Pengurang poin guru yang masuk tapi tidak absen pulang. 0 = sekolah
+            // tidak menerapkan aturan ini; cron membaca nilai ini dan melewat
+            // seluruh langkahnya bila 0. Batas atas 100 cuma penjaga salah ketik
+            // (satu digit_extra membuat poin setahun guru anjlok drastis).
+            'point_lupa_pulang' => max(0, min(100, (int) $this->request->input('point_lupa_pulang'))),
+            'denda_alpha_per_hari' => (int) $this->request->input('denda_alpha_per_hari'),
+            // Denda siswa: alpha (tidak masuk tanpa keterangan) dan bolos (masuk
+            // tanpa absen pulang). 0 = tidak ditagih. Nominal negatif akan membuat
+            // total bulanan siswa berkurang, jadi dipangkas di sisi server.
+            'denda_alpha_siswa_per_hari' => max(0, (int) $this->request->input('denda_alpha_siswa_per_hari')),
+            'denda_bolos_siswa_per_hari' => max(0, (int) $this->request->input('denda_bolos_siswa_per_hari')),
+            'max_denda_siswa_bulan' => max(0.0, (float) $this->request->input('max_denda_siswa_bulan')),
 
-        // New Point Fields
-        'point_hadir' => (int) $this->request->input('point_hadir'),
-        'point_izin'  => (int) $this->request->input('point_izin'),
-        'point_sakit' => (int) $this->request->input('point_sakit'),
-        'point_cuti'  => (int) $this->request->input('point_cuti'),
+            // New Point Fields
+            'point_hadir' => (int) $this->request->input('point_hadir'),
+            'point_izin' => (int) $this->request->input('point_izin'),
+            'point_sakit' => (int) $this->request->input('point_sakit'),
+            'point_cuti' => (int) $this->request->input('point_cuti'),
 
-        'grace_period' => (int) $this->request->input('grace_period'),
-        'denda_per_point' => (float) $this->request->input('denda_per_point'),
-        'max_denda_bulan' => (float) $this->request->input('max_denda_bulan'),
-        'denda_tier_1' => (int) $this->request->input('denda_tier_1'),
-        'denda_tier_2' => (int) $this->request->input('denda_tier_2'),
-        'denda_tier_3' => (int) $this->request->input('denda_tier_3'),
-        'point_tier_1' => (int) ($this->request->input('point_tier_1') ?: 1),
-        'point_tier_2' => (int) ($this->request->input('point_tier_2') ?: 2),
-        'point_tier_3' => (int) ($this->request->input('point_tier_3') ?: 5),
-        'reward_point_tier_1' => (int) ($this->request->input('reward_point_tier_1') ?: 1),
-        'reward_point_tier_2' => (int) ($this->request->input('reward_point_tier_2') ?: 1),
-        'reward_point_tier_3' => (int) ($this->request->input('reward_point_tier_3') ?: 2),
-        'reward_cap_menit'    => (int) ($this->request->input('reward_cap_menit') ?: 30),
-        // denda_per_menit & denda_pulang_awal SENGAJA tidak ikut ditulis lagi.
-        // Keduanya tidak punya input di /settings dan tidak pernah dipakai
-        // perhitungan mana pun — tarif yang berlaku adalah denda_tier_1/2/3
-        // (lihat AttendancePenaltyService::calculatePenalty). Dulu keduanya
-        // masih ada di $data dengan fallback ?: 1000, sehingga setiap
-        // penyimpanan /settings diam-diam menimpanya jadi 1000 walau
-        // tidak ada yang mengubah. Kolomnya sengaja dibiarkan di database
-        // supaya data lama tidak rusak.
-        // Notification Settings
-        'telegram_bot_token' => $this->request->input('telegram_bot_token'),
-        'telegram_chat_id' => $this->request->input('telegram_chat_id'),
-        'wa_gateway_url' => $this->request->input('wa_gateway_url') ?: 'https://api.fonnte.com/send',
-        'wa_token' => $this->request->input('wa_token'),
-        'wa_target_number' => $this->request->input('wa_target_number'),
-        // Gateway WhatsApp OpenWA. Default 'off' supaya instalasi lama yang
-        // tidak menyentuhnya tidak tiba-tiba menembak gateway baru.
-        'wa_gateway_mode' => $this->normalizeWaModeInput(),
-        'wa_base_url' => trim((string) ($this->request->input('wa_base_url') ?? '')),
-        'wa_api_key' => trim((string) ($this->request->input('wa_api_key') ?? '')),
-        'wa_session_name' => trim((string) ($this->request->input('wa_session_name') ?? '')),
-        // Standar SMA — persentase kehadiran minimum
-        'min_kehadiran_persen'    => (float) ($this->request->input('min_kehadiran_persen') ?: 90),
-        'alert_kehadiran_enabled' => $this->request->input('alert_kehadiran_enabled') ? 1 : 0,
-        // Tidak ada form control bernama ini, jadi getPost() selalu null dan
-        // nilainya lama ditulis 0 di setiap penyimpanan — yang membuat cron
-        // kehadiran rendah mati permanen tanpa cara menghidupkannya lagi.
-        // Sekalian disinkronkan dari checkbox yang benar-benar ada di form.
-        'notif_kehadiran_rendah'  => $this->kehadiranRendahFromRequest(),
-        // WFH Settings
-        'wfh_enabled'       => $this->request->input('wfh_enabled') ? 1 : 0,
-        'wfh_mulai'         => $this->request->input('wfh_mulai') ?: '08:00:00',
-        'wfh_selesai'       => $this->request->input('wfh_selesai') ?: '16:00:00',
-        'wfh_max_per_bulan' => (int) ($this->request->input('wfh_max_per_bulan') ?: 5),
-        'wfh_wajib_wajah'   => $this->request->input('wfh_wajib_wajah') ? 1 : 0,
-        // Syarat jurnal sebelum absen pulang (checkbox)
-        'wajib_jurnal_sebelum_pulang' => $this->request->input('wajib_jurnal_sebelum_pulang') ? 1 : 0,
-        // Jurnal harus tervalidasi (hanya berlaku bila syarat jurnal di atas aktif)
-        'wajib_jurnal_tervalidasi_sebelum_pulang' => $this->request->input('wajib_jurnal_tervalidasi_sebelum_pulang') ? 1 : 0,
-        // Lembur
-        'point_lembur_per_jam' => (int) ($this->request->input('point_lembur_per_jam') ?: 5),
-        // Jam operasional scanner QR siswa (scan masuk di luar jendela ditolak)
-        'qr_scan_aktif' => $this->request->input('qr_scan_aktif') ? 1 : 0,
-        'qr_scan_mulai' => $this->normalizeScanTime($this->request->input('qr_scan_mulai'), '05:30:00'),
-        'qr_scan_selesai' => $this->normalizeScanTime($this->request->input('qr_scan_selesai'), '18:00:00'),
-        // Biometric Face Match
-        'face_threshold'    => (float) ($this->request->input('face_threshold') ?: 0.72),
-        'face_match_mode'   => $this->request->input('face_match_mode') ?: 'ai_match',
-        // Google OAuth Integration
-        'google_client_id'     => trim($this->request->input('google_client_id') ?? ''),
-        'google_client_secret' => trim($this->request->input('google_client_secret') ?? ''),
-        'google_login_enabled' => $this->request->input('google_login_enabled') ? 1 : 0,
-        'updated_at' => date('Y-m-d H:i:s')
-    ];
+            'grace_period' => (int) $this->request->input('grace_period'),
+            'denda_per_point' => (float) $this->request->input('denda_per_point'),
+            'max_denda_bulan' => (float) $this->request->input('max_denda_bulan'),
+            'denda_tier_1' => (int) $this->request->input('denda_tier_1'),
+            'denda_tier_2' => (int) $this->request->input('denda_tier_2'),
+            'denda_tier_3' => (int) $this->request->input('denda_tier_3'),
+            'point_tier_1' => (int) ($this->request->input('point_tier_1') ?: 1),
+            'point_tier_2' => (int) ($this->request->input('point_tier_2') ?: 2),
+            'point_tier_3' => (int) ($this->request->input('point_tier_3') ?: 5),
+            'reward_point_tier_1' => (int) ($this->request->input('reward_point_tier_1') ?: 1),
+            'reward_point_tier_2' => (int) ($this->request->input('reward_point_tier_2') ?: 1),
+            'reward_point_tier_3' => (int) ($this->request->input('reward_point_tier_3') ?: 2),
+            'reward_cap_menit' => (int) ($this->request->input('reward_cap_menit') ?: 30),
+            // denda_per_menit & denda_pulang_awal SENGAJA tidak ikut ditulis lagi.
+            // Keduanya tidak punya input di /settings dan tidak pernah dipakai
+            // perhitungan mana pun — tarif yang berlaku adalah denda_tier_1/2/3
+            // (lihat AttendancePenaltyService::calculatePenalty). Dulu keduanya
+            // masih ada di $data dengan fallback ?: 1000, sehingga setiap
+            // penyimpanan /settings diam-diam menimpanya jadi 1000 walau
+            // tidak ada yang mengubah. Kolomnya sengaja dibiarkan di database
+            // supaya data lama tidak rusak.
+            // Notification Settings
+            'telegram_bot_token' => $this->request->input('telegram_bot_token'),
+            'telegram_chat_id' => $this->request->input('telegram_chat_id'),
+            'wa_gateway_url' => $this->request->input('wa_gateway_url') ?: 'https://api.fonnte.com/send',
+            'wa_token' => $this->request->input('wa_token'),
+            'wa_target_number' => $this->request->input('wa_target_number'),
+            // Gateway WhatsApp OpenWA. Default 'off' supaya instalasi lama yang
+            // tidak menyentuhnya tidak tiba-tiba menembak gateway baru.
+            'wa_gateway_mode' => $this->normalizeWaModeInput(),
+            'wa_base_url' => trim((string) ($this->request->input('wa_base_url') ?? '')),
+            'wa_api_key' => trim((string) ($this->request->input('wa_api_key') ?? '')),
+            'wa_session_name' => trim((string) ($this->request->input('wa_session_name') ?? '')),
+            // Standar SMA — persentase kehadiran minimum
+            'min_kehadiran_persen' => (float) ($this->request->input('min_kehadiran_persen') ?: 90),
+            'alert_kehadiran_enabled' => $this->request->input('alert_kehadiran_enabled') ? 1 : 0,
+            // Tidak ada form control bernama ini, jadi getPost() selalu null dan
+            // nilainya lama ditulis 0 di setiap penyimpanan — yang membuat cron
+            // kehadiran rendah mati permanen tanpa cara menghidupkannya lagi.
+            // Sekalian disinkronkan dari checkbox yang benar-benar ada di form.
+            'notif_kehadiran_rendah' => $this->kehadiranRendahFromRequest(),
+            // WFH Settings
+            'wfh_enabled' => $this->request->input('wfh_enabled') ? 1 : 0,
+            'wfh_mulai' => $this->request->input('wfh_mulai') ?: '08:00:00',
+            'wfh_selesai' => $this->request->input('wfh_selesai') ?: '16:00:00',
+            'wfh_max_per_bulan' => (int) ($this->request->input('wfh_max_per_bulan') ?: 5),
+            'wfh_wajib_wajah' => $this->request->input('wfh_wajib_wajah') ? 1 : 0,
+            // Syarat jurnal sebelum absen pulang (checkbox)
+            'wajib_jurnal_sebelum_pulang' => $this->request->input('wajib_jurnal_sebelum_pulang') ? 1 : 0,
+            // Jurnal harus tervalidasi (hanya berlaku bila syarat jurnal di atas aktif)
+            'wajib_jurnal_tervalidasi_sebelum_pulang' => $this->request->input('wajib_jurnal_tervalidasi_sebelum_pulang') ? 1 : 0,
+            // Lembur
+            'point_lembur_per_jam' => (int) ($this->request->input('point_lembur_per_jam') ?: 5),
+            // Jam operasional scanner QR siswa (scan masuk di luar jendela ditolak)
+            'qr_scan_aktif' => $this->request->input('qr_scan_aktif') ? 1 : 0,
+            'qr_scan_mulai' => $this->normalizeScanTime($this->request->input('qr_scan_mulai'), '05:30:00'),
+            'qr_scan_selesai' => $this->normalizeScanTime($this->request->input('qr_scan_selesai'), '18:00:00'),
+            // Biometric Face Match
+            'face_threshold' => (float) ($this->request->input('face_threshold') ?: 0.72),
+            'face_match_mode' => $this->request->input('face_match_mode') ?: 'ai_match',
+            // Google OAuth Integration
+            'google_client_id' => trim($this->request->input('google_client_id') ?? ''),
+            'google_client_secret' => trim($this->request->input('google_client_secret') ?? ''),
+            'google_login_enabled' => $this->request->input('google_login_enabled') ? 1 : 0,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
 
-    // Token kiosk: kolomnya write-only (nilainya tidak pernah ditampilkan ke
-    // form, lihat Views/admin/presensi/setting.php). Karena field-nya ikut
-    // terkirim dengan nilai kosong setiap kali form disimpan, "kosong" tidak
-    // boleh berarti "hapus" — kalau ya, setiap penyimpanan lain diam-diam
-    // membuka kembali /scanner untuk umum. Mengosongkan sekarang harus lewat
-    // checkbox khusus.
-    $hapusToken = $this->request->input('qr_kiosk_token_hapus') !== null;
-    $tokenBaru  = substr(trim((string) ($this->request->input('qr_kiosk_token') ?? '')), 0, 64);
+        // Token kiosk: kolomnya write-only (nilainya tidak pernah ditampilkan ke
+        // form, lihat Views/admin/presensi/setting.php). Karena field-nya ikut
+        // terkirim dengan nilai kosong setiap kali form disimpan, "kosong" tidak
+        // boleh berarti "hapus" — kalau ya, setiap penyimpanan lain diam-diam
+        // membuka kembali /scanner untuk umum. Mengosongkan sekarang harus lewat
+        // checkbox khusus.
+        $hapusToken = $this->request->input('qr_kiosk_token_hapus') !== null;
+        $tokenBaru = substr(trim((string) ($this->request->input('qr_kiosk_token') ?? '')), 0, 64);
 
-    if ($hapusToken && $tokenBaru !== '') {
-        return $this->respond(false, 'Pilih salah satu: ganti token kiosk, atau hapus token kiosk.');
-    }
-
-    if ($tokenBaru !== '' && !preg_match('/^[A-Za-z0-9\-_]+$/', $tokenBaru)) {
-        return $this->respond(false, 'Token kiosk hanya boleh huruf, angka, dash, underscore (maks 64).');
-    }
-
-    if ($hapusToken) {
-        $data['qr_kiosk_token'] = null;
-    } elseif ($tokenBaru !== '') {
-        $data['qr_kiosk_token'] = $tokenBaru;
-    }
-    // Keduanya kosong & tidak dicentang → tidak dihapus dari $data? Tidak:
-    // key-nya belum pernah ada, jadi kolom lama tidak tersentuh.
-
-    // Jaga-jaga nilai numerik dan teks: kalau field tidak ikut terkirim di
-    // POST, jangan menimpanya dengan 0 atau string kosong.
-    //
-    // Tanpa ini, satu POST parsial (curl, integrasi lain, atau form yang
-    // gagal load sebagian) akan meng-nol-kan semua tarif sekaligus — termasuk
-    // denda_tier_1/2/3, grace_period, dan radius_meter. Denda keterlambatan
-    // yang tadinya Rp 100/200/500 per menit diam-diam jadi nol, padahal
-    //_setting_ baru saja disimpan dengan "sukses".
-    //
-    // Sejak blok ini ada, kolom teks ikut dijaga dengan alasan yang sama:
-    // telegram_bot_token, wa_token dan google_client_secret diambil mentah
-    // dari POST, jadi POST parsial menghapus kredensial itu tanpa pernah
-    // ada yang meminta. Form /settings mengirim kesemuanya (satu <form>),
-    // jadi mengisi kolom lalu menghapus isinya secara sadar tetap bekerja
-    // seperti sebelumnya — yang dibedakan hanya "tidak terkirim" vs "kosong".
-    //
-    // Checkbox TIDAK ikut daftar ini: memang sudah benar 0 saat tidak dicentang.
-    foreach ([
-        'radius_meter', 'max_izin_hari', 'max_cuti_hari', 'max_sakit_hari',
-        'max_izin_per_pengajuan', 'max_cuti_per_pengajuan',
-        'max_sakit_per_pengajuan', 'max_dinas_per_pengajuan',
-        'point_telat', 'point_alpa', 'point_pulang_awal', 'point_lupa_pulang',
-        'point_hadir', 'point_izin', 'point_sakit', 'point_cuti',
-        'denda_alpha_per_hari', 'grace_period', 'denda_per_point', 'max_denda_bulan',
-        'denda_alpha_siswa_per_hari', 'denda_bolos_siswa_per_hari', 'max_denda_siswa_bulan',
-        'denda_tier_1', 'denda_tier_2', 'denda_tier_3',
-        'wfh_max_per_bulan', 'point_lembur_per_jam',
-        'min_kehadiran_persen', 'face_threshold', 'reward_cap_menit',
-        // Teks & kredensial
-        'telegram_bot_token', 'telegram_chat_id', 'wa_token', 'wa_target_number',
-        'wa_gateway_url', 'wa_base_url', 'wa_api_key', 'wa_session_name',
-        'google_client_id', 'google_client_secret', 'face_match_mode',
-        'wfh_mulai', 'wfh_selesai',
-        'point_tier_1', 'point_tier_2', 'point_tier_3',
-        'reward_point_tier_1', 'reward_point_tier_2', 'reward_point_tier_3',
-    ] as $kunci) {
-        if ($this->request->input($kunci) === null) {
-            unset($data[$kunci]); // biarkan nilai lama di database
+        if ($hapusToken && $tokenBaru !== '') {
+            return $this->respond(false, 'Pilih salah satu: ganti token kiosk, atau hapus token kiosk.');
         }
-    }
 
-    // Clamp batas kuota izin di sisi server.
-    //
-    // Atribut min="1" pada <input type="number"> hanya berlaku di browser;
-    // POST langsung (curl, form lama, integrasi) bisa mengirim angka
-    // negatif atau teks. Semuanya tanpa exception berakhir sebagai
-    // `$batas > 0` bernilai false di IzinKuotaService — artinya batas
-    // MATI SENYAP tanpa pesan apa pun. Kuota 3 hari/tahun yang diam-diam
-    // berubah jadi "tanpa batas" adalah kegagalan bisnis, bukan
-    // preferensi yang bisa dibiarkan lewat UI saja.
-    //
-    // 0 tetap sah sebagai "tanpa batas" untuk jenis yang memang tidak
-    //-shelf consumed sebagai hak (dinas), tapi tidak boleh negatif.
-    foreach ([
-        'max_izin_hari', 'max_cuti_hari', 'max_sakit_hari',
-        'max_izin_per_pengajuan', 'max_cuti_per_pengajuan',
-        'max_sakit_per_pengajuan', 'max_dinas_per_pengajuan',
-    ] as $kunci) {
-        if (! array_key_exists($kunci, $data)) {
-            continue;
+        if ($tokenBaru !== '' && ! preg_match('/^[A-Za-z0-9\-_]+$/', $tokenBaru)) {
+            return $this->respond(false, 'Token kiosk hanya boleh huruf, angka, dash, underscore (maks 64).');
         }
-        $nilai = (int) $data[$kunci];
-        $data[$kunci] = max(0, min(365, $nilai));
-    }
 
-    // kuota_hari_kerja sudah diproses di atas sebagai checkbox; di sini
-    // hanya dijaga tetap 0/1 kalau form mengirim nilai aneh.
-
-    // Sama untuk kolom gateway OpenWA: form lama / tab lain yang tidak
-    // mengirimnya harus tidak menghapus konfigurasi yang sudah tersimpan.
-    foreach (['wa_gateway_mode', 'wa_base_url', 'wa_api_key', 'wa_session_name'] as $kunci) {
-        if ($this->request->input($kunci) === null) {
-            unset($data[$kunci]);
+        if ($hapusToken) {
+            $data['qr_kiosk_token'] = null;
+        } elseif ($tokenBaru !== '') {
+            $data['qr_kiosk_token'] = $tokenBaru;
         }
-    }
+        // Keduanya kosong & tidak dicentang → tidak dihapus dari $data? Tidak:
+        // key-nya belum pernah ada, jadi kolom lama tidak tersentuh.
+
+        // Jaga-jaga nilai numerik dan teks: kalau field tidak ikut terkirim di
+        // POST, jangan menimpanya dengan 0 atau string kosong.
+        //
+        // Tanpa ini, satu POST parsial (curl, integrasi lain, atau form yang
+        // gagal load sebagian) akan meng-nol-kan semua tarif sekaligus — termasuk
+        // denda_tier_1/2/3, grace_period, dan radius_meter. Denda keterlambatan
+        // yang tadinya Rp 100/200/500 per menit diam-diam jadi nol, padahal
+        // _setting_ baru saja disimpan dengan "sukses".
+        //
+        // Sejak blok ini ada, kolom teks ikut dijaga dengan alasan yang sama:
+        // telegram_bot_token, wa_token dan google_client_secret diambil mentah
+        // dari POST, jadi POST parsial menghapus kredensial itu tanpa pernah
+        // ada yang meminta. Form /settings mengirim kesemuanya (satu <form>),
+        // jadi mengisi kolom lalu menghapus isinya secara sadar tetap bekerja
+        // seperti sebelumnya — yang dibedakan hanya "tidak terkirim" vs "kosong".
+        //
+        // Checkbox TIDAK ikut daftar ini: memang sudah benar 0 saat tidak dicentang.
+        foreach ([
+            'radius_meter', 'max_izin_hari', 'max_cuti_hari', 'max_sakit_hari',
+            'max_izin_per_pengajuan', 'max_cuti_per_pengajuan',
+            'max_sakit_per_pengajuan', 'max_dinas_per_pengajuan',
+            'point_telat', 'point_alpa', 'point_pulang_awal', 'point_lupa_pulang',
+            'point_hadir', 'point_izin', 'point_sakit', 'point_cuti',
+            'denda_alpha_per_hari', 'grace_period', 'denda_per_point', 'max_denda_bulan',
+            'denda_alpha_siswa_per_hari', 'denda_bolos_siswa_per_hari', 'max_denda_siswa_bulan',
+            'denda_tier_1', 'denda_tier_2', 'denda_tier_3',
+            'wfh_max_per_bulan', 'point_lembur_per_jam',
+            'min_kehadiran_persen', 'face_threshold', 'reward_cap_menit',
+            // Teks & kredensial
+            'telegram_bot_token', 'telegram_chat_id', 'wa_token', 'wa_target_number',
+            'wa_gateway_url', 'wa_base_url', 'wa_api_key', 'wa_session_name',
+            'google_client_id', 'google_client_secret', 'face_match_mode',
+            'wfh_mulai', 'wfh_selesai',
+            'point_tier_1', 'point_tier_2', 'point_tier_3',
+            'reward_point_tier_1', 'reward_point_tier_2', 'reward_point_tier_3',
+        ] as $kunci) {
+            if ($this->request->input($kunci) === null) {
+                unset($data[$kunci]); // biarkan nilai lama di database
+            }
+        }
+
+        // Clamp batas kuota izin di sisi server.
+        //
+        // Atribut min="1" pada <input type="number"> hanya berlaku di browser;
+        // POST langsung (curl, form lama, integrasi) bisa mengirim angka
+        // negatif atau teks. Semuanya tanpa exception berakhir sebagai
+        // `$batas > 0` bernilai false di IzinKuotaService — artinya batas
+        // MATI SENYAP tanpa pesan apa pun. Kuota 3 hari/tahun yang diam-diam
+        // berubah jadi "tanpa batas" adalah kegagalan bisnis, bukan
+        // preferensi yang bisa dibiarkan lewat UI saja.
+        //
+        // 0 tetap sah sebagai "tanpa batas" untuk jenis yang memang tidak
+        // -shelf consumed sebagai hak (dinas), tapi tidak boleh negatif.
+        foreach ([
+            'max_izin_hari', 'max_cuti_hari', 'max_sakit_hari',
+            'max_izin_per_pengajuan', 'max_cuti_per_pengajuan',
+            'max_sakit_per_pengajuan', 'max_dinas_per_pengajuan',
+        ] as $kunci) {
+            if (! array_key_exists($kunci, $data)) {
+                continue;
+            }
+            $nilai = (int) $data[$kunci];
+            $data[$kunci] = max(0, min(365, $nilai));
+        }
+
+        // kuota_hari_kerja sudah diproses di atas sebagai checkbox; di sini
+        // hanya dijaga tetap 0/1 kalau form mengirim nilai aneh.
+
+        // Sama untuk kolom gateway OpenWA: form lama / tab lain yang tidak
+        // mengirimnya harus tidak menghapus konfigurasi yang sudah tersimpan.
+        foreach (['wa_gateway_mode', 'wa_base_url', 'wa_api_key', 'wa_session_name'] as $kunci) {
+            if ($this->request->input($kunci) === null) {
+                unset($data[$kunci]);
+            }
+        }
 
         $jadwalData = $this->request->input('jadwal');
         if ($this->request->input('jam_masuk')) {
             $data['jam_masuk'] = $this->request->input('jam_masuk');
-        } elseif (!empty($jadwalData[1]['jam_masuk'])) {
+        } elseif (! empty($jadwalData[1]['jam_masuk'])) {
             $data['jam_masuk'] = $jadwalData[1]['jam_masuk'];
         }
         if ($this->request->input('jam_pulang')) {
             $data['jam_pulang'] = $this->request->input('jam_pulang');
-        } elseif (!empty($jadwalData[1]['jam_pulang'])) {
+        } elseif (! empty($jadwalData[1]['jam_pulang'])) {
             $data['jam_pulang'] = $jadwalData[1]['jam_pulang'];
         }
 
@@ -3036,7 +3149,7 @@ class PresensiAdminController extends BaseController
         // pernah ditulis ke audit log — tabel audit dibaca banyak orang.
         if (array_key_exists('qr_kiosk_token', $data)) {
             try {
-                (new AuditLogModel())->log(
+                (new AuditLogModel)->log(
                     'absensi_setting',
                     (int) ($current->id ?? 0),
                     'UPDATE',
@@ -3059,7 +3172,7 @@ class PresensiAdminController extends BaseController
         // dua tempat yang bisa berbeda pendapat soal "hari ini libur?"
         if ($jadwalData && is_array($jadwalData)) {
             foreach ($jadwalData as $hari => $val) {
-                if (!is_array($val)) {
+                if (! is_array($val)) {
                     continue;
                 }
                 // Kolom TIME tidak boleh menerima '': sql_mode sengaja tidak
@@ -3068,9 +3181,9 @@ class PresensiAdminController extends BaseController
                 // tengah malam" dan semua scan tercatat telat. Kolom yang
                 // kosong/rusak dibiarkan seperti adanya; hari libur boleh
                 // memang tidak punya jam.
-                $mas  = \App\Services\AttendancePolicy::pickTime($val['jam_masuk'] ?? null);
-                $pul  = \App\Services\AttendancePolicy::pickTime($val['jam_pulang'] ?? null);
-                $upd  = ['is_libur' => isset($val['is_libur']) ? 1 : 0];
+                $mas = AttendancePolicy::pickTime($val['jam_masuk'] ?? null);
+                $pul = AttendancePolicy::pickTime($val['jam_pulang'] ?? null);
+                $upd = ['is_libur' => isset($val['is_libur']) ? 1 : 0];
                 if ($mas !== null && $mas !== '00:00:00') {
                     $upd['jam_masuk'] = $mas;
                 }
@@ -3086,7 +3199,7 @@ class PresensiAdminController extends BaseController
         try {
             $this->doRecalculateDate(date('Y-m-d'));
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::saveSetting] doRecalculateDate error: ' . $e->getMessage());
+            Log::error('[PresensiAdmin::saveSetting] doRecalculateDate error: '.$e->getMessage());
         }
 
         return $this->respond(true, 'Pengaturan berhasil disimpan');
@@ -3098,7 +3211,7 @@ class PresensiAdminController extends BaseController
      */
     public function recalculateDayAttendance(?string $targetDate = null)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -3121,11 +3234,11 @@ class PresensiAdminController extends BaseController
         $res = $this->doRecalculateDate($date);
 
         $pesan = "Berhasil menghitung ulang status presensi untuk tanggal {$date} ({$res['updated']} data dievaluasi)";
-        if (!empty($res['denda_dipertahankan'])) {
-            $pesan .= ', denda ' . $res['denda_dipertahankan'] . ' baris dipertahankan karena bulan ini sudah ada pembayaran';
+        if (! empty($res['denda_dipertahankan'])) {
+            $pesan .= ', denda '.$res['denda_dipertahankan'].' baris dipertahankan karena bulan ini sudah ada pembayaran';
         }
-        if (!empty($res['lewati_rusak'])) {
-            $pesan .= ', ' . $res['lewati_rusak'] . ' baris dilewati karena jam tersimpan tidak terbaca (perlu dikoreksi manual)';
+        if (! empty($res['lewati_rusak'])) {
+            $pesan .= ', '.$res['lewati_rusak'].' baris dilewati karena jam tersimpan tidak terbaca (perlu dikoreksi manual)';
         }
 
         return $this->respond(true, $pesan, $res);
@@ -3163,7 +3276,7 @@ class PresensiAdminController extends BaseController
         }
 
         $update['pulang_tidak_tercatat'] = 0;
-        $update['poin_penalti_pulang']   = 0;
+        $update['poin_penalti_pulang'] = 0;
 
         return $points;
     }
@@ -3173,195 +3286,202 @@ class PresensiAdminController extends BaseController
      */
     public function doRecalculateDate(string $date): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $settingModel = new \App\Models\AttendanceSettingModel();
+        $db = DB::connection();
+        $settingModel = new AttendanceSettingModel;
         $setting = $settingModel->first();
 
         $dayOfWeek = (int) date('N', strtotime($date));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
 
-        $shiftModel = new \App\Models\ShiftModel();
+        $shiftModel = new ShiftModel;
 
         $rows = $db->table('absensi_harian')
             ->where('tgl', $date)
             ->whereRaw('jam_masuk IS NOT NULL')
             ->get();
 
-        $penaltySvc = new \App\Services\AttendancePenaltyService();
-        $adaKolomPenalti = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat');
+        $penaltySvc = new AttendancePenaltyService;
+        $adaKolomPenalti = Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat');
         $updatedCount = 0;
         $dipertahankan = 0;
         $lewatiRusak = 0;
-        $dibayarCache  = [];
+        $dibayarCache = [];
         // Satu transaksi per tanggal + cap lock agar hitung ulang paralel
         // (atau vs check-in) tidak sama-sama lolos batas bulanan.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-        foreach ($rows as $r) {
-            // Baris proteksi (dinas/izin/sakit/cuti/WFH/alpha) tidak pernah dihitung ulang,
-            // terlepas dari ada tidaknya jam_masuk. Kecuali: nolkan denda dinas yang terlanjur terisi.
-            $currentStatus = strtoupper((string) ($r->status_masuk ?? ''));
-            $currentPulang = strtoupper((string) ($r->status_pulang ?? ''));
-            $isWfhRow = (!empty($r->is_wfh) && (int) $r->is_wfh === 1) || $currentStatus === 'WFH' || $currentPulang === 'WFH';
-            $isDinasRow = strpos($currentStatus, 'DINAS') === 0 || strpos($currentPulang, 'DINAS') === 0;
-            $isLeaveRow = in_array($currentStatus, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH', 'PENDING_VERIFICATION'], true)
-                || in_array($currentPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH', 'PENDING_VERIFICATION'], true);
-            if ($isWfhRow || $isLeaveRow || in_array($currentStatus, ['ALPHA', 'ALPA'], true)) {
-                if ($isDinasRow && (float) ($r->denda ?? 0) > 0) {
-                    // Nol-kan denda dinas hanya bila bulan itu belum ada
-                    // pembayaran; kalau sudah, menol-kannya membuka kredit
-                    // hantu di ledger sisa denda (lihat guard di bawah).
-                    $dibayarDinas = $this->totalDibayarBulan(
-                        (int) $r->user_id,
-                        (int) date('n', strtotime($date)),
-                        (int) date('Y', strtotime($date)),
-                        $dibayarCache
-                    );
-                    if ($dibayarDinas > 0) {
-                        $dipertahankan++;
-                    } else {
-                        $db->table('absensi_harian')->where('id', $r->id)->update(['denda' => 0, 'keterangan_denda' => null]);
-                        $updatedCount++;
+            foreach ($rows as $r) {
+                // Baris proteksi (dinas/izin/sakit/cuti/WFH/alpha) tidak pernah dihitung ulang,
+                // terlepas dari ada tidaknya jam_masuk. Kecuali: nolkan denda dinas yang terlanjur terisi.
+                $currentStatus = strtoupper((string) ($r->status_masuk ?? ''));
+                $currentPulang = strtoupper((string) ($r->status_pulang ?? ''));
+                $isWfhRow = (! empty($r->is_wfh) && (int) $r->is_wfh === 1) || $currentStatus === 'WFH' || $currentPulang === 'WFH';
+                $isDinasRow = strpos($currentStatus, 'DINAS') === 0 || strpos($currentPulang, 'DINAS') === 0;
+                $isLeaveRow = in_array($currentStatus, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH', 'PENDING_VERIFICATION'], true)
+                    || in_array($currentPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH', 'PENDING_VERIFICATION'], true);
+                if ($isWfhRow || $isLeaveRow || in_array($currentStatus, ['ALPHA', 'ALPA'], true)) {
+                    if ($isDinasRow && (float) ($r->denda ?? 0) > 0) {
+                        // Nol-kan denda dinas hanya bila bulan itu belum ada
+                        // pembayaran; kalau sudah, menol-kannya membuka kredit
+                        // hantu di ledger sisa denda (lihat guard di bawah).
+                        $dibayarDinas = $this->totalDibayarBulan(
+                            (int) $r->user_id,
+                            (int) date('n', strtotime($date)),
+                            (int) date('Y', strtotime($date)),
+                            $dibayarCache
+                        );
+                        if ($dibayarDinas > 0) {
+                            $dipertahankan++;
+                        } else {
+                            $db->table('absensi_harian')->where('id', $r->id)->update(['denda' => 0, 'keterangan_denda' => null]);
+                            $updatedCount++;
+                        }
                     }
+
+                    continue;
                 }
-                continue;
-            }
 
-            $sched = $shiftModel->getScheduleForUser((int) $r->user_id, $dayOfWeek, $jadwal, $setting);
-            $jamMasukBatas = $sched['jam_masuk'];
-            $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
+                $sched = $shiftModel->getScheduleForUser((int) $r->user_id, $dayOfWeek, $jadwal, $setting);
+                $jamMasukBatas = $sched['jam_masuk'];
+                $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
 
-            $jamMasukTs  = \App\Services\AttendancePolicy::pickTime($r->jam_masuk ?? null);
-            $jamPulangTs = \App\Services\AttendancePolicy::pickTime($r->jam_pulang ?? null);
+                $jamMasukTs = AttendancePolicy::pickTime($r->jam_masuk ?? null);
+                $jamPulangTs = AttendancePolicy::pickTime($r->jam_pulang ?? null);
 
-            // Zero-date ('0000-00-00 00:00:00') lolos !empty() tetapi tidak
-            // terbaca: telat() atas nilai begitu mengembalikan ONTIME, jadi
-            // baris rusak berubah menjadi "hadir tepat waktu, tanpa denda".
-            // Tidak ada dasar hitung → jangan sentuh barisnya.
-            if (($jamMasukTs === null && !empty($r->jam_masuk))
-                || ($jamPulangTs === null && !empty($r->jam_pulang))) {
-                $lewatiRusak++;
-                continue;
-            }
+                // Zero-date ('0000-00-00 00:00:00') lolos !empty() tetapi tidak
+                // terbaca: telat() atas nilai begitu mengembalikan ONTIME, jadi
+                // baris rusak berubah menjadi "hadir tepat waktu, tanpa denda".
+                // Tidak ada dasar hitung → jangan sentuh barisnya.
+                if (($jamMasukTs === null && ! empty($r->jam_masuk))
+                    || ($jamPulangTs === null && ! empty($r->jam_pulang))) {
+                    $lewatiRusak++;
 
-            // Rumus baku AttendancePolicy. Tanggal baris ikut dipakai, jadi
-            // recalculasi hari-hari lampau tidak lagi dibandingkan dengan
-            // ambang/jam milik hari ini.
-            $hit = \App\Services\AttendancePolicy::telat($date, $jamMasukTs ?? (string) $r->jam_masuk, [
-                'jam_masuk'   => $jamMasukBatas,
-                'grace_menit' => $graceMins,
-            ]);
+                    continue;
+                }
 
-            $update = [];
-            $masukPoints = 0;
-            $masukDenda = 0;
-            $masukKetDenda = null;
+                // Rumus baku AttendancePolicy. Tanggal baris ikut dipakai, jadi
+                // recalculasi hari-hari lampau tidak lagi dibandingkan dengan
+                // ambang/jam milik hari ini.
+                $hit = AttendancePolicy::telat($date, $jamMasukTs ?? (string) $r->jam_masuk, [
+                    'jam_masuk' => $jamMasukBatas,
+                    'grace_menit' => $graceMins,
+                ]);
 
-            if ($hit['status'] === 'ONTIME') {
-                $update['status_masuk'] = 'ONTIME';
-                $update['telat_menit'] = 0;
-                $masukPoints = $this->calculateProgressiveRewardPoints($hit['datang_awal_menit'], $setting);
-                $update['datang_awal_menit'] = $hit['datang_awal_menit'];
-            } else {
-                $update['status_masuk'] = 'LATE';
-                $update['telat_menit'] = $hit['telat_menit'];
-                $update['datang_awal_menit'] = 0;
-                $calc = $this->calculateProgressivePenalty($hit['telat_menit'], $setting, 'Telat Masuk');
-                $masukPoints = -1 * $calc['points'];
-                $masukDenda = $calc['denda'];
-                $masukKetDenda = $calc['keterangan'];
-            }
+                $update = [];
+                $masukPoints = 0;
+                $masukDenda = 0;
+                $masukKetDenda = null;
 
-            // Pulang
-            $pulangPoints = 0;
-            $pulangDenda = 0;
-            $pulangKetDenda = null;
-
-            // $jamPulangTs sudah dinormalkan di atas (zero-date ⇒ baris
-            // dilewati); null di sini berarti memang belum/tidak ada pulang.
-            if ($jamPulangTs !== null) {
-                $jamPulangLimit = $sched['jam_pulang'];
-                $thresholdPulang = strtotime($date . ' ' . $jamPulangLimit);
-                $pulangTime = strtotime($date . ' ' . $jamPulangTs);
-
-                if ($pulangTime === false || $thresholdPulang === false) {
-                    // jadwal tidak terbaca — jangan sampai salah denda
-                } elseif ($pulangTime < $thresholdPulang) {
-                    $update['status_pulang'] = 'EARLY';
-                    $pulangCepatMenit = (int) ceil(($thresholdPulang - $pulangTime) / 60);
-                    $update['pulang_cepat_menit'] = $pulangCepatMenit;
-                    $update['pulang_akhir_menit'] = 0;
-                    $calcOut = $this->calculateProgressivePenalty($pulangCepatMenit, $setting, 'Pulang Awal');
-                    $pulangPoints = -1 * $calcOut['points'];
-                    $pulangDenda = $calcOut['denda'];
-                    $pulangKetDenda = $calcOut['keterangan'];
+                if ($hit['status'] === 'ONTIME') {
+                    $update['status_masuk'] = 'ONTIME';
+                    $update['telat_menit'] = 0;
+                    $masukPoints = $this->calculateProgressiveRewardPoints($hit['datang_awal_menit'], $setting);
+                    $update['datang_awal_menit'] = $hit['datang_awal_menit'];
                 } else {
-                    $update['status_pulang'] = 'ONTIME';
-                    $update['pulang_cepat_menit'] = 0;
-                    if ($pulangTime > $thresholdPulang) {
-                        // Kanonik: lembur dihitung di atas 60 menit pertama (service calcStatusPulang).
-                        $diffMenit = (int) floor(($pulangTime - $thresholdPulang) / 60);
-                        $update['pulang_akhir_menit'] = ($diffMenit >= 60) ? ($diffMenit - 60) : 0;
+                    $update['status_masuk'] = 'LATE';
+                    $update['telat_menit'] = $hit['telat_menit'];
+                    $update['datang_awal_menit'] = 0;
+                    $calc = $this->calculateProgressivePenalty($hit['telat_menit'], $setting, 'Telat Masuk');
+                    $masukPoints = -1 * $calc['points'];
+                    $masukDenda = $calc['denda'];
+                    $masukKetDenda = $calc['keterangan'];
+                }
+
+                // Pulang
+                $pulangPoints = 0;
+                $pulangDenda = 0;
+                $pulangKetDenda = null;
+
+                // $jamPulangTs sudah dinormalkan di atas (zero-date ⇒ baris
+                // dilewati); null di sini berarti memang belum/tidak ada pulang.
+                if ($jamPulangTs !== null) {
+                    $jamPulangLimit = $sched['jam_pulang'];
+                    $thresholdPulang = strtotime($date.' '.$jamPulangLimit);
+                    $pulangTime = strtotime($date.' '.$jamPulangTs);
+
+                    if ($pulangTime === false || $thresholdPulang === false) {
+                        // jadwal tidak terbaca — jangan sampai salah denda
+                    } elseif ($pulangTime < $thresholdPulang) {
+                        $update['status_pulang'] = 'EARLY';
+                        $pulangCepatMenit = (int) ceil(($thresholdPulang - $pulangTime) / 60);
+                        $update['pulang_cepat_menit'] = $pulangCepatMenit;
+                        $update['pulang_akhir_menit'] = 0;
+                        $calcOut = $this->calculateProgressivePenalty($pulangCepatMenit, $setting, 'Pulang Awal');
+                        $pulangPoints = -1 * $calcOut['points'];
+                        $pulangDenda = $calcOut['denda'];
+                        $pulangKetDenda = $calcOut['keterangan'];
+                    } else {
+                        $update['status_pulang'] = 'ONTIME';
+                        $update['pulang_cepat_menit'] = 0;
+                        if ($pulangTime > $thresholdPulang) {
+                            // Kanonik: lembur dihitung di atas 60 menit pertama (service calcStatusPulang).
+                            $diffMenit = (int) floor(($pulangTime - $thresholdPulang) / 60);
+                            $update['pulang_akhir_menit'] = ($diffMenit >= 60) ? ($diffMenit - 60) : 0;
+                        }
                     }
                 }
+
+                $rawDenda = (float) ($masukDenda + $pulangDenda);
+                // Tegakkan cap denda bulanan seperti jalur tulis lainnya (dengan lock).
+                $capped = $penaltySvc->applyMonthlyCap((int) $r->user_id, $date, $rawDenda, $setting, (int) $r->id, true);
+                $effectiveDenda = $capped['total'];
+                if ($capped['capped']) {
+                    $masukKetDenda = trim(($masukKetDenda ?? '').' (dibatasi cap bulanan Rp '.number_format($effectiveDenda, 0, ',', '.').')');
+                }
+
+                $update['points'] = $this->terapkanPenaltiLupaPulang(
+                    $masukPoints + $pulangPoints,
+                    $r,
+                    $jamPulangTs,
+                    $adaKolomPenalti,
+                    $update
+                );
+                $kets = array_values(array_filter([$masukKetDenda, $pulangKetDenda]));
+                $update['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
+
+                // Jangan turunkan denda di bawah yang sudah diterima bendahara.
+                // Sisa denda dihitung live dari absensi_harian.denda dikurangi
+                // total pembayaran; menurunkannya setelah bulan itu lunas membuat
+                // sisa jadi negatif — kredit hantu yang bisa dipakai melunasi
+                // bulan lain. Status/jam/poin tetap dihitung ulang seperti biasa.
+                $dibayarBulan = $this->totalDibayarBulan(
+                    (int) $r->user_id,
+                    (int) date('n', strtotime($date)),
+                    (int) date('Y', strtotime($date)),
+                    $dibayarCache
+                );
+                if ($dibayarBulan > 0 && $effectiveDenda < (float) ($r->denda ?? 0)) {
+                    unset($update['denda'], $update['keterangan_denda']);
+                    $dipertahankan++;
+                } else {
+                    $update['denda'] = $effectiveDenda;
+                }
+
+                $db->table('absensi_harian')->where('id', $r->id)->update($update);
+                $updatedCount++;
             }
+            DB::commit();
 
-            $rawDenda = (float) ($masukDenda + $pulangDenda);
-            // Tegakkan cap denda bulanan seperti jalur tulis lainnya (dengan lock).
-            $capped = $penaltySvc->applyMonthlyCap((int) $r->user_id, $date, $rawDenda, $setting, (int) $r->id, true);
-            $effectiveDenda = $capped['total'];
-            if ($capped['capped']) {
-                $masukKetDenda = trim(($masukKetDenda ?? '') . ' (dibatasi cap bulanan Rp ' . number_format($effectiveDenda, 0, ',', '.') . ')');
+            // Hitung ulang menimpa points & denda baris yang sudah ada. Tanpa
+            // jejak, selisih angka bulan lampau tidak bisa direkonstruksi lagi.
+            try {
+                (new AuditLogModel)->log('absensi_harian', null, 'RECALCULATE', null, $this->getUserId(),
+                    null,
+                    ['tanggal' => $date, 'diperiksa' => count($rows), 'diperbarui' => $updatedCount,
+                        'denda_dipertahankan' => $dipertahankan, 'lewati_jam_rusak' => $lewatiRusak],
+                    'Hitung Ulang Presensi '.$date);
+            } catch (\Throwable $ex) {
             }
-
-            $update['points'] = $this->terapkanPenaltiLupaPulang(
-                $masukPoints + $pulangPoints,
-                $r,
-                $jamPulangTs,
-                $adaKolomPenalti,
-                $update
-            );
-            $kets = array_values(array_filter([$masukKetDenda, $pulangKetDenda]));
-            $update['keterangan_denda'] = $kets ? implode('; ', $kets) : null;
-
-            // Jangan turunkan denda di bawah yang sudah diterima bendahara.
-            // Sisa denda dihitung live dari absensi_harian.denda dikurangi
-            // total pembayaran; menurunkannya setelah bulan itu lunas membuat
-            // sisa jadi negatif — kredit hantu yang bisa dipakai melunasi
-            // bulan lain. Status/jam/poin tetap dihitung ulang seperti biasa.
-            $dibayarBulan = $this->totalDibayarBulan(
-                (int) $r->user_id,
-                (int) date('n', strtotime($date)),
-                (int) date('Y', strtotime($date)),
-                $dibayarCache
-            );
-            if ($dibayarBulan > 0 && $effectiveDenda < (float) ($r->denda ?? 0)) {
-                unset($update['denda'], $update['keterangan_denda']);
-                $dipertahankan++;
-            } else {
-                $update['denda'] = $effectiveDenda;
-            }
-
-            $db->table('absensi_harian')->where('id', $r->id)->update($update);
-            $updatedCount++;
-        }
-        \Illuminate\Support\Facades\DB::commit();
-
-        // Hitung ulang menimpa points & denda baris yang sudah ada. Tanpa
-        // jejak, selisih angka bulan lampau tidak bisa direkonstruksi lagi.
-        try {
-            (new AuditLogModel())->log('absensi_harian', null, 'RECALCULATE', null, $this->getUserId(),
-                null,
-                ['tanggal' => $date, 'diperiksa' => count($rows), 'diperbarui' => $updatedCount,
-                 'denda_dipertahankan' => $dipertahankan, 'lewati_jam_rusak' => $lewatiRusak],
-                'Hitung Ulang Presensi ' . $date);
-        } catch (\Throwable $ex) {}
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('[PresensiAdmin::doRecalculateDate] ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('[PresensiAdmin::doRecalculateDate] '.$e->getMessage());
+
             return [
                 'date' => $date,
                 'total_checked' => count($rows),
@@ -3375,7 +3495,7 @@ class PresensiAdminController extends BaseController
             'total_checked' => count($rows),
             'updated' => $updatedCount,
             'denda_dipertahankan' => $dipertahankan,
-            'lewati_rusak' => $lewatiRusak
+            'lewati_rusak' => $lewatiRusak,
         ];
     }
 
@@ -3400,17 +3520,17 @@ class PresensiAdminController extends BaseController
 
     private function totalDibayarBulan(int $userId, int $bulan, int $tahun, array &$cache): float
     {
-        $key = $userId . '|' . $bulan . '|' . $tahun;
+        $key = $userId.'|'.$bulan.'|'.$tahun;
         if (isset($cache[$key])) {
             return (float) $cache[$key];
         }
 
         $total = 0.0;
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+            $db = DB::connection();
+            if (Schema::hasTable('absensi_pembayaran_denda')) {
                 $rows = $db->table('absensi_pembayaran_denda')
-                    ->select('nominal_bayar, total_denda')
+                    ->select('nominal_bayar', 'total_denda')
                     ->where('user_id', $userId)
                     ->where('bulan', $bulan)
                     ->where('tahun', $tahun)
@@ -3425,7 +3545,7 @@ class PresensiAdminController extends BaseController
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[totalDibayarBulan] ' . $e->getMessage());
+            Log::error('[totalDibayarBulan] '.$e->getMessage());
         }
 
         return $cache[$key] = $total;
@@ -3436,17 +3556,17 @@ class PresensiAdminController extends BaseController
      */
     public function testNotification()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $channel = $this->request->input('channel');
-        $notifService = new \App\Services\NotificationService();
+        $notifService = new NotificationService;
 
         $message = "✅ <b>Test Notifikasi</b>\n"
-                 . "Sistem presensi berjalan dengan baik.\n"
-                 . "Waktu: " . date('d/m/Y H:i:s') . "\n"
-                 . "Pesan ini adalah uji coba.";
+                 ."Sistem presensi berjalan dengan baik.\n"
+                 .'Waktu: '.date('d/m/Y H:i:s')."\n"
+                 .'Pesan ini adalah uji coba.';
 
         $success = false;
         $detail = '';
@@ -3469,7 +3589,7 @@ class PresensiAdminController extends BaseController
                 $prop->setValue($notifService, $cfg);
             }
             $success = $notifService->sendTelegram($message);
-            if (!$success) {
+            if (! $success) {
                 $detail = $notifService->lastError !== '' ? $notifService->lastError : 'Periksa konfigurasi.';
             }
         } elseif ($channel === 'whatsapp') {
@@ -3496,7 +3616,7 @@ class PresensiAdminController extends BaseController
             // sedang aktif. Kalau test memakai kredensial lain dari yang
             // tersimpan, cache itu bisa menunjuk sesi gateway lama.
             if (($settings->wa_gateway_mode ?? '') === 'openwa') {
-                (new \App\Services\OpenWAService())->flushCache();
+                (new OpenWAService)->flushCache();
             }
 
             $success = $notifService->sendWhatsApp($message);
@@ -3513,106 +3633,107 @@ class PresensiAdminController extends BaseController
     }
 
     /**
- * * Daftar akun WhatsApp guru + status gateway OpenWA.
- *
- * Nomor WA Unlike chat Telegram, hanya berstatus "terverifikasi" yang
- * benar-benar menerima kiriman (lihat UserNotifikasiModel::getVerifiedWaNumber).
- * Halaman ini tempat admin mengonfirmasi nomor yang diketik guru.
- */
-public function waLinks()
-{
-    if (! $this->isAdmin()) {
-        return redirect()->to('auth')->with('error', 'Akses ditolak');
-    }
+     * * Daftar akun WhatsApp guru + status gateway OpenWA.
+     *
+     * Nomor WA Unlike chat Telegram, hanya berstatus "terverifikasi" yang
+     * benar-benar menerima kiriman (lihat UserNotifikasiModel::getVerifiedWaNumber).
+     * Halaman ini tempat admin mengonfirmasi nomor yang diketik guru.
+     */
+    public function waLinks()
+    {
+        if (! $this->isAdmin()) {
+            return redirect()->to('auth')->with('error', 'Akses ditolak');
+        }
 
-    $linked = [];
-    $verifiedCount = 0;
-    try {
-        $model = new \App\Models\UserNotifikasiModel();
-        $linked = $model->getAllWaLinked();
-        $verifiedCount = $model->countVerifiedWa();
-    } catch (\Throwable $e) {
-        Log::error('waLinks gagal: ' . $e->getMessage());
         $linked = [];
-    }
-
-    // Status gateway untuk diagnosis "WA diam".
-    $status = ['ok' => false, 'sessions' => [], 'error' => 'Belum diperiksa.'];
-    try {
-        $status = (new \App\Services\OpenWAService())->getStatus();
-    } catch (\Throwable $e) {
-        $status = ['ok' => false, 'sessions' => [], 'error' => $e->getMessage()];
-    }
-
-    $setting = $this->getSettingRow();
-    if (! $setting) {
-        $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
-    }
-
-    return view('admin.presensi.whatsapp', [
-        'title'         => 'Tautan WhatsApp Guru',
-        'judul'         => 'Tautan WhatsApp Guru',
-        'setting'       => $setting,
-        'tp_active'     => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-        'smt_active'    => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-        'user'          => $this->getUser(),
-        'linked'        => $linked,
-        'verifiedCount' => $verifiedCount,
-        'status'        => $status,
-    ]);
-}
-
-/**
- * Konfirmasi / batalkan nomor WhatsApp seorang guru.
- * POST admin/presensi/wa/verify {user_id, verify: 1|0}
- *
- * Konfirmasi admin adalah syarat aktif: OpenWA tidak bisa membedakan
- * nomor aktif dari nomor salah ketik, jadi satu digit keliru akan
- * membocorkan data absensi ke orang tak dikenal.
- */
-public function waVerifyUser()
-{
-    if (! $this->isAdmin()) {
-        return $this->respond(false, 'Akses ditolak', null, null, 403);
-    }
-
-    $userId = (int) ($this->request->input('user_id') ?? 0);
-    $verify = (int) ($this->request->input('verify') ?? 1) === 1;
-
-    if ($userId <= 0) {
-        return $this->respond(false, 'User tidak valid.');
-    }
-
-    try {
-        $model = new \App\Models\UserNotifikasiModel();
-        if ($model->getWaNumber($userId) === '') {
-            return $this->respond(false, 'Nomor WhatsApp guru ini belum diisi.');
+        $verifiedCount = 0;
+        try {
+            $model = new UserNotifikasiModel;
+            $linked = $model->getAllWaLinked();
+            $verifiedCount = $model->countVerifiedWa();
+        } catch (\Throwable $e) {
+            Log::error('waLinks gagal: '.$e->getMessage());
+            $linked = [];
         }
 
-        $ok = $verify
-            ? $model->verifyWaNumber($userId)
-            : $model->unbindWa($userId);
-
-        if (! $ok) {
-            return $this->respond(false, 'Gagal menyimpan status.');
+        // Status gateway untuk diagnosis "WA diam".
+        $status = ['ok' => false, 'sessions' => [], 'error' => 'Belum diperiksa.'];
+        try {
+            $status = (new OpenWAService)->getStatus();
+        } catch (\Throwable $e) {
+            $status = ['ok' => false, 'sessions' => [], 'error' => $e->getMessage()];
         }
 
-        // Endpoint ini mengubah kanal-notifikasi seorang guru, jadi
-        // jejaknya harus ada — sama seperti aksi persetujuan izin/koreksi
-        // di controller yang sama. Tanpa ini, kalau seorang guru
-        // keberatan karena notifikasi teguran tidak sampai, tidak ada
-        // bukti siapa yang memutus kanalnya dan kapan.
-        $this->auditTautanNotifikasi(
-            $verify ? 'verifikasi' : 'nonaktifkan',
-            $userId,
-            (string) $model->getWaNumber($userId)
-        );
+        $setting = $this->getSettingRow();
+        if (! $setting) {
+            $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
-        return $this->respond(true, $verify ? 'Nomor dikonfirmasi dan aktif.' : 'Tautan dinonaktifkan.');
-} catch (\Throwable $e) {
-        Log::error('[PresensiAdmin::waVerifyUser] ' . $e->getMessage());
-        return $this->respond(false, 'Gagal mengubah status nomor WhatsApp — periksa log aplikasi.', null, null, 500);
+        return view('admin.presensi.whatsapp', [
+            'title' => 'Tautan WhatsApp Guru',
+            'judul' => 'Tautan WhatsApp Guru',
+            'setting' => $setting,
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'linked' => $linked,
+            'verifiedCount' => $verifiedCount,
+            'status' => $status,
+        ]);
     }
+
+    /**
+     * Konfirmasi / batalkan nomor WhatsApp seorang guru.
+     * POST admin/presensi/wa/verify {user_id, verify: 1|0}
+     *
+     * Konfirmasi admin adalah syarat aktif: OpenWA tidak bisa membedakan
+     * nomor aktif dari nomor salah ketik, jadi satu digit keliru akan
+     * membocorkan data absensi ke orang tak dikenal.
+     */
+    public function waVerifyUser()
+    {
+        if (! $this->isAdmin()) {
+            return $this->respond(false, 'Akses ditolak', null, null, 403);
+        }
+
+        $userId = (int) ($this->request->input('user_id') ?? 0);
+        $verify = (int) ($this->request->input('verify') ?? 1) === 1;
+
+        if ($userId <= 0) {
+            return $this->respond(false, 'User tidak valid.');
+        }
+
+        try {
+            $model = new UserNotifikasiModel;
+            if ($model->getWaNumber($userId) === '') {
+                return $this->respond(false, 'Nomor WhatsApp guru ini belum diisi.');
+            }
+
+            $ok = $verify
+                ? $model->verifyWaNumber($userId)
+                : $model->unbindWa($userId);
+
+            if (! $ok) {
+                return $this->respond(false, 'Gagal menyimpan status.');
+            }
+
+            // Endpoint ini mengubah kanal-notifikasi seorang guru, jadi
+            // jejaknya harus ada — sama seperti aksi persetujuan izin/koreksi
+            // di controller yang sama. Tanpa ini, kalau seorang guru
+            // keberatan karena notifikasi teguran tidak sampai, tidak ada
+            // bukti siapa yang memutus kanalnya dan kapan.
+            $this->auditTautanNotifikasi(
+                $verify ? 'verifikasi' : 'nonaktifkan',
+                $userId,
+                (string) $model->getWaNumber($userId)
+            );
+
+            return $this->respond(true, $verify ? 'Nomor dikonfirmasi dan aktif.' : 'Tautan dinonaktifkan.');
+        } catch (\Throwable $e) {
+            Log::error('[PresensiAdmin::waVerifyUser] '.$e->getMessage());
+
+            return $this->respond(false, 'Gagal mengubah status nomor WhatsApp — periksa log aplikasi.', null, null, 500);
+        }
     }
 
     /**
@@ -3624,132 +3745,132 @@ public function waVerifyUser()
     private function auditTautanNotifikasi(string $aksi, int $userId, string $nomor): void
     {
         try {
-            if (! class_exists(\App\Models\AuditLogModel::class)) {
+            if (! class_exists(AuditLogModel::class)) {
                 return;
             }
-            $model = new \App\Models\AuditLogModel();
+            $model = new AuditLogModel;
             if (! method_exists($model, 'log')) {
                 return;
             }
             $model->log(
                 'user_notifikasi',
                 $userId,
-                'Admin ' . $aksi . ' kanal WhatsApp notifikasi',
+                'Admin '.$aksi.' kanal WhatsApp notifikasi',
                 $userId,
                 (int) session()->get('user_id'),
                 null,
                 null,
-                'user_id=' . $userId . ' nomor=' . $nomor
+                'user_id='.$userId.' nomor='.$nomor
             );
         } catch (\Throwable $e) {
-            Log::error('Gagal menulis audit tautan notifikasi: ' . $e->getMessage());
+            Log::error('Gagal menulis audit tautan notifikasi: '.$e->getMessage());
         }
     }
 
-/**
- * Papan kondisi notifikasi.
- *
- * Semua kegagalan notifikasi (cron maupun guru-terawal) selama ini hanya
- * ada di file log di server — tidak ada layar yang menunjukkannya. Admin
- * baru tahu masalahnya saat rekap tidak masuk, atau tidak sama sekali.
- *
- * Halaman ini menyatukan tiga sumber yang sudah ada:
- *   - cron_notifikasi_log    : hasil tiap pengiriman cron
- *   - absensi_pengumuman_harian : hasil DM guru-terawal (tabel ini tadinya
- *     hanya ditulis, tidak pernah dibaca)
- *   - status gateway         : OpenWA + webhook Telegram, live
- */
-public function notifikasiStatus()
-{
-    if (! $this->isAdmin()) {
-        return redirect()->to('auth')->with('error', 'Akses ditolak');
-    }
-
-    $db = \Illuminate\Support\Facades\DB::connection();
-
-    // ── pengiriman cron ─────────────────────────────────────────────
-    $cron = [];
-    $cronGagal = 0;
-    if (\Illuminate\Support\Facades\Schema::hasTable('cron_notifikasi_log')) {
-        $cron = $db->table('cron_notifikasi_log')
-            ->orderBy('updated_at', 'DESC')
-            ->limit(30)
-            ->get();
-        $cronGagal = (int) $db->table('cron_notifikasi_log')
-            ->where('terkirim', 0)->count();
-    }
-
-    // ── DM guru-terawal ─────────────────────────────────────────────
-    $dmGagal = [];
-    if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pengumuman_harian')) {
-        $dmGagal = $db->table('absensi_pengumuman_harian')
-            ->select('tgl, nama_guru, dm_terkirim, grup_terkirim, catatan')
-            ->where('dm_terkirim', 0)
-            ->orderBy('tgl', 'DESC')
-            ->limit(15)
-            ->get();
-    }
-
-    // ── status kanal ────────────────────────────────────────────────
-    $wa = ['ok' => false, 'error' => 'Belum diperiksa.'];
-    try {
-        $wa = (new \App\Services\OpenWAService())->getStatus();
-    } catch (\Throwable $e) {
-        $wa = ['ok' => false, 'error' => $e->getMessage()];
-    }
-
-    $tg = ['ok' => false, 'error' => 'Belum diperiksa.'];
-    try {
-        $tg = (new \App\Services\NotificationService())->getWebhookInfo();
-    } catch (\Throwable $e) {
-        $tg = ['ok' => false, 'error' => $e->getMessage()];
-    }
-
-    $notif = new \App\Services\NotificationService();
-
-    // ── state channel per jenis ─────────────────────────────────────
-    // Supaya admin bisa membedakan "cron GAGAL (gateway)" dari "cron
-    // dilewati karena channel dimatikan di notif-config". Tanpa ini,
-    // baris Skip di cron.log tidak bisa dikorelasikan dari halaman ini.
-    $chModel = new \App\Models\NotifChannelConfigModel();
-
-    $setting = $this->getSettingRow();
-    if (! $setting) {
-        $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
-    }
-
-    return view('admin.presensi.notifikasi-status', [
-        'title'      => 'Status Notifikasi',
-        'judul'      => 'Status Notifikasi',
-        'setting'    => $setting,
-        'tp_active'  => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-        'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-        'user'       => $this->getUser(),
-        'cron'       => $cron,
-        'cronGagal'  => $cronGagal,
-        'dmGagal'    => $dmGagal,
-        'wa'         => $wa,
-        'tg'         => $tg,
-        'waMode'     => $notif->waMode(),
-        'chConfig'   => $chModel->getConfig(),
-        'chJenis'    => \App\Models\NotifChannelConfigModel::JENIS_LIST,
-        'chLabels'   => \App\Models\NotifChannelConfigModel::CHANNEL_LABELS,
-    ]);
-}
-
-/**
- * Daftar akun Telegram guru yang tertaut (notifikasi personal).
- */
-    public function telegramLinks()
+    /**
+     * Papan kondisi notifikasi.
+     *
+     * Semua kegagalan notifikasi (cron maupun guru-terawal) selama ini hanya
+     * ada di file log di server — tidak ada layar yang menunjukkannya. Admin
+     * baru tahu masalahnya saat rekap tidak masuk, atau tidak sama sekali.
+     *
+     * Halaman ini menyatukan tiga sumber yang sudah ada:
+     *   - cron_notifikasi_log    : hasil tiap pengiriman cron
+     *   - absensi_pengumuman_harian : hasil DM guru-terawal (tabel ini tadinya
+     *     hanya ditulis, tidak pernah dibaca)
+     *   - status gateway         : OpenWA + webhook Telegram, live
+     */
+    public function notifikasiStatus()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
+
+        // ── pengiriman cron ─────────────────────────────────────────────
+        $cron = [];
+        $cronGagal = 0;
+        if (Schema::hasTable('cron_notifikasi_log')) {
+            $cron = $db->table('cron_notifikasi_log')
+                ->orderBy('updated_at', 'DESC')
+                ->limit(30)
+                ->get();
+            $cronGagal = (int) $db->table('cron_notifikasi_log')
+                ->where('terkirim', 0)->count();
+        }
+
+        // ── DM guru-terawal ─────────────────────────────────────────────
+        $dmGagal = [];
+        if (Schema::hasTable('absensi_pengumuman_harian')) {
+            $dmGagal = $db->table('absensi_pengumuman_harian')
+                ->select('tgl', 'nama_guru', 'dm_terkirim', 'grup_terkirim', 'catatan')
+                ->where('dm_terkirim', 0)
+                ->orderBy('tgl', 'DESC')
+                ->limit(15)
+                ->get();
+        }
+
+        // ── status kanal ────────────────────────────────────────────────
+        $wa = ['ok' => false, 'error' => 'Belum diperiksa.'];
+        try {
+            $wa = (new OpenWAService)->getStatus();
+        } catch (\Throwable $e) {
+            $wa = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        $tg = ['ok' => false, 'error' => 'Belum diperiksa.'];
+        try {
+            $tg = (new NotificationService)->getWebhookInfo();
+        } catch (\Throwable $e) {
+            $tg = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        $notif = new NotificationService;
+
+        // ── state channel per jenis ─────────────────────────────────────
+        // Supaya admin bisa membedakan "cron GAGAL (gateway)" dari "cron
+        // dilewati karena channel dimatikan di notif-config". Tanpa ini,
+        // baris Skip di cron.log tidak bisa dikorelasikan dari halaman ini.
+        $chModel = new NotifChannelConfigModel;
+
+        $setting = $this->getSettingRow();
+        if (! $setting) {
+            $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
+
+        return view('admin.presensi.notifikasi-status', [
+            'title' => 'Status Notifikasi',
+            'judul' => 'Status Notifikasi',
+            'setting' => $setting,
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'cron' => $cron,
+            'cronGagal' => $cronGagal,
+            'dmGagal' => $dmGagal,
+            'wa' => $wa,
+            'tg' => $tg,
+            'waMode' => $notif->waMode(),
+            'chConfig' => $chModel->getConfig(),
+            'chJenis' => NotifChannelConfigModel::JENIS_LIST,
+            'chLabels' => NotifChannelConfigModel::CHANNEL_LABELS,
+        ]);
+    }
+
+    /**
+     * Daftar akun Telegram guru yang tertaut (notifikasi personal).
+     */
+    public function telegramLinks()
+    {
+        if (! $this->isAdmin()) {
+            return redirect()->to('auth')->with('error', 'Akses ditolak');
+        }
+
+        $db = DB::connection();
         $linked = [];
         try {
-            $linked = (new \App\Models\UserNotifikasiModel())->getAllLinked();
+            $linked = (new UserNotifikasiModel)->getAllLinked();
         } catch (\Throwable $e) {
             $linked = [];
         }
@@ -3758,7 +3879,7 @@ public function notifikasiStatus()
         $totalGuru = 0;
         try {
             $totalGuru = $db->table('users as u')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
                 ->count();
@@ -3766,7 +3887,7 @@ public function notifikasiStatus()
         }
 
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
@@ -3775,31 +3896,31 @@ public function notifikasiStatus()
         $whExpected = '';
         $whSetUrl = '';
         try {
-            $notifSvc = new \App\Services\NotificationService();
+            $notifSvc = new NotificationService;
             $wh = $notifSvc->getWebhookInfo();
-            $absenSet = (new \App\Models\AttendanceSettingModel())->first();
+            $absenSet = (new AttendanceSettingModel)->first();
             $botToken = trim((string) ($absenSet->telegram_bot_token ?? ''));
             if ($botToken !== '') {
-                $secret = \App\Http\Controllers\Api\TelegramBotController::webhookSecret($botToken);
-                $whExpected = rtrim(url(), '/') . '/api/telegram/webhook?secret=' . $secret;
-                $whSetUrl = 'https://api.telegram.org/bot' . $botToken . '/setWebhook?url=' . urlencode($whExpected);
+                $secret = TelegramBotController::webhookSecret($botToken);
+                $whExpected = rtrim(url(), '/').'/api/telegram/webhook?secret='.$secret;
+                $whSetUrl = 'https://api.telegram.org/bot'.$botToken.'/setWebhook?url='.urlencode($whExpected);
             }
         } catch (\Throwable $e) {
             $wh = ['ok' => false, 'error' => $e->getMessage()];
         }
 
         return view('admin.presensi.telegram', [
-            'title'      => 'Tautan Telegram Guru',
-            'judul'      => 'Tautan Telegram Guru',
-            'setting'    => $setting,
-            'tp_active'  => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-            'user'       => $this->getUser(),
-            'linked'     => $linked,
-            'totalGuru'  => $totalGuru,
-            'wh'         => $wh,
+            'title' => 'Tautan Telegram Guru',
+            'judul' => 'Tautan Telegram Guru',
+            'setting' => $setting,
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'linked' => $linked,
+            'totalGuru' => $totalGuru,
+            'wh' => $wh,
             'whExpected' => $whExpected,
-            'whSetUrl'   => $whSetUrl,
+            'whSetUrl' => $whSetUrl,
         ]);
     }
 
@@ -3808,7 +3929,7 @@ public function notifikasiStatus()
      */
     public function telegramUnlinkUser()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $userId = (int) ($this->request->input('user_id') ?? 0);
@@ -3816,7 +3937,7 @@ public function notifikasiStatus()
             return $this->respond(false, 'User tidak valid');
         }
         try {
-            $model = new \App\Models\UserNotifikasiModel();
+            $model = new UserNotifikasiModel;
             $row = $model->getByUserId($userId);
 
             // Dulu endpoint ini selalu balas "Tautan dilepas" walau tidak
@@ -3833,7 +3954,8 @@ public function notifikasiStatus()
 
             return $this->respond(true, 'Tautan dilepas.');
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::telegramUnlinkUser] ' . $e->getMessage());
+            Log::error('[PresensiAdmin::telegramUnlinkUser] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal melepas tautan — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -3843,7 +3965,7 @@ public function notifikasiStatus()
      */
     public function telegramTestUser()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $userId = (int) ($this->request->input('user_id') ?? 0);
@@ -3851,17 +3973,19 @@ public function notifikasiStatus()
             return $this->respond(false, 'User tidak valid');
         }
         try {
-            $ok = (new \App\Services\NotificationService())->notifyUser(
+            $ok = (new NotificationService)->notifyUser(
                 $userId,
-                '✅ <b>TES NOTIFIKASI</b>\nAkun Telegram Anda tertaut dengan benar.\nWaktu: ' . date('d/m/Y H:i'),
+                '✅ <b>TES NOTIFIKASI</b>\nAkun Telegram Anda tertaut dengan benar.\nWaktu: '.date('d/m/Y H:i'),
                 '',
                 false
             );
+
             return $ok
                 ? $this->respond(true, 'Pesan tes terkirim.')
                 : $this->respond(false, 'Gagal terkirim. Pastikan akun masih tertaut.');
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::telegramTestUser] ' . $e->getMessage());
+            Log::error('[PresensiAdmin::telegramTestUser] '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mengirim pesan tes — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -3871,11 +3995,11 @@ public function notifikasiStatus()
      */
     public function qrList()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrTable();
         $this->patchAbsensiQrLogTable();
 
@@ -3886,11 +4010,11 @@ public function notifikasiStatus()
 
         // Hitung peserta (scan masuk) per event dalam 1 query (hindari N+1)
         $pesertaCounts = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_qr_log') && !empty($events)) {
+        if (Schema::hasTable('absensi_qr_log') && ! empty($events)) {
             try {
                 $countBuilder = $db->table('absensi_qr_log')
-                    ->select('qr_id, COUNT(*) AS total');
-                if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+                    ->select('qr_id')->selectRaw('COUNT(*) AS total');
+                if (Schema::hasColumn('absensi_qr_log', 'jenis')) {
                     $countBuilder->where('jenis', 'masuk');
                 }
                 $rows = $countBuilder
@@ -3900,13 +4024,13 @@ public function notifikasiStatus()
                     $pesertaCounts[(int) $r->qr_id] = (int) $r->total;
                 }
             } catch (\Throwable $e) {
-                Log::error('[qrList] count peserta: ' . $e->getMessage());
+                Log::error('[qrList] count peserta: '.$e->getMessage());
             }
         }
 
         $appSetting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
         return view('admin.presensi.qr_list', [
             'title' => 'QR Code Presensi',
@@ -3926,7 +4050,7 @@ public function notifikasiStatus()
      */
     public function qrDelete()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -3935,15 +4059,15 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID event tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrTable();
 
         $event = $db->table('absensi_qr')->where('id', $id)->first();
-        if (!$event) {
+        if (! $event) {
             return $this->respond(false, 'Event tidak ditemukan');
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_qr_log')) {
+        if (Schema::hasTable('absensi_qr_log')) {
             $used = $db->table('absensi_qr_log')->where('qr_id', $id)->count();
             if ($used > 0) {
                 return $this->respond(false, "Event tidak dapat dihapus karena sudah memiliki {$used} riwayat scan. Nonaktifkan saja agar tak dipakai lagi.");
@@ -3952,7 +4076,7 @@ public function notifikasiStatus()
 
         $db->table('absensi_qr')->where('id', $id)->delete();
 
-        return $this->respond(true, 'Event "' . ($event->nama_acara ?? '') . '" dihapus');
+        return $this->respond(true, 'Event "'.($event->nama_acara ?? '').'" dihapus');
     }
 
     /**
@@ -3960,11 +4084,11 @@ public function notifikasiStatus()
      */
     public function qrGenerate()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrTable();
 
         $namaAcara = trim((string) ($this->request->input('nama_acara') ?? ''));
@@ -3976,11 +4100,11 @@ public function notifikasiStatus()
         if (mb_strlen($namaAcara) < 3 || mb_strlen($namaAcara) > 255) {
             return $this->respond(false, 'Nama acara 3–255 karakter');
         }
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
             return $this->respond(false, 'Format tanggal tidak valid');
         }
         $timeRe = '/^([01]\d|2[0-3]):[0-5]\d$/';
-        if (!preg_match($timeRe, $jamMulai) || !preg_match($timeRe, $jamSelesai)) {
+        if (! preg_match($timeRe, $jamMulai) || ! preg_match($timeRe, $jamSelesai)) {
             return $this->respond(false, 'Format jam tidak valid (HH:MM)');
         }
         if ($jamSelesai <= $jamMulai) {
@@ -3991,13 +4115,13 @@ public function notifikasiStatus()
         // tampil di layar & di-refresh. Mode static: token tetap untuk QR cetak/poster.
         $mode = $this->request->input('mode') === 'static' ? 'static' : 'rotating';
         $interval = (int) ($this->request->input('interval_detik') ?: 60);
-        $interval = \App\Libraries\QrToken::normalizeInterval($interval);
+        $interval = QrToken::normalizeInterval($interval);
 
         if ($mode === 'rotating') {
-            $secret = \App\Libraries\QrToken::generateSecret();
+            $secret = QrToken::generateSecret();
             // Identifier internal; TIDAK PERNAH diterima sebagai token check-in.
-            $token = 'EVT-' . bin2hex(random_bytes(8));
-            $displayToken = \App\Libraries\QrToken::current($secret, $interval);
+            $token = 'EVT-'.bin2hex(random_bytes(8));
+            $displayToken = QrToken::current($secret, $interval);
         } else {
             $secret = null;
             $token = bin2hex(random_bytes(24));
@@ -4008,18 +4132,18 @@ public function notifikasiStatus()
             'nama_acara' => $namaAcara,
             'token' => $token,
             'tanggal' => $tanggal,
-            'jam_mulai' => $jamMulai . ':00',
-            'jam_selesai' => $jamSelesai . ':00',
+            'jam_mulai' => $jamMulai.':00',
+            'jam_selesai' => $jamSelesai.':00',
             'lokasi' => $lokasi,
             'secret' => $secret,
             'interval_detik' => $interval,
             'mode' => $mode,
             'active' => 1,
             'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $id = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+        $id = DB::getPdo()->lastInsertId();
         $url = url("qr/{$displayToken}");
 
         return $this->respond(true, 'QR Code berhasil dibuat', [
@@ -4029,7 +4153,7 @@ public function notifikasiStatus()
             'mode' => $mode,
             'refresh_ms' => $mode === 'rotating' ? $interval * 1000 : 0,
             'nama_acara' => $namaAcara,
-            'tanggal' => $tanggal
+            'tanggal' => $tanggal,
         ]);
     }
 
@@ -4038,7 +4162,7 @@ public function notifikasiStatus()
      */
     public function qrToggle()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -4049,16 +4173,16 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID event tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrTable();
 
-        if (!$db->table('absensi_qr')->where('id', $id)->count()) {
+        if (! $db->table('absensi_qr')->where('id', $id)->count()) {
             return $this->respond(false, 'Event tidak ditemukan');
         }
 
         $db->table('absensi_qr')->where('id', $id)->update([
             'active' => $active,
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         return $this->respond(true, $active ? 'Event diaktifkan' : 'Event dinonaktifkan');
@@ -4070,29 +4194,29 @@ public function notifikasiStatus()
      */
     public function qrCurrentToken($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrTable();
 
         $event = $db->table('absensi_qr')->where('id', $id)->first();
-        if (!$event) {
+        if (! $event) {
             return $this->respond(false, 'Event tidak ditemukan', null, null, 404);
         }
 
-        $token = \App\Libraries\QrToken::displayToken($event);
-        $mode = $event->mode ?? (!empty($event->secret) ? 'rotating' : 'static');
-        $interval = \App\Libraries\QrToken::normalizeInterval((int) ($event->interval_detik ?? 60));
+        $token = QrToken::displayToken($event);
+        $mode = $event->mode ?? (! empty($event->secret) ? 'rotating' : 'static');
+        $interval = QrToken::normalizeInterval((int) ($event->interval_detik ?? 60));
 
         return $this->respond(true, 'Token kini', [
             'id' => (int) $event->id,
             'token' => $token,
-            'url' => url('qr/' . $token),
+            'url' => url('qr/'.$token),
             'mode' => $mode,
             'refresh_ms' => $mode === 'rotating' ? $interval * 1000 : 0,
-            'expires_in' => $mode === 'rotating' ? \App\Libraries\QrToken::secondsRemaining($interval) : null,
+            'expires_in' => $mode === 'rotating' ? QrToken::secondsRemaining($interval) : null,
             'active' => (int) $event->active,
         ]);
     }
@@ -4102,21 +4226,21 @@ public function notifikasiStatus()
      */
     public function qrRekap($qrId)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $this->patchAbsensiQrLogTable();
 
         $event = $db->table('absensi_qr')->where('id', $qrId)->first();
-        if (!$event) {
+        if (! $event) {
             return redirect()->back()->with('error', 'Event tidak ditemukan');
         }
 
         $logs = $db->table('absensi_qr_log as l')
-            ->select('l.*, mg.nama_guru, mg.nip')
-            ->join('master_guru as mg', 'mg.id_guru = l.id_guru', 'left')
+            ->select('l.*', 'mg.nama_guru', 'mg.nip')
+            ->leftJoin('master_guru as mg', 'mg.id_guru', '=', 'l.id_guru')
             ->where('l.qr_id', $qrId)
             ->orderBy('l.scanned_at', 'ASC')
             ->get();
@@ -4133,12 +4257,12 @@ public function notifikasiStatus()
         }
 
         $appSetting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
         return view('admin.presensi.qr_rekap', [
             'title' => 'Rekap QR',
-            'judul' => 'Rekap QR: ' . $event->nama_acara,
+            'judul' => 'Rekap QR: '.$event->nama_acara,
             'setting' => $appSetting ?: (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'],
             'tp_active' => $tp_active,
             'smt_active' => $smt_active,
@@ -4152,9 +4276,9 @@ public function notifikasiStatus()
 
     private function patchAbsensiQrTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_qr')) {
+        $db = DB::connection();
+        $forge = (new CiForge);
+        if (! Schema::hasTable('absensi_qr')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'nama_acara' => ['type' => 'VARCHAR', 'constraint' => 255],
@@ -4173,42 +4297,43 @@ public function notifikasiStatus()
             $forge->addPrimaryKey('id');
             $forge->addKey('token');
             $forge->createTable('absensi_qr', true);
+
             return;
         }
         // Migrasi skema lama: nama_event → nama_acara, is_active → active
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'nama_acara') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'nama_event')) {
+        if (! Schema::hasColumn('absensi_qr', 'nama_acara') && Schema::hasColumn('absensi_qr', 'nama_event')) {
             try {
                 $forge->modifyColumn('absensi_qr', [
                     'nama_event' => ['name' => 'nama_acara', 'type' => 'VARCHAR', 'constraint' => 255],
                 ]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiQrTable] rename nama_event: ' . $e->getMessage());
+                Log::error('[patchAbsensiQrTable] rename nama_event: '.$e->getMessage());
             }
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'active') && \Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'is_active')) {
+        if (! Schema::hasColumn('absensi_qr', 'active') && Schema::hasColumn('absensi_qr', 'is_active')) {
             try {
                 $forge->modifyColumn('absensi_qr', [
                     'is_active' => ['name' => 'active', 'type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
                 ]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiQrTable] rename is_active: ' . $e->getMessage());
+                Log::error('[patchAbsensiQrTable] rename is_active: '.$e->getMessage());
             }
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'lokasi')) {
+        if (! Schema::hasColumn('absensi_qr', 'lokasi')) {
             try {
                 $forge->addColumn('absensi_qr', ['lokasi' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true]]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiQrTable] add lokasi: ' . $e->getMessage());
+                Log::error('[patchAbsensiQrTable] add lokasi: '.$e->getMessage());
             }
         }
         // Kolom TOTP untuk tabel lama
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'secret')) {
+        if (! Schema::hasColumn('absensi_qr', 'secret')) {
             $forge->addColumn('absensi_qr', ['secret' => ['type' => 'VARCHAR', 'constraint' => 64, 'null' => true]]);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'interval_detik')) {
+        if (! Schema::hasColumn('absensi_qr', 'interval_detik')) {
             $forge->addColumn('absensi_qr', ['interval_detik' => ['type' => 'INT', 'constraint' => 11, 'default' => 60]]);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr', 'mode')) {
+        if (! Schema::hasColumn('absensi_qr', 'mode')) {
             $forge->addColumn('absensi_qr', ['mode' => ['type' => 'VARCHAR', 'constraint' => 16, 'default' => 'rotating']]);
             try {
                 $db->select("UPDATE absensi_qr SET mode = 'static' WHERE secret IS NULL");
@@ -4219,9 +4344,9 @@ public function notifikasiStatus()
 
     private function patchAbsensiQrLogTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_qr_log')) {
+        $db = DB::connection();
+        $forge = (new CiForge);
+        if (! Schema::hasTable('absensi_qr_log')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'qr_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -4238,16 +4363,17 @@ public function notifikasiStatus()
             $forge->addKey('user_id');
             $forge->addUniqueKey(['qr_id', 'user_id', 'jenis'], 'uq_qr_user_jenis');
             $forge->createTable('absensi_qr_log', true);
+
             return;
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_qr_log', 'jenis')) {
+        if (! Schema::hasColumn('absensi_qr_log', 'jenis')) {
             try {
                 $forge->addColumn('absensi_qr_log', [
                     'jenis' => ['type' => 'VARCHAR', 'constraint' => 10, 'default' => 'masuk', 'null' => false],
                 ]);
             } catch (\Throwable $e) {
-                Log::error('[patchAbsensiQrLogTable] add jenis: ' . $e->getMessage());
+                Log::error('[patchAbsensiQrLogTable] add jenis: '.$e->getMessage());
             }
         }
 
@@ -4271,14 +4397,14 @@ public function notifikasiStatus()
                 if ($sorted === $target) {
                     $hasTarget = true;
                 } elseif ($sorted === ['qr_id', 'user_id']) {
-                    $db->select('ALTER TABLE `absensi_qr_log` DROP INDEX `' . str_replace('`', '``', $name) . '`');
+                    $db->select('ALTER TABLE `absensi_qr_log` DROP INDEX `'.str_replace('`', '``', $name).'`');
                 }
             }
-            if (!$hasTarget) {
+            if (! $hasTarget) {
                 $db->select('ALTER TABLE `absensi_qr_log` ADD UNIQUE KEY `uq_qr_user_jenis` (`qr_id`, `user_id`, `jenis`)');
             }
         } catch (\Throwable $e) {
-            Log::error('[patchAbsensiQrLogTable] unique jenis: ' . $e->getMessage());
+            Log::error('[patchAbsensiQrLogTable] unique jenis: '.$e->getMessage());
         }
     }
 
@@ -4287,22 +4413,23 @@ public function notifikasiStatus()
      */
     public function locations()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $this->patchAbsensiLokasiTable();
 
-        $locationModel = new \App\Models\AttendanceLocationModel();
+        $locationModel = new AttendanceLocationModel;
         $locations = $locationModel->get();
 
         // Get setting & active year/semester
         $appSetting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$appSetting)
+        if (! $appSetting) {
             $appSetting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.locations', [
             'title' => 'Data Lokasi Kantor',
@@ -4311,7 +4438,7 @@ public function notifikasiStatus()
             'tp_active' => $tp_active,
             'smt_active' => $smt_active,
             'user' => $this->getUser(),
-            'locations' => $locations
+            'locations' => $locations,
         ]);
     }
 
@@ -4320,19 +4447,19 @@ public function notifikasiStatus()
      */
     public function saveLocation()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $this->patchAbsensiLokasiTable();
-        $locationModel = new \App\Models\AttendanceLocationModel();
+        $locationModel = new AttendanceLocationModel;
 
-        $id          = $this->request->input('id');
-        $namaLokasi  = trim($this->request->input('nama_lokasi') ?? '');
-        $lat         = (float) $this->request->input('lat');
-        $lng         = (float) $this->request->input('lng');
-        $radius      = (int)   $this->request->input('radius_meter');
-        $keterangan  = trim($this->request->input('keterangan') ?? '');
+        $id = $this->request->input('id');
+        $namaLokasi = trim($this->request->input('nama_lokasi') ?? '');
+        $lat = (float) $this->request->input('lat');
+        $lng = (float) $this->request->input('lng');
+        $radius = (int) $this->request->input('radius_meter');
+        $keterangan = trim($this->request->input('keterangan') ?? '');
 
         // ── Validasi Input ──────────────────────────────────────────
         if (empty($namaLokasi)) {
@@ -4353,12 +4480,12 @@ public function notifikasiStatus()
         // ── End Validasi ────────────────────────────────────────────
 
         $data = [
-            'nama_lokasi'  => $namaLokasi,
-            'lat'          => $lat,
-            'lng'          => $lng,
+            'nama_lokasi' => $namaLokasi,
+            'lat' => $lat,
+            'lng' => $lng,
             'radius_meter' => $radius,
-            'keterangan'   => $keterangan,
-            'is_utama'     => 0,   // diurus terpisah lewat setUtama() (hanya satu yang boleh utama)
+            'keterangan' => $keterangan,
+            'is_utama' => 0,   // diurus terpisah lewat setUtama() (hanya satu yang boleh utama)
         ];
 
         if ($id) {
@@ -4373,7 +4500,7 @@ public function notifikasiStatus()
         // Hanya boleh satu lokasi berflag is_utama=1. Operator bisa menandai
         // lewat checkbox di form, atau membatalkannya (is_utama=0).
         $isUtama = $this->request->input('is_utama');
-        $ssoon   = $this->request->input('set_utama');   // 1 = jadikan utama, 0 = lepas
+        $ssoon = $this->request->input('set_utama');   // 1 = jadikan utama, 0 = lepas
         $targetId = (int) ($id ?: ($locationModel->getInsertID() ?: 0));
 
         if ($ssoon !== null && trim((string) $ssoon) !== '') {
@@ -4404,17 +4531,17 @@ public function notifikasiStatus()
      */
     public function setLocationUtama()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $this->patchAbsensiLokasiTable();
-        $locationModel = new \App\Models\AttendanceLocationModel();
+        $locationModel = new AttendanceLocationModel;
 
-        $id    = (int) $this->request->input('id');
+        $id = (int) $this->request->input('id');
         $aktif = (int) $this->request->input('aktif');
 
-        if ($id <= 0 || !$locationModel->first($id, true)) {
+        if ($id <= 0 || ! $locationModel->first($id, true)) {
             return $this->respond(false, 'Lokasi tidak ditemukan');
         }
 
@@ -4423,9 +4550,9 @@ public function notifikasiStatus()
         return $this->respond(true, $aktif === 1
             ? 'Lokasi ditandai sebagai utama'
             : 'Penandaan lokasi utama dilepas', [
-            'is_utama' => $aktif === 1 ? 1 : 0,
-            'utama_id' => $utama ? (int) $utama->id : 0,
-        ]);
+                'is_utama' => $aktif === 1 ? 1 : 0,
+                'utama_id' => $utama ? (int) $utama->id : 0,
+            ]);
     }
 
     /**
@@ -4433,18 +4560,19 @@ public function notifikasiStatus()
      */
     public function deleteLocation()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $id = $this->request->input('id');
-        $locationModel = new \App\Models\AttendanceLocationModel();
+        $locationModel = new AttendanceLocationModel;
 
         if ($id) {
             $locationModel->where('id', $id)->delete();
             // Bila yang terhapus adalah lokasi utama, pastikan ada satu lagi
             // yang menjadi acuan koordinat absen manual.
             $locationModel->ensureAdaUtama();
+
             return $this->respond(true, 'Lokasi berhasil dihapus');
         }
 
@@ -4456,32 +4584,31 @@ public function notifikasiStatus()
      */
     public function dashboard()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tahun = $this->request->query('tahun') ?? date('Y');
 
         // 1. Late Trend per Month (Last 12 months)
         $lateTrend = [];
-        $hasTelatMenit = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'telat_menit');
+        $hasTelatMenit = Schema::hasColumn('absensi_harian', 'telat_menit');
 
         for ($i = 11; $i >= 0; $i--) {
             $month = date('Y-m', strtotime("-{$i} months"));
             try {
                 if ($hasTelatMenit) {
                     $result = $db->table('absensi_harian')
-                        ->selectSum('telat_menit', 'total_menit')
-                        ->selectCount('id', 'total_late')
+                        ->selectRaw('SUM(telat_menit) as total_menit, COUNT(id) as total_late')
                         ->where('status_masuk', 'LATE')
-                        ->where('tgl', 'like', $month . '%')
+                        ->where('tgl', 'like', $month.'%')
                         ->first();
                 } else {
                     $result = $db->table('absensi_harian')
-                        ->selectCount('id', 'total_late')
+                        ->selectRaw('COUNT(id) as total_late')
                         ->where('status_masuk', 'LATE')
-                        ->where('tgl', 'like', $month . '%')
+                        ->where('tgl', 'like', $month.'%')
                         ->first();
                     $result->total_menit = 0;
                 }
@@ -4490,31 +4617,35 @@ public function notifikasiStatus()
             }
 
             $lateTrend[] = [
-                'month' => buat_tanggal(date('M Y', strtotime($month . '-01'))),
+                'month' => buat_tanggal(date('M Y', strtotime($month.'-01'))),
                 'total_late' => (int) ($result->total_late ?? 0),
-                'total_menit' => (int) ($result->total_menit ?? 0)
+                'total_menit' => (int) ($result->total_menit ?? 0),
             ];
         }
 
         // 2. Attendance Comparison per Teacher (This Month)
         $bulanIni = date('Y-m');
-        $termHadir = \App\Services\AttendancePolicy::sqlTermHadir('a');
+        $termHadir = AttendancePolicy::sqlTermHadir('a');
         try {
             $comparison = $db->table('absensi_harian as a')
-                ->select('a.user_id, u.first_name, u.last_name,
-                          ' . $termHadir . ' as total_hadir,
+                ->select('a.user_id', 'u.first_name', 'u.last_name')
+                ->selectRaw($termHadir.' as total_hadir,
                           SUM(CASE WHEN a.status_masuk = "LATE" THEN 1 ELSE 0 END) as total_telat,
                           SUM(CASE WHEN a.status_masuk = "ONTIME" THEN 1 ELSE 0 END) as total_tepat,
                           SUM(CASE WHEN a.status_masuk LIKE "DINAS%" THEN 1 ELSE 0 END) as total_dinas')
-                ->join('users as u', 'u.id = a.user_id')
+                ->join('users as u', 'u.id', '=', 'a.user_id')
                 // Filter di bawah memakai alias g; tanpa join ini query selalu
                 // gagal (Unknown column 'g.status_aktif') dan catch mengubahnya
                 // jadi array kosong, sehingga grafik perbandingan guru selalu kosong.
-                ->join('master_guru as g', 'g.id_user = a.user_id', 'left')
+                ->leftJoin('master_guru as g', 'g.id_user', '=', 'a.user_id')
                 ->where('u.active', 1)
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-                ->where('a.tgl', 'like', $bulanIni . '%')
+                ->where(function ($q) {
+                    $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+                })
+                ->where(function ($q) {
+                    $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+                })
+                ->where('a.tgl', 'like', $bulanIni.'%')
                 ->groupBy('a.user_id')
                 ->orderBy('total_hadir', 'DESC')
                 ->get();
@@ -4525,8 +4656,8 @@ public function notifikasiStatus()
         // 3. Discipline Ranking (Based on multiple factors)
         // 3. Discipline Ranking (Based on multiple factors)
         try {
-            $hasPoints = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'points');
-            
+            $hasPoints = Schema::hasColumn('absensi_harian', 'points');
+
             if ($hasPoints) {
                 // New Logic: 10 pts per attendance + (negative points)
                 // "per attendance" = benar-benar hadir. Dulu COUNT(a.id), jadi
@@ -4551,11 +4682,11 @@ public function notifikasiStatus()
                     ORDER BY score DESC
                     LIMIT 20
                 ");
-            } else if ($hasTelatMenit) {
-                $skor = \App\Services\AttendancePolicy::sqlExprSkorHarian('a', [
-                    'telat_menit' => true, 'pulang_cepat_menit' => \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit'),
-                    'datang_awal_menit' => \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit'),
-                    'pulang_akhir_menit' => \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit'),
+            } elseif ($hasTelatMenit) {
+                $skor = AttendancePolicy::sqlExprSkorHarian('a', [
+                    'telat_menit' => true, 'pulang_cepat_menit' => Schema::hasColumn('absensi_harian', 'pulang_cepat_menit'),
+                    'datang_awal_menit' => Schema::hasColumn('absensi_harian', 'datang_awal_menit'),
+                    'pulang_akhir_menit' => Schema::hasColumn('absensi_harian', 'pulang_akhir_menit'),
                 ]);
                 $ranking = $db->select("
                     SELECT 
@@ -4575,10 +4706,10 @@ public function notifikasiStatus()
                     LIMIT 20
                 ");
             } else {
-                $skor = \App\Services\AttendancePolicy::sqlExprSkorHarian('a', [
+                $skor = AttendancePolicy::sqlExprSkorHarian('a', [
                     'telat_menit' => false, 'pulang_cepat_menit' => false,
-                    'datang_awal_menit' => \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'datang_awal_menit'),
-                    'pulang_akhir_menit' => \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_akhir_menit'),
+                    'datang_awal_menit' => Schema::hasColumn('absensi_harian', 'datang_awal_menit'),
+                    'pulang_akhir_menit' => Schema::hasColumn('absensi_harian', 'pulang_akhir_menit'),
                 ]);
                 $ranking = $db->select("
                     SELECT 
@@ -4604,7 +4735,7 @@ public function notifikasiStatus()
 
         // 4. Summary Stats
         $pendingKoreksi = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+        if (Schema::hasTable('absensi_koreksi')) {
             try {
                 $pendingKoreksi = $db->table('absensi_koreksi')
                     ->where('status', 'pending')->count();
@@ -4615,29 +4746,29 @@ public function notifikasiStatus()
 
         $summary = [
             'total_guru' => $db->table('users as u')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)->count(),
             'hadir_hari_ini' => $db->table('absensi_harian')
                 ->where('tgl', date('Y-m-d'))->count(),
             'telat_bulan_ini' => $db->table('absensi_harian')
                 ->where('status_masuk', 'LATE')
-                ->where('tgl', 'like', $bulanIni . '%')->count(),
+                ->where('tgl', 'like', $bulanIni.'%')->count(),
             'pending_koreksi' => $pendingKoreksi,
             'pending_dinas' => $db->table('absensi_harian')
-                ->where('status_masuk', 'DINAS_PENDING')->count()
+                ->where('status_masuk', 'DINAS_PENDING')->count(),
         ];
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
         // Load absenSet for progressive penalty settings
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSet = $absenSettingModel->first();
 
         return view('admin.presensi.dashboard', [
@@ -4652,7 +4783,7 @@ public function notifikasiStatus()
             'comparison' => $comparison,
             'ranking' => $ranking,
             'summary' => $summary,
-            'tahun' => $tahun
+            'tahun' => $tahun,
         ]);
     }
 
@@ -4661,33 +4792,35 @@ public function notifikasiStatus()
      */
     public function manualAbsen()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Get all teachers with group guru (group_id = 2)
         $guruBuilder = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, u.username, g.nama_guru, g.nip')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'g.nama_guru', 'g.nip')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1);
-        if (\Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'status_aktif')) {
-            $guruBuilder->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); });
+        if (Schema::hasColumn('master_guru', 'status_aktif')) {
+            $guruBuilder->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            });
         }
         $guru = $guruBuilder
             ->orderBy('g.nama_guru', 'ASC')
             ->get();
 
         // Get holidays & jadwal for frontend validation (tanggal => keterangan)
-        $holidays    = \App\Services\AttendancePolicy::liburNasional();
-        $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        $holidays = AttendancePolicy::liburNasional();
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
         // Get today's attendance for all teachers (pre-fill)
         $todayAtt = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $attRows = $db->table('absensi_harian')
                 ->where('tgl', date('Y-m-d'))
                 ->get();
@@ -4698,11 +4831,12 @@ public function notifikasiStatus()
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.manual_absen', [
             'title' => 'Absen Manual',
@@ -4715,16 +4849,16 @@ public function notifikasiStatus()
             'todayAtt' => $todayAtt,
             'holidays' => $holidays,
             'jadwalKerja' => $jadwalKerja,
-            'hariLiburMingguan' => \App\Services\AttendancePolicy::hariLiburMingguan()
+            'hariLiburMingguan' => AttendancePolicy::hariLiburMingguan(),
         ]);
     }
 
     /**
      * Batch Manual Absen — process all rows at once
      */
-            public function batchManualAbsen()
+    public function batchManualAbsen()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         $this->patchAbsensiHarianTable();
@@ -4738,26 +4872,28 @@ public function notifikasiStatus()
 
         // Validasi tanggal & siapkan transaksi (dulu: tanpa validasi, tanpa transaksi)
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Whitelist user guru aktif — tolak user_id ngawur
         $validUserIds = [];
         try {
             $rows = $db->table('users as u')
                 ->select('u.id')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
                 ->get();
-            foreach ($rows as $r) $validUserIds[(int) $r->id] = true;
+            foreach ($rows as $r) {
+                $validUserIds[(int) $r->id] = true;
+            }
         } catch (\Throwable $e) {
-            Log::error('[batchManualAbsen] whitelist: ' . $e->getMessage());
+            Log::error('[batchManualAbsen] whitelist: '.$e->getMessage());
         }
         $setting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
         $saved = 0;
@@ -4771,176 +4907,196 @@ public function notifikasiStatus()
         // dicatat; hanya HADIR yang dihitung sebagai hari kerja.
         $libur = $this->cekHariLiburAbsenManual($tanggal);
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-        foreach ($entries as $idx => $e) {
-            $userId = (int) ($e['user_id'] ?? 0);
-            $jamMasuk = trim((string) ($e['jam_masuk'] ?? ''));
-            $jamPulang = trim((string) ($e['jam_pulang'] ?? ''));
-            $keterangan = mb_substr(trim((string) ($e['keterangan'] ?? '')), 0, 500);
-            $status = strtoupper(trim((string) ($e['status'] ?? 'HADIR'))); // HADIR, IJIN, SAKIT, CUTI, DINAS
+            foreach ($entries as $idx => $e) {
+                $userId = (int) ($e['user_id'] ?? 0);
+                $jamMasuk = trim((string) ($e['jam_masuk'] ?? ''));
+                $jamPulang = trim((string) ($e['jam_pulang'] ?? ''));
+                $keterangan = mb_substr(trim((string) ($e['keterangan'] ?? '')), 0, 500);
+                $status = strtoupper(trim((string) ($e['status'] ?? 'HADIR'))); // HADIR, IJIN, SAKIT, CUTI, DINAS
 
-            if (!$userId) continue;
-            if (!isset($validUserIds[$userId])) {
-                $errors[] = "Baris {$idx}: user tidak dikenal / non-aktif";
-                continue;
-            }
-            if (!in_array($status, $allowedStatus, true)) {
-                $errors[] = "Baris {$idx}: status tidak valid";
-                continue;
-            }
-            if ($jamMasuk !== '' && !preg_match($timeRe, $jamMasuk)) {
-                $errors[] = "Baris {$idx}: jam masuk tidak valid";
-                continue;
-            }
-            if ($jamPulang !== '' && !preg_match($timeRe, $jamPulang)) {
-                $errors[] = "Baris {$idx}: jam pulang tidak valid";
-                continue;
-            }
-            if ($status === 'HADIR' && $jamMasuk !== '' && $jamPulang !== '' && substr($jamPulang, 0, 5) < substr($jamMasuk, 0, 5)) {
-                $errors[] = "Baris {$idx}: jam pulang lebih awal dari jam masuk";
-                continue;
-            }
+                if (! $userId) {
+                    continue;
+                }
+                if (! isset($validUserIds[$userId])) {
+                    $errors[] = "Baris {$idx}: user tidak dikenal / non-aktif";
 
-            // Aturan hari aktif: pada tanggal berjalan (hari ini) hanya boleh
-            // absen datang SAJA atau pulang SAJA — tidak boleh keduanya sekaligus.
-            // Datang + pulang sekaligus hanya boleh untuk tanggal lampau (H-1 ke belakang).
-            if ($status === 'HADIR' && $jamMasuk !== '' && $jamPulang !== '' && $tanggal === date('Y-m-d')) {
-                $errors[] = "Baris {$idx}: pada hari aktif hanya boleh absen datang saja atau pulang saja (datang + pulang sekaligus hanya untuk tanggal kemarin atau sebelumnya)";
-                continue;
-            }
+                    continue;
+                }
+                if (! in_array($status, $allowedStatus, true)) {
+                    $errors[] = "Baris {$idx}: status tidak valid";
 
-            if (!$userId) continue;
-            // HADIR butuh minimal salah satu jam: kosong dua-duanya = baris tidak diisi → lewati.
-            // (Dulu: HADIR tanpa jam masuk selalu dilewati sehingga "pulang saja" mustahil.)
-            if ($status === 'HADIR' && $jamMasuk === '' && $jamPulang === '') continue;
-            if (in_array($status, ['IJIN', 'SAKIT', 'CUTI', 'DINAS'])) $jamMasuk = '';
+                    continue;
+                }
+                if ($jamMasuk !== '' && ! preg_match($timeRe, $jamMasuk)) {
+                    $errors[] = "Baris {$idx}: jam masuk tidak valid";
 
-            // Hari libur → HADIR ditolak. Ein-entry, bukan satu-request,
-            // supaya sisa baris (DINAS, izin, sakit) tetap bisa tersimpan.
-            if ($libur['libur'] && $status === 'HADIR') {
-                $errors[] = "Baris {$idx}: {$tanggal} adalah hari libur ({$libur['alasan']}) — presensi HADIR tidak dapat diisi. Gunakan status DINAS bila memang ada kegiatan luar.";
-                continue;
-            }
+                    continue;
+                }
+                if ($jamPulang !== '' && ! preg_match($timeRe, $jamPulang)) {
+                    $errors[] = "Baris {$idx}: jam pulang tidak valid";
 
-            $existing = $db->table('absensi_harian')
-                ->where('user_id', $userId)
-                ->where('tgl', $tanggal)
-                ->first();
+                    continue;
+                }
+                if ($status === 'HADIR' && $jamMasuk !== '' && $jamPulang !== '' && substr($jamPulang, 0, 5) < substr($jamMasuk, 0, 5)) {
+                    $errors[] = "Baris {$idx}: jam pulang lebih awal dari jam masuk";
 
-            if ($existing) {
-                // 1) Status izin/sakit/cuti/dinas → tulis ulang record.
-                // 2) Absen pulang-saja (jam masuk kosong, jam pulang diisi) → lengkapi checkout.
-                // 3) Record belum punya jam masuk → tulis jam masuk (+ pulang bila diisi).
-                // Selain itu (sudah ada jam masuk + kirim jam masuk lagi) → lewati agar data asli terjaga.
+                    continue;
+                }
+
+                // Aturan hari aktif: pada tanggal berjalan (hari ini) hanya boleh
+                // absen datang SAJA atau pulang SAJA — tidak boleh keduanya sekaligus.
+                // Datang + pulang sekaligus hanya boleh untuk tanggal lampau (H-1 ke belakang).
+                if ($status === 'HADIR' && $jamMasuk !== '' && $jamPulang !== '' && $tanggal === date('Y-m-d')) {
+                    $errors[] = "Baris {$idx}: pada hari aktif hanya boleh absen datang saja atau pulang saja (datang + pulang sekaligus hanya untuk tanggal kemarin atau sebelumnya)";
+
+                    continue;
+                }
+
+                if (! $userId) {
+                    continue;
+                }
+                // HADIR butuh minimal salah satu jam: kosong dua-duanya = baris tidak diisi → lewati.
+                // (Dulu: HADIR tanpa jam masuk selalu dilewati sehingga "pulang saja" mustahil.)
+                if ($status === 'HADIR' && $jamMasuk === '' && $jamPulang === '') {
+                    continue;
+                }
                 if (in_array($status, ['IJIN', 'SAKIT', 'CUTI', 'DINAS'])) {
-                    $update = ['updated_at' => date('Y-m-d H:i:s')];
-                    $update['jam_masuk'] = null;
-                    $update['jam_pulang'] = null;
-                    $update['status_masuk'] = ($status === 'DINAS') ? 'DINAS_APPROVED' : $status;
-                    $update['status_pulang'] = ($status === 'DINAS') ? 'DINAS_APPROVED' : null;
-                    $update['telat_menit'] = 0;
-                    $update['datang_awal_menit'] = 0;
-                    $update['pulang_cepat_menit'] = 0;
-                    $update['pulang_akhir_menit'] = 0;
-                    $update['points'] = $this->getStatusPoints($status, $setting);
-                    $update['denda'] = 0;
-                    $update['keterangan_denda'] = null;
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan') && !empty($keterangan)) {
-                        $update['keterangan'] = $keterangan;
-                    }
-                    $db->table('absensi_harian')->where('id', $existing->id)->update($update);
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
-                } elseif ($status === 'HADIR' && $jamMasuk === '' && $jamPulang !== '') {
-                    // Pulang saja: lengkapi checkout pada record yang sudah punya jam masuk.
-                    if (empty($existing->jam_masuk)) {
-                        $errors[] = "Baris {$idx}: pulang saja membutuhkan data jam masuk terlebih dahulu";
-                        continue;
-                    }
-                    if (preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_masuk, $mm)
-                        && substr($jamPulang, 0, 5) < $mm[0]) {
-                        $errors[] = "Baris {$idx}: jam pulang lebih awal dari jam masuk ({$mm[0]})";
-                        continue;
-                    }
-                    // Idempoten: jam pulang sama → lewati agar penalti tidak terakumulasi ganda
-                    $existingPulang = '';
-                    if (!empty($existing->jam_pulang) && preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_pulang, $m)) {
-                        $existingPulang = $m[0];
-                    }
-                    if ($existingPulang !== '' && substr($jamPulang, 0, 5) === $existingPulang) {
-                        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan') && !empty($keterangan)) {
-                            $db->table('absensi_harian')->where('id', $existing->id)->update([
-                                'keterangan' => $keterangan,
-                                'updated_at' => date('Y-m-d H:i:s'),
-                            ]);
-                        }
-                        $saved++;
-                        continue;
-                    }
-                    $update = ['updated_at' => date('Y-m-d H:i:s')];
-                    $update['jam_pulang'] = $tanggal . ' ' . $jamPulang;
-                    $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $update, $existing);
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan') && !empty($keterangan)) {
-                        $update['keterangan'] = $keterangan;
-                    }
-                    $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $update, (int) $existing->id);
-                    $db->table('absensi_harian')->where('id', $existing->id)->update($update);
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
-                } elseif (empty($existing->jam_masuk)) {
-                    // Datang saja / keduanya pada record yang belum punya jam masuk
-                    $update = ['updated_at' => date('Y-m-d H:i:s')];
-                    if (!empty($jamMasuk)) {
-                        $update['jam_masuk'] = $tanggal . ' ' . $jamMasuk;
-                        $this->recalculateCheckin($db, $setting, $tanggal, $jamMasuk, $userId, $update);
-                    }
-                    if (!empty($jamPulang) && !in_array($status, ['IJIN', 'SAKIT', 'CUTI', 'DINAS'])) {
-                        $update['jam_pulang'] = $tanggal . ' ' . $jamPulang;
-                        $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $update, $existing);
-                    }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan') && !empty($keterangan)) {
-                        $update['keterangan'] = $keterangan;
-                    }
-                    $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $update, (int) $existing->id);
-                    $db->table('absensi_harian')->where('id', $existing->id)->update($update);
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
+                    $jamMasuk = '';
                 }
-                // else: already has jam_masuk and status is HADIR → skip to preserve existing data
-            } else {
-                $data = $this->buildCheckinData($db, $setting, $userId, $tanggal, $jamMasuk, $keterangan, $status);
-                if (!empty($jamPulang) && $status === 'HADIR') {
-                    $data['jam_pulang'] = $tanggal . ' ' . $jamPulang;
-                    $updatePulang = [];
-                    $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $updatePulang, (object)$data);
-                    foreach ($updatePulang as $k => $v) {
-                        $data[$k] = $v;
-                    }
-                }
-                $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $data, null);
-                $db->table('absensi_harian')->insert($data);
-                $newId = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($newId);
-            }
-            $saved++;
-            $touchedUserIds[$userId] = true;
-        }
-        \Illuminate\Support\Facades\DB::commit();
 
-        // Admin mengisi/menimpa absensi banyak guru sekaligus dari satu layar.
-        // Jejaknya: siapa, tanggal berapa, berapa baris yang benar-benar tulis.
-        try {
-            (new AuditLogModel())->log('absensi_harian', null, 'BATCH_MANUAL_ABSEN', null, $this->getUserId(),
-                null,
-                [
-                    'tanggal'  => $tanggal,
-                    'disimpan' => $saved,
-                    'dilewati' => count($errors),
-                    'user_ids' => array_map('intval', array_keys($touchedUserIds)),
-                ],
-                'Absen Manual Massal ' . $tanggal);
-        } catch (\Throwable $ex) {}
+                // Hari libur → HADIR ditolak. Ein-entry, bukan satu-request,
+                // supaya sisa baris (DINAS, izin, sakit) tetap bisa tersimpan.
+                if ($libur['libur'] && $status === 'HADIR') {
+                    $errors[] = "Baris {$idx}: {$tanggal} adalah hari libur ({$libur['alasan']}) — presensi HADIR tidak dapat diisi. Gunakan status DINAS bila memang ada kegiatan luar.";
+
+                    continue;
+                }
+
+                $existing = $db->table('absensi_harian')
+                    ->where('user_id', $userId)
+                    ->where('tgl', $tanggal)
+                    ->first();
+
+                if ($existing) {
+                    // 1) Status izin/sakit/cuti/dinas → tulis ulang record.
+                    // 2) Absen pulang-saja (jam masuk kosong, jam pulang diisi) → lengkapi checkout.
+                    // 3) Record belum punya jam masuk → tulis jam masuk (+ pulang bila diisi).
+                    // Selain itu (sudah ada jam masuk + kirim jam masuk lagi) → lewati agar data asli terjaga.
+                    if (in_array($status, ['IJIN', 'SAKIT', 'CUTI', 'DINAS'])) {
+                        $update = ['updated_at' => date('Y-m-d H:i:s')];
+                        $update['jam_masuk'] = null;
+                        $update['jam_pulang'] = null;
+                        $update['status_masuk'] = ($status === 'DINAS') ? 'DINAS_APPROVED' : $status;
+                        $update['status_pulang'] = ($status === 'DINAS') ? 'DINAS_APPROVED' : null;
+                        $update['telat_menit'] = 0;
+                        $update['datang_awal_menit'] = 0;
+                        $update['pulang_cepat_menit'] = 0;
+                        $update['pulang_akhir_menit'] = 0;
+                        $update['points'] = $this->getStatusPoints($status, $setting);
+                        $update['denda'] = 0;
+                        $update['keterangan_denda'] = null;
+                        if (Schema::hasColumn('absensi_harian', 'keterangan') && ! empty($keterangan)) {
+                            $update['keterangan'] = $keterangan;
+                        }
+                        $db->table('absensi_harian')->where('id', $existing->id)->update($update);
+                        (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+                    } elseif ($status === 'HADIR' && $jamMasuk === '' && $jamPulang !== '') {
+                        // Pulang saja: lengkapi checkout pada record yang sudah punya jam masuk.
+                        if (empty($existing->jam_masuk)) {
+                            $errors[] = "Baris {$idx}: pulang saja membutuhkan data jam masuk terlebih dahulu";
+
+                            continue;
+                        }
+                        if (preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_masuk, $mm)
+                            && substr($jamPulang, 0, 5) < $mm[0]) {
+                            $errors[] = "Baris {$idx}: jam pulang lebih awal dari jam masuk ({$mm[0]})";
+
+                            continue;
+                        }
+                        // Idempoten: jam pulang sama → lewati agar penalti tidak terakumulasi ganda
+                        $existingPulang = '';
+                        if (! empty($existing->jam_pulang) && preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_pulang, $m)) {
+                            $existingPulang = $m[0];
+                        }
+                        if ($existingPulang !== '' && substr($jamPulang, 0, 5) === $existingPulang) {
+                            if (Schema::hasColumn('absensi_harian', 'keterangan') && ! empty($keterangan)) {
+                                $db->table('absensi_harian')->where('id', $existing->id)->update([
+                                    'keterangan' => $keterangan,
+                                    'updated_at' => date('Y-m-d H:i:s'),
+                                ]);
+                            }
+                            $saved++;
+
+                            continue;
+                        }
+                        $update = ['updated_at' => date('Y-m-d H:i:s')];
+                        $update['jam_pulang'] = $tanggal.' '.$jamPulang;
+                        $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $update, $existing);
+                        if (Schema::hasColumn('absensi_harian', 'keterangan') && ! empty($keterangan)) {
+                            $update['keterangan'] = $keterangan;
+                        }
+                        $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $update, (int) $existing->id);
+                        $db->table('absensi_harian')->where('id', $existing->id)->update($update);
+                        (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+                    } elseif (empty($existing->jam_masuk)) {
+                        // Datang saja / keduanya pada record yang belum punya jam masuk
+                        $update = ['updated_at' => date('Y-m-d H:i:s')];
+                        if (! empty($jamMasuk)) {
+                            $update['jam_masuk'] = $tanggal.' '.$jamMasuk;
+                            $this->recalculateCheckin($db, $setting, $tanggal, $jamMasuk, $userId, $update);
+                        }
+                        if (! empty($jamPulang) && ! in_array($status, ['IJIN', 'SAKIT', 'CUTI', 'DINAS'])) {
+                            $update['jam_pulang'] = $tanggal.' '.$jamPulang;
+                            $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $update, $existing);
+                        }
+                        if (Schema::hasColumn('absensi_harian', 'keterangan') && ! empty($keterangan)) {
+                            $update['keterangan'] = $keterangan;
+                        }
+                        $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $update, (int) $existing->id);
+                        $db->table('absensi_harian')->where('id', $existing->id)->update($update);
+                        (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+                    }
+                    // else: already has jam_masuk and status is HADIR → skip to preserve existing data
+                } else {
+                    $data = $this->buildCheckinData($db, $setting, $userId, $tanggal, $jamMasuk, $keterangan, $status);
+                    if (! empty($jamPulang) && $status === 'HADIR') {
+                        $data['jam_pulang'] = $tanggal.' '.$jamPulang;
+                        $updatePulang = [];
+                        $this->recalculateCheckout($db, $setting, $tanggal, $jamPulang, $userId, $updatePulang, (object) $data);
+                        foreach ($updatePulang as $k => $v) {
+                            $data[$k] = $v;
+                        }
+                    }
+                    $this->applyCapToUpdate($setting, (int) $userId, $tanggal, $data, null);
+                    $db->table('absensi_harian')->insert($data);
+                    $newId = DB::getPdo()->lastInsertId();
+                    (new PoinHistoryModel)->syncAttendancePoint($newId);
+                }
+                $saved++;
+                $touchedUserIds[$userId] = true;
+            }
+            DB::commit();
+
+            // Admin mengisi/menimpa absensi banyak guru sekaligus dari satu layar.
+            // Jejaknya: siapa, tanggal berapa, berapa baris yang benar-benar tulis.
+            try {
+                (new AuditLogModel)->log('absensi_harian', null, 'BATCH_MANUAL_ABSEN', null, $this->getUserId(),
+                    null,
+                    [
+                        'tanggal' => $tanggal,
+                        'disimpan' => $saved,
+                        'dilewati' => count($errors),
+                        'user_ids' => array_map('intval', array_keys($touchedUserIds)),
+                    ],
+                    'Absen Manual Massal '.$tanggal);
+            } catch (\Throwable $ex) {
+            }
         } catch (\Throwable $ex) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Batch manual absen gagal: ' . $ex->getMessage());
+            DB::rollBack();
+            Log::error('Batch manual absen gagal: '.$ex->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan batch — periksa log aplikasi.']);
         }
 
@@ -4959,18 +5115,18 @@ public function notifikasiStatus()
         // notifikasi "guru tercepat hari ini" karena jamnya diisi ulang admin.
         if ($tanggal === date('Y-m-d')) {
             try {
-                \App\Services\GuruTerawalService::afterCheckIn($db, $tanggal, 0);
+                GuruTerawalService::afterCheckIn($db, $tanggal, 0);
             } catch (\Throwable $e) {
-                Log::error('Pengumuman guru terawal gagal: ' . $e->getMessage());
+                Log::error('Pengumuman guru terawal gagal: '.$e->getMessage());
             }
         }
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => "Berhasil menyimpan {$saved} data absensi" . ($errors ? ' (' . count($errors) . ' baris dilewati)' : '')
-                . ($libur['libur'] ? " — {$tanggal} berstatus LIBUR, hanya DINAS/izin/sakit yang dicatat" : '')
-                . ($canceledTotal > 0 ? " ({$canceledTotal} surat teguran otomatis dibatalkan karena hari alpha sudah dilengkapi)" : ''),
-            'errors' => $errors
+            'message' => "Berhasil menyimpan {$saved} data absensi".($errors ? ' ('.count($errors).' baris dilewati)' : '')
+                .($libur['libur'] ? " — {$tanggal} berstatus LIBUR, hanya DINAS/izin/sakit yang dicatat" : '')
+                .($canceledTotal > 0 ? " ({$canceledTotal} surat teguran otomatis dibatalkan karena hari alpha sudah dilengkapi)" : ''),
+            'errors' => $errors,
         ]);
     }
 
@@ -4990,8 +5146,8 @@ public function notifikasiStatus()
      */
     private function cekHariLiburAbsenManual(string $tanggal): array
     {
-        $label  = \App\Services\AttendancePolicy::namaHariId($tanggal);
-        $alasan = \App\Services\AttendancePolicy::alasanLibur($tanggal);
+        $label = AttendancePolicy::namaHariId($tanggal);
+        $alasan = AttendancePolicy::alasanLibur($tanggal);
 
         if ($alasan === null) {
             return ['libur' => false, 'alasan' => '', 'label' => $label];
@@ -5004,17 +5160,17 @@ public function notifikasiStatus()
     {
         $dayOfWeek = date('N', strtotime($tanggal));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
         // Jadwal efektif: shift per guru → jadwal harian → setting
-        $shiftModel = new \App\Models\ShiftModel();
+        $shiftModel = new ShiftModel;
         $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
         $jamMasukBatas = $sched['jam_masuk'];
         $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
 
-        $hit = \App\Services\AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
-            'jam_masuk'   => $jamMasukBatas,
+        $hit = AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
+            'jam_masuk' => $jamMasukBatas,
             'grace_menit' => $graceMins,
         ]);
 
@@ -5039,15 +5195,15 @@ public function notifikasiStatus()
     {
         $dayOfWeek = date('N', strtotime($tanggal));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
         // Jadwal efektif: shift per guru → jadwal harian → setting
-        $shiftModel = new \App\Models\ShiftModel();
+        $shiftModel = new ShiftModel;
         $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
         $jamPulangLimit = $sched['jam_pulang'];
-        $threshold = strtotime($tanggal . ' ' . $jamPulangLimit);
-        $pulangTime = strtotime($tanggal . ' ' . $jamPulang);
+        $threshold = strtotime($tanggal.' '.$jamPulangLimit);
+        $pulangTime = strtotime($tanggal.' '.$jamPulang);
 
         if ($pulangTime < $threshold) {
             $update['status_pulang'] = 'EARLY';
@@ -5062,7 +5218,7 @@ public function notifikasiStatus()
             // Hitung ulang porsi masuk dari jam efektif agar koreksi pulang tidak
             // menumpuk denda/poin pulang yang lama (existing + delta = double).
             $effJamMasuk = $update['jam_masuk'] ?? ($existing->jam_masuk ?? null);
-            if (!empty($effJamMasuk)) {
+            if (! empty($effJamMasuk)) {
                 $tmpMasuk = [];
                 $this->recalculateCheckin($db, $setting, $tanggal, date('H:i:s', strtotime($effJamMasuk)), $userId, $tmpMasuk);
                 foreach (['status_masuk', 'telat_menit', 'datang_awal_menit'] as $kMasuk) {
@@ -5075,7 +5231,7 @@ public function notifikasiStatus()
                 $baseKet = $tmpMasuk['keterangan_denda'] ?? null;
                 $update['points'] = $basePoints + $earlyPoints;
                 $update['denda'] = $baseDenda + $earlyDenda;
-                $update['keterangan_denda'] = $baseKet ? $baseKet . '; ' . $keteranganDendaUpdate : $keteranganDendaUpdate;
+                $update['keterangan_denda'] = $baseKet ? $baseKet.'; '.$keteranganDendaUpdate : $keteranganDendaUpdate;
             } else {
                 // Tanpa info jam masuk: pertahankan perilaku lama (akumulasi).
                 $existingPoints = isset($update['points']) ? $update['points'] : (int) ($existing->points ?? 0);
@@ -5086,7 +5242,7 @@ public function notifikasiStatus()
                 // Append keterangan denda
                 $existingKeterangan = $existing->keterangan_denda ?? null;
                 if ($existingKeterangan) {
-                    $update['keterangan_denda'] = $existingKeterangan . "; " . $keteranganDendaUpdate;
+                    $update['keterangan_denda'] = $existingKeterangan.'; '.$keteranganDendaUpdate;
                 } else {
                     $update['keterangan_denda'] = $keteranganDendaUpdate;
                 }
@@ -5114,18 +5270,19 @@ public function notifikasiStatus()
      */
     private function applyCapToUpdate($setting, int $userId, string $tanggal, array &$row, ?int $excludeId = null): void
     {
-        if (!isset($row['denda']) || (float) $row['denda'] <= 0) {
+        if (! isset($row['denda']) || (float) $row['denda'] <= 0) {
             return;
         }
         try {
-            $svc = new \App\Services\AttendancePenaltyService();
+            $svc = new AttendancePenaltyService;
             // Lock: pemanggil (batch/manual) berjalan dalam transaksi.
             $capped = $svc->applyMonthlyCap($userId, $tanggal, (float) $row['denda'], $setting, $excludeId, true);
             if ($capped['capped']) {
                 $row['denda'] = $capped['total'];
-                $row['keterangan_denda'] = trim(($row['keterangan_denda'] ?? '') . ' (dibatasi cap bulanan Rp ' . number_format((float) $capped['total'], 0, ',', '.') . ')');
+                $row['keterangan_denda'] = trim(($row['keterangan_denda'] ?? '').' (dibatasi cap bulanan Rp '.number_format((float) $capped['total'], 0, ',', '.').')');
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
     }
 
     private function buildCheckinData($db, $setting, $userId, $tanggal, $jamMasuk, $keterangan, $status = 'HADIR')
@@ -5146,21 +5303,21 @@ public function notifikasiStatus()
         } else {
             $dayOfWeek = date('N', strtotime($tanggal));
             $jadwal = null;
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
                 $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
             }
             // Jadwal efektif: shift per guru → jadwal harian → setting
-            $shiftModel = new \App\Models\ShiftModel();
+            $shiftModel = new ShiftModel;
             $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
             $jamMasukBatas = $sched['jam_masuk'];
             $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
 
-            $hit = \App\Services\AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
-                'jam_masuk'   => $jamMasukBatas,
+            $hit = AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
+                'jam_masuk' => $jamMasukBatas,
                 'grace_menit' => $graceMins,
             ]);
             $statusMasuk = $hit['status'];
-            $telatMenit  = $hit['telat_menit'];
+            $telatMenit = $hit['telat_menit'];
             $datangAwalMenit = $hit['datang_awal_menit'];
 
             if ($statusMasuk === 'LATE') {
@@ -5180,7 +5337,7 @@ public function notifikasiStatus()
             'user_id' => $userId,
             'id_guru' => $idGuru,
             'tgl' => $tanggal,
-            'jam_masuk' => !empty($jamMasuk) ? $tanggal . ' ' . $jamMasuk : null,
+            'jam_masuk' => ! empty($jamMasuk) ? $tanggal.' '.$jamMasuk : null,
             'status_masuk' => $statusMasuk,
             'telat_menit' => $telatMenit,
             'datang_awal_menit' => $datangAwalMenit,
@@ -5188,13 +5345,13 @@ public function notifikasiStatus()
             'denda' => $denda,
             'keterangan_denda' => $keteranganDenda,
             'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'device_info')) {
+        if (Schema::hasColumn('absensi_harian', 'device_info')) {
             $data['device_info'] = 'Manual by Admin';
         }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan') && !empty($keterangan)) {
+        if (Schema::hasColumn('absensi_harian', 'keterangan') && ! empty($keterangan)) {
             $data['keterangan'] = $keterangan;
         }
 
@@ -5225,24 +5382,24 @@ public function notifikasiStatus()
                 return;
             }
 
-            $utama = (new \App\Models\AttendanceLocationModel())->getUtama();
-            if (!$utama) {
+            $utama = (new AttendanceLocationModel)->getUtama();
+            if (! $utama) {
                 return;
             }
 
             $col = [
-                'lokasi_' . $sisi . '_id' => (int) $utama->id,
-                'lat_' . $sisi => (float) $utama->lat,
-                'lng_' . $sisi => (float) $utama->lng,
-                'jarak_' . $sisi => 0,
+                'lokasi_'.$sisi.'_id' => (int) $utama->id,
+                'lat_'.$sisi => (float) $utama->lat,
+                'lng_'.$sisi => (float) $utama->lng,
+                'jarak_'.$sisi => 0,
             ];
             foreach ($col as $k => $v) {
-                if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', $k)) {
+                if (Schema::hasColumn('absensi_harian', $k)) {
                     $data[$k] = $v;
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('applyLokasiUtama gagal: ' . $e->getMessage());
+            Log::error('applyLokasiUtama gagal: '.$e->getMessage());
         }
     }
 
@@ -5250,7 +5407,7 @@ public function notifikasiStatus()
     {
         // Satu sumber kebenaran via service (dulu: -abs() di sini vs mentah di
         // approvePermit → tanda poin izin/sakit/cuti inkonsisten).
-        return (new \App\Services\AttendancePenaltyService())->getStatusPoints($status, $setting);
+        return (new AttendancePenaltyService)->getStatusPoints($status, $setting);
     }
 
     /**
@@ -5258,7 +5415,7 @@ public function notifikasiStatus()
      */
     public function processManualCheckin()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -5274,34 +5431,34 @@ public function notifikasiStatus()
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
-        if (!in_array($status, ['HADIR', 'IJIN', 'SAKIT', 'CUTI', 'DINAS'], true)) {
+        if (! in_array($status, ['HADIR', 'IJIN', 'SAKIT', 'CUTI', 'DINAS'], true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Status tidak valid']);
         }
         if ($status === 'HADIR') {
             if (empty($jamMasuk)) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Jam masuk harus diisi untuk status Hadir']);
             }
-            if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamMasuk)) {
+            if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamMasuk)) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid (HH:MM)']);
             }
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Pastikan user guru aktif yang valid
         $userExists = $db->table('users as u')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('u.id', $userId)
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->count() > 0;
-        if (!$userExists) {
+        if (! $userExists) {
             return $this->response->setJSON(['status' => false, 'message' => 'User guru tidak ditemukan / non-aktif']);
         }
 
@@ -5317,14 +5474,14 @@ public function notifikasiStatus()
         // Check if date is valid work day
         $dayOfWeek = date('N', strtotime($tanggal));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
         // Gerbang libur: AttendancePolicy sudah menggabungkan libur mingguan,
         // jadwal per hari (is_libur), dan kalender nasional.
-        $alasanLibur = \App\Services\AttendancePolicy::alasanLibur($tanggal);
+        $alasanLibur = AttendancePolicy::alasanLibur($tanggal);
         if ($alasanLibur !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: ' . $alasanLibur]);
+            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
         }
 
         // Get setting for late calculation
@@ -5349,16 +5506,16 @@ public function notifikasiStatus()
         } else {
             $statusMasuk = 'ONTIME';
             // Jadwal efektif: shift per guru → jadwal harian → setting
-            $shiftModel = new \App\Models\ShiftModel();
+            $shiftModel = new ShiftModel;
             $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
             $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
 
-            $hit = \App\Services\AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
-                'jam_masuk'   => $sched['jam_masuk'],
+            $hit = AttendancePolicy::telat($tanggal, (string) $jamMasuk, [
+                'jam_masuk' => $sched['jam_masuk'],
                 'grace_menit' => $graceMins,
             ]);
-            $statusMasuk     = $hit['status'];
-            $telatMenit      = $hit['telat_menit'];
+            $statusMasuk = $hit['status'];
+            $telatMenit = $hit['telat_menit'];
             $datangAwalMenit = $hit['datang_awal_menit'];
 
             if ($statusMasuk === 'LATE') {
@@ -5374,20 +5531,22 @@ public function notifikasiStatus()
             // gabungan porsi masuk + pulang. Tanpa blok ini, check-in manual
             // menimpa denda dengan porsi masuk saja sehingga denda "pulang
             // cepat" (EARLY) hilang senyap. Selaras prosesManualCheckout.
-            if ($existing && !empty($existing->jam_pulang) && !empty($setting)) {
-                $schedP    = (new \App\Models\ShiftModel())->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
-                $thPulang  = strtotime($tanggal . ' ' . $schedP['jam_pulang']);
-                $pulangTs  = strtotime((string) $existing->jam_pulang);
-                $earlyKet  = null;
+            if ($existing && ! empty($existing->jam_pulang) && ! empty($setting)) {
+                $schedP = (new ShiftModel)->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
+                $thPulang = strtotime($tanggal.' '.$schedP['jam_pulang']);
+                $pulangTs = strtotime((string) $existing->jam_pulang);
+                $earlyKet = null;
                 if ($pulangTs < $thPulang) {
                     $pulangCepat = (int) ceil(($thPulang - $pulangTs) / 60);
                     $calcP = $this->calculateProgressivePenalty($pulangCepat, $setting, 'Pulang Awal');
                     $points += -1 * $calcP['points'];
-                    $denda  += (float) $calcP['denda'];
+                    $denda += (float) $calcP['denda'];
                     $earlyKet = $calcP['keterangan'];
                 } elseif ($pulangTs > $thPulang) {
                     $akhirMenit = (int) floor(($pulangTs - $thPulang) / 60);
-                    if ($akhirMenit >= 60) $points += $this->calculateProgressiveRewardPoints($akhirMenit - 60, $setting);
+                    if ($akhirMenit >= 60) {
+                        $points += $this->calculateProgressiveRewardPoints($akhirMenit - 60, $setting);
+                    }
                 }
                 $kets = array_values(array_filter([(string) ($keteranganDenda ?? ''), (string) ($earlyKet ?? '')]));
                 $keteranganDenda = $kets ? implode('; ', $kets) : null;
@@ -5402,7 +5561,7 @@ public function notifikasiStatus()
             'user_id' => $userId,
             'id_guru' => $idGuru,
             'tgl' => $tanggal,
-            'jam_masuk' => !empty($jamMasuk) ? $tanggal . ' ' . $jamMasuk : null,
+            'jam_masuk' => ! empty($jamMasuk) ? $tanggal.' '.$jamMasuk : null,
             'status_masuk' => $statusMasuk,
             'telat_menit' => $telatMenit,
             'datang_awal_menit' => $datangAwalMenit,
@@ -5410,14 +5569,14 @@ public function notifikasiStatus()
             'denda' => $denda,
             'keterangan_denda' => $keteranganDenda,
             'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'device_info')) {
+        if (Schema::hasColumn('absensi_harian', 'device_info')) {
             $data['device_info'] = 'Manual by Admin';
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan')) {
+        if (Schema::hasColumn('absensi_harian', 'keterangan')) {
             $data['keterangan'] = $keterangan ?? 'Absen manual oleh admin';
         }
 
@@ -5425,80 +5584,84 @@ public function notifikasiStatus()
 
         // Tulis + cap dalam satu transaksi agar cap lock (FOR UPDATE) berlaku
         // dan insert/update + sync poin atomik.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-        // Tegakkan cap denda bulanan (baris sendiri dikecualikan bila update)
-        if (($data['denda'] ?? 0) > 0) {
-            $capService = new \App\Services\AttendancePenaltyService();
-            $capped = $capService->applyMonthlyCap((int) $userId, $tanggal, (float) $data['denda'], $setting, $existing ? (int) $existing->id : null, true);
-            if ($capped['capped']) {
-                $data['denda'] = $capped['total'];
-                $data['keterangan_denda'] = trim(($data['keterangan_denda'] ?? '') . ' (dibatasi cap bulanan Rp ' . number_format((float) $capped['total'], 0, ',', '.') . ')');
-            }
-        }
-
-        // Insert or Update
-        if ($existing) {
-            $data['updated_at'] = date('Y-m-d H:i:s');
-            // Remove unupdatable fields
-            unset($data['user_id'], $data['id_guru'], $data['tgl'], $data['created_at']);
-            
-            // Clear checkout info when changing to IJIN/SAKIT/CUTI/DINAS
-            if (in_array($statusMasuk, ['IJIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED'])) {
-                $data['jam_pulang'] = null;
-                $data['status_pulang'] = ($statusMasuk === 'DINAS' || $statusMasuk === 'DINAS_APPROVED') ? 'DINAS_APPROVED' : null;
-                $data['pulang_cepat_menit'] = 0;
-                $data['pulang_akhir_menit'] = 0;
-
-                // Denda hanya dinolkan bila bulan itu belum ada pembayaran.
-                // Menolkan denda yang sudah terbayar membuka kredit hantu:
-                // ledger tetap mencatat pembayaran padahal tagihannya hilang
-                // (sama seperti proteksi di doRecalculateDate()).
-                $cacheDibayar = [];
-                $dibayar = $this->totalDibayarBulan(
-                    (int) $userId,
-                    (int) date('n', strtotime($tanggal)),
-                    (int) date('Y', strtotime($tanggal)),
-                    $cacheDibayar
-                );
-                if ($dibayar > 0 && (float) ($existing->denda ?? 0) > 0) {
-                    $data['denda'] = (float) $existing->denda;
-                    $data['keterangan_denda'] = $existing->keterangan_denda;
-                    $dendaDipertahankan = true;
-                } else {
-                    $data['denda'] = 0;
-                    $data['keterangan_denda'] = null;
+            // Tegakkan cap denda bulanan (baris sendiri dikecualikan bila update)
+            if (($data['denda'] ?? 0) > 0) {
+                $capService = new AttendancePenaltyService;
+                $capped = $capService->applyMonthlyCap((int) $userId, $tanggal, (float) $data['denda'], $setting, $existing ? (int) $existing->id : null, true);
+                if ($capped['capped']) {
+                    $data['denda'] = $capped['total'];
+                    $data['keterangan_denda'] = trim(($data['keterangan_denda'] ?? '').' (dibatasi cap bulanan Rp '.number_format((float) $capped['total'], 0, ',', '.').')');
                 }
             }
-            
-            $db->table('absensi_harian')->where('id', $existing->id)->update($data);
-            // Sync poin sekali setelah update
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
-            $insertedId = $existing->id;
-            $action = 'UPDATE';
-            $msg = 'Berhasil memperbarui data absensi menjadi ' . $statusMasuk;
-            if (!empty($dendaDipertahankan)) {
-                $msg .= ' — denda Rp ' . number_format((float) $existing->denda, 0, ',', '.')
-                    . ' dipertahankan karena bulan ini sudah ada pembayaran';
+
+            // Insert or Update
+            if ($existing) {
+                $data['updated_at'] = date('Y-m-d H:i:s');
+                // Remove unupdatable fields
+                unset($data['user_id'], $data['id_guru'], $data['tgl'], $data['created_at']);
+
+                // Clear checkout info when changing to IJIN/SAKIT/CUTI/DINAS
+                if (in_array($statusMasuk, ['IJIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED'])) {
+                    $data['jam_pulang'] = null;
+                    $data['status_pulang'] = ($statusMasuk === 'DINAS' || $statusMasuk === 'DINAS_APPROVED') ? 'DINAS_APPROVED' : null;
+                    $data['pulang_cepat_menit'] = 0;
+                    $data['pulang_akhir_menit'] = 0;
+
+                    // Denda hanya dinolkan bila bulan itu belum ada pembayaran.
+                    // Menolkan denda yang sudah terbayar membuka kredit hantu:
+                    // ledger tetap mencatat pembayaran padahal tagihannya hilang
+                    // (sama seperti proteksi di doRecalculateDate()).
+                    $cacheDibayar = [];
+                    $dibayar = $this->totalDibayarBulan(
+                        (int) $userId,
+                        (int) date('n', strtotime($tanggal)),
+                        (int) date('Y', strtotime($tanggal)),
+                        $cacheDibayar
+                    );
+                    if ($dibayar > 0 && (float) ($existing->denda ?? 0) > 0) {
+                        $data['denda'] = (float) $existing->denda;
+                        $data['keterangan_denda'] = $existing->keterangan_denda;
+                        $dendaDipertahankan = true;
+                    } else {
+                        $data['denda'] = 0;
+                        $data['keterangan_denda'] = null;
+                    }
+                }
+
+                $db->table('absensi_harian')->where('id', $existing->id)->update($data);
+                // Sync poin sekali setelah update
+                (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+                $insertedId = $existing->id;
+                $action = 'UPDATE';
+                $msg = 'Berhasil memperbarui data absensi menjadi '.$statusMasuk;
+                if (! empty($dendaDipertahankan)) {
+                    $msg .= ' — denda Rp '.number_format((float) $existing->denda, 0, ',', '.')
+                        .' dipertahankan karena bulan ini sudah ada pembayaran';
+                }
+            } else {
+                $db->table('absensi_harian')->insert($data);
+                $insertedId = DB::getPdo()->lastInsertId();
+                // Sync poin setelah insert
+                (new PoinHistoryModel)->syncAttendancePoint($insertedId);
+                $action = 'CREATE';
+                $msg = 'Absen masuk berhasil dicatat'.($statusMasuk === 'LATE' ? " (Terlambat {$telatMenit} menit)" : '');
             }
-        } else {
-            $db->table('absensi_harian')->insert($data);
-            $insertedId = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-            // Sync poin setelah insert
-            (new \App\Models\PoinHistoryModel())->syncAttendancePoint($insertedId);
-            $action = 'CREATE';
-            $msg = 'Absen masuk berhasil dicatat' . ($statusMasuk === 'LATE' ? " (Terlambat {$telatMenit} menit)" : '');
-        }
-        \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('Manual checkin gagal: ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('Manual checkin gagal: '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat absen masuk — periksa log aplikasi.']);
         }
 
         // AUDIT LOG
         try {
-            $auditModel = new \App\Models\AuditLogModel();
+            $auditModel = new AuditLogModel;
             $auditModel->log(
                 'absensi_harian',
                 $insertedId,
@@ -5510,7 +5673,7 @@ public function notifikasiStatus()
                 'Absen Manual Masuk oleh Admin'
             );
         } catch (\Throwable $ex) {
-            Log::error('Failed to create audit log: ' . $ex->getMessage());
+            Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
         // Absen manual dapat menghilangkan hari alpha. Bila itu membuat alpha
@@ -5524,15 +5687,15 @@ public function notifikasiStatus()
         // admin — bukan rekaman scan/kedatangan nyata.
         if ($tanggal === date('Y-m-d') && $status === 'HADIR') {
             try {
-                \App\Services\GuruTerawalService::afterCheckIn($db, $tanggal, (int) $userId);
+                GuruTerawalService::afterCheckIn($db, $tanggal, (int) $userId);
             } catch (\Throwable $e) {
-                Log::error('Pengumuman guru terawal gagal: ' . $e->getMessage());
+                Log::error('Pengumuman guru terawal gagal: '.$e->getMessage());
             }
         }
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => $msg
+            'message' => $msg,
         ]);
     }
 
@@ -5549,11 +5712,11 @@ public function notifikasiStatus()
 
         try {
             $ts = strtotime($tanggal);
-            if (!$ts) {
+            if (! $ts) {
                 return '';
             }
 
-            $svc = new \App\Services\AttendancePenaltyService();
+            $svc = new AttendancePenaltyService;
             $canceled = $svc->syncSuratTeguranOnAttendanceChange(
                 $userId,
                 (int) date('n', $ts),
@@ -5563,10 +5726,10 @@ public function notifikasiStatus()
             );
 
             if ($canceled > 0) {
-                return ' (' . $canceled . ' surat teguran otomatis dibatalkan karena hari alpha sudah dilengkapi)';
+                return ' ('.$canceled.' surat teguran otomatis dibatalkan karena hari alpha sudah dilengkapi)';
             }
         } catch (\Throwable $ex) {
-            Log::error('Sync surat teguran setelah absen manual gagal: ' . $ex->getMessage());
+            Log::error('Sync surat teguran setelah absen manual gagal: '.$ex->getMessage());
         }
 
         return '';
@@ -5574,7 +5737,7 @@ public function notifikasiStatus()
 
     public function processManualCheckout()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -5586,17 +5749,17 @@ public function notifikasiStatus()
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
-        if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamPulang)) {
+        if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamPulang)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam pulang tidak valid (HH:MM)']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Check if attendance exists
         $existing = $db->table('absensi_harian')
@@ -5604,7 +5767,7 @@ public function notifikasiStatus()
             ->where('tgl', $tanggal)
             ->first();
 
-        if (!$existing) {
+        if (! $existing) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data absen masuk tidak ditemukan untuk tanggal tersebut']);
         }
 
@@ -5616,9 +5779,9 @@ public function notifikasiStatus()
         // Setara dengan guard yang sama di Guru\Attendance::checkOut().
         if (empty($existing->jam_masuk)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'message' => 'Absen masuk belum tercatat pada tanggal ' . $tanggal
-                    . '. Isi absen masuk terlebih dahulu sebelum mengisi absen pulang.',
+                'status' => false,
+                'message' => 'Absen masuk belum tercatat pada tanggal '.$tanggal
+                    .'. Isi absen masuk terlebih dahulu sebelum mengisi absen pulang.',
             ]);
         }
 
@@ -5626,197 +5789,201 @@ public function notifikasiStatus()
         if (preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_masuk, $m)) {
             $jamMasukEff = $m[0];
             if (substr($jamPulang, 0, 5) < $jamMasukEff) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jam pulang tidak boleh lebih awal dari jam masuk (' . $jamMasukEff . ')']);
+                return $this->response->setJSON(['status' => false, 'message' => 'Jam pulang tidak boleh lebih awal dari jam masuk ('.$jamMasukEff.')']);
             }
         }
 
         // Idempoten: jam pulang yang sama dikirim ulang → anggap sukses tanpa
         // menghitung ulang (mencegah penalti pulang-awal terakumulasi ganda)
-        if (!empty($existing->jam_pulang) && preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_pulang, $mp)) {
+        if (! empty($existing->jam_pulang) && preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_pulang, $mp)) {
             if (substr($jamPulang, 0, 5) === $mp[0]) {
-                return $this->response->setJSON(['status' => true, 'message' => 'Jam pulang sudah tercatat (' . $mp[0] . ')']);
+                return $this->response->setJSON(['status' => true, 'message' => 'Jam pulang sudah tercatat ('.$mp[0].')']);
             }
         }
 
         // Check if date is valid work day
         $dayOfWeek = date('N', strtotime($tanggal));
         $jadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
         // Gerbang libur: AttendancePolicy menggabungkan libur mingguan,
         // jadwal per hari (is_libur), dan kalender nasional.
-        $alasanLibur = \App\Services\AttendancePolicy::alasanLibur($tanggal);
+        $alasanLibur = AttendancePolicy::alasanLibur($tanggal);
         if ($alasanLibur !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: ' . $alasanLibur]);
+            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
         }
 
         // Get setting for checkout calculation
-    $setting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
+        $setting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
 
-    // Jadwal efektif: shift per guru → jadwal harian → setting
-    $shiftModel = new \App\Models\ShiftModel();
-    $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
-    $jamPulangLimit = $sched['jam_pulang'];
-    
-    // Baris proteksi (WFH/izin/sakit/cuti/alpha) tidak boleh di-checkout-kan manual.
-    $exStatusMasuk = strtoupper((string) ($existing->status_masuk ?? ''));
-    $exStatusPulang = strtoupper((string) ($existing->status_pulang ?? ''));
-    $exIsWfh = (!empty($existing->is_wfh) && (int) $existing->is_wfh === 1) || $exStatusMasuk === 'WFH' || $exStatusPulang === 'WFH';
-    $exIsLeave = in_array($exStatusMasuk, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true)
-        || in_array($exStatusPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true);
-    if ($exIsWfh || $exIsLeave || in_array($exStatusMasuk, ['ALPHA', 'ALPA'], true)) {
-        return $this->response->setJSON(['status' => false, 'message' => 'Baris ' . $exStatusMasuk . ' tidak bisa di-checkout manual']);
-    }
+        // Jadwal efektif: shift per guru → jadwal harian → setting
+        $shiftModel = new ShiftModel;
+        $sched = $shiftModel->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwal, $setting);
+        $jamPulangLimit = $sched['jam_pulang'];
 
-    // Calculate Early
-    $isDinas = in_array($existing->status_masuk ?? '', ['DINAS', 'DINAS_APPROVED', 'DINAS_PENDING']) || (strpos($existing->status_masuk ?? '', 'DINAS') === 0);
-    $statusPulang = 'ONTIME';
-    $pulangCepatMenit = 0;
-    $threshold = strtotime($tanggal . ' ' . $jamPulangLimit);
-    $pulangTime = strtotime($tanggal . ' ' . $jamPulang);
+        // Baris proteksi (WFH/izin/sakit/cuti/alpha) tidak boleh di-checkout-kan manual.
+        $exStatusMasuk = strtoupper((string) ($existing->status_masuk ?? ''));
+        $exStatusPulang = strtoupper((string) ($existing->status_pulang ?? ''));
+        $exIsWfh = (! empty($existing->is_wfh) && (int) $existing->is_wfh === 1) || $exStatusMasuk === 'WFH' || $exStatusPulang === 'WFH';
+        $exIsLeave = in_array($exStatusMasuk, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true)
+            || in_array($exStatusPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true);
+        if ($exIsWfh || $exIsLeave || in_array($exStatusMasuk, ['ALPHA', 'ALPA'], true)) {
+            return $this->response->setJSON(['status' => false, 'message' => 'Baris '.$exStatusMasuk.' tidak bisa di-checkout manual']);
+        }
 
-    $pulangAkhirMenit = 0;
-    $earlyPoints = 0;
-    $earlyDenda = 0;
-    $keteranganDendaUpdate = null;
-
-    if ($isDinas) {
-        $statusPulang = ($existing->status_masuk === 'DINAS_APPROVED') ? 'DINAS_APPROVED' : 'DINAS_OUT';
+        // Calculate Early
+        $isDinas = in_array($existing->status_masuk ?? '', ['DINAS', 'DINAS_APPROVED', 'DINAS_PENDING']) || (strpos($existing->status_masuk ?? '', 'DINAS') === 0);
+        $statusPulang = 'ONTIME';
         $pulangCepatMenit = 0;
+        $threshold = strtotime($tanggal.' '.$jamPulangLimit);
+        $pulangTime = strtotime($tanggal.' '.$jamPulang);
+
         $pulangAkhirMenit = 0;
         $earlyPoints = 0;
         $earlyDenda = 0;
         $keteranganDendaUpdate = null;
-    } elseif ($pulangTime < $threshold) {
-        $statusPulang = 'EARLY';
-        $diff = $threshold - $pulangTime;
-        $pulangCepatMenit = (int) ceil($diff / 60);
-        $calc = $this->calculateProgressivePenalty($pulangCepatMenit, $setting, 'Pulang Awal');
-        $earlyPoints = -1 * $calc['points'];
-        $earlyDenda = $calc['denda'];
-        $keteranganDendaUpdate = $calc['keterangan'];
-    } elseif ($pulangTime > $threshold) {
-        // Kanonik: reward lembur hanya untuk kelebihan >= 60 menit, dikurangi 60.
-        $diffMenit = (int) floor(($pulangTime - $threshold) / 60);
-        $pulangAkhirMenit = ($diffMenit >= 60) ? ($diffMenit - 60) : 0;
-        $earlyPoints = $this->calculateProgressiveRewardPoints($pulangAkhirMenit, $setting);
-    }
 
-    // Hitung ulang dari NOL (bukan existing + delta) agar koreksi jam pulang
-    // tidak menumpuk denda/poin lama. Porsi masuk dihitung ulang dari jam_masuk tersimpan.
-    $masukPoints = 0;
-    $masukDenda = 0;
-    $masukKetDenda = null;
-    if (!empty($existing->jam_masuk)) {
-        $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
+        if ($isDinas) {
+            $statusPulang = ($existing->status_masuk === 'DINAS_APPROVED') ? 'DINAS_APPROVED' : 'DINAS_OUT';
+            $pulangCepatMenit = 0;
+            $pulangAkhirMenit = 0;
+            $earlyPoints = 0;
+            $earlyDenda = 0;
+            $keteranganDendaUpdate = null;
+        } elseif ($pulangTime < $threshold) {
+            $statusPulang = 'EARLY';
+            $diff = $threshold - $pulangTime;
+            $pulangCepatMenit = (int) ceil($diff / 60);
+            $calc = $this->calculateProgressivePenalty($pulangCepatMenit, $setting, 'Pulang Awal');
+            $earlyPoints = -1 * $calc['points'];
+            $earlyDenda = $calc['denda'];
+            $keteranganDendaUpdate = $calc['keterangan'];
+        } elseif ($pulangTime > $threshold) {
+            // Kanonik: reward lembur hanya untuk kelebihan >= 60 menit, dikurangi 60.
+            $diffMenit = (int) floor(($pulangTime - $threshold) / 60);
+            $pulangAkhirMenit = ($diffMenit >= 60) ? ($diffMenit - 60) : 0;
+            $earlyPoints = $this->calculateProgressiveRewardPoints($pulangAkhirMenit, $setting);
+        }
 
-        $hitMasuk = \App\Services\AttendancePolicy::telat($tanggal, (string) $existing->jam_masuk, [
-            'jam_masuk'   => $sched['jam_masuk'],
-            'grace_menit' => $graceMins,
+        // Hitung ulang dari NOL (bukan existing + delta) agar koreksi jam pulang
+        // tidak menumpuk denda/poin lama. Porsi masuk dihitung ulang dari jam_masuk tersimpan.
+        $masukPoints = 0;
+        $masukDenda = 0;
+        $masukKetDenda = null;
+        if (! empty($existing->jam_masuk)) {
+            $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
+
+            $hitMasuk = AttendancePolicy::telat($tanggal, (string) $existing->jam_masuk, [
+                'jam_masuk' => $sched['jam_masuk'],
+                'grace_menit' => $graceMins,
+            ]);
+
+            if ($hitMasuk['status'] === 'LATE') {
+                $calcMasuk = $this->calculateProgressivePenalty($hitMasuk['telat_menit'], $setting, 'Telat Masuk');
+                $masukPoints = -1 * $calcMasuk['points'];
+                $masukDenda = $calcMasuk['denda'];
+                $masukKetDenda = $calcMasuk['keterangan'];
+            } elseif ($hitMasuk['datang_awal_menit'] > 0) {
+                $masukPoints = $this->calculateProgressiveRewardPoints($hitMasuk['datang_awal_menit'], $setting);
+            }
+        }
+
+        $totalPoints = $isDinas ? (int) ($existing->points ?? 0) : ($masukPoints + $earlyPoints);
+        $totalDenda = $isDinas ? 0 : ((float) $masukDenda + (float) $earlyDenda);
+
+        // Gabungkan keterangan porsi masuk + pulang yang baru dihitung.
+        $ketsBaru = array_values(array_filter([$masukKetDenda, $keteranganDendaUpdate]));
+        $keteranganDendaUpdate = $isDinas ? null : ($ketsBaru ? implode('; ', $ketsBaru) : null);
+
+        // Cap + tulis dalam satu transaksi agar lock (FOR UPDATE) berlaku.
+        DB::beginTransaction();
+        try {
+            // Tegakkan cap denda bulanan (baris sendiri dikecualikan)
+            if (! $isDinas && $totalDenda > 0) {
+                $capService = new AttendancePenaltyService;
+                $capped = $capService->applyMonthlyCap((int) $userId, $tanggal, (float) $totalDenda, $setting, (int) $existing->id, true);
+                if ($capped['capped']) {
+                    $totalDenda = $capped['total'];
+                    $keteranganDendaUpdate = ($keteranganDendaUpdate ? $keteranganDendaUpdate.' ' : '').'(dibatasi cap bulanan Rp '.number_format($totalDenda, 0, ',', '.').')';
+                }
+            }
+
+            // Update
+            $updateData = [
+                'jam_pulang' => $tanggal.' '.$jamPulang,
+                'status_pulang' => $statusPulang,
+                'pulang_cepat_menit' => $pulangCepatMenit,
+                'pulang_akhir_menit' => $pulangAkhirMenit,
+                'points' => $totalPoints,
+                'denda' => $totalDenda,
+                'keterangan_denda' => $keteranganDendaUpdate,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+
+            $this->applyLokasiUtama($db, $updateData, 'pulang');
+
+            // Admin mencatat absen pulang untuk hari yang sudah dipotong penalti
+            // "tidak absen pulang": faktanya berubah (guru memang pulang, hanya
+            // lupa absen), jadi penalti itu tidak boleh tinggal. Poin di atas sudah
+            // dihitung ulang dari jam/status sehingga pengembaliannya otomatis — yang
+            // dibersihkan di sini penandanya, supaya cron tidak menganggap hari itu
+            // masih menunggu penalti dan supaya angka tidak terlihat dipotong dua kali.
+            if ((int) ($existing->pulang_tidak_tercatat ?? 0) === 1) {
+                $updateData['pulang_tidak_tercatat'] = 0;
+                $updateData['poin_penalti_pulang'] = 0;
+            }
+
+            // Pulang manual menghitung ULANG denda masuk + pulang. Bila bulan itu
+            // sudah ada pembayaran, hasil hitung yang lebih kecil tidak boleh
+            // menimpa tagihan: ledger tetap mencatat bayarannya (kredit hantu).
+            $cachePulang = [];
+            $dibayarPulang = $this->totalDibayarBulan(
+                (int) $existing->user_id,
+                (int) date('n', strtotime($tanggal)),
+                (int) date('Y', strtotime($tanggal)),
+                $cachePulang
+            );
+            if ($dibayarPulang > 0 && (float) $totalDenda < (float) ($existing->denda ?? 0)) {
+                unset($updateData['denda'], $updateData['keterangan_denda']);
+            }
+
+            $db->table('absensi_harian')
+                ->where('id', $existing->id)
+                ->update($updateData);
+            (new PoinHistoryModel)->syncAttendancePoint($existing->id);
+            DB::commit();
+        } catch (\Throwable $e) {
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('Manual checkout gagal: '.$e->getMessage());
+
+            return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat absen pulang — periksa log aplikasi.']);
+        }
+
+        // AUDIT LOG
+        try {
+            $auditModel = new AuditLogModel;
+            $auditModel->log(
+                'absensi_harian',
+                $existing->id,
+                'UPDATE',
+                $userId,
+                session()->get('user_id'),
+                $existing,
+                $updateData,
+                'Absen Manual Pulang oleh Admin'
+            );
+        } catch (\Throwable $ex) {
+            Log::error('Failed to create audit log: '.$ex->getMessage());
+        }
+
+        return $this->response->setJSON([
+            'status' => true,
+            'message' => 'Absen pulang berhasil dicatat'.($statusPulang === 'EARLY' ? " (Pulang Cepat {$pulangCepatMenit} menit)" : ''),
         ]);
-
-        if ($hitMasuk['status'] === 'LATE') {
-            $calcMasuk = $this->calculateProgressivePenalty($hitMasuk['telat_menit'], $setting, 'Telat Masuk');
-            $masukPoints = -1 * $calcMasuk['points'];
-            $masukDenda = $calcMasuk['denda'];
-            $masukKetDenda = $calcMasuk['keterangan'];
-        } elseif ($hitMasuk['datang_awal_menit'] > 0) {
-            $masukPoints = $this->calculateProgressiveRewardPoints($hitMasuk['datang_awal_menit'], $setting);
-        }
-    }
-
-    $totalPoints = $isDinas ? (int) ($existing->points ?? 0) : ($masukPoints + $earlyPoints);
-    $totalDenda = $isDinas ? 0 : ((float) $masukDenda + (float) $earlyDenda);
-
-    // Gabungkan keterangan porsi masuk + pulang yang baru dihitung.
-    $ketsBaru = array_values(array_filter([$masukKetDenda, $keteranganDendaUpdate]));
-    $keteranganDendaUpdate = $isDinas ? null : ($ketsBaru ? implode('; ', $ketsBaru) : null);
-
-    // Cap + tulis dalam satu transaksi agar lock (FOR UPDATE) berlaku.
-    \Illuminate\Support\Facades\DB::beginTransaction();
-    try {
-    // Tegakkan cap denda bulanan (baris sendiri dikecualikan)
-    if (!$isDinas && $totalDenda > 0) {
-        $capService = new \App\Services\AttendancePenaltyService();
-        $capped = $capService->applyMonthlyCap((int) $userId, $tanggal, (float) $totalDenda, $setting, (int) $existing->id, true);
-        if ($capped['capped']) {
-            $totalDenda = $capped['total'];
-            $keteranganDendaUpdate = ($keteranganDendaUpdate ? $keteranganDendaUpdate . ' ' : '') . '(dibatasi cap bulanan Rp ' . number_format($totalDenda, 0, ',', '.') . ')';
-        }
-    }
-
-    // Update
-    $updateData = [
-        'jam_pulang' => $tanggal . ' ' . $jamPulang,
-        'status_pulang' => $statusPulang,
-        'pulang_cepat_menit' => $pulangCepatMenit,
-        'pulang_akhir_menit' => $pulangAkhirMenit,
-        'points' => $totalPoints,
-        'denda' => $totalDenda,
-        'keterangan_denda' => $keteranganDendaUpdate,
-        'updated_at' => date('Y-m-d H:i:s')
-    ];
-
-    $this->applyLokasiUtama($db, $updateData, 'pulang');
-
-    // Admin mencatat absen pulang untuk hari yang sudah dipotong penalti
-    // "tidak absen pulang": faktanya berubah (guru memang pulang, hanya
-    // lupa absen), jadi penalti itu tidak boleh tinggal. Poin di atas sudah
-    // dihitung ulang dari jam/status sehingga pengembaliannya otomatis — yang
-    // dibersihkan di sini penandanya, supaya cron tidak menganggap hari itu
-    // masih menunggu penalti dan supaya angka tidak terlihat dipotong dua kali.
-    if ((int) ($existing->pulang_tidak_tercatat ?? 0) === 1) {
-        $updateData['pulang_tidak_tercatat'] = 0;
-        $updateData['poin_penalti_pulang']   = 0;
-    }
-
-    // Pulang manual menghitung ULANG denda masuk + pulang. Bila bulan itu
-    // sudah ada pembayaran, hasil hitung yang lebih kecil tidak boleh
-    // menimpa tagihan: ledger tetap mencatat bayarannya (kredit hantu).
-    $cachePulang = [];
-    $dibayarPulang = $this->totalDibayarBulan(
-        (int) $existing->user_id,
-        (int) date('n', strtotime($tanggal)),
-        (int) date('Y', strtotime($tanggal)),
-        $cachePulang
-    );
-    if ($dibayarPulang > 0 && (float) $totalDenda < (float) ($existing->denda ?? 0)) {
-        unset($updateData['denda'], $updateData['keterangan_denda']);
-    }
-
-    $db->table('absensi_harian')
-        ->where('id', $existing->id)
-        ->update($updateData);
-    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($existing->id);
-    \Illuminate\Support\Facades\DB::commit();
-    } catch (\Throwable $e) {
-        try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-        Log::error('Manual checkout gagal: ' . $e->getMessage());
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat absen pulang — periksa log aplikasi.']);
-    }
-
-    // AUDIT LOG
-    try {
-        $auditModel = new AuditLogModel();
-        $auditModel->log(
-            'absensi_harian',
-            $existing->id,
-            'UPDATE',
-            $userId,
-            session()->get('user_id'),
-            $existing,
-            $updateData,
-            'Absen Manual Pulang oleh Admin'
-        );
-    } catch (\Throwable $ex) {
-        Log::error('Failed to create audit log: ' . $ex->getMessage());
-    }
-
-    return $this->response->setJSON([
-        'status' => true, 
-        'message' => 'Absen pulang berhasil dicatat' . ($statusPulang === 'EARLY' ? " (Pulang Cepat {$pulangCepatMenit} menit)" : '')
-    ]);
     }
 
     /**
@@ -5824,7 +5991,7 @@ public function notifikasiStatus()
      */
     public function getAttendanceStatus()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -5835,11 +6002,11 @@ public function notifikasiStatus()
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $att = $db->table('absensi_harian')
             ->where('user_id', $userId)
             ->where('tgl', $tanggal)
@@ -5850,10 +6017,10 @@ public function notifikasiStatus()
         try {
             $setting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
             $dayOfWeek = date('N', strtotime($tanggal));
-            $jadwalGlobal = \Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')
+            $jadwalGlobal = Schema::hasTable('absensi_jadwal_kerja')
                 ? $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first()
                 : null;
-            $sched = (new \App\Models\ShiftModel())->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwalGlobal, $setting ?: (object) []);
+            $sched = (new ShiftModel)->getScheduleForUser((int) $userId, (int) $dayOfWeek, $jadwalGlobal, $setting ?: (object) []);
         } catch (\Throwable $e) {
             $sched = null;
         }
@@ -5861,7 +6028,7 @@ public function notifikasiStatus()
         return $this->response->setJSON([
             'status' => true,
             'data' => $att,
-            'jadwal' => $sched
+            'jadwal' => $sched,
         ]);
     }
 
@@ -5870,7 +6037,7 @@ public function notifikasiStatus()
      */
     public function deleteAttendance()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -5881,37 +6048,38 @@ public function notifikasiStatus()
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $db->table('absensi_harian')
             ->where('user_id', $userId)
             ->where('tgl', $tanggal)
             ->first();
 
-        if (!$row) {
+        if (! $row) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // Clean point history
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_poin_history')) {
+            if (Schema::hasTable('absensi_poin_history')) {
                 $db->table('absensi_poin_history')->where('absensi_id', $row->id)->delete();
             }
             $db->table('absensi_harian')->where('id', $row->id)->delete();
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Delete attendance gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Delete attendance gagal: '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus data']);
         }
 
         // AUDIT LOG (dulu: hapus tanpa jejak + total poin tidak direcompute)
         try {
-            (new AuditLogModel())->log(
+            (new AuditLogModel)->log(
                 'absensi_harian',
                 $row->id,
                 'DELETE',
@@ -5922,12 +6090,12 @@ public function notifikasiStatus()
                 'Absensi Dihapus/Reset oleh Admin'
             );
         } catch (\Throwable $ex) {
-            Log::error('Failed to create audit log: ' . $ex->getMessage());
+            Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Data presensi berhasil direset / dihapus'
+            'message' => 'Data presensi berhasil direset / dihapus',
         ]);
     }
 
@@ -5936,17 +6104,17 @@ public function notifikasiStatus()
      */
     public function batchAttendanceStatus()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tanggal = trim((string) ($this->request->query('tanggal') ?? date('Y-m-d')));
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
-        if (!$dt || $dt->format('Y-m-d') !== $tanggal) {
+        if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
             $tanggal = date('Y-m-d');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $rows = $db->table('absensi_harian')
             ->where('tgl', $tanggal)
             ->get();
@@ -5956,10 +6124,10 @@ public function notifikasiStatus()
         $setting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
         $dayOfWeek = date('N', strtotime($tanggal));
         $jadwalGlobal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jadwalGlobal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
         }
-        $shiftModel = new \App\Models\ShiftModel();
+        $shiftModel = new ShiftModel;
 
         $data = [];
         foreach ($rows as $r) {
@@ -5985,7 +6153,7 @@ public function notifikasiStatus()
      */
     public function permits()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -5996,14 +6164,14 @@ public function notifikasiStatus()
         $filterStatus = $this->request->query('status') ?? 'all';
         $filterJenis = $this->request->query('jenis') ?? 'all';
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $builder = $db->table('absensi_izin as i')
-            ->select('i.*, u.first_name, u.last_name, u.username, u.foto, g.nama_guru, g.nip,
-                      adm.first_name as verifier_first, adm.last_name as verifier_last')
-            ->join('users as u', 'u.id = i.user_id', 'left')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
-            ->join('users as adm', 'adm.id = i.verified_by', 'left');
+            ->select('i.*', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'g.nama_guru', 'g.nip',
+                'adm.first_name as verifier_first', 'adm.last_name as verifier_last')
+            ->leftJoin('users as u', 'u.id', '=', 'i.user_id')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->leftJoin('users as adm', 'adm.id', '=', 'i.verified_by');
 
         if ($bulan !== 'all' && is_numeric($bulan)) {
             $builder->whereRaw("(MONTH(i.tgl_mulai) = {$bulan} OR MONTH(i.tgl_selesai) = {$bulan})");
@@ -6022,9 +6190,9 @@ public function notifikasiStatus()
 
         // Get all active teachers for manual input modal
         $teachers = $db->table('users as u')
-            ->select('u.id as user_id, u.first_name, u.last_name, g.nama_guru, g.nip')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id as user_id', 'u.first_name', 'u.last_name', 'g.nama_guru', 'g.nip')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->orderBy('g.nama_guru', 'ASC')
@@ -6041,16 +6209,25 @@ public function notifikasiStatus()
         $dinasCount = 0;
 
         foreach ($permits as $p) {
-            $st = strtolower(trim((string)$p->status));
-            if ($st === 'approved' || $st === '1') $approvedCount++;
-            elseif ($st === 'rejected' || $st === '2') $rejectedCount++;
-            else $pendingCount++;
+            $st = strtolower(trim((string) $p->status));
+            if ($st === 'approved' || $st === '1') {
+                $approvedCount++;
+            } elseif ($st === 'rejected' || $st === '2') {
+                $rejectedCount++;
+            } else {
+                $pendingCount++;
+            }
 
-            $jn = strtolower(trim((string)$p->jenis));
-            if ($jn === 'sakit') $sakitCount++;
-            elseif ($jn === 'cuti') $cutiCount++;
-            elseif ($jn === 'dinas') $dinasCount++;
-            else $izinCount++;
+            $jn = strtolower(trim((string) $p->jenis));
+            if ($jn === 'sakit') {
+                $sakitCount++;
+            } elseif ($jn === 'cuti') {
+                $cutiCount++;
+            } elseif ($jn === 'dinas') {
+                $dinasCount++;
+            } else {
+                $izinCount++;
+            }
         }
 
         $stats = [
@@ -6061,16 +6238,17 @@ public function notifikasiStatus()
             'sakit' => $sakitCount,
             'izin' => $izinCount,
             'cuti' => $cutiCount,
-            'dinas' => $dinasCount
+            'dinas' => $dinasCount,
         ];
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.permits', [
             'title' => 'Data & Pengajuan Izin / Cuti Guru',
@@ -6085,7 +6263,7 @@ public function notifikasiStatus()
             'tahun' => $tahun,
             'filterStatus' => $filterStatus,
             'filterJenis' => $filterJenis,
-            'stats' => $stats
+            'stats' => $stats,
         ]);
     }
 
@@ -6094,7 +6272,7 @@ public function notifikasiStatus()
      */
     public function saveManualPermit()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -6107,13 +6285,13 @@ public function notifikasiStatus()
         $keterangan = trim($this->request->input('keterangan') ?? '');
         $langsungApprove = $this->request->input('langsung_approve') == '1';
 
-        if (!$userId || empty($tglMulai)) {
+        if (! $userId || empty($tglMulai)) {
             return $this->respond(false, 'Guru dan tanggal mulai izin harus diisi');
         }
 
         // Validasi tanggal & jenis (samakan dengan leaveRequest guru)
         $allowedJenis = ['ijin', 'izin', 'sakit', 'cuti', 'dinas'];
-        if (!in_array($jenis, $allowedJenis, true)) {
+        if (! in_array($jenis, $allowedJenis, true)) {
             return $this->respond(false, 'Jenis pengajuan tidak valid.');
         }
         if ($jenis === 'izin') {
@@ -6147,23 +6325,23 @@ public function notifikasiStatus()
         if ($jenis === 'cuti') {
             $kategoriCuti = strtolower(trim((string) $this->request->input('kategori_cuti')));
             if ($kategoriCuti !== '') {
-                if (! \App\Services\CutiKategoriService::valid($kategoriCuti)) {
+                if (! CutiKategoriService::valid($kategoriCuti)) {
                     return $this->respond(false, 'Kategori cuti tidak valid.');
                 }
 
                 // Eligibilitas mengikuti aturan pengajuan guru (PNS vs
                 // PPPK berbeda hak); force=1 mem-bypass dengan sadar.
-                $profilCuti = \App\Services\CutiKategoriService::profil($userId);
-                $cekElig = \App\Services\CutiKategoriService::cekEligibilitas($kategoriCuti, $profilCuti, $tglMulai);
-                if (! $cekElig['ok'] && !$force) {
-                    return $this->respond(false, $cekElig['pesan'] . ' Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
+                $profilCuti = CutiKategoriService::profil($userId);
+                $cekElig = CutiKategoriService::cekEligibilitas($kategoriCuti, $profilCuti, $tglMulai);
+                if (! $cekElig['ok'] && ! $force) {
+                    return $this->respond(false, $cekElig['pesan'].' Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
                 }
 
-                $batasKat = \App\Services\CutiKategoriService::batasHariKategori($kategoriCuti);
-                if ($batasKat > 0 && !$force) {
-                    $hariKal = \App\Services\CutiKategoriService::hariKalender($tglMulai, $tglSelesai);
+                $batasKat = CutiKategoriService::batasHariKategori($kategoriCuti);
+                if ($batasKat > 0 && ! $force) {
+                    $hariKal = CutiKategoriService::hariKalender($tglMulai, $tglSelesai);
                     if ($hariKal > $batasKat) {
-                        return $this->respond(false, 'Maksimal durasi ' . \App\Services\CutiKategoriService::label($kategoriCuti) . ' adalah ' . $batasKat . ' hari. Pengajuan: ' . $hariKal . ' hari. Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
+                        return $this->respond(false, 'Maksimal durasi '.CutiKategoriService::label($kategoriCuti).' adalah '.$batasKat.' hari. Pengajuan: '.$hariKal.' hari. Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
                     }
                 }
             } else {
@@ -6177,8 +6355,8 @@ public function notifikasiStatus()
         // Perhitungan kuota memanggil IzinKuotaService — sama persis dengan
         // yang dipakai guru, sehingga angka yang dibaca admin saat mengisi
         // form manual dan angka yang ditegakkan server tidak bisa berbeda.
-        if (!$force) {
-            $dbCek = \Illuminate\Support\Facades\DB::connection();
+        if (! $force) {
+            $dbCek = DB::connection();
             $tabrakan = $dbCek->table('absensi_izin')
                 ->where('user_id', $userId)
                 ->whereIn('status', ['pending', 'approved'])
@@ -6189,11 +6367,11 @@ public function notifikasiStatus()
                 return $this->respond(false, 'Rentang tanggal bertabrakan dengan pengajuan lain yang masih aktif. Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
             }
 
-            $cekKuota = (new \App\Services\IzinKuotaService($dbCek))->cek($userId, $jenis, $tglMulai, $tglSelesai, 0, $kategoriCuti);
-            if (!$cekKuota['ok']) {
+            $cekKuota = (new IzinKuotaService($dbCek))->cek($userId, $jenis, $tglMulai, $tglSelesai, 0, $kategoriCuti);
+            if (! $cekKuota['ok']) {
                 return $this->respond(
                     false,
-                    $cekKuota['pesan'] . ' Ulangi dengan force=1 bila memang disengaja.',
+                    $cekKuota['pesan'].' Ulangi dengan force=1 bila memang disengaja.',
                     null,
                     null,
                     409
@@ -6201,7 +6379,7 @@ public function notifikasiStatus()
             }
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Guard + insert diulang DI BAWAH lock. Pengecekan pertama di atas
         // tetap berguna karena ia memberi pesan 409 yang cepat tanpa
@@ -6214,13 +6392,13 @@ public function notifikasiStatus()
         // absensi tetap di bloknya sendiri yang sudah punya roll-back dan
         // kompensasi (hapus baris izin + berkas bukti), supaya tidak ada
         // dua transaksi yang saling menimpa.
-        $dbLock = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $dbLock = DB::connection();
+        DB::beginTransaction();
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+            if (Schema::hasTable('users')) {
                 try {
                     $dbLock->select(
-                        'SELECT id FROM ' . 'users' . ' WHERE id = ? FOR UPDATE',
+                        'SELECT id FROM '.'users'.' WHERE id = ? FOR UPDATE',
                         [$userId]
                     );
                 } catch (\Throwable $e) {
@@ -6228,24 +6406,26 @@ public function notifikasiStatus()
                 }
             }
 
-            if (!$force) {
+            if (! $force) {
                 $tabrakan = $dbLock->table('absensi_izin')
                     ->where('user_id', $userId)
-                    ->whereIn('status', \App\Models\LeaveModel::STATUS_MAKAN_KUOTA)
+                    ->whereIn('status', LeaveModel::STATUS_MAKAN_KUOTA)
                     ->where('tgl_mulai', '<=', $tglSelesai)
                     ->where('tgl_selesai', '>=', $tglMulai)
                     ->count();
                 if ($tabrakan > 0) {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                    DB::rollBack();
+
                     return $this->respond(false, 'Rentang tanggal bertabrakan dengan pengajuan lain yang masih aktif. Ulangi dengan force=1 bila memang disengaja.', null, null, 409);
                 }
 
-                $cekKuota = (new \App\Services\IzinKuotaService($dbLock))->cek($userId, $jenis, $tglMulai, $tglSelesai, 0, $kategoriCuti);
-                if (!$cekKuota['ok']) {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                $cekKuota = (new IzinKuotaService($dbLock))->cek($userId, $jenis, $tglMulai, $tglSelesai, 0, $kategoriCuti);
+                if (! $cekKuota['ok']) {
+                    DB::rollBack();
+
                     return $this->respond(
                         false,
-                        $cekKuota['pesan'] . ' Ulangi dengan force=1 bila memang disengaja.',
+                        $cekKuota['pesan'].' Ulangi dengan force=1 bila memang disengaja.',
                         null,
                         null,
                         409
@@ -6253,8 +6433,9 @@ public function notifikasiStatus()
                 }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Simpan izin manual gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Simpan izin manual gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyimpan izin manual.', null, null, 500);
         }
 
@@ -6265,19 +6446,19 @@ public function notifikasiStatus()
         // Handle File Upload if provided (validasi mime + ukuran)
         $fileBukti = $this->request->file('bukti');
         $buktiName = null;
-        if ($fileBukti && $fileBukti->isValid() && !false /* was: $fileBukti->hasMoved() */) {
+        if ($fileBukti && $fileBukti->isValid() && ! false /* was: $fileBukti->hasMoved() */) {
             // Tipe dari ISI file (guessExtension), bukan header Content-Type
             // kiriman browser — dulu berkas skrip yang mengaku image/jpeg lolos,
             // lalu getRandomName() memakai MIME asli sehingga unggahannya bisa
             // berekstensi php di uploads/izin.
-            if (!in_array(strtolower($fileBukti->guessExtension()), ['pdf', 'jpg', 'jpeg', 'png'], true)) {
+            if (! in_array(strtolower($fileBukti->guessExtension()), ['pdf', 'jpg', 'jpeg', 'png'], true)) {
                 return $this->respond(false, 'Bukti harus berupa PDF/JPG/PNG.');
             }
             if ($fileBukti->getSize() > 2 * 1024 * 1024) {
                 return $this->respond(false, 'Ukuran bukti maksimal 2 MB.');
             }
-            $uploadDir = public_path() . '/' . 'uploads/izin/';
-            if (!is_dir($uploadDir)) {
+            $uploadDir = public_path().'/'.'uploads/izin/';
+            if (! is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
             $buktiName = $fileBukti->hashName();
@@ -6295,21 +6476,21 @@ public function notifikasiStatus()
             'kategori_cuti' => $kategoriCuti,
             'keterangan' => $keterangan,
             'status' => $status,
-            'bukti' => !empty($buktiName) ? 'uploads/izin/' . $buktiName : null,
+            'bukti' => ! empty($buktiName) ? 'uploads/izin/'.$buktiName : null,
             'verified_by' => $langsungApprove ? session()->get('user_id') : null,
             'verified_at' => $langsungApprove ? date('Y-m-d H:i:s') : null,
             'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
         $dbLock->table('absensi_izin')->insert($insertData);
-        $permitId = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-        \Illuminate\Support\Facades\DB::commit();
+        $permitId = DB::getPdo()->lastInsertId();
+        DB::commit();
 
         // If approved directly, update attendance records
         $dilewatiManual = [];
         if ($langsungApprove) {
-            $settingModel = new \App\Models\AttendanceSettingModel();
+            $settingModel = new AttendanceSettingModel;
             $setting = $settingModel->first();
             $pointIzin = $setting->point_izin ?? 0;
             $pointSakit = $setting->point_sakit ?? 0;
@@ -6322,7 +6503,7 @@ public function notifikasiStatus()
                 $point = 0;
                 $statusMasuk = 'CUTI';
             } elseif ($jenisUpper === 'DINAS' || strpos($jenisUpper, 'DINAS') !== false) {
-                $point = (int)($setting->point_hadir_ontime ?? $setting->point_hadir ?? 10);
+                $point = (int) ($setting->point_hadir_ontime ?? $setting->point_hadir ?? 10);
                 // Samakan enum dengan approvePermit ('DINAS_APPROVED', bukan 'DINAS')
                 $statusMasuk = 'DINAS_APPROVED';
             } else {
@@ -6332,118 +6513,123 @@ public function notifikasiStatus()
 
             $start = strtotime($tglMulai);
             $end = strtotime($tglSelesai);
-            $attendanceModel = new AttendanceModel();
+            $attendanceModel = new AttendanceModel;
 
             // Definisi libur yang sama dengan approvePermit dan dengan
             // perhitungan kuota (IzinKuotaService). Salinan lokal di sini
             // bisa berbeda darinya sehingga input manual menulis baris
             // absensi pada hari yang guru tidak anggap hari kerja.
             $globalSetting = $this->getSettingRow();
-            $svcLiburManual = new \App\Services\IzinKuotaService($db);
-            $punyaIzinIdManual = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'izin_id');
-            $isNetralManual  = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
-            $dilewatiManual  = [];
+            $svcLiburManual = new IzinKuotaService($db);
+            $punyaIzinIdManual = Schema::hasColumn('absensi_harian', 'izin_id');
+            $isNetralManual = in_array($statusMasuk, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true);
+            $dilewatiManual = [];
             $bulanTersentuhManual = [];
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
-            for ($i = $start; $i <= $end; $i = strtotime('+1 day', $i)) {
-                $date = date('Y-m-d', $i);
+                for ($i = $start; $i <= $end; $i = strtotime('+1 day', $i)) {
+                    $date = date('Y-m-d', $i);
 
-                if ($svcLiburManual->isLibur($date)) continue;
+                    if ($svcLiburManual->isLibur($date)) {
+                        continue;
+                    }
 
-                $existing = $attendanceModel->where('user_id', $userId)->where('tgl', $date)->first();
+                    $existing = $attendanceModel->where('user_id', $userId)->where('tgl', $date)->first();
 
-                // Jangan timpa hari yang sudah ada scan asli guru — sama
-                // seperti approvePermit, alasannya ada di sana.
-                if ($isNetralManual && $existing && !empty($existing->jam_masuk)) {
-                    $dilewatiManual[] = $date;
-                    continue;
-                }
+                    // Jangan timpa hari yang sudah ada scan asli guru — sama
+                    // seperti approvePermit, alasannya ada di sana.
+                    if ($isNetralManual && $existing && ! empty($existing->jam_masuk)) {
+                        $dilewatiManual[] = $date;
 
-                $bulanTersentuhManual[date('Y-m', $i)] = true;
+                        continue;
+                    }
 
-                $attData = [
-                    'user_id' => $userId,
-                    'tgl' => $date,
-                    'status_masuk' => $statusMasuk,
-                    'status_pulang' => $statusMasuk,
-                    'points' => $point,
-                    'denda' => 0,
-                    'keterangan' => $keterangan ?: "Input Manual Admin: {$jenis}"
-                ];
+                    $bulanTersentuhManual[date('Y-m', $i)] = true;
 
-                // Penanda asal supaya delete izin manual bisa mengembalikan
-                // baris yang tepat, bukan menebak dari status saja.
-                if ($punyaIzinIdManual) {
-                    $attData['izin_id'] = (int) $permitId;
-                }
+                    $attData = [
+                        'user_id' => $userId,
+                        'tgl' => $date,
+                        'status_masuk' => $statusMasuk,
+                        'status_pulang' => $statusMasuk,
+                        'points' => $point,
+                        'denda' => 0,
+                        'keterangan' => $keterangan ?: "Input Manual Admin: {$jenis}",
+                    ];
 
-                if ($existing) {
-                    if ($isNetralManual) {
+                    // Penanda asal supaya delete izin manual bisa mengembalikan
+                    // baris yang tepat, bukan menebak dari status saja.
+                    if ($punyaIzinIdManual) {
+                        $attData['izin_id'] = (int) $permitId;
+                    }
+
+                    if ($existing) {
+                        if ($isNetralManual) {
+                            $attData['jam_masuk'] = null;
+                            $attData['jam_pulang'] = null;
+                        }
+                        $attendanceModel->where('id', $existing->id)->update($attData);
+                        $logId = $existing->id;
+                    } else {
                         $attData['jam_masuk'] = null;
                         $attData['jam_pulang'] = null;
+                        $logId = $attendanceModel->insert($attData);
                     }
-                    $attendanceModel->where('id', $existing->id)->update($attData);
-                    $logId = $existing->id;
-                } else {
-                    $attData['jam_masuk'] = null;
-                    $attData['jam_pulang'] = null;
-                    $logId = $attendanceModel->insert($attData);
+                    (new PoinHistoryModel)->syncAttendancePoint($logId);
                 }
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($logId);
-            }
-            \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
 
-            // Evaluasi dan sinkronisasi pembatalan surat teguran untuk SEMUA
-            // bulan yang tersentuh (sebelumnya hanya bulan tgl_mulai).
-            try {
-                $penaltySvc = new \App\Services\AttendancePenaltyService();
-                $periodeManual = array_keys($bulanTersentuhManual);
-                if (empty($periodeManual)) {
-                    $periodeManual = [date('Y-m', $start)];
+                // Evaluasi dan sinkronisasi pembatalan surat teguran untuk SEMUA
+                // bulan yang tersentuh (sebelumnya hanya bulan tgl_mulai).
+                try {
+                    $penaltySvc = new AttendancePenaltyService;
+                    $periodeManual = array_keys($bulanTersentuhManual);
+                    if (empty($periodeManual)) {
+                        $periodeManual = [date('Y-m', $start)];
+                    }
+                    foreach ($periodeManual as $ym) {
+                        [$thM, $blM] = array_map('intval', explode('-', $ym));
+                        $penaltySvc->syncSuratTeguranOnAttendanceChange($userId, $blM, $thM, $globalSetting);
+                    }
+                } catch (\Throwable $ex) {
                 }
-                foreach ($periodeManual as $ym) {
-                    [$thM, $blM] = array_map('intval', explode('-', $ym));
-                    $penaltySvc->syncSuratTeguranOnAttendanceChange($userId, $blM, $thM, $globalSetting);
-                }
-            } catch (\Throwable $ex) {}
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
                 // Rollback baris izin yang sudah ter-insert agar tidak yatim
                 $db->table('absensi_izin')->where('id', $permitId)->delete();
-                if (!empty($buktiName) && file_exists(public_path() . '/' . 'uploads/izin/' . $buktiName)) {
-                    @unlink(public_path() . '/' . 'uploads/izin/' . $buktiName);
+                if (! empty($buktiName) && file_exists(public_path().'/'.'uploads/izin/'.$buktiName)) {
+                    @unlink(public_path().'/'.'uploads/izin/'.$buktiName);
                 }
-                Log::error('Save manual permit gagal: ' . $e->getMessage());
+                Log::error('Save manual permit gagal: '.$e->getMessage());
+
                 return $this->respond(false, 'Gagal menyimpan izin manual.', null, null, 500);
             }
         }
 
-        $pesan = 'Data izin/cuti berhasil disimpan' . ($langsungApprove ? ' dan absensi telah diperbarui' : '');
-        if ($langsungApprove && !empty($dilewatiManual)) {
-            $pesan .= ' (catatan: ' . count($dilewatiManual)
-                . ' hari tidak diubah karena sudah ada scan kehadiran: '
-                . implode(', ', $dilewatiManual) . ')';
+        $pesan = 'Data izin/cuti berhasil disimpan'.($langsungApprove ? ' dan absensi telah diperbarui' : '');
+        if ($langsungApprove && ! empty($dilewatiManual)) {
+            $pesan .= ' (catatan: '.count($dilewatiManual)
+                .' hari tidak diubah karena sudah ada scan kehadiran: '
+                .implode(', ', $dilewatiManual).')';
         }
 
         // Absen manual atas nama guru = keputusan, bukan isian formulir: tanpa
         // jejak ini tidak tercatat admin mana yang membuatnya, dan apakah ia
         // sekaligus menyetujuinya (langsung_approve).
         try {
-            (new AuditLogModel())->log('absensi_izin', (int) $permitId, $langsungApprove ? 'CREATE_APPROVE' : 'CREATE',
+            (new AuditLogModel)->log('absensi_izin', (int) $permitId, $langsungApprove ? 'CREATE_APPROVE' : 'CREATE',
                 (int) $userId, $this->getUserId(),
                 null,
                 [
-                    'status'          => $status,
-                    'jenis'           => $jenis,
-                    'tgl_mulai'       => $tglMulai,
-                    'tgl_selesai'     => $tglSelesai,
-                    'hari_dilewati'   => $dilewatiManual ?? [],
+                    'status' => $status,
+                    'jenis' => $jenis,
+                    'tgl_mulai' => $tglMulai,
+                    'tgl_selesai' => $tglSelesai,
+                    'hari_dilewati' => $dilewatiManual ?? [],
                 ],
-                'Izin dibuat manual oleh admin' . ($langsungApprove ? ' + langsung disetujui' : ''));
+                'Izin dibuat manual oleh admin'.($langsungApprove ? ' + langsung disetujui' : ''));
         } catch (\Throwable $ex) {
-            Log::error('Audit saveManualPermit gagal: ' . $ex->getMessage());
+            Log::error('Audit saveManualPermit gagal: '.$ex->getMessage());
         }
 
         return $this->respond(true, $pesan);
@@ -6454,13 +6640,13 @@ public function notifikasiStatus()
      */
     public function deletePermit($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $permit = $db->table('absensi_izin')->where('id', $id)->first();
-        if (!$permit) {
+        if (! $permit) {
             return $this->respond(false, 'Data izin tidak ditemukan');
         }
 
@@ -6470,14 +6656,14 @@ public function notifikasiStatus()
         $reverted = 0;
         $kept = 0;
         $poinYatimDihapus = 0;
-        $permitStatus = (new \App\Services\AttendancePenaltyService())->normalizeIzinStatus((string) ($permit->jenis ?? ''));
+        $permitStatus = (new AttendancePenaltyService)->normalizeIzinStatus((string) ($permit->jenis ?? ''));
         $wasApproved = strtolower(trim((string) ($permit->status ?? ''))) === 'approved';
 
         if ($wasApproved && $this->request->input('force') != '1') {
             return $this->respond(false, 'Izin ini sudah approved dan menulis absensi. Ulangi dengan konfirmasi (force=1) untuk menghapus + revert otomatis.', null, null, 409);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             if ($wasApproved) {
                 $start = strtotime((string) $permit->tgl_mulai);
@@ -6488,7 +6674,9 @@ public function notifikasiStatus()
                         ->where('user_id', $permit->user_id)
                         ->where('tgl', $date)
                         ->first();
-                    if (!$row) continue;
+                    if (! $row) {
+                        continue;
+                    }
 
                     // Penentuan "baris ini milik pengajuan ini".
                     //
@@ -6501,11 +6689,12 @@ public function notifikasiStatus()
                     // dibuat untuk perbaiki.
                     if (! AttendanceModel::apakahMilikIzin($row, (int) $id, $permitStatus)) {
                         $kept++;
+
                         continue;
                     }
 
                     $db->table('absensi_harian')->where('id', $row->id)->delete();
-                    if (\Illuminate\Support\Facades\Schema::hasTable('absensi_poin_history')) {
+                    if (Schema::hasTable('absensi_poin_history')) {
                         $db->table('absensi_poin_history')->where('absensi_id', $row->id)->delete();
                     }
                     // Poin yang menempel pada baris yang baru dihapus ikut
@@ -6515,31 +6704,31 @@ public function notifikasiStatus()
                     $db->table('poin_history')
                         ->where('user_id', (int) $permit->user_id)
                         ->whereIn('ref_id', [
-                            'att-' . $row->id,
-                            'att-' . $row->id . '-out',
-                            'att-' . $row->id . '-daily',
+                            'att-'.$row->id,
+                            'att-'.$row->id.'-out',
+                            'att-'.$row->id.'-daily',
                         ])->delete();
                     $poinYatimDihapus += 1;
                     $reverted++;
                 }
 
                 if ($poinYatimDihapus > 0) {
-                    (new \App\Models\PoinHistoryModel())->updateTotalPoin((int) $permit->user_id);
+                    (new PoinHistoryModel)->updateTotalPoin((int) $permit->user_id);
                 }
             }
 
             // If file exists, delete it
-            if (!empty($permit->bukti)) {
+            if (! empty($permit->bukti)) {
                 $bFile = basename((string) $permit->bukti);
-                if (file_exists(public_path() . '/' . 'uploads/izin/' . $bFile)) {
-                    @unlink(public_path() . '/' . 'uploads/izin/' . $bFile);
-                } elseif (file_exists(public_path() . '/' . ltrim((string) $permit->bukti, '/'))) {
-                    @unlink(public_path() . '/' . ltrim((string) $permit->bukti, '/'));
+                if (file_exists(public_path().'/'.'uploads/izin/'.$bFile)) {
+                    @unlink(public_path().'/'.'uploads/izin/'.$bFile);
+                } elseif (file_exists(public_path().'/'.ltrim((string) $permit->bukti, '/'))) {
+                    @unlink(public_path().'/'.ltrim((string) $permit->bukti, '/'));
                 }
             }
 
             $db->table('absensi_izin')->where('id', $id)->delete();
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Hapus HADIR bisa melahirkan alpha (atau hapus ALPHA bisa
             // menggugurkan surat): sinkronkan surat per bulan tersentuh.
@@ -6549,23 +6738,25 @@ public function notifikasiStatus()
                     $thnDel = (int) date('Y', $start);
                     $blnDel2 = (int) date('n', $end);
                     $thnDel2 = (int) date('Y', $end);
-                    $svcDel = new \App\Services\AttendancePenaltyService();
+                    $svcDel = new AttendancePenaltyService;
                     $setDel = $this->getSettingRow();
                     $svcDel->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnDel, $thnDel, $setDel);
                     if ($blnDel !== $blnDel2 || $thnDel !== $thnDel2) {
                         $svcDel->syncSuratTeguranOnAttendanceChange((int) $permit->user_id, $blnDel2, $thnDel2, $setDel);
                     }
-                } catch (\Throwable $exSync) {}
+                } catch (\Throwable $exSync) {
+                }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Delete permit gagal: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Delete permit gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menghapus izin.', null, null, 500);
         }
 
         // AUDIT LOG
         try {
-            (new AuditLogModel())->log(
+            (new AuditLogModel)->log(
                 'absensi_izin',
                 $id,
                 'DELETE',
@@ -6576,39 +6767,39 @@ public function notifikasiStatus()
                 'Izin Dihapus Admin'
             );
         } catch (\Throwable $ex) {
-            Log::error('Failed to create audit log: ' . $ex->getMessage());
+            Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
         $msg = 'Data pengajuan izin berhasil dihapus';
         if ($wasApproved) {
-            $msg .= " ({$reverted} baris absensi otomatis direvert" . ($kept ? ", {$kept} baris berisi check-in nyata dibiarkan" : '') . ')';
+            $msg .= " ({$reverted} baris absensi otomatis direvert".($kept ? ", {$kept} baris berisi check-in nyata dibiarkan" : '').')';
         }
 
         return $this->respond(true, $msg);
     }
-
 
     /**
      * Holiday Management (Hari Libur)
      */
     public function holidays()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $this->patchAbsensiLiburTable();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $holidays = $db->table('absensi_hari_libur')->orderBy('tanggal', 'DESC')->get();
 
         // Get setting & active year/semester
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         return view('admin.presensi.holidays', [
             'title' => 'Hari Libur Absensi',
@@ -6617,16 +6808,17 @@ public function notifikasiStatus()
             'tp_active' => $tp_active,
             'smt_active' => $smt_active,
             'user' => $this->getUser(),
-            'holidays' => $holidays
+            'holidays' => $holidays,
         ]);
     }
 
     public function saveHoliday()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $id = $this->request->input('id');
         $isRange = $this->request->input('is_range') == '1';
         $keterangan = trim($this->request->input('keterangan') ?? '');
@@ -6642,8 +6834,9 @@ public function notifikasiStatus()
             }
             $db->table('absensi_hari_libur')->where('id', $id)->update([
                 'tanggal' => $tanggal,
-                'keterangan' => $keterangan
+                'keterangan' => $keterangan,
             ]);
+
             return $this->respond(true, 'Data hari libur berhasil diperbarui');
         }
 
@@ -6670,12 +6863,12 @@ public function notifikasiStatus()
                 if ($exists == 0) {
                     $db->table('absensi_hari_libur')->insert([
                         'tanggal' => $curDate,
-                        'keterangan' => $keterangan
+                        'keterangan' => $keterangan,
                     ]);
                     $inserted++;
                 } else {
                     $db->table('absensi_hari_libur')->where('tanggal', $curDate)->update([
-                        'keterangan' => $keterangan
+                        'keterangan' => $keterangan,
                     ]);
                     $inserted++;
                 }
@@ -6692,12 +6885,12 @@ public function notifikasiStatus()
             $exists = $db->table('absensi_hari_libur')->where('tanggal', $tanggal)->count();
             if ($exists > 0) {
                 $db->table('absensi_hari_libur')->where('tanggal', $tanggal)->update([
-                    'keterangan' => $keterangan
+                    'keterangan' => $keterangan,
                 ]);
             } else {
                 $db->table('absensi_hari_libur')->insert([
                     'tanggal' => $tanggal,
-                    'keterangan' => $keterangan
+                    'keterangan' => $keterangan,
                 ]);
             }
 
@@ -6707,11 +6900,12 @@ public function notifikasiStatus()
 
     public function deleteHoliday()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
+        }
 
         $id = $this->request->input('id');
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $db->table('absensi_hari_libur')->where('id', $id)->delete();
 
         return $this->respond(true, 'Data hari libur berhasil dihapus');
@@ -6719,18 +6913,18 @@ public function notifikasiStatus()
 
     public function syncHolidays()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         // '0' dan '' sama-sama falsy: pakai ?: membuat year=0 diam-diam jatuh ke
         // tahun ini lalu menarik data dari internet.
         $tahunDiminta = trim((string) ($this->request->input('year') ?? ''));
-        $year         = $tahunDiminta === '' ? (int) date('Y') : (int) $tahunDiminta;
-        $tahunMin     = (int) date('Y') - 1;
-        $tahunMaks    = (int) date('Y') + 5;
+        $year = $tahunDiminta === '' ? (int) date('Y') : (int) $tahunDiminta;
+        $tahunMin = (int) date('Y') - 1;
+        $tahunMaks = (int) date('Y') + 5;
         if ($year < $tahunMin || $year > $tahunMaks) {
-            return $this->respond(false, 'Tahun tidak valid. Pilih antara ' . $tahunMin . ' dan ' . $tahunMaks . '.');
+            return $this->respond(false, 'Tahun tidak valid. Pilih antara '.$tahunMin.' dan '.$tahunMaks.'.');
         }
 
         $json = null;
@@ -6738,7 +6932,7 @@ public function notifikasiStatus()
         // Try primary API
         $apis = [
             "https://dayoffapi.vercel.app/api?year={$year}",
-            "https://api-harilibur.vercel.app/api?year={$year}"
+            "https://api-harilibur.vercel.app/api?year={$year}",
         ];
 
         foreach ($apis as $apiUrl) {
@@ -6752,56 +6946,58 @@ public function notifikasiStatus()
                     }
                 }
             } catch (\Throwable $e) {
-                Log::warning("Failed fetching from {$apiUrl}: " . $e->getMessage());
+                Log::warning("Failed fetching from {$apiUrl}: ".$e->getMessage());
             }
         }
 
-        if (empty($json) || !is_array($json)) {
+        if (empty($json) || ! is_array($json)) {
             return $this->respond(false, "Gagal mengambil data hari libur nasional untuk tahun {$year}. Pastikan koneksi internet server aktif.");
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            $db = DB::connection();
+            DB::beginTransaction();
 
-            $addedCount   = 0;
+            $addedCount = 0;
             $updatedCount = 0;
-            $dilewati     = 0;
+            $dilewati = 0;
 
             foreach ($json as $holiday) {
-                if (!is_object($holiday) && !is_array($holiday)) {
+                if (! is_object($holiday) && ! is_array($holiday)) {
                     $dilewati++;
+
                     continue;
                 }
                 $item = (array) $holiday;
 
                 // Support variations in field names across API versions
-                $tanggal    = trim((string) ($item['tanggal'] ?? $item['holiday_date'] ?? ''));
+                $tanggal = trim((string) ($item['tanggal'] ?? $item['holiday_date'] ?? ''));
                 $keterangan = trim((string) ($item['keterangan'] ?? $item['holiday_name'] ?? ''));
-                $isCuti     = !empty($item['is_cuti']);
+                $isCuti = ! empty($item['is_cuti']);
 
                 // Payload API pihak ketiga bukan sumber terpercaya: kolomnya
                 // DATE NOT NULL + VARCHAR(255), jadi bentuknya wajib benar dan
                 // tahunnya harus sama dengan yang diminta.
                 if ($tanggal === '' || $keterangan === ''
-                    || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $tanggal, $m)
-                    || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])
+                    || ! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $tanggal, $m)
+                    || ! checkdate((int) $m[2], (int) $m[3], (int) $m[1])
                     || (int) $m[1] !== $year) {
                     $dilewati++;
+
                     continue;
                 }
 
                 $keterangan = trim(preg_replace('/\s+/u', ' ', $keterangan));
-                $ketFinal   = $keterangan . ($isCuti && stripos($keterangan, 'cuti') === false ? ' (Cuti Bersama)' : '');
-                $ketFinal   = substr($ketFinal, 0, 255);
+                $ketFinal = $keterangan.($isCuti && stripos($keterangan, 'cuti') === false ? ' (Cuti Bersama)' : '');
+                $ketFinal = substr($ketFinal, 0, 255);
 
                 $existing = $db->table('absensi_hari_libur')
                     ->where('tanggal', $tanggal)
-                    ->get()->map(fn($r) => (array) $r)->first();
+                    ->get()->map(fn ($r) => (array) $r)->first();
 
-                if (!$existing) {
+                if (! $existing) {
                     $tertulis = $db->table('absensi_hari_libur')->insert([
-                        'tanggal'    => $tanggal,
+                        'tanggal' => $tanggal,
                         'keterangan' => $ketFinal,
                     ]);
                 } else {
@@ -6812,7 +7008,8 @@ public function notifikasiStatus()
 
                 if ($tertulis === false) {
                     $dilewati++;
-                    Log::error('[syncHolidays] simpan ' . $tanggal . ' gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                    Log::error('[syncHolidays] simpan '.$tanggal.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+
                     continue;
                 }
 
@@ -6824,13 +7021,15 @@ public function notifikasiStatus()
             }
 
             if ($addedCount + $updatedCount === 0) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, "Tidak ada hari libur tahun {$year} yang bisa disimpan dari sumber. {$dilewati} entri dilewati.");
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
             if (true === false) {
-                Log::error('[syncHolidays] transCommit gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                Log::error('[syncHolidays] transCommit gagal: '.json_encode(['code' => 0, 'message' => '']));
+
                 return $this->respond(false, 'Penyimpanan data hari libur gagal, perubahan dibatalkan.');
             }
 
@@ -6842,17 +7041,18 @@ public function notifikasiStatus()
             return $this->respond($dilewati === 0, $msg);
         } catch (\Throwable $e) {
             if (isset($db)) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
             }
-            Log::error('[syncHolidays] ' . $e->getMessage() . ' @ ' . $e->file() . ':' . $e->getLine());
+            Log::error('[syncHolidays] '.$e->getMessage().' @ '.$e->file().':'.$e->getLine());
+
             return $this->respond(false, 'Terjadi kesalahan saat menyimpan data hari libur. Detail ada di log aplikasi.');
         }
     }
 
     private function getAlphaCounts($bulan, $tahun, $userId = null)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        
+        $db = DB::connection();
+
         // Handle input format
         if (strpos($bulan, '-') !== false) {
             // Already YYYY-MM
@@ -6861,30 +7061,30 @@ public function notifikasiStatus()
             $bulanStr = str_pad($bulan, 2, '0', STR_PAD_LEFT);
             $period = "{$tahun}-{$bulanStr}";
         }
-        
-        $userFilter = "";
+
+        $userFilter = '';
         if ($userId) {
-            $userFilter = "AND u.id = " . (int)$userId;
+            $userFilter = 'AND u.id = '.(int) $userId;
         }
 
         // Hari libur mingguan dari AttendancePolicy (absensi_setting, nama hari
         // ternormalisasi) — bukan dari tabel `setting` yang tidak punya kolom itu.
         $dayMap = ['Sun' => 1, 'Mon' => 2, 'Tue' => 3, 'Wed' => 4, 'Thu' => 5, 'Fri' => 6, 'Sat' => 7];
         $liburDays = [];
-        foreach (\App\Services\AttendancePolicy::hariLiburMingguan() as $dName) {
+        foreach (AttendancePolicy::hariLiburMingguan() as $dName) {
             if (isset($dayMap[$dName])) {
                 $liburDays[] = $dayMap[$dName];
             }
         }
         // 1 = "tidak pernah libur mingguan", supaya NOT (...) selalu benar.
-        $liburQuery = $liburDays ? 'DAYOFWEEK(d.date) IN (' . implode(',', $liburDays) . ')' : '1 = 0';
+        $liburQuery = $liburDays ? 'DAYOFWEEK(d.date) IN ('.implode(',', $liburDays).')' : '1 = 0';
 
         // Exclude jadwal libur & approved leave (isi_libur & izin sah tidak dihitung alpha)
-        $hasJadwalTable = \Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja');
-        $hasIzinTable   = \Illuminate\Support\Facades\Schema::hasTable('absensi_izin');
-        $jadwalJoin = $hasJadwalTable ? "LEFT JOIN absensi_jadwal_kerja jk ON jk.hari = CASE WHEN DAYOFWEEK(calendar.date)=1 THEN 7 ELSE DAYOFWEEK(calendar.date)-1 END" : "";
-        $jadwalWhere = $hasJadwalTable ? "AND (jk.is_libur IS NULL OR jk.is_libur = 0)" : "";
-        $izinWhere = $hasIzinTable ? "AND NOT EXISTS (SELECT 1 FROM absensi_izin iz WHERE iz.user_id = calendar.user_id AND iz.status='approved' AND iz.tgl_mulai <= calendar.date AND iz.tgl_selesai >= calendar.date)" : "";
+        $hasJadwalTable = Schema::hasTable('absensi_jadwal_kerja');
+        $hasIzinTable = Schema::hasTable('absensi_izin');
+        $jadwalJoin = $hasJadwalTable ? 'LEFT JOIN absensi_jadwal_kerja jk ON jk.hari = CASE WHEN DAYOFWEEK(calendar.date)=1 THEN 7 ELSE DAYOFWEEK(calendar.date)-1 END' : '';
+        $jadwalWhere = $hasJadwalTable ? 'AND (jk.is_libur IS NULL OR jk.is_libur = 0)' : '';
+        $izinWhere = $hasIzinTable ? "AND NOT EXISTS (SELECT 1 FROM absensi_izin iz WHERE iz.user_id = calendar.user_id AND iz.status='approved' AND iz.tgl_mulai <= calendar.date AND iz.tgl_selesai >= calendar.date)" : '';
 
         $sql = "
             SELECT calendar.user_id, COUNT(*) as count 
@@ -6902,7 +7102,7 @@ public function notifikasiStatus()
                 JOIN users_groups ug ON ug.user_id = u.id AND ug.group_id = 2
                 WHERE d.date BETWEEN '{$period}-01' AND LAST_DAY('{$period}-01')
                 AND u.active = 1
-                AND d.date <= '" . \App\Services\AttendancePolicy::hariIniWita() . "'
+                AND d.date <= '".AttendancePolicy::hariIniWita()."'
                 AND NOT ({$liburQuery})
                 {$userFilter}
             ) calendar
@@ -6918,7 +7118,7 @@ public function notifikasiStatus()
         } catch (\Throwable $e) {
             $alphaRaw = [];
         }
-        
+
         $alphaMap = [];
         foreach ($alphaRaw as $a) {
             $alphaMap[$a->user_id] = $a->count;
@@ -6927,12 +7127,13 @@ public function notifikasiStatus()
         if ($userId) {
             return $alphaMap[$userId] ?? 0;
         }
+
         return $alphaMap;
     }
 
     private function getYTDDendaStats($tahun)
     {
-        return (new \App\Services\RekapPdfService())->getYTDDendaStats($tahun);
+        return (new RekapPdfService)->getYTDDendaStats($tahun);
     }
 
     /**
@@ -6946,8 +7147,9 @@ public function notifikasiStatus()
     {
         $s = trim((string) ($input ?? ''));
         if (preg_match('/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/', $s, $m)) {
-            return $m[1] . ':' . $m[2] . ':' . ($m[4] ?? '00');
+            return $m[1].':'.$m[2].':'.($m[4] ?? '00');
         }
+
         return $fallback;
     }
 
@@ -6992,6 +7194,7 @@ public function notifikasiStatus()
     private function normalizeWaModeInput(): string
     {
         $mode = strtolower(trim((string) ($this->request->input('wa_gateway_mode') ?? '')));
+
         return in_array($mode, ['off', 'openwa', 'fonnte'], true) ? $mode : 'off';
     }
 
@@ -7004,34 +7207,34 @@ public function notifikasiStatus()
      */
     private function flushOpenwaCache(): void
     {
-        (new \App\Services\OpenWAService())->flushCache();
+        (new OpenWAService)->flushCache();
     }
 
     private function syncWeeklyHolidayFromJadwal($db): void
     {
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (! Schema::hasTable('absensi_jadwal_kerja')) {
                 return;
             }
             $isoDariNama = ['Mon' => 1, 'Tue' => 2, 'Wed' => 3, 'Thu' => 4, 'Fri' => 5, 'Sat' => 6, 'Sun' => 7];
             $jadwal = [];
-            foreach ($db->table('absensi_jadwal_kerja')->select('hari, is_libur')->get() as $r) {
+            foreach ($db->table('absensi_jadwal_kerja')->select('hari', 'is_libur')->get() as $r) {
                 $jadwal[(int) $r->hari] = ((int) $r->is_libur === 1);
             }
             $turunan = [];
             foreach ($isoDariNama as $nama => $iso) {
-                if (!empty($jadwal[$iso])) {
+                if (! empty($jadwal[$iso])) {
                     $turunan[] = $nama;
                 }
             }
             $csv = implode(',', $turunan);
             foreach (['absensi_setting', 'pengaturan'] as $tabel) {
-                if (\Illuminate\Support\Facades\Schema::hasTable($tabel) && \Illuminate\Support\Facades\Schema::hasColumn($tabel, 'hari_libur_mingguan')) {
+                if (Schema::hasTable($tabel) && Schema::hasColumn($tabel, 'hari_libur_mingguan')) {
                     $db->table($tabel)->where('id', 1)->update(['hari_libur_mingguan' => $csv]);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::syncWeeklyHolidayFromJadwal] ' . $e->getMessage());
+            Log::error('[PresensiAdmin::syncWeeklyHolidayFromJadwal] '.$e->getMessage());
         }
     }
 
@@ -7040,22 +7243,22 @@ public function notifikasiStatus()
      */
     public function shiftPage()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $shifts = $db->table('absensi_shift')->orderBy('jam_masuk', 'ASC')->get();
         $anggota = [];
         $counts = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_shift_anggota')) {
+        if (Schema::hasTable('absensi_shift_anggota')) {
             $rows = $db->table('absensi_shift_anggota as a')
-                ->select('a.*, s.nama as shift_nama, COALESCE(g.nama_guru, u.username) as nama_guru')
-                ->join('absensi_shift as s', 's.id = a.shift_id')
-                ->join('users as u', 'u.id = a.user_id', 'left')
-                ->join('master_guru as g', 'g.id_user = u.id', 'left')
+                ->select('a.*', 's.nama as shift_nama')->selectRaw('COALESCE(g.nama_guru, u.username) as nama_guru')
+                ->join('absensi_shift as s', 's.id', '=', 'a.shift_id')
+                ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+                ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
                 ->orderBy('s.jam_masuk', 'ASC')
                 ->orderBy('nama_guru', 'ASC')
                 ->get();
@@ -7066,11 +7269,11 @@ public function notifikasiStatus()
         }
 
         $guruList = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('users_groups')) {
+        if (Schema::hasTable('users_groups')) {
             $guruList = $db->table('users as u')
-                ->select('u.id, COALESCE(g.nama_guru, u.username) as nama')
-                ->join('master_guru as g', 'g.id_user = u.id', 'left')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->select('u.id')->selectRaw('COALESCE(g.nama_guru, u.username) as nama')
+                ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
                 ->orderBy('nama', 'ASC')
@@ -7083,8 +7286,8 @@ public function notifikasiStatus()
             'title' => 'Shift Kerja Guru',
             'judul' => 'Shift Kerja Guru',
             'setting' => $appSetting ?: (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'],
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
             'user' => $this->getUser(),
             'shifts' => $shifts,
             'anggota' => $anggota,
@@ -7095,11 +7298,11 @@ public function notifikasiStatus()
 
     public function saveShift()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $id = (int) ($this->request->input('id') ?? 0);
         $nama = trim((string) ($this->request->input('nama') ?? ''));
@@ -7111,27 +7314,27 @@ public function notifikasiStatus()
             return $this->respond(false, 'Nama shift wajib diisi (maks 100 karakter).');
         }
         // Cegah nama shift kembar (case-insensitive, abaikan diri sendiri saat edit).
-        $dupSql = 'SELECT COUNT(*) AS c FROM `absensi_shift` WHERE LOWER(nama) = ?' . ($id > 0 ? ' AND id != ?' : '');
+        $dupSql = 'SELECT COUNT(*) AS c FROM `absensi_shift` WHERE LOWER(nama) = ?'.($id > 0 ? ' AND id != ?' : '');
         $dupParams = $id > 0 ? [strtolower($nama), $id] : [strtolower($nama)];
         $dupCount = (int) $db->select($dupSql, $dupParams)[0] ?? null->c;
         if ($dupCount > 0) {
-            return $this->respond(false, 'Nama shift "' . $nama . '" sudah dipakai. Gunakan nama lain.');
+            return $this->respond(false, 'Nama shift "'.$nama.'" sudah dipakai. Gunakan nama lain.');
         }
         foreach (['jam_masuk' => $jamMasuk, 'jam_pulang' => $jamPulang] as $label => $val) {
-            if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $val)) {
+            if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $val)) {
                 return $this->respond(false, "Format $label tidak valid (HH:MM).");
             }
         }
         // Shift malam/overnight belum didukung threshold (jam_pulang harus >
         // jam_masuk di hari yang sama; dulu: lolos lalu merusak status).
-        $masukLen = strlen($jamMasuk) === 5 ? $jamMasuk . ':00' : $jamMasuk;
-        $pulangLen = strlen($jamPulang) === 5 ? $jamPulang . ':00' : $jamPulang;
+        $masukLen = strlen($jamMasuk) === 5 ? $jamMasuk.':00' : $jamMasuk;
+        $pulangLen = strlen($jamPulang) === 5 ? $jamPulang.':00' : $jamPulang;
         if (strtotime($pulangLen) <= strtotime($masukLen)) {
             return $this->respond(false, 'Jam pulang harus setelah jam masuk (shift overnight belum didukung).');
         }
         $grace = null;
         if ($graceRaw !== '') {
-            if (!ctype_digit($graceRaw) || (int) $graceRaw > 120) {
+            if (! ctype_digit($graceRaw) || (int) $graceRaw > 120) {
                 return $this->respond(false, 'Toleransi 0–120 menit, atau kosongkan untuk ikut global.');
             }
             $grace = (int) $graceRaw;
@@ -7147,14 +7350,14 @@ public function notifikasiStatus()
 
         if ($id > 0) {
             $exists = $db->table('absensi_shift')->where('id', $id)->first();
-            if (!$exists) {
+            if (! $exists) {
                 return $this->respond(false, 'Shift tidak ditemukan.');
             }
             $db->table('absensi_shift')->where('id', $id)->update($data);
         } else {
             $data['created_at'] = date('Y-m-d H:i:s');
             $db->table('absensi_shift')->insert($data);
-            $id = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+            $id = DB::getPdo()->lastInsertId();
         }
 
         return $this->respond(true, 'Shift berhasil disimpan', ['id' => $id]);
@@ -7162,44 +7365,48 @@ public function notifikasiStatus()
 
     public function deleteShift()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $id = (int) ($this->request->input('id') ?? 0);
         if ($id <= 0) {
             return $this->respond(false, 'ID shift tidak valid.');
         }
 
         $shift = $db->table('absensi_shift')->where('id', $id)->first();
-        if (!$shift) {
+        if (! $shift) {
             return $this->respond(false, 'Shift tidak ditemukan.');
         }
         $memberCount = $db->table('absensi_shift_anggota')->where('shift_id', $id)->count();
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $db->table('absensi_shift_anggota')->where('shift_id', $id)->delete();
             $db->table('absensi_shift')->where('id', $id)->delete();
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, 'Gagal menghapus shift.', null, null, 500);
         }
 
-        $msg = 'Shift "' . ($shift->nama ?? '') . '" dihapus';
-        if ($memberCount > 0) $msg .= " beserta {$memberCount} penugasannya";
-        return $this->respond(true, $msg . '.');
+        $msg = 'Shift "'.($shift->nama ?? '').'" dihapus';
+        if ($memberCount > 0) {
+            $msg .= " beserta {$memberCount} penugasannya";
+        }
+
+        return $this->respond(true, $msg.'.');
     }
 
     public function assignShift()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $shiftId = (int) ($this->request->input('shift_id') ?? 0);
         $userId = (int) ($this->request->input('user_id') ?? 0);
@@ -7212,18 +7419,18 @@ public function notifikasiStatus()
             return $this->respond(false, 'Hari tidak valid (0=semua hari, 1–7=Senin–Minggu).');
         }
         $shift = $db->table('absensi_shift')->where('id', $shiftId)->where('active', 1)->first();
-        if (!$shift) {
+        if (! $shift) {
             return $this->respond(false, 'Shift tidak ditemukan / nonaktif.');
         }
         $user = $db->table('users')->where('id', $userId)->first();
-        if (!$user) {
+        if (! $user) {
             return $this->respond(false, 'User tidak ditemukan.');
         }
         // Hanya guru (group 2) yang memakai jadwal shift; dropdown sudah
         // memfilter, tapi POST mentah bisa membawa user lain.
-        if (\Illuminate\Support\Facades\Schema::hasTable('users_groups')) {
+        if (Schema::hasTable('users_groups')) {
             $isGuru = $db->table('users_groups')->where('user_id', $userId)->where('group_id', 2)->count() > 0;
-            if (!$isGuru) {
+            if (! $isGuru) {
                 return $this->respond(false, 'Hanya guru yang bisa ditugaskan ke shift.');
             }
         }
@@ -7242,7 +7449,8 @@ public function notifikasiStatus()
         )[0] ?? null;
         if ($conflict) {
             $namaHari = [0 => 'semua hari', 1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
-            $hariTxt = $namaHari[$hari] ?? ('hari ' . $hari);
+            $hariTxt = $namaHari[$hari] ?? ('hari '.$hari);
+
             return $this->respond(false, "Bentrok dengan shift \"{$conflict->nama}\" untuk {$hariTxt}. Lepaskan dulu penugasan lama.");
         }
 
@@ -7266,17 +7474,17 @@ public function notifikasiStatus()
 
     public function unassignShift()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $id = (int) ($this->request->input('id') ?? 0);
         if ($id <= 0) {
             return $this->respond(false, 'ID penugasan tidak valid.');
         }
         $exists = $db->table('absensi_shift_anggota')->where('id', $id)->first();
-        if (!$exists) {
+        if (! $exists) {
             return $this->respond(false, 'Penugasan shift tidak ditemukan.');
         }
         $db->table('absensi_shift_anggota')->where('id', $id)->delete();
@@ -7289,18 +7497,18 @@ public function notifikasiStatus()
      */
     public function toggleShift()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $id = (int) ($this->request->input('id') ?? 0);
         $active = $this->request->input('active') ? 1 : 0;
         if ($id <= 0) {
             return $this->respond(false, 'ID shift tidak valid.');
         }
         $exists = $db->table('absensi_shift')->where('id', $id)->first();
-        if (!$exists) {
+        if (! $exists) {
             return $this->respond(false, 'Shift tidak ditemukan.');
         }
         $db->table('absensi_shift')->where('id', $id)->update([
@@ -7313,10 +7521,10 @@ public function notifikasiStatus()
 
     private function patchAbsensiShiftTables()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_shift')) {
+        if (! Schema::hasTable('absensi_shift')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'nama' => ['type' => 'VARCHAR', 'constraint' => 100],
@@ -7342,16 +7550,16 @@ public function notifikasiStatus()
                 'updated_at' => ['type' => 'DATETIME', 'null' => true],
             ];
             foreach ($shiftCols as $col => $def) {
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_shift', $col)) {
+                if (! Schema::hasColumn('absensi_shift', $col)) {
                     try {
                         $forge->addColumn('absensi_shift', [$col => $def]);
                     } catch (\Throwable $e) {
-                        Log::error("patch absensi_shift.$col gagal: " . $e->getMessage());
+                        Log::error("patch absensi_shift.$col gagal: ".$e->getMessage());
                     }
                 }
             }
         }
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_shift_anggota')) {
+        if (! Schema::hasTable('absensi_shift_anggota')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'shift_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -7366,15 +7574,15 @@ public function notifikasiStatus()
         } else {
             // Pastikan unique key pencegah double-assign ada di tabel lama
             try {
-                $hasUq = $db->select("SHOW INDEX FROM `absensi_shift_anggota` WHERE Key_name = 'user_id'")->count() > 0
-                    || $db->select("SHOW INDEX FROM `absensi_shift_anggota` WHERE Non_unique = 0 AND Column_name = 'user_id'")->count() > 0;
-                if (!$hasUq) {
+                $hasUq = count($db->select("SHOW INDEX FROM `absensi_shift_anggota` WHERE Key_name = 'user_id'")) > 0
+                    || count($db->select("SHOW INDEX FROM `absensi_shift_anggota` WHERE Non_unique = 0 AND Column_name = 'user_id'")) > 0;
+                if (! $hasUq) {
                     // Bersihkan duplikat dulu agar ADD UNIQUE tidak gagal
-                    $db->select('DELETE a FROM `absensi_shift_anggota` a INNER JOIN `absensi_shift_anggota` b ON a.user_id = b.user_id AND a.hari = b.hari AND a.shift_id = b.shift_id AND a.id > b.id');
-                    $db->select('ALTER TABLE `absensi_shift_anggota` ADD UNIQUE KEY `user_id` (user_id, hari, shift_id)');
+                    $db->statement('DELETE a FROM `absensi_shift_anggota` a INNER JOIN `absensi_shift_anggota` b ON a.user_id = b.user_id AND a.hari = b.hari AND a.shift_id = b.shift_id AND a.id > b.id');
+                    $db->statement('ALTER TABLE `absensi_shift_anggota` ADD UNIQUE KEY `user_id` (user_id, hari, shift_id)');
                 }
             } catch (\Throwable $e) {
-                Log::error('patch unique absensi_shift_anggota gagal: ' . $e->getMessage());
+                Log::error('patch unique absensi_shift_anggota gagal: '.$e->getMessage());
             }
         }
     }
@@ -7386,122 +7594,122 @@ public function notifikasiStatus()
     private function patchSettingNomorTable()
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('setting')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('setting')) {
                 return;
             }
 
             $wanted = [
-                'kode_sekolah' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true, 'default' => \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH],
-                'surat_teguran_format' => ['type' => 'VARCHAR', 'constraint' => 120, 'null' => true, 'default' => \App\Libraries\SuratNomor::DEFAULT_FORMAT],
-                'surat_teguran_padding' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => true, 'default' => \App\Libraries\SuratNomor::DEFAULT_PADDING],
+                'kode_sekolah' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true, 'default' => SuratNomor::DEFAULT_KODE_SEKOLAH],
+                'surat_teguran_format' => ['type' => 'VARCHAR', 'constraint' => 120, 'null' => true, 'default' => SuratNomor::DEFAULT_FORMAT],
+                'surat_teguran_padding' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => true, 'default' => SuratNomor::DEFAULT_PADDING],
             ];
 
             $add = [];
             foreach ($wanted as $col => $def) {
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('setting', $col)) {
+                if (! Schema::hasColumn('setting', $col)) {
                     $add[$col] = $def;
                 }
             }
             if ($add !== []) {
-                (new \App\Http\Controllers\CiForge())->addColumn('setting', $add);
+                (new CiForge)->addColumn('setting', $add);
             }
 
-            \App\Libraries\SuratNomor::flushCache();
+            SuratNomor::flushCache();
         } catch (\Throwable $e) {
-            Log::error('patchSettingNomorTable gagal: ' . $e->getMessage());
+            Log::error('patchSettingNomorTable gagal: '.$e->getMessage());
         }
     }
 
     private function patchAbsensiSettingTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Skip if table doesn't exist yet
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+        if (! Schema::hasTable('absensi_setting')) {
             return;
         }
 
-        $forge = (new \App\Http\Controllers\CiForge());
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'foto_wajib')) {
+        if (! Schema::hasColumn('absensi_setting', 'foto_wajib')) {
             $forge->addColumn('absensi_setting', [
                 'foto_wajib' => [
                     'type' => 'TINYINT',
                     'constraint' => 1,
                     'default' => 1,
                     'null' => true,
-                    'after' => 'radius_meter'
-                ]
+                    'after' => 'radius_meter',
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'libur_kalender')) {
+        if (! Schema::hasColumn('absensi_setting', 'libur_kalender')) {
             $forge->addColumn('absensi_setting', [
                 'libur_kalender' => [
                     'type' => 'TINYINT',
                     'constraint' => 1,
                     'default' => 1,
                     'null' => true,
-                    'after' => 'radius_meter'
-                ]
+                    'after' => 'radius_meter',
+                ],
             ]);
         }
 
         // Kolom resmi hari libur mingguan (dulu: dibaca di mana-mana tapi tidak
         // pernah ada di skema/allowedFields → selalu fallback 'Sun').
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'hari_libur_mingguan')) {
+        if (! Schema::hasColumn('absensi_setting', 'hari_libur_mingguan')) {
             $forge->addColumn('absensi_setting', [
                 'hari_libur_mingguan' => [
                     'type' => 'VARCHAR',
                     'constraint' => 32,
                     'default' => 'Sun',
                     'null' => true,
-                ]
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'updated_at')) {
+        if (! Schema::hasColumn('absensi_setting', 'updated_at')) {
             $forge->addColumn('absensi_setting', [
                 'updated_at' => [
                     'type' => 'DATETIME',
                     'null' => true,
-                ]
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_telat')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_telat')) {
             $forge->addColumn('absensi_setting', [
                 'point_telat' => ['type' => 'INT', 'constraint' => 11, 'default' => 1],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_alpa')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_alpa')) {
             $forge->addColumn('absensi_setting', [
                 'point_alpa' => ['type' => 'INT', 'constraint' => 11, 'default' => 5],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_per_point')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_per_point')) {
             $forge->addColumn('absensi_setting', [
                 'denda_per_point' => ['type' => 'DECIMAL', 'constraint' => '10,2', 'default' => 1000],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'max_denda_bulan')) {
+        if (! Schema::hasColumn('absensi_setting', 'max_denda_bulan')) {
             $forge->addColumn('absensi_setting', [
-                'max_denda_bulan' => ['type' => 'DECIMAL', 'constraint' => '10,2', 'default' => 50000]
+                'max_denda_bulan' => ['type' => 'DECIMAL', 'constraint' => '10,2', 'default' => 50000],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'grace_period')) {
+        if (! Schema::hasColumn('absensi_setting', 'grace_period')) {
             $forge->addColumn('absensi_setting', [
-                'grace_period' => ['type' => 'INT', 'constraint' => 11, 'default' => 15, 'null' => true]
+                'grace_period' => ['type' => 'INT', 'constraint' => 11, 'default' => 15, 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_pulang_awal')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_pulang_awal')) {
             $forge->addColumn('absensi_setting', [
-                'point_pulang_awal' => ['type' => 'INT', 'constraint' => 11, 'default' => 1, 'null' => true]
+                'point_pulang_awal' => ['type' => 'INT', 'constraint' => 11, 'default' => 1, 'null' => true],
             ]);
         }
 
@@ -7510,23 +7718,23 @@ public function notifikasiStatus()
         // NULL berarti cron belum pernah berjalan sejak fitur ini ada, jadi
         // ia memasang dirinya pada tanggal hari itu alih-alih memotong
         // seluruh hari yang historisnya sudah terbuka.
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_lupa_pulang')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_lupa_pulang')) {
             $forge->addColumn('absensi_setting', [
-                'point_lupa_pulang'    => ['type' => 'INT', 'constraint' => 11, 'default' => 5, 'null' => true],
+                'point_lupa_pulang' => ['type' => 'INT', 'constraint' => 11, 'default' => 5, 'null' => true],
                 'lupa_pulang_dari_tgl' => ['type' => 'DATE', 'null' => true, 'default' => null],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_hadir')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_hadir')) {
             $forge->addColumn('absensi_setting', [
                 'point_hadir' => ['type' => 'INT', 'constraint' => 11, 'default' => 10, 'null' => true],
-                'point_izin'  => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
+                'point_izin' => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
                 'point_sakit' => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
-                'point_cuti'  => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true]
+                'point_cuti' => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_alpha_per_hari')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_alpha_per_hari')) {
             $forge->addColumn('absensi_setting', [
                 'denda_alpha_per_hari' => ['type' => 'INT', 'constraint' => 11, 'default' => 5000, 'null' => true],
             ]);
@@ -7535,19 +7743,19 @@ public function notifikasiStatus()
         // Denda siswa (migrasi 20261106000000). Default 0 = fitur mati: tarif
         // pada instalasi lama harus tetap nol sampai sekolah sendiri
         // mengisinya, bukan ikut menagih riwayat absensi.
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_alpha_siswa_per_hari')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_alpha_siswa_per_hari')) {
             $forge->addColumn('absensi_setting', [
                 'denda_alpha_siswa_per_hari' => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_bolos_siswa_per_hari')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_bolos_siswa_per_hari')) {
             $forge->addColumn('absensi_setting', [
                 'denda_bolos_siswa_per_hari' => ['type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'max_denda_siswa_bulan')) {
+        if (! Schema::hasColumn('absensi_setting', 'max_denda_siswa_bulan')) {
             $forge->addColumn('absensi_setting', [
                 'max_denda_siswa_bulan' => ['type' => 'DECIMAL', 'constraint' => '10,2', 'default' => 0, 'null' => true],
             ]);
@@ -7556,7 +7764,7 @@ public function notifikasiStatus()
         // DEPRECATED: kolom progresif alpa tidak lagi dipakai (denda kini flat).
         // Blok dibiarkan kosong agar instalasi lama tetap kompatibel tanpa menambah kolom baru.
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_tier_1')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_tier_1')) {
             $forge->addColumn('absensi_setting', [
                 'denda_tier_1' => ['type' => 'INT', 'constraint' => 11, 'default' => 100, 'null' => true],
                 'denda_tier_2' => ['type' => 'INT', 'constraint' => 11, 'default' => 200, 'null' => true],
@@ -7565,83 +7773,83 @@ public function notifikasiStatus()
         }
 
         // Kolom standar SMA: persentase minimum kehadiran dan alert
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'min_kehadiran_persen')) {
+        if (! Schema::hasColumn('absensi_setting', 'min_kehadiran_persen')) {
             $forge->addColumn('absensi_setting', [
-                'min_kehadiran_persen'    => ['type' => 'DECIMAL', 'constraint' => '5,2', 'default' => 90.00, 'null' => true],
+                'min_kehadiran_persen' => ['type' => 'DECIMAL', 'constraint' => '5,2', 'default' => 90.00, 'null' => true],
                 'alert_kehadiran_enabled' => ['type' => 'TINYINT', 'constraint' => 1,     'default' => 1,     'null' => true],
-                'notif_kehadiran_rendah'  => ['type' => 'TINYINT', 'constraint' => 1,     'default' => 1,     'null' => true],
+                'notif_kehadiran_rendah' => ['type' => 'TINYINT', 'constraint' => 1,     'default' => 1,     'null' => true],
             ]);
         }
 
         // WFH settings
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'wfh_enabled')) {
+        if (! Schema::hasColumn('absensi_setting', 'wfh_enabled')) {
             $forge->addColumn('absensi_setting', [
-                'wfh_enabled'       => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 0, 'null' => true],
-                'wfh_mulai'         => ['type' => 'TIME',    'default' => '08:00:00', 'null' => true],
-                'wfh_selesai'       => ['type' => 'TIME',    'default' => '16:00:00', 'null' => true],
+                'wfh_enabled' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 0, 'null' => true],
+                'wfh_mulai' => ['type' => 'TIME',    'default' => '08:00:00', 'null' => true],
+                'wfh_selesai' => ['type' => 'TIME',    'default' => '16:00:00', 'null' => true],
                 'wfh_max_per_bulan' => ['type' => 'INT',     'constraint' => 3, 'default' => 5, 'null' => true],
-                'wfh_wajib_wajah'   => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
+                'wfh_wajib_wajah' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
             ]);
         }
 
         // Syarat jurnal mengajar sebelum absen pulang
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'wajib_jurnal_sebelum_pulang')) {
+        if (! Schema::hasColumn('absensi_setting', 'wajib_jurnal_sebelum_pulang')) {
             $forge->addColumn('absensi_setting', [
                 'wajib_jurnal_sebelum_pulang' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
             ]);
         }
 
         // Jurnal harus sudah divalidasi piket sebelum absen pulang (opt-in)
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'wajib_jurnal_tervalidasi_sebelum_pulang')) {
+        if (! Schema::hasColumn('absensi_setting', 'wajib_jurnal_tervalidasi_sebelum_pulang')) {
             $forge->addColumn('absensi_setting', [
                 'wajib_jurnal_tervalidasi_sebelum_pulang' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 0, 'null' => true],
             ]);
         }
 
         // Telegram & WA notification columns
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'telegram_bot_token')) {
+        if (! Schema::hasColumn('absensi_setting', 'telegram_bot_token')) {
             $forge->addColumn('absensi_setting', [
                 'telegram_bot_token' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
-                'telegram_chat_id'   => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+                'telegram_chat_id' => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
             ]);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'wa_gateway_url')) {
+        if (! Schema::hasColumn('absensi_setting', 'wa_gateway_url')) {
             $forge->addColumn('absensi_setting', [
-                'wa_gateway_url'    => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
-                'wa_token'          => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
-                'wa_target_number'  => ['type' => 'VARCHAR', 'constraint' => 50,  'null' => true],
+                'wa_gateway_url' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+                'wa_token' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+                'wa_target_number' => ['type' => 'VARCHAR', 'constraint' => 50,  'null' => true],
             ]);
         }
 
         // Poin lembur per jam
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_lembur_per_jam')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_lembur_per_jam')) {
             $forge->addColumn('absensi_setting', [
                 'point_lembur_per_jam' => ['type' => 'INT', 'constraint' => 11, 'default' => 5, 'null' => true],
             ]);
         }
 
         // Google OAuth Integration
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'google_client_id')) {
+        if (! Schema::hasColumn('absensi_setting', 'google_client_id')) {
             $forge->addColumn('absensi_setting', [
-                'google_client_id'     => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+                'google_client_id' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
                 'google_client_secret' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
                 'google_login_enabled' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
             ]);
         }
 
         // Biometric Face Match Threshold & Mode
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'face_threshold')) {
+        if (! Schema::hasColumn('absensi_setting', 'face_threshold')) {
             $forge->addColumn('absensi_setting', [
                 'face_threshold' => ['type' => 'DECIMAL', 'constraint' => '4,2', 'default' => 0.72, 'null' => true],
             ]);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'face_match_mode')) {
+        if (! Schema::hasColumn('absensi_setting', 'face_match_mode')) {
             $forge->addColumn('absensi_setting', [
                 'face_match_mode' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'ai_match', 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'point_tier_1')) {
+        if (! Schema::hasColumn('absensi_setting', 'point_tier_1')) {
             $forge->addColumn('absensi_setting', [
                 'point_tier_1' => ['type' => 'INT', 'constraint' => 11, 'default' => 1, 'null' => true],
                 'point_tier_2' => ['type' => 'INT', 'constraint' => 11, 'default' => 2, 'null' => true],
@@ -7649,16 +7857,16 @@ public function notifikasiStatus()
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'reward_point_tier_1')) {
+        if (! Schema::hasColumn('absensi_setting', 'reward_point_tier_1')) {
             $forge->addColumn('absensi_setting', [
                 'reward_point_tier_1' => ['type' => 'INT', 'constraint' => 11, 'default' => 1, 'null' => true],
                 'reward_point_tier_2' => ['type' => 'INT', 'constraint' => 11, 'default' => 1, 'null' => true],
                 'reward_point_tier_3' => ['type' => 'INT', 'constraint' => 11, 'default' => 2, 'null' => true],
-                'reward_cap_menit'    => ['type' => 'INT', 'constraint' => 11, 'default' => 30, 'null' => true],
+                'reward_cap_menit' => ['type' => 'INT', 'constraint' => 11, 'default' => 30, 'null' => true],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'denda_per_menit')) {
+        if (! Schema::hasColumn('absensi_setting', 'denda_per_menit')) {
             $forge->addColumn('absensi_setting', [
                 'denda_per_menit' => ['type' => 'INT', 'constraint' => 11, 'default' => 1000, 'null' => true],
                 'denda_pulang_awal' => ['type' => 'INT', 'constraint' => 11, 'default' => 1000, 'null' => true],
@@ -7666,14 +7874,14 @@ public function notifikasiStatus()
         }
 
         // Jam operasional scanner QR siswa (default aktif 05:30–18:00)
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'qr_scan_aktif')) {
+        if (! Schema::hasColumn('absensi_setting', 'qr_scan_aktif')) {
             $forge->addColumn('absensi_setting', [
-                'qr_scan_aktif'   => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
-                'qr_scan_mulai'   => ['type' => 'TIME', 'default' => '05:30:00', 'null' => true],
+                'qr_scan_aktif' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1, 'null' => true],
+                'qr_scan_mulai' => ['type' => 'TIME', 'default' => '05:30:00', 'null' => true],
                 'qr_scan_selesai' => ['type' => 'TIME', 'default' => '18:00:00', 'null' => true],
             ]);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', 'qr_kiosk_token')) {
+        if (! Schema::hasColumn('absensi_setting', 'qr_kiosk_token')) {
             $forge->addColumn('absensi_setting', [
                 'qr_kiosk_token' => ['type' => 'VARCHAR', 'constraint' => 64, 'null' => true, 'default' => null],
             ]);
@@ -7682,72 +7890,76 @@ public function notifikasiStatus()
 
     private function patchAbsensiHarianTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_harian')) {
             return;
         }
 
         // Pastikan jam_masuk dan jam_pulang bisa NULL untuk status Sakit/Ijin/Cuti
-        $fields = $db->getFieldData('absensi_harian');
+        $fields = Schema::getColumns('absensi_harian');
         $jamMasukField = null;
         $jamPulangField = null;
-        foreach($fields as $f) {
-            if ($f->name === 'jam_masuk') $jamMasukField = $f;
-            if ($f->name === 'jam_pulang') $jamPulangField = $f;
+        foreach ($fields as $f) {
+            if ($f['name'] === 'jam_masuk') {
+                $jamMasukField = $f;
+            }
+            if ($f['name'] === 'jam_pulang') {
+                $jamPulangField = $f;
+            }
         }
-        if ($jamMasukField && !$jamMasukField->nullable) {
-            $db->select("ALTER TABLE absensi_harian MODIFY jam_masuk DATETIME NULL");
+        if ($jamMasukField && ! $jamMasukField['nullable']) {
+            $db->statement('ALTER TABLE absensi_harian MODIFY jam_masuk DATETIME NULL');
         }
-        if ($jamPulangField && !$jamPulangField->nullable) {
-            $db->select("ALTER TABLE absensi_harian MODIFY jam_pulang DATETIME NULL");
+        if ($jamPulangField && ! $jamPulangField['nullable']) {
+            $db->statement('ALTER TABLE absensi_harian MODIFY jam_pulang DATETIME NULL');
         }
 
-        $forge = (new \App\Http\Controllers\CiForge());
-        
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'status_pulang')) {
+        $forge = (new CiForge);
+
+        if (! Schema::hasColumn('absensi_harian', 'status_pulang')) {
             $forge->addColumn('absensi_harian', [
                 'status_pulang' => [
                     'type' => 'VARCHAR',
                     'constraint' => 20,
                     'null' => true,
-                    'after' => 'foto_pulang'
-                ]
+                    'after' => 'foto_pulang',
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_cepat_menit')) {
+        if (! Schema::hasColumn('absensi_harian', 'pulang_cepat_menit')) {
             $forge->addColumn('absensi_harian', [
                 'pulang_cepat_menit' => [
                     'type' => 'INT',
                     'constraint' => 11,
                     'default' => 0,
                     'null' => true,
-                    'after' => 'status_pulang'
-                ]
+                    'after' => 'status_pulang',
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'points')) {
+        if (! Schema::hasColumn('absensi_harian', 'points')) {
             $forge->addColumn('absensi_harian', [
                 'points' => [
                     'type' => 'INT',
                     'constraint' => 11,
                     'default' => 0,
                     'null' => true,
-                    'after' => 'pulang_cepat_menit' // or after pulang_akhir_menit if it exists, but strict order doesn't matter much
-                ]
+                    'after' => 'pulang_cepat_menit', // or after pulang_akhir_menit if it exists, but strict order doesn't matter much
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'denda')) {
+        if (! Schema::hasColumn('absensi_harian', 'denda')) {
             $forge->addColumn('absensi_harian', [
                 'denda' => [
                     'type' => 'DECIMAL',
                     'constraint' => '10,2',
                     'default' => 0,
                     'null' => true,
-                    'after' => 'points'
-                ]
+                    'after' => 'points',
+                ],
             ]);
         }
 
@@ -7755,42 +7967,42 @@ public function notifikasiStatus()
         // Jumlahnya disimpan per baris, bukan dihitung ulang dari pengaturan,
         // supaya koreksi admin mengembalikan tepat poin yang dulu dipotong
         // walau tarifnya sudah berubah di tengah jalan.
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat')) {
+        if (! Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat')) {
             $forge->addColumn('absensi_harian', [
                 'pulang_tidak_tercatat' => [
-                    'type'       => 'TINYINT',
+                    'type' => 'TINYINT',
                     'constraint' => 1,
-                    'default'    => 0,
-                    'null'       => false,
+                    'default' => 0,
+                    'null' => false,
                 ],
                 'poin_penalti_pulang' => [
-                    'type'       => 'INT',
+                    'type' => 'INT',
                     'constraint' => 11,
-                    'default'    => 0,
-                    'null'       => false,
+                    'default' => 0,
+                    'null' => false,
                 ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'keterangan_denda')) {
+        if (! Schema::hasColumn('absensi_harian', 'keterangan_denda')) {
             $forge->addColumn('absensi_harian', [
                 'keterangan_denda' => [
                     'type' => 'TEXT',
                     'null' => true,
-                    'after' => 'denda'
-                ]
+                    'after' => 'denda',
+                ],
             ]);
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_wfh')) {
+        if (! Schema::hasColumn('absensi_harian', 'is_wfh')) {
             $forge->addColumn('absensi_harian', [
                 'is_wfh' => [
                     'type' => 'TINYINT',
                     'constraint' => 1,
                     'default' => 0,
                     'null' => true,
-                    'after' => 'keterangan_denda'
-                ]
+                    'after' => 'keterangan_denda',
+                ],
             ]);
         }
     }
@@ -7800,11 +8012,11 @@ public function notifikasiStatus()
      */
     private function patchAbsensiKoreksiTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
         // If table doesn't exist, create it
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_koreksi')) {
+        if (! Schema::hasTable('absensi_koreksi')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'attendance_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -7824,6 +8036,7 @@ public function notifikasiStatus()
             $forge->addKey('attendance_id');
             $forge->addKey('user_id');
             $forge->createTable('absensi_koreksi', true);
+
             return;
         }
 
@@ -7844,7 +8057,7 @@ public function notifikasiStatus()
         ];
 
         foreach ($cols as $field => $def) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_koreksi', $field)) {
+            if (! Schema::hasColumn('absensi_koreksi', $field)) {
                 $forge->addColumn('absensi_koreksi', [$field => $def]);
             }
         }
@@ -7855,11 +8068,11 @@ public function notifikasiStatus()
      */
     private function patchAbsensiLokasiTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
         // If table doesn't exist, create it
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_lokasi')) {
+        if (! Schema::hasTable('absensi_lokasi')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'nama_lokasi' => ['type' => 'VARCHAR', 'constraint' => 100],
@@ -7873,6 +8086,7 @@ public function notifikasiStatus()
             ]);
             $forge->addPrimaryKey('id');
             $forge->createTable('absensi_lokasi', true);
+
             return;
         }
 
@@ -7887,7 +8101,7 @@ public function notifikasiStatus()
         ];
 
         foreach ($cols as $field => $def) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_lokasi', $field)) {
+            if (! Schema::hasColumn('absensi_lokasi', $field)) {
                 $forge->addColumn('absensi_lokasi', [$field => $def]);
             }
         }
@@ -7895,10 +8109,10 @@ public function notifikasiStatus()
 
     private function patchAbsensiIzinTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (! Schema::hasTable('absensi_izin')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'user_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -7918,19 +8132,19 @@ public function notifikasiStatus()
             $forge->addPrimaryKey('id');
             $forge->createTable('absensi_izin', true);
         } else {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
+            if (! Schema::hasColumn('absensi_izin', 'verifikasi_catatan')) {
                 $forge->addColumn('absensi_izin', [
-                    'verifikasi_catatan' => ['type' => 'TEXT', 'null' => true, 'after' => 'bukti']
+                    'verifikasi_catatan' => ['type' => 'TEXT', 'null' => true, 'after' => 'bukti'],
                 ]);
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_by')) {
+            if (! Schema::hasColumn('absensi_izin', 'verified_by')) {
                 $forge->addColumn('absensi_izin', [
-                    'verified_by' => ['type' => 'INT', 'constraint' => 11, 'null' => true, 'after' => 'verifikasi_catatan']
+                    'verified_by' => ['type' => 'INT', 'constraint' => 11, 'null' => true, 'after' => 'verifikasi_catatan'],
                 ]);
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_izin', 'verified_at')) {
+            if (! Schema::hasColumn('absensi_izin', 'verified_at')) {
                 $forge->addColumn('absensi_izin', [
-                    'verified_at' => ['type' => 'DATETIME', 'null' => true, 'after' => 'verified_by']
+                    'verified_at' => ['type' => 'DATETIME', 'null' => true, 'after' => 'verified_by'],
                 ]);
             }
             // Normalize legacy integer status values.
@@ -7939,26 +8153,26 @@ public function notifikasiStatus()
             // kolomnya sudah VARCHAR(20) dan tidak ada lagi nilai 0/1/2/''.
             $perluNormalisasi = false;
             try {
-                $sisaLama = $db->select("SELECT 1 FROM absensi_izin
-                    WHERE status IS NULL OR status = '' OR status IN ('0', '1', '2') LIMIT 1")->count();
-                foreach ($db->getFieldData('absensi_izin') as $f) {
-                    if ($f->name === 'status') {
+                $sisaLama = count($db->select("SELECT 1 FROM absensi_izin
+                    WHERE status IS NULL OR status = '' OR status IN ('0', '1', '2') LIMIT 1"));
+                foreach (Schema::getColumns('absensi_izin') as $f) {
+                    if ($f['name'] === 'status') {
                         $perluNormalisasi = $sisaLama > 0
-                            || strtolower((string) ($f->type ?? '')) !== 'varchar';
+                            || strtolower((string) ($f['type_name'] ?? '')) !== 'varchar';
                         break;
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('Pemeriksaan status absensi_izin gagal: ' . $e->getMessage());
+                Log::error('Pemeriksaan status absensi_izin gagal: '.$e->getMessage());
             }
             if ($perluNormalisasi) {
                 try {
-                    $db->select("ALTER TABLE absensi_izin MODIFY status VARCHAR(20) DEFAULT 'pending'");
-                    $db->select("UPDATE absensi_izin SET status = 'pending' WHERE status = '0' OR status IS NULL OR status = ''");
-                    $db->select("UPDATE absensi_izin SET status = 'approved' WHERE status = '1'");
-                    $db->select("UPDATE absensi_izin SET status = 'rejected' WHERE status = '2'");
+                    $db->statement("ALTER TABLE absensi_izin MODIFY status VARCHAR(20) DEFAULT 'pending'");
+                    $db->statement("UPDATE absensi_izin SET status = 'pending' WHERE status = '0' OR status IS NULL OR status = ''");
+                    $db->statement("UPDATE absensi_izin SET status = 'approved' WHERE status = '1'");
+                    $db->statement("UPDATE absensi_izin SET status = 'rejected' WHERE status = '2'");
                 } catch (\Throwable $e) {
-                    Log::error('Normalisasi status absensi_izin gagal: ' . $e->getMessage());
+                    Log::error('Normalisasi status absensi_izin gagal: '.$e->getMessage());
                 }
             }
         }
@@ -7976,33 +8190,33 @@ public function notifikasiStatus()
     private function patchAbsensiHarianVerifColumns()
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            $forge = (new \App\Http\Controllers\CiForge());
+            $db = DB::connection();
+            $forge = (new CiForge);
 
-            if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (! Schema::hasTable('absensi_harian')) {
                 return;
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_by')) {
+            if (! Schema::hasColumn('absensi_harian', 'verified_by')) {
                 $forge->addColumn('absensi_harian', [
                     'verified_by' => ['type' => 'INT', 'constraint' => 11, 'null' => true, 'after' => 'keterangan_denda'],
                 ]);
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'verified_at')) {
+            if (! Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $forge->addColumn('absensi_harian', [
                     'verified_at' => ['type' => 'DATETIME', 'null' => true, 'after' => 'verified_by'],
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin] patchAbsensiHarianVerifColumns gagal: ' . $e->getMessage());
+            Log::error('[PresensiAdmin] patchAbsensiHarianVerifColumns gagal: '.$e->getMessage());
         }
     }
 
     private function patchAbsensiLiburTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_hari_libur')) {
+        if (! Schema::hasTable('absensi_hari_libur')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'tanggal' => ['type' => 'DATE'],
@@ -8012,12 +8226,13 @@ public function notifikasiStatus()
             $forge->createTable('absensi_hari_libur', true);
         }
     }
+
     private function patchAbsensiJadwalTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (! Schema::hasTable('absensi_jadwal_kerja')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'hari' => ['type' => 'INT', 'constraint' => 11], // 1=Senin, 7=Minggu
@@ -8036,10 +8251,10 @@ public function notifikasiStatus()
                     'hari' => $i,
                     'jam_masuk' => '07:30:00',
                     'jam_pulang' => '15:00:00',
-                    'is_libur' => $isLibur
+                    'is_libur' => $isLibur,
                 ];
             }
-            $db->table('absensi_jadwal_kerja')->insertBatch($data);
+            $db->table('absensi_jadwal_kerja')->insert($data);
         }
     }
 
@@ -8051,29 +8266,29 @@ public function notifikasiStatus()
     private function kebutuhanMigrasiPembayaranDenda(): array
     {
         $out = ['alter' => false, 'update' => false];
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_pembayaran_denda')) {
             return $out;
         }
 
         try {
-            foreach ($db->getFieldData('absensi_pembayaran_denda') as $f) {
-                if ($f->name === 'status') {
-                    $out['alter'] = strtolower((string) ($f->type ?? '')) !== 'varchar';
+            foreach (Schema::getColumns('absensi_pembayaran_denda') as $f) {
+                if ($f['name'] === 'status') {
+                    $out['alter'] = strtolower((string) ($f['type_name'] ?? '')) !== 'varchar';
                     break;
                 }
             }
-            $sisaLegacy = $db->select("SELECT 1 FROM absensi_pembayaran_denda
+            $sisaLegacy = count($db->select("SELECT 1 FROM absensi_pembayaran_denda
                 WHERE metode_bayar IS NULL OR metode_bayar = ''
                    OR (reward_redemption_id IS NOT NULL AND metode_bayar = 'TUNAI')
                    OR ((nominal_bayar IS NULL OR nominal_bayar = 0) AND total_denda > 0 AND status = 'lunas')
                    OR (tanggal_bayar IS NULL AND paid_at IS NOT NULL)
-                LIMIT 1")->count();
+                LIMIT 1"));
             $out['update'] = $sisaLegacy > 0;
         } catch (\Throwable $e) {
             // Pemeriksaan gagal = jangan menjalankan ALTER/UPDATE buta;
             // kegagalan struktur akan tetap terlihat di log.
-            Log::error('Pemeriksaan legacy absensi_pembayaran_denda gagal: ' . $e->getMessage());
+            Log::error('Pemeriksaan legacy absensi_pembayaran_denda gagal: '.$e->getMessage());
         }
 
         return $out;
@@ -8081,10 +8296,10 @@ public function notifikasiStatus()
 
     private function patchAbsensiPembayaranDendaTable()
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $forge = (new \App\Http\Controllers\CiForge());
+        $db = DB::connection();
+        $forge = (new CiForge);
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
+        if (! Schema::hasTable('absensi_pembayaran_denda')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'user_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -8109,25 +8324,25 @@ public function notifikasiStatus()
             $forge->createTable('absensi_pembayaran_denda', true);
         } else {
             $fields = [];
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'idempotency_key')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'idempotency_key')) {
                 $fields['idempotency_key'] = ['type' => 'VARCHAR', 'constraint' => 80, 'null' => true];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'metode_bayar')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'metode_bayar')) {
                 $fields['metode_bayar'] = ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'TUNAI'];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'poin_digunakan')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'poin_digunakan')) {
                 $fields['poin_digunakan'] = ['type' => 'INT', 'constraint' => 11, 'default' => 0];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id')) {
                 $fields['reward_redemption_id'] = ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'null' => true];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'nominal_bayar')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'nominal_bayar')) {
                 $fields['nominal_bayar'] = ['type' => 'DECIMAL', 'constraint' => '15,2', 'default' => 0];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'tanggal_bayar')) {
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'tanggal_bayar')) {
                 $fields['tanggal_bayar'] = ['type' => 'DATE', 'null' => true];
             }
-            if (!empty($fields)) {
+            if (! empty($fields)) {
                 $forge->addColumn('absensi_pembayaran_denda', $fields);
             }
         }
@@ -8142,7 +8357,7 @@ public function notifikasiStatus()
             try {
                 $db->select("ALTER TABLE absensi_pembayaran_denda MODIFY COLUMN status VARCHAR(20) DEFAULT 'lunas'");
             } catch (\Throwable $e) {
-                Log::error('Migrasi status absensi_pembayaran_denda gagal: ' . $e->getMessage());
+                Log::error('Migrasi status absensi_pembayaran_denda gagal: '.$e->getMessage());
             }
         }
 
@@ -8178,18 +8393,18 @@ public function notifikasiStatus()
                     WHERE (nominal_bayar IS NULL OR nominal_bayar = 0) AND total_denda > 0 AND status = 'lunas'
                 ");
                 // Backfill tanggal_bayar from paid_at for legacy records
-                $db->select("
+                $db->select('
                     UPDATE absensi_pembayaran_denda
                     SET tanggal_bayar = DATE(paid_at)
                     WHERE tanggal_bayar IS NULL AND paid_at IS NOT NULL
-                ");
+                ');
             } catch (\Throwable $e) {
-                Log::error('Perbaikan data legacy pembayaran denda gagal: ' . $e->getMessage());
+                Log::error('Perbaikan data legacy pembayaran denda gagal: '.$e->getMessage());
             }
         }
 
         // Table for Saldo Denda (Deposit/Kelebihan Pembayaran Denda)
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_saldo_denda')) {
+        if (! Schema::hasTable('absensi_saldo_denda')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'user_id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
@@ -8217,7 +8432,7 @@ public function notifikasiStatus()
         if ($key === '') {
             return null;
         }
-        if (!preg_match('/^[A-Za-z0-9-]{8,80}$/', $key)) {
+        if (! preg_match('/^[A-Za-z0-9-]{8,80}$/', $key)) {
             return null;
         }
 
@@ -8231,13 +8446,16 @@ public function notifikasiStatus()
     private function pembayaranKunciSudahAda(string $key): bool
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'idempotency_key')) {
+            $db = DB::connection();
+            if (! Schema::hasColumn('absensi_pembayaran_denda', 'idempotency_key')) {
                 return false;
             }
+
             return $db->table('absensi_pembayaran_denda')
                 ->where('status', '!=', 'batal')
-                ->where(function ($q) { $q->where('idempotency_key', $key)->$q->orWhere('idempotency_key', 'like', $key . ':' . '%'); })
+                ->where(function ($q) {
+                    $q->where('idempotency_key', $key)->orWhere('idempotency_key', 'like', $key.':'.'%');
+                })
                 ->count() > 0;
         } catch (\Throwable $e) {
             return false;
@@ -8249,7 +8467,7 @@ public function notifikasiStatus()
      */
     public function daftarDenda()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -8261,16 +8479,20 @@ public function notifikasiStatus()
             $this->request->query('tahun') ?? date('Y')
         );
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $users = $db->table('users as u')
-            ->select('u.id, u.first_name, u.last_name, u.username, g.nip, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'u.first_name', 'u.last_name', 'u.username', 'g.nip', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
-            ->where(function ($q) { $q->where('g.status_aktif', 'Aktif')->$q->orWhereRaw('g.status_aktif IS NULL')->$q->orWhere('g.status_aktif', ''); })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
+            ->where(function ($q) {
+                $q->where('g.status_aktif', 'Aktif')->orWhereRaw('g.status_aktif IS NULL')->orWhere('g.status_aktif', '');
+            })
             ->orderBy('g.nama_guru', 'ASC')
             ->get();
 
@@ -8281,23 +8503,25 @@ public function notifikasiStatus()
 
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id]))
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
+            }
             $mapByUser[$att->user_id][$att->tgl] = $att;
         }
 
-        $holidays = \App\Services\AttendancePolicy::liburNasional();
+        $holidays = AttendancePolicy::liburNasional();
 
         $setting = $this->getSettingRow();
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
-        $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
         $pembayaranList = $db->table('absensi_pembayaran_denda')
             ->where('bulan', $bulan)
@@ -8312,14 +8536,14 @@ public function notifikasiStatus()
         $poinDigunakanMap = [];
 
         foreach ($pembayaranList as $p) {
-            $nominalActual = (float)($p->nominal_bayar ?: $p->total_denda);
+            $nominalActual = (float) ($p->nominal_bayar ?: $p->total_denda);
             if ($p->status === 'lunas') {
                 $lunasMap[$p->user_id] = $p;
             }
-            $kelas = \App\Services\AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
+            $kelas = AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
             if ($kelas === 'POIN') {
                 $potonganPoinMap[$p->user_id] = ($potonganPoinMap[$p->user_id] ?? 0) + $nominalActual;
-                $poinDigunakanMap[$p->user_id] = ($poinDigunakanMap[$p->user_id] ?? 0) + (int)($p->poin_digunakan ?? 0);
+                $poinDigunakanMap[$p->user_id] = ($poinDigunakanMap[$p->user_id] ?? 0) + (int) ($p->poin_digunakan ?? 0);
             } elseif ($kelas === 'SALDO') {
                 $potonganSaldoMap[$p->user_id] = ($potonganSaldoMap[$p->user_id] ?? 0) + $nominalActual;
             } else {
@@ -8329,8 +8553,8 @@ public function notifikasiStatus()
 
         // Payment history (all statuses, with admin/user name)
         $paymentHistory = $db->table('absensi_pembayaran_denda as pd')
-            ->select('pd.*, u.first_name, u.last_name')
-            ->join('users as u', 'u.id = pd.paid_by', 'left')
+            ->select('pd.*', 'u.first_name', 'u.last_name')
+            ->leftJoin('users as u', 'u.id', '=', 'pd.paid_by')
             ->where('pd.bulan', $bulan)
             ->where('pd.tahun', $tahun)
             ->orderBy('pd.paid_at', 'DESC')
@@ -8342,7 +8566,7 @@ public function notifikasiStatus()
         }
 
         // Get Current Active Points for all teachers
-        $poinModel = new \App\Models\PoinHistoryModel();
+        $poinModel = new PoinHistoryModel;
         $saldoPoinMap = [];
         foreach ($users as $u) {
             $saldoPoinMap[$u->id] = $poinModel->getSaldo($u->id);
@@ -8350,13 +8574,13 @@ public function notifikasiStatus()
 
         // Get Saldo Denda for all teachers
         $saldoDendaMap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_saldo_denda')) {
+        if (Schema::hasTable('absensi_saldo_denda')) {
             $saldoRaw = $db->table('absensi_saldo_denda')
-                ->select('user_id, SUM(nominal) as total_saldo')
+                ->select('user_id')->selectRaw('SUM(nominal) as total_saldo')
                 ->groupBy('user_id')
                 ->get();
             foreach ($saldoRaw as $sr) {
-                $saldoDendaMap[$sr->user_id] = max(0, (float)$sr->total_saldo);
+                $saldoDendaMap[$sr->user_id] = max(0, (float) $sr->total_saldo);
             }
         }
 
@@ -8401,7 +8625,7 @@ public function notifikasiStatus()
             'saldoDendaMap' => $saldoDendaMap,
             'historyByUser' => $historyByUser,
             'alphaMissingMap' => $alphaMissingMap,
-            'ytdStats' => $ytdStats
+            'ytdStats' => $ytdStats,
         ]);
     }
 
@@ -8418,7 +8642,7 @@ public function notifikasiStatus()
      */
     private function buildDendaPdf(string $bulan, string $tahun): array
     {
-        return (new \App\Services\RekapPdfService())->buildDendaPdf($bulan, $tahun);
+        return (new RekapPdfService)->buildDendaPdf($bulan, $tahun);
     }
 
     /**
@@ -8428,7 +8652,7 @@ public function notifikasiStatus()
      */
     public function exportDendaPdf()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -8445,7 +8669,7 @@ public function notifikasiStatus()
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="' . $hasil['filename'] . '"')
+            ->setHeader('Content-Disposition', 'inline; filename="'.$hasil['filename'].'"')
             ->setBody($hasil['pdf']);
     }
 
@@ -8490,7 +8714,7 @@ public function notifikasiStatus()
      */
     public function kirimRekapDenda()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -8508,40 +8732,42 @@ public function notifikasiStatus()
         try {
             $hasil = $this->buildDendaPdf($bulan, $tahun);
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::kirimRekapDenda] gagal membuat PDF: ' . $e->getMessage());
+            Log::error('[PresensiAdmin::kirimRekapDenda] gagal membuat PDF: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyusun PDF rekap denda — periksa log aplikasi.', null, null, 500);
         }
 
         if ($hasil['jumlah_guru'] === 0) {
             return $this->respond(
                 false,
-                'Tidak ada guru aktif untuk periode ' . $bulan . '/' . $tahun . ' sehingga PDF kosong.'
+                'Tidak ada guru aktif untuk periode '.$bulan.'/'.$tahun.' sehingga PDF kosong.'
             );
         }
 
         // PDF perlu file di disk: Telegram multipart dan OpenWA base64
         // keduanya membaca dari path, bukan dari string.
-        $dir = storage_path('app') . '/' . 'uploads';
-        if (!is_dir($dir)) {
+        $dir = storage_path('app').'/'.'uploads';
+        if (! is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
 
         // Nama file pakai prefix acak supaya tidak bisa ditebak dari luar
         // dan tidak bentrok dengan request bersamaan.
-        $path = $dir . '/rekap_denda_' . bin2hex(random_bytes(8)) . '.pdf';
+        $path = $dir.'/rekap_denda_'.bin2hex(random_bytes(8)).'.pdf';
 
         if (@file_put_contents($path, $hasil['pdf']) === false) {
-            Log::error('[PresensiAdmin::kirimRekapDenda] gagal menulis ' . $path);
+            Log::error('[PresensiAdmin::kirimRekapDenda] gagal menulis '.$path);
+
             return $this->respond(false, 'Gagal menyimpan PDF sementara untuk dikirim.', null, null, 500);
         }
 
-        $namaGrup = $this->bulanNama((int) $bulan) . ' ' . $tahun;
+        $namaGrup = $this->bulanNama((int) $bulan).' '.$tahun;
         $caption = "<b>📄 REKAP DENDA PRESENSI</b>\n"
-            . "Periode: {$namaGrup}\n"
-            . 'Total guru: ' . $hasil['jumlah_guru'] . ' orang';
+            ."Periode: {$namaGrup}\n"
+            .'Total guru: '.$hasil['jumlah_guru'].' orang';
 
         try {
-            $svc = new \App\Services\NotificationService();
+            $svc = new NotificationService;
             $hasilKirim = $svc->sendDokumenToGrup(
                 'rekap_denda_bulanan',
                 $path,
@@ -8549,7 +8775,8 @@ public function notifikasiStatus()
                 $caption
             );
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::kirimRekapDenda] error saat kirim: ' . $e->getMessage());
+            Log::error('[PresensiAdmin::kirimRekapDenda] error saat kirim: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mengirim rekap — periksa log aplikasi.', null, null, 500);
         } finally {
             // PDF memuat catatan kehadiran dan nominal denda tiap guru —
@@ -8562,21 +8789,21 @@ public function notifikasiStatus()
         $berhasil = $hasilKirim['telegram'] || $hasilKirim['whatsapp'];
 
         $rincian = [];
-        $rincian[] = 'Telegram: ' . ($hasilKirim['telegram'] ? 'terkirim' : 'GAGAL — ' . $hasilKirim['telegram_error']);
-        $rincian[] = 'WhatsApp: ' . ($hasilKirim['whatsapp'] ? 'terkirim' : 'GAGAL — ' . $hasilKirim['whatsapp_error']);
+        $rincian[] = 'Telegram: '.($hasilKirim['telegram'] ? 'terkirim' : 'GAGAL — '.$hasilKirim['telegram_error']);
+        $rincian[] = 'WhatsApp: '.($hasilKirim['whatsapp'] ? 'terkirim' : 'GAGAL — '.$hasilKirim['whatsapp_error']);
 
         return $this->respond(
             $berhasil,
             $berhasil
-                ? 'Rekap denda ' . $namaGrup . ' dikirim. ' . implode(' | ', $rincian)
-                : 'Rekap denda tidak terkirim ke kanal mana pun. ' . implode(' | ', $rincian),
+                ? 'Rekap denda '.$namaGrup.' dikirim. '.implode(' | ', $rincian)
+                : 'Rekap denda tidak terkirim ke kanal mana pun. '.implode(' | ', $rincian),
             [
-                'bulan'       => $bulan,
-                'tahun'       => $tahun,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
                 'jumlah_guru' => $hasil['jumlah_guru'],
-                'filename'    => $hasil['filename'],
-                'telegram'    => $hasilKirim['telegram'],
-                'whatsapp'    => $hasilKirim['whatsapp'],
+                'filename' => $hasil['filename'],
+                'telegram' => $hasilKirim['telegram'],
+                'whatsapp' => $hasilKirim['whatsapp'],
             ],
             null,
             $berhasil ? 200 : 500
@@ -8610,7 +8837,7 @@ public function notifikasiStatus()
      */
     public function recalculateMonthlyDenda()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -8622,25 +8849,25 @@ public function notifikasiStatus()
         $bulanAktif = (int) date('m');
         $tahunAktif = (int) date('Y');
         if ($bulanReq !== $bulanAktif || $tahunReq !== $tahunAktif) {
-            return $this->respond(false, 'Hitung ulang hanya diperbolehkan untuk bulan aktif (' . $bulanAktif . '/' . $tahunAktif . '). Data bulan lampau dikunci sebagai arsip.');
+            return $this->respond(false, 'Hitung ulang hanya diperbolehkan untuk bulan aktif ('.$bulanAktif.'/'.$tahunAktif.'). Data bulan lampau dikunci sebagai arsip.');
         }
         $bulan = $bulanAktif;
         $tahun = $tahunAktif;
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $settingModel = new \App\Models\AttendanceSettingModel();
+        $db = DB::connection();
+        $settingModel = new AttendanceSettingModel;
         $setting = $settingModel->first();
-        if (!$setting) {
+        if (! $setting) {
             return $this->respond(false, 'Konfigurasi absensi tidak ditemukan');
         }
 
-        $shiftModel = new \App\Models\ShiftModel();
-        $penaltyService = new \App\Services\AttendancePenaltyService();
-        $adaKolomPenalti = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat');
+        $shiftModel = new ShiftModel;
+        $penaltyService = new AttendancePenaltyService;
+        $adaKolomPenalti = Schema::hasColumn('absensi_harian', 'pulang_tidak_tercatat');
 
         // Load work schedules
         $jadwalKerja = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $jRows = $db->table('absensi_jadwal_kerja')->get();
             foreach ($jRows as $jr) {
                 $jadwalKerja[(int) $jr->hari] = $jr;
@@ -8660,22 +8887,22 @@ public function notifikasiStatus()
         $userMonthlyDenda = [];
         $todayStr = date('Y-m-d');
         try {
-            $q = fn(string $v): string => "'" . str_replace("'", "''", $v) . "'";
+            $q = fn (string $v): string => "'".str_replace("'", "''", $v)."'";
             $statusList = implode(',', array_map($q, $leaveStatuses));
-            $wfhCond = \Illuminate\Support\Facades\Schema::hasColumn('absensi_harian', 'is_wfh') ? ' OR is_wfh = 1' : '';
+            $wfhCond = Schema::hasColumn('absensi_harian', 'is_wfh') ? ' OR is_wfh = 1' : '';
             $seedRows = $db->table('absensi_harian')
-                ->select('user_id, SUM(denda) as s')
+                ->select('user_id')->selectRaw('SUM(denda) as s')
                 ->whereRaw('MONTH(tgl) = ?', [$bulan])->whereRaw('YEAR(tgl) = ?', [$tahun])
-                ->where(
-                    '(tgl >= ' . $q($todayStr) . ' OR (tgl < ' . $q($todayStr)
-                    . ' AND (status_masuk IN (' . $statusList . ') OR status_pulang IN (' . $statusList . ')' . $wfhCond . ')))',
-                    null, false
+                ->whereRaw(
+                    '(tgl >= '.$q($todayStr).' OR (tgl < '.$q($todayStr)
+                    .' AND (status_masuk IN ('.$statusList.') OR status_pulang IN ('.$statusList.')'.$wfhCond.')))'
                 )
                 ->groupBy('user_id')->get();
             foreach ($seedRows as $sr) {
                 $userMonthlyDenda[(int) $sr->user_id] = (float) ($sr->s ?? 0);
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         // 1. Recalculate attendance records in absensi_harian for this month
         $attendances = $db->table('absensi_harian')
@@ -8695,7 +8922,7 @@ public function notifikasiStatus()
 
         foreach ($attendances as $r) {
             $uid = (int) $r->user_id;
-            if (!isset($userMonthlyDenda[$uid])) {
+            if (! isset($userMonthlyDenda[$uid])) {
                 $userMonthlyDenda[$uid] = 0.0;
             }
 
@@ -8703,12 +8930,13 @@ public function notifikasiStatus()
             // di bawah juga melewati today).
             if (substr((string) ($r->tgl ?? ''), 0, 10) >= $todayStr) {
                 $skippedUnchangedCount++;
+
                 continue;
             }
 
             $currentStatus = strtoupper((string) ($r->status_masuk ?? ''));
             $currentPulang = strtoupper((string) ($r->status_pulang ?? ''));
-            $isWfhRow = (!empty($r->is_wfh) && (int) $r->is_wfh === 1) || $currentStatus === 'WFH' || $currentPulang === 'WFH';
+            $isWfhRow = (! empty($r->is_wfh) && (int) $r->is_wfh === 1) || $currentStatus === 'WFH' || $currentPulang === 'WFH';
             $isDinasRow = strpos($currentStatus, 'DINAS') === 0 || strpos($currentPulang, 'DINAS') === 0;
             $isLeaveRow = in_array($currentStatus, $leaveStatuses, true) || in_array($currentPulang, $leaveStatuses, true);
 
@@ -8720,12 +8948,13 @@ public function notifikasiStatus()
                 } else {
                     $skippedUnchangedCount++;
                 }
+
                 continue;
             }
 
             // If recorded ALPHA
-            $jamMasukTs  = \App\Services\AttendancePolicy::pickTime($r->jam_masuk ?? null);
-            $jamPulangTs = \App\Services\AttendancePolicy::pickTime($r->jam_pulang ?? null);
+            $jamMasukTs = AttendancePolicy::pickTime($r->jam_masuk ?? null);
+            $jamPulangTs = AttendancePolicy::pickTime($r->jam_pulang ?? null);
 
             // ALPHA tidak pernah dinilai ulang dari jam, ada atau tidak jam_masuk.
             // Baris ALPHA yang punya jam_masuk nyata berasal dari keputusan admin
@@ -8734,6 +8963,7 @@ public function notifikasiStatus()
             // denda alpha dengan denda telat. Sama seperti doRecalculateDate().
             if (in_array($currentStatus, ['ALPHA', 'ALPA'], true)) {
                 $activeAlphaRecords[$uid][$r->tgl] = $r;
+
                 continue;
             }
 
@@ -8741,9 +8971,10 @@ public function notifikasiStatus()
             // kosong): tidak ada dasar untuk menilai telat atau pulang awal, dan
             // menulis denda = 0 di baris yang memang berdenda sama saja merusak
             // tagihan. Lewati barisnya, jangan karang angkanya.
-            if (($jamMasukTs === null && !empty($r->jam_masuk))
-                || ($jamPulangTs === null && !empty($r->jam_pulang))) {
+            if (($jamMasukTs === null && ! empty($r->jam_masuk))
+                || ($jamPulangTs === null && ! empty($r->jam_pulang))) {
                 $skippedUnchangedCount++;
+
                 continue;
             }
 
@@ -8763,8 +8994,8 @@ public function notifikasiStatus()
                 $graceMins = (int) ($sched['grace_menit'] ?? ($setting->grace_period ?? 15));
 
                 // Rumus baku AttendancePolicy + tanggal baris, bukan tanggal hari ini.
-                $hit = \App\Services\AttendancePolicy::telat($r->tgl, $jamMasukTs, [
-                    'jam_masuk'   => $sched['jam_masuk'],
+                $hit = AttendancePolicy::telat($r->tgl, $jamMasukTs, [
+                    'jam_masuk' => $sched['jam_masuk'],
                     'grace_menit' => $graceMins,
                 ]);
 
@@ -8791,8 +9022,8 @@ public function notifikasiStatus()
 
             if ($jamPulangTs !== null) {
                 $jamPulangLimit = $sched['jam_pulang'];
-                $thresholdPulang = strtotime($r->tgl . ' ' . $jamPulangLimit);
-                $pulangTime = strtotime($r->tgl . ' ' . $jamPulangTs);
+                $thresholdPulang = strtotime($r->tgl.' '.$jamPulangLimit);
+                $pulangTime = strtotime($r->tgl.' '.$jamPulangTs);
 
                 if ($pulangTime === false || $thresholdPulang === false) {
                     // jadwal tidak terbaca — jangan sampai salah denda
@@ -8824,7 +9055,7 @@ public function notifikasiStatus()
                 $allowed = max(0, $maxDendaBulan - $userMonthlyDenda[$uid]);
                 if ($effectiveDenda > $allowed) {
                     $effectiveDenda = $allowed;
-                    $masukKetDenda .= ' (dibatasi cap bulanan Rp ' . number_format($effectiveDenda, 0, ',', '.') . ')';
+                    $masukKetDenda .= ' (dibatasi cap bulanan Rp '.number_format($effectiveDenda, 0, ',', '.').')';
                 }
             }
             $userMonthlyDenda[$uid] += $effectiveDenda;
@@ -8856,21 +9087,31 @@ public function notifikasiStatus()
             // tekan ulang tidak mengaduk data & hitungan "dievaluasi" jujur.
             $needsWrite = false;
             foreach (['status_masuk', 'telat_menit', 'datang_awal_menit', 'status_pulang', 'pulang_cepat_menit', 'pulang_akhir_menit', 'points', 'denda', 'keterangan_denda'] as $col) {
-                if (!array_key_exists($col, $update)) {
+                if (! array_key_exists($col, $update)) {
                     continue;
                 }
                 $old = $r->$col ?? null;
                 $new = $update[$col];
                 if (in_array($col, ['telat_menit', 'datang_awal_menit', 'pulang_cepat_menit', 'pulang_akhir_menit', 'points'], true)) {
-                    if ((int) ($old ?? 0) !== (int) $new) { $needsWrite = true; break; }
+                    if ((int) ($old ?? 0) !== (int) $new) {
+                        $needsWrite = true;
+                        break;
+                    }
                 } elseif ($col === 'denda') {
-                    if (abs((float) ($old ?? 0) - (float) $new) > 0.0001) { $needsWrite = true; break; }
+                    if (abs((float) ($old ?? 0) - (float) $new) > 0.0001) {
+                        $needsWrite = true;
+                        break;
+                    }
                 } else {
-                    if ((string) ($old ?? '') !== (string) ($new ?? '')) { $needsWrite = true; break; }
+                    if ((string) ($old ?? '') !== (string) ($new ?? '')) {
+                        $needsWrite = true;
+                        break;
+                    }
                 }
             }
-            if (!$needsWrite) {
+            if (! $needsWrite) {
                 $skippedUnchangedCount++;
+
                 continue;
             }
             $db->table('absensi_harian')->where('id', $r->id)->update($update);
@@ -8880,17 +9121,17 @@ public function notifikasiStatus()
 
         // 2. Recalculate & Sync Alpha Fines (flat per hari)
         // Item disaring ke bulan ini.
-        $scanStartAlpha = date('Y-m-d', strtotime($startDate . ' -62 days'));
+        $scanStartAlpha = date('Y-m-d', strtotime($startDate.' -62 days'));
         $alphaSummary = $penaltyService->calculateAllUsersPeriodAlphaSummary($scanStartAlpha, $endDate, $setting);
         $updatedAlphaCount = 0;
         $pointAlpha = abs((int) ($setting->point_alpa ?? 5));
 
         // Peta izin approved bulan ini (memutus streak & melindungi baris cuti).
         $leaveCoveredDates = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin')) {
             try {
                 $leaveRowsAlpha = $db->table('absensi_izin')
-                    ->select('user_id, tgl_mulai, tgl_selesai')
+                    ->select('user_id', 'tgl_mulai', 'tgl_selesai')
                     ->where('status', 'approved')
                     ->where('tgl_mulai', '<=', $endDate)
                     ->where('tgl_selesai', '>=', $startDate)
@@ -8903,11 +9144,12 @@ public function notifikasiStatus()
                         $c = strtotime('+1 day', $c);
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         foreach ($alphaSummary as $uid => $summary) {
-            if (!isset($userMonthlyDenda[$uid])) {
+            if (! isset($userMonthlyDenda[$uid])) {
                 $userMonthlyDenda[$uid] = 0.0;
             }
 
@@ -8929,7 +9171,7 @@ public function notifikasiStatus()
                     $allowed = max(0, $maxDendaBulan - $userMonthlyDenda[$uid]);
                     if ($dendaAlpha > $allowed) {
                         $dendaAlpha = $allowed;
-                        $ketAlpha .= ' (dibatasi cap bulanan Rp ' . number_format($dendaAlpha, 0, ',', '.') . ')';
+                        $ketAlpha .= ' (dibatasi cap bulanan Rp '.number_format($dendaAlpha, 0, ',', '.').')';
                     }
                 }
 
@@ -8946,13 +9188,14 @@ public function notifikasiStatus()
                         && (string) ($rec->keterangan_denda ?? '') === (string) $ketAlpha) {
                         $userMonthlyDenda[$uid] += $dendaAlpha;
                         $skippedUnchangedCount++;
+
                         continue;
                     }
                     $recId = $rec->id;
                     $db->table('absensi_harian')->where('id', $recId)->update([
-                        'status_masuk'     => 'ALPHA',
-                        'points'           => -$pointAlpha,
-                        'denda'            => $dendaAlpha,
+                        'status_masuk' => 'ALPHA',
+                        'points' => -$pointAlpha,
+                        'denda' => $dendaAlpha,
                         'keterangan_denda' => $ketAlpha,
                     ]);
                     $userMonthlyDenda[$uid] += $dendaAlpha;
@@ -8960,29 +9203,29 @@ public function notifikasiStatus()
                     $userTersentuhRecalc[$uid] = true;
                 } else {
                     $existingRow = $db->table('absensi_harian')->where('user_id', $uid)->where('tgl', $tglAlpha)->first();
-                    if (!$existingRow) {
+                    if (! $existingRow) {
                         $db->table('absensi_harian')->insert([
-                            'user_id'          => $uid,
-                            'tgl'              => $tglAlpha,
-                            'status_masuk'     => 'ALPHA',
-                            'status_pulang'    => null,
-                            'points'           => -$pointAlpha,
-                            'denda'            => $dendaAlpha,
+                            'user_id' => $uid,
+                            'tgl' => $tglAlpha,
+                            'status_masuk' => 'ALPHA',
+                            'status_pulang' => null,
+                            'points' => -$pointAlpha,
+                            'denda' => $dendaAlpha,
                             'keterangan_denda' => $ketAlpha,
-                            'created_at'       => date('Y-m-d H:i:s')
+                            'created_at' => date('Y-m-d H:i:s'),
                         ]);
                         $userMonthlyDenda[$uid] += $dendaAlpha;
                         $updatedAlphaCount++;
                         $userTersentuhRecalc[$uid] = true;
                     } elseif (empty($existingRow->jam_masuk)
-                        && !in_array(strtoupper((string) ($existingRow->status_masuk ?? '')), ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS_OUT', 'ALPHA', 'ALPA'], true)
+                        && ! in_array(strtoupper((string) ($existingRow->status_masuk ?? '')), ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS_OUT', 'ALPHA', 'ALPA'], true)
                         && empty($leaveCoveredDates[$uid][$tglAlpha])) {
                         // Baris zombie (status kosong/tak dikenal, tanpa jam, tanpa izin):
                         // normalkan menjadi ALPHA agar state konvergen, bukan diestimasi terus.
                         $db->table('absensi_harian')->where('id', $existingRow->id)->update([
-                            'status_masuk'     => 'ALPHA',
-                            'points'           => -$pointAlpha,
-                            'denda'            => $dendaAlpha,
+                            'status_masuk' => 'ALPHA',
+                            'points' => -$pointAlpha,
+                            'denda' => $dendaAlpha,
                             'keterangan_denda' => $ketAlpha,
                         ]);
                         $userMonthlyDenda[$uid] += $dendaAlpha;
@@ -9003,14 +9246,15 @@ public function notifikasiStatus()
             try {
                 $penaltyService->syncSuratTeguranOnAttendanceChange((int) $uidSync, $bulan, $tahun, $setting);
                 $suratTersinkron++;
-            } catch (\Throwable $eSync) {}
+            } catch (\Throwable $eSync) {
+            }
         }
 
         $namaBulanList = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         $namaBulan = $namaBulanList[$bulan] ?? (string) $bulan;
         $msg = "Berhasil menghitung ulang denda presensi periode {$namaBulan} {$tahun}. "
-             . "({$updatedAttendanceCount} data presensi dievaluasi, {$updatedAlphaCount} data alpa disinkronkan, {$skippedUnchangedCount} data sudah sesuai dilewati"
-             . ($dendaDipertahankan > 0 ? ", {$dendaDipertahankan} denda dipertahankan karena sudah dibayar" : '') . ").";
+             ."({$updatedAttendanceCount} data presensi dievaluasi, {$updatedAlphaCount} data alpa disinkronkan, {$skippedUnchangedCount} data sudah sesuai dilewati"
+             .($dendaDipertahankan > 0 ? ", {$dendaDipertahankan} denda dipertahankan karena sudah dibayar" : '').').';
 
         return $this->respond(true, $msg, [
             'bulan' => $bulan,
@@ -9018,7 +9262,7 @@ public function notifikasiStatus()
             'updated_attendance' => $updatedAttendanceCount,
             'updated_alpha' => $updatedAlphaCount,
             'skipped_unchanged' => $skippedUnchangedCount,
-            'denda_dipertahankan' => $dendaDipertahankan
+            'denda_dipertahankan' => $dendaDipertahankan,
         ]);
     }
 
@@ -9033,8 +9277,9 @@ public function notifikasiStatus()
     private function tarifDendaPerPoin(): float
     {
         try {
-            $row = \Illuminate\Support\Facades\DB::connection()->table('absensi_setting')->orderBy('id', 'ASC')->first();
+            $row = DB::connection()->table('absensi_setting')->orderBy('id', 'ASC')->first();
             $tarif = (float) ($row->denda_per_point ?? 0);
+
             return $tarif > 0 ? $tarif : 1000.0;
         } catch (\Throwable $e) {
             return 1000.0;
@@ -9043,7 +9288,7 @@ public function notifikasiStatus()
 
     public function markLunas()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -9055,7 +9300,7 @@ public function notifikasiStatus()
         $keterangan = $this->request->input('keterangan');
         $tanggalBayar = $this->request->input('tanggal_bayar') ?: date('Y-m-d');
         $metodeBayar = strtoupper(trim($this->request->input('metode_bayar') ?? 'TUNAI'));
-        if (!in_array($metodeBayar, ['TUNAI', 'POIN', 'SALDO'])) {
+        if (! in_array($metodeBayar, ['TUNAI', 'POIN', 'SALDO'])) {
             $metodeBayar = 'TUNAI';
         }
         $poinDigunakan = (int) ($this->request->input('poin_digunakan') ?? 0);
@@ -9064,10 +9309,10 @@ public function notifikasiStatus()
             return $this->respond(false, 'Data tidak lengkap');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Baca-sisa-lalu-tulis: kunci dulu pembayarannya per guru.
-        if (!$this->cobaKunciTulisDenda((int) $userId)) {
+        if (! $this->cobaKunciTulisDenda((int) $userId)) {
             return $this->respond(false, 'Pembayaran lain untuk guru ini masih diproses, ulangi sebentar lagi.', null, null, 409);
         }
 
@@ -9098,7 +9343,7 @@ public function notifikasiStatus()
         // cukup untuk melunasi Rp 500.000 dan ledger poin tidak lagi
         // mencerminkan uang yang hilang. Angka di UI hanya saran.
         if ($metodeBayar === 'POIN') {
-            $tarifPoin     = $this->tarifDendaPerPoin();
+            $tarifPoin = $this->tarifDendaPerPoin();
             $poinDigunakan = (int) ceil($sisaDenda / $tarifPoin);
         }
 
@@ -9107,42 +9352,44 @@ public function notifikasiStatus()
         // ulang menjawab sukses tanpa menulis ganda.
         $idemKey = $this->normalisasiIdempotencyKey();
         if ($idemKey !== null && $this->pembayaranKunciSudahAda($idemKey)) {
-            return $this->respond(true, 'Pembayaran denda (' . $metodeBayar . ') sudah tercatat sebelumnya');
+            return $this->respond(true, 'Pembayaran denda ('.$metodeBayar.') sudah tercatat sebelumnya');
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // If paid via SALDO, verify & deduct from absensi_saldo_denda
             if ($metodeBayar === 'SALDO') {
                 $saldoDenda = $this->getSaldoDenda($userId);
                 if ($saldoDenda < $sisaDenda) {
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    return $this->respond(false, 'Saldo denda guru tidak mencukupi (Saldo: Rp ' . number_format($saldoDenda, 0, ',', '.') . ', Dibutuhkan: Rp ' . number_format($sisaDenda, 0, ',', '.') . ')');
+                    DB::rollBack();
+
+                    return $this->respond(false, 'Saldo denda guru tidak mencukupi (Saldo: Rp '.number_format($saldoDenda, 0, ',', '.').', Dibutuhkan: Rp '.number_format($sisaDenda, 0, ',', '.').')');
                 }
-                $this->potongSaldoDenda($userId, $sisaDenda, null, 'Pelunasan Denda Periode ' . $bulan . '/' . $tahun . (!empty($keterangan) ? ' (' . $keterangan . ')' : ''));
+                $this->potongSaldoDenda($userId, $sisaDenda, null, 'Pelunasan Denda Periode '.$bulan.'/'.$tahun.(! empty($keterangan) ? ' ('.$keterangan.')' : ''));
             }
 
             // If paid via POIN and poinDigunakan is set, verify & deduct points
-            $poinModel = new \App\Models\PoinHistoryModel();
+            $poinModel = new PoinHistoryModel;
             if ($metodeBayar === 'POIN') {
                 $saldo = $poinModel->getSaldo($userId);
                 if ($saldo < $poinDigunakan) {
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    return $this->respond(false, 'Poin guru tidak mencukupi (Saldo: ' . number_format($saldo) . ' pts, Dibutuhkan: ' . number_format($poinDigunakan) . ' pts untuk Rp ' . number_format($sisaDenda, 0, ',', '.') . ' pada tarif ' . number_format($tarifPoin, 0, ',', '.') . ' Rp/poin)');
+                    DB::rollBack();
+
+                    return $this->respond(false, 'Poin guru tidak mencukupi (Saldo: '.number_format($saldo).' pts, Dibutuhkan: '.number_format($poinDigunakan).' pts untuk Rp '.number_format($sisaDenda, 0, ',', '.').' pada tarif '.number_format($tarifPoin, 0, ',', '.').' Rp/poin)');
                 }
 
                 $tercatat = $poinModel->insert([
                     'user_id' => $userId,
                     'poin' => -1 * abs($poinDigunakan),
                     'tipe' => 'REDEEM',
-                    'keterangan' => 'Potong Denda Periode ' . $bulan . '/' . $tahun . (!empty($keterangan) ? ' (' . $keterangan . ')' : ''),
+                    'keterangan' => 'Potong Denda Periode '.$bulan.'/'.$tahun.(! empty($keterangan) ? ' ('.$keterangan.')' : ''),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
                 if ($tercatat === false) {
                     // CI4 mengembalikan false (bukan exception) saat DB menolak
                     // insert — tanpanya denda dianggap lunas tanpa poin terpakai.
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#' . $userId . ' periode ' . $bulan . '/' . $tahun);
+                    DB::rollBack();
+                    Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#'.$userId.' periode '.$bulan.'/'.$tahun);
 
                     return $this->respond(false, 'Poin belum berhasil dikurangi, sehingga pembayaran denda dibatalkan. Silakan coba lagi.');
                 }
@@ -9150,8 +9397,12 @@ public function notifikasiStatus()
             }
 
             $defaultKet = 'Pelunasan Tunai/Transfer';
-            if ($metodeBayar === 'POIN') $defaultKet = 'Pelunasan via Potongan Poin';
-            if ($metodeBayar === 'SALDO') $defaultKet = 'Pelunasan via Potongan Saldo Denda';
+            if ($metodeBayar === 'POIN') {
+                $defaultKet = 'Pelunasan via Potongan Poin';
+            }
+            if ($metodeBayar === 'SALDO') {
+                $defaultKet = 'Pelunasan via Potongan Saldo Denda';
+            }
 
             $db->table('absensi_pembayaran_denda')->insert([
                 'user_id' => $userId,
@@ -9168,44 +9419,49 @@ public function notifikasiStatus()
                 'paid_at' => date('Y-m-d H:i:s'),
                 'paid_by' => session()->get('user_id'),
                 'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
 
             // Pembayaran uang tanpa jejak siapa yang mencatat = tidak bisa
             // direkonstruksi saat selisih. Baris audit ini yang jadi jejaknya.
             try {
-                (new AuditLogModel())->log('absensi_pembayaran_denda', \Illuminate\Support\Facades\DB::getPdo()->lastInsertId(), 'INSERT', (int) $userId, $this->getUserId(),
+                (new AuditLogModel)->log('absensi_pembayaran_denda', DB::getPdo()->lastInsertId(), 'INSERT', (int) $userId, $this->getUserId(),
                     null,
                     [
-                        'bulan'          => $bulan,
-                        'tahun'          => $tahun,
-                        'total_denda'    => $calculatedDenda,
-                        'nominal_bayar'  => $sisaDenda,
-                        'metode_bayar'   => $metodeBayar,
+                        'bulan' => $bulan,
+                        'tahun' => $tahun,
+                        'total_denda' => $calculatedDenda,
+                        'nominal_bayar' => $sisaDenda,
+                        'metode_bayar' => $metodeBayar,
                         'poin_digunakan' => $poinDigunakan,
                     ],
-                    'Pelunasan Denda ' . $bulan . '/' . $tahun . ' via ' . $metodeBayar);
-            } catch (\Throwable $ex) {}
+                    'Pelunasan Denda '.$bulan.'/'.$tahun.' via '.$metodeBayar);
+            } catch (\Throwable $ex) {
+            }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
             // Balapan tulis: kunci unik menolak INSERT kedua. Karena
             // potongan poin/saldo ikut rollback, cukup jawab sudah tercatat.
             if ($idemKey !== null && stripos($e->getMessage(), 'uplicate') !== false && $this->pembayaranKunciSudahAda($idemKey)) {
-                return $this->respond(true, 'Pembayaran denda (' . $metodeBayar . ') sudah tercatat sebelumnya');
+                return $this->respond(true, 'Pembayaran denda ('.$metodeBayar.') sudah tercatat sebelumnya');
             }
-            Log::error('markLunas gagal: ' . $e->getMessage());
+            Log::error('markLunas gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mencatat pembayaran — periksa log aplikasi.', null, null, 500);
         }
 
-        return $this->respond(true, 'Pembayaran denda (' . $metodeBayar . ') berhasil dicatat'
-            . ($metodeBayar === 'POIN' ? ' — poin dipotong ' . number_format($poinDigunakan) . ' pts' : ''));
+        return $this->respond(true, 'Pembayaran denda ('.$metodeBayar.') berhasil dicatat'
+            .($metodeBayar === 'POIN' ? ' — poin dipotong '.number_format($poinDigunakan).' pts' : ''));
     }
 
     public function batalLunas()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -9219,11 +9475,11 @@ public function notifikasiStatus()
             return $this->respond(false, 'Data tidak lengkap');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Refund poin/saldo juga baca-lalu-tulis; pakai kunci yang sama dengan
         // jalur bayar supaya pembatalan tidak bersilang dengan pelunasan.
-        if (!$this->cobaKunciTulisDenda((int) $userId)) {
+        if (! $this->cobaKunciTulisDenda((int) $userId)) {
             return $this->respond(false, 'Transaksi denda lain untuk guru ini masih diproses, ulangi sebentar lagi.', null, null, 409);
         }
 
@@ -9237,24 +9493,24 @@ public function notifikasiStatus()
             ->get();
 
         if ($existingRows) {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
-                $poinModel = new \App\Models\PoinHistoryModel();
+                $poinModel = new PoinHistoryModel;
                 foreach ($existingRows as $existing) {
                     // If payment was made with POIN and points were deducted, refund them
-                    if (($existing->metode_bayar === 'POIN' || !empty($existing->poin_digunakan)) && (int)$existing->poin_digunakan > 0) {
+                    if (($existing->metode_bayar === 'POIN' || ! empty($existing->poin_digunakan)) && (int) $existing->poin_digunakan > 0) {
                         $tercatatRefund = $poinModel->insert([
                             'user_id' => $userId,
-                            'poin' => abs((int)$existing->poin_digunakan),
+                            'poin' => abs((int) $existing->poin_digunakan),
                             'tipe' => 'MANUAL_ADD',
-                            'keterangan' => 'Pengembalian Poin (Pembatalan Pelunasan Denda ' . $bulan . '/' . $tahun . ')',
+                            'keterangan' => 'Pengembalian Poin (Pembatalan Pelunasan Denda '.$bulan.'/'.$tahun.')',
                             'created_at' => date('Y-m-d H:i:s'),
                         ]);
                         if ($tercatatRefund === false) {
                             // Pembatalan tanpa pencatatan refund = poin guru
                             // hilang diam. Batalkan seluruh pembatalan.
-                            \Illuminate\Support\Facades\DB::rollBack();
-                            Log::error('[PresensiAdmin] insert refund poin ditolak DB user#' . $userId . ' periode ' . $bulan . '/' . $tahun);
+                            DB::rollBack();
+                            Log::error('[PresensiAdmin] insert refund poin ditolak DB user#'.$userId.' periode '.$bulan.'/'.$tahun);
 
                             return $this->respond(false, 'Poin pengembalian belum berhasil dicatat, pembatalan dibatalkan. Silakan coba lagi.');
                         }
@@ -9263,28 +9519,33 @@ public function notifikasiStatus()
 
                     // If payment was made with SALDO, refund saldo denda
                     if ($existing->metode_bayar === 'SALDO') {
-                        $nominalRefund = (float)($existing->nominal_bayar ?: $existing->total_denda);
-                        $this->tambahSaldoDenda($userId, $nominalRefund, $existing->id, 'Pengembalian Saldo Denda (Pembatalan Pelunasan Periode ' . $bulan . '/' . $tahun . ')');
+                        $nominalRefund = (float) ($existing->nominal_bayar ?: $existing->total_denda);
+                        $this->tambahSaldoDenda($userId, $nominalRefund, $existing->id, 'Pengembalian Saldo Denda (Pembatalan Pelunasan Periode '.$bulan.'/'.$tahun.')');
                     }
 
                     $db->table('absensi_pembayaran_denda')
                         ->where('id', $existing->id)
                         ->update([
                             'status' => 'batal',
-                            'updated_at' => date('Y-m-d H:i:s')
+                            'updated_at' => date('Y-m-d H:i:s'),
                         ]);
 
                     try {
-                        (new AuditLogModel())->log('absensi_pembayaran_denda', $existing->id, 'UPDATE', (int) $userId, $this->getUserId(),
+                        (new AuditLogModel)->log('absensi_pembayaran_denda', $existing->id, 'UPDATE', (int) $userId, $this->getUserId(),
                             ['status' => $existing->status, 'nominal_bayar' => $existing->nominal_bayar, 'poin_digunakan' => $existing->poin_digunakan],
                             ['status' => 'batal'],
-                            'Pembatalan Pelunasan Denda ' . $bulan . '/' . $tahun);
-                    } catch (\Throwable $ex) {}
+                            'Pembatalan Pelunasan Denda '.$bulan.'/'.$tahun);
+                    } catch (\Throwable $ex) {
+                    }
                 }
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
             } catch (\Throwable $e) {
-                try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-                Log::error('batalLunas gagal: ' . $e->getMessage());
+                try {
+                    DB::rollBack();
+                } catch (\Throwable $e2) {
+                }
+                Log::error('batalLunas gagal: '.$e->getMessage());
+
                 return $this->respond(false, 'Gagal membatalkan pelunasan — periksa log aplikasi.', null, null, 500);
             }
         }
@@ -9312,11 +9573,12 @@ public function notifikasiStatus()
      */
     private function cobaKunciTulisDenda(int $userId): bool
     {
-        $nama = 'absen:denda:' . $userId;
+        $nama = 'absen:denda:'.$userId;
         try {
-            $row = \Illuminate\Support\Facades\DB::connection()->select('SELECT GET_LOCK(?, 5) AS l', [$nama])[0] ?? null;
+            $row = DB::connection()->select('SELECT GET_LOCK(?, 5) AS l', [$nama])[0] ?? null;
         } catch (\Throwable $e) {
-            Log::error("[denda] GET_LOCK({$nama}) gagal: " . $e->getMessage());
+            Log::error("[denda] GET_LOCK({$nama}) gagal: ".$e->getMessage());
+
             // Mekanisme lock bukan syarat benar/salahnya pembukuan; kalau query
             // GET_LOCK ditolak, biarkan pembayaran tetap jalan seperti sebelumnya.
             return true;
@@ -9336,13 +9598,16 @@ public function notifikasiStatus()
      */
     private function getSaldoDenda($userId)
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_saldo_denda')) return 0;
+        $db = DB::connection();
+        if (! Schema::hasTable('absensi_saldo_denda')) {
+            return 0;
+        }
         $row = $db->table('absensi_saldo_denda')
-            ->selectSum('nominal', 'total_saldo')
+            ->selectRaw('SUM(nominal) as total_saldo')
             ->where('user_id', $userId)
             ->first();
-        return max(0, (float)($row->total_saldo ?? 0));
+
+        return max(0, (float) ($row->total_saldo ?? 0));
     }
 
     /**
@@ -9350,9 +9615,11 @@ public function notifikasiStatus()
      */
     private function tambahSaldoDenda($userId, $nominal, $pembayaranId = null, $keterangan = '')
     {
-        if ($nominal <= 0) return 0;
+        if ($nominal <= 0) {
+            return 0;
+        }
         $this->patchAbsensiPembayaranDendaTable();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $currentSaldo = $this->getSaldoDenda($userId);
         $newSaldo = $currentSaldo + $nominal;
         $db->table('absensi_saldo_denda')->insert([
@@ -9363,8 +9630,9 @@ public function notifikasiStatus()
             'pembayaran_id' => $pembayaranId,
             'keterangan' => $keterangan ?: 'Kelebihan pembayaran denda',
             'created_by' => session()->get('user_id'),
-            'created_at' => date('Y-m-d H:i:s')
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
+
         return $newSaldo;
     }
 
@@ -9373,9 +9641,11 @@ public function notifikasiStatus()
      */
     private function potongSaldoDenda($userId, $nominal, $pembayaranId = null, $keterangan = '')
     {
-        if ($nominal <= 0) return 0;
+        if ($nominal <= 0) {
+            return 0;
+        }
         $this->patchAbsensiPembayaranDendaTable();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $currentSaldo = $this->getSaldoDenda($userId);
         $newSaldo = max(0, $currentSaldo - $nominal);
         $db->table('absensi_saldo_denda')->insert([
@@ -9386,8 +9656,9 @@ public function notifikasiStatus()
             'pembayaran_id' => $pembayaranId,
             'keterangan' => $keterangan ?: 'Penggunaan saldo untuk denda',
             'created_by' => session()->get('user_id'),
-            'created_at' => date('Y-m-d H:i:s')
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
+
         return $newSaldo;
     }
 
@@ -9401,7 +9672,7 @@ public function notifikasiStatus()
         // $tahun null = lintas tahun (dipakai bayar nominal + preview agar
         // tunggakan lama ikut terlunasi sekaligus). Bentuk kembalian sama:
         // list bulan {bulan,tahun,total_denda,sudah_dibayar,sisa}.
-        return (new \App\Services\AttendancePenaltyService())->sisaDendaPerBulan((int) $userId, $tahun);
+        return (new AttendancePenaltyService)->sisaDendaPerBulan((int) $userId, $tahun);
     }
 
     /**
@@ -9410,7 +9681,7 @@ public function notifikasiStatus()
      */
     public function bayarDendaNominal()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -9427,7 +9698,7 @@ public function notifikasiStatus()
         // masing-masing). Param tahun lama diabaikan agar arsip ikut lunas.
         $tahunFilter = null;
 
-        if (!in_array($metodeBayar, ['TUNAI', 'POIN', 'SALDO'])) {
+        if (! in_array($metodeBayar, ['TUNAI', 'POIN', 'SALDO'])) {
             $metodeBayar = 'TUNAI';
         }
 
@@ -9438,18 +9709,18 @@ public function notifikasiStatus()
         // Idempotensi klik ganda (kunci unik per aksi, sufiks per bulan).
         $idemKey = $this->normalisasiIdempotencyKey();
         if ($idemKey !== null && $this->pembayaranKunciSudahAda($idemKey)) {
-            return $this->respond(true, 'Pembayaran Rp ' . number_format($nominalBayar, 0, ',', '.') . ' sudah tercatat sebelumnya');
+            return $this->respond(true, 'Pembayaran Rp '.number_format($nominalBayar, 0, ',', '.').' sudah tercatat sebelumnya');
         }
 
         // If paying via SALDO (Saldo Denda), verify balance
-        if (!$this->cobaKunciTulisDenda((int) $userId)) {
+        if (! $this->cobaKunciTulisDenda((int) $userId)) {
             return $this->respond(false, 'Pembayaran lain untuk guru ini masih diproses, ulangi sebentar lagi.', null, null, 409);
         }
 
         if ($metodeBayar === 'SALDO') {
             $saldoDenda = $this->getSaldoDenda($userId);
             if ($saldoDenda < $nominalBayar) {
-                return $this->respond(false, 'Saldo denda guru tidak mencukupi (Saldo: Rp ' . number_format($saldoDenda, 0, ',', '.') . ', Dibutuhkan: Rp ' . number_format($nominalBayar, 0, ',', '.') . ')');
+                return $this->respond(false, 'Saldo denda guru tidak mencukupi (Saldo: Rp '.number_format($saldoDenda, 0, ',', '.').', Dibutuhkan: Rp '.number_format($nominalBayar, 0, ',', '.').')');
             }
         }
 
@@ -9462,7 +9733,8 @@ public function notifikasiStatus()
                 return $this->respond(false, 'Guru ini tidak memiliki tunggakan denda.');
             }
             $saldoBaru = $this->tambahSaldoDenda($userId, $nominalBayar, null, 'Setoran Saldo Denda (Tidak ada tunggakan denda)');
-            return $this->respond(true, 'Guru tidak memiliki tunggakan denda. Nominal Rp ' . number_format($nominalBayar, 0, ',', '.') . ' telah disimpan menjadi Saldo Denda guru (Total Saldo: Rp ' . number_format($saldoBaru, 0, ',', '.') . ').');
+
+            return $this->respond(true, 'Guru tidak memiliki tunggakan denda. Nominal Rp '.number_format($nominalBayar, 0, ',', '.').' telah disimpan menjadi Saldo Denda guru (Total Saldo: Rp '.number_format($saldoBaru, 0, ',', '.').').');
         }
 
         // Total remaining fines
@@ -9477,14 +9749,14 @@ public function notifikasiStatus()
         // dari tarif denda_per_point. Sama seperti markLunas — dulu kolom poin
         // di modal bisa diketik berapa saja sementara Rp-nya tetap penuh,
         // sehingga 1 poin bisa "membayar" ratusan ribu.
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $poinModel = new \App\Models\PoinHistoryModel();
+        $db = DB::connection();
+        $poinModel = new PoinHistoryModel;
         if ($metodeBayar === 'POIN') {
-            $tarifPoin     = $this->tarifDendaPerPoin();
+            $tarifPoin = $this->tarifDendaPerPoin();
             $poinDigunakan = (int) ceil($nominalBayar / $tarifPoin);
             $saldo = $poinModel->getSaldo($userId);
             if ($poinDigunakan <= 0 || $saldo < $poinDigunakan) {
-                return $this->respond(false, 'Poin guru tidak mencukupi (Saldo: ' . number_format($saldo) . ' pts, Dibutuhkan: ' . number_format($poinDigunakan) . ' pts untuk Rp ' . number_format($nominalBayar, 0, ',', '.') . ' pada tarif ' . number_format($tarifPoin, 0, ',', '.') . ' Rp/poin)');
+                return $this->respond(false, 'Poin guru tidak mencukupi (Saldo: '.number_format($saldo).' pts, Dibutuhkan: '.number_format($poinDigunakan).' pts untuk Rp '.number_format($nominalBayar, 0, ',', '.').' pada tarif '.number_format($tarifPoin, 0, ',', '.').' Rp/poin)');
             }
         }
 
@@ -9494,7 +9766,9 @@ public function notifikasiStatus()
         $bulanTerbayar = [];
 
         foreach ($sisaPerBulan as $item) {
-            if ($sisaNominal <= 0) break;
+            if ($sisaNominal <= 0) {
+                break;
+            }
 
             $bayarBulanIni = min($sisaNominal, $item['sisa']);
             $statusBulanIni = ($bayarBulanIni >= $item['sisa']) ? 'lunas' : 'sebagian';
@@ -9508,12 +9782,12 @@ public function notifikasiStatus()
             ];
 
             $sisaNominal -= $bayarBulanIni;
-            $bulanTerbayar[] = str_pad($item['bulan'], 2, '0', STR_PAD_LEFT) . '/' . $item['tahun'];
+            $bulanTerbayar[] = str_pad($item['bulan'], 2, '0', STR_PAD_LEFT).'/'.$item['tahun'];
         }
 
         // Semua tulis (poin/saldo/payment) dalam satu transaksi agar double-submit
         // tidak menghasilkan potongan ganda atau baris pembayaran ganda.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // Deduct points once for the whole payment if POIN method
             if ($metodeBayar === 'POIN' && $poinDigunakan > 0) {
@@ -9522,12 +9796,12 @@ public function notifikasiStatus()
                     'user_id' => $userId,
                     'poin' => -1 * abs($poinDigunakan),
                     'tipe' => 'REDEEM',
-                    'keterangan' => 'Potong Denda Periode ' . $bulanStr . (!empty($keterangan) ? ' (' . $keterangan . ')' : ''),
+                    'keterangan' => 'Potong Denda Periode '.$bulanStr.(! empty($keterangan) ? ' ('.$keterangan.')' : ''),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
                 if ($tercatat === false) {
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#' . $userId . ' periode ' . $bulanStr);
+                    DB::rollBack();
+                    Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#'.$userId.' periode '.$bulanStr);
 
                     return $this->respond(false, 'Poin belum berhasil dikurangi, sehingga pembayaran denda dibatalkan. Silakan coba lagi.');
                 }
@@ -9540,13 +9814,13 @@ public function notifikasiStatus()
 
             if ($metodeBayar === 'SALDO') {
                 $nominalPakai = min($nominalBayar, $totalSisaAll);
-                $saldoAkhir = $this->potongSaldoDenda($userId, $nominalPakai, null, 'Pembayaran denda periode ' . implode(', ', $bulanTerbayar));
+                $saldoAkhir = $this->potongSaldoDenda($userId, $nominalPakai, null, 'Pembayaran denda periode '.implode(', ', $bulanTerbayar));
             } elseif ($lebihBayar > 0) {
-                $saldoAkhir = $this->tambahSaldoDenda($userId, $lebihBayar, null, 'Kelebihan pembayaran denda tanggal ' . date('d/m/Y', strtotime($tanggalBayar)));
+                $saldoAkhir = $this->tambahSaldoDenda($userId, $lebihBayar, null, 'Kelebihan pembayaran denda tanggal '.date('d/m/Y', strtotime($tanggalBayar)));
             }
 
             // Default keterangan
-            $defaultKet = 'Pembayaran Rp ' . number_format($nominalBayar, 0, ',', '.') . ' - distribusi otomatis';
+            $defaultKet = 'Pembayaran Rp '.number_format($nominalBayar, 0, ',', '.').' - distribusi otomatis';
             if ($metodeBayar === 'SALDO') {
                 $defaultKet = 'Pembayaran via Potongan Saldo Denda';
             }
@@ -9575,52 +9849,57 @@ public function notifikasiStatus()
                     'nominal_bayar' => $d['nominal_bayar'],
                     'metode_bayar' => $metodeBayar,
                     'poin_digunakan' => $poinBaris,
-                    'idempotency_key' => $idemKey !== null ? $idemKey . ':' . $d['tahun'] . '-' . str_pad((string) $d['bulan'], 2, '0', STR_PAD_LEFT) : null,
+                    'idempotency_key' => $idemKey !== null ? $idemKey.':'.$d['tahun'].'-'.str_pad((string) $d['bulan'], 2, '0', STR_PAD_LEFT) : null,
                     'status' => $d['status'],
                     'keterangan' => $keterangan ?: $defaultKet,
                     'tanggal_bayar' => $tanggalBayar,
                     'paid_at' => date('Y-m-d H:i:s'),
                     'paid_by' => session()->get('user_id'),
                     'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
+                    'updated_at' => date('Y-m-d H:i:s'),
                 ]);
             }
 
             try {
-                (new AuditLogModel())->log('absensi_pembayaran_denda', null, 'INSERT', (int) $userId, $this->getUserId(),
+                (new AuditLogModel)->log('absensi_pembayaran_denda', null, 'INSERT', (int) $userId, $this->getUserId(),
                     null,
                     [
-                        'nominal_bayar'  => $nominalBayar,
-                        'metode_bayar'   => $metodeBayar,
+                        'nominal_bayar' => $nominalBayar,
+                        'metode_bayar' => $metodeBayar,
                         'poin_digunakan' => $poinDigunakan,
-                        'distribusi'     => array_map(
+                        'distribusi' => array_map(
                             static fn ($d) => ['bulan' => $d['bulan'], 'tahun' => $d['tahun'], 'nominal' => $d['nominal_bayar'], 'status' => $d['status']],
                             $distribusi
                         ),
                     ],
-                    'Pembayaran Nominal Denda Rp ' . number_format($nominalBayar, 0, ',', '.') . ' via ' . $metodeBayar);
-            } catch (\Throwable $ex) {}
+                    'Pembayaran Nominal Denda Rp '.number_format($nominalBayar, 0, ',', '.').' via '.$metodeBayar);
+            } catch (\Throwable $ex) {
+            }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
             // Balapan tulis: kunci unik menolak baris kedua. Potongan
             // poin/saldo ikut rollback, cukup jawab sudah tercatat.
             if ($idemKey !== null && stripos($e->getMessage(), 'uplicate') !== false && $this->pembayaranKunciSudahAda($idemKey)) {
-                return $this->respond(true, 'Pembayaran Rp ' . number_format($nominalBayar, 0, ',', '.') . ' sudah tercatat sebelumnya');
+                return $this->respond(true, 'Pembayaran Rp '.number_format($nominalBayar, 0, ',', '.').' sudah tercatat sebelumnya');
             }
-            Log::error('bayarDendaNominal gagal: ' . $e->getMessage());
+            Log::error('bayarDendaNominal gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mencatat pembayaran — periksa log aplikasi.', null, null, 500);
         }
 
         // Build summary message
         $bulanStr = implode(', ', $bulanTerbayar);
         if ($lebihBayar > 0) {
-            $msg = 'Pembayaran Rp ' . number_format($nominalBayar, 0, ',', '.') . ' (' . $metodeBayar . ') berhasil dicatat. Seluruh denda (' . $bulanStr . ') telah lunas, dan kelebihan sebesar Rp ' . number_format($lebihBayar, 0, ',', '.') . ' disimpan sebagai Saldo Denda guru (Total Saldo: Rp ' . number_format($saldoAkhir, 0, ',', '.') . ').';
+            $msg = 'Pembayaran Rp '.number_format($nominalBayar, 0, ',', '.').' ('.$metodeBayar.') berhasil dicatat. Seluruh denda ('.$bulanStr.') telah lunas, dan kelebihan sebesar Rp '.number_format($lebihBayar, 0, ',', '.').' disimpan sebagai Saldo Denda guru (Total Saldo: Rp '.number_format($saldoAkhir, 0, ',', '.').').';
         } else {
-            $msg = 'Pembayaran Rp ' . number_format($nominalBayar, 0, ',', '.') . ' (' . $metodeBayar . ') berhasil dicatat untuk ' . count($distribusi) . ' bulan: ' . $bulanStr;
+            $msg = 'Pembayaran Rp '.number_format($nominalBayar, 0, ',', '.').' ('.$metodeBayar.') berhasil dicatat untuk '.count($distribusi).' bulan: '.$bulanStr;
             if ($metodeBayar === 'SALDO') {
-                $msg .= ' (Sisa Saldo Denda: Rp ' . number_format($saldoAkhir, 0, ',', '.') . ')';
+                $msg .= ' (Sisa Saldo Denda: Rp '.number_format($saldoAkhir, 0, ',', '.').')';
             }
         }
 
@@ -9632,7 +9911,7 @@ public function notifikasiStatus()
      */
     public function previewDistribusi()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -9665,7 +9944,9 @@ public function notifikasiStatus()
         $distribusi = [];
 
         foreach ($sisaPerBulan as $item) {
-            if ($sisaNominal <= 0) break;
+            if ($sisaNominal <= 0) {
+                break;
+            }
 
             $bayarBulanIni = min($sisaNominal, $item['sisa']);
             $distribusi[] = [
@@ -9701,7 +9982,7 @@ public function notifikasiStatus()
      */
     public function laporanPembayaran()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -9715,7 +9996,7 @@ public function notifikasiStatus()
      */
     public function exportLaporanPdf()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -9723,18 +10004,18 @@ public function notifikasiStatus()
 
         $html = view('admin.presensi.laporan_pembayaran_pdf', $data);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $filename = 'Laporan_Pembayaran_Denda_' . ($data['filterTglDari'] ?? date('Y-m-d'))
-            . '_sd_' . ($data['filterTglSampai'] ?? date('Y-m-d')) . '.pdf';
+        $filename = 'Laporan_Pembayaran_Denda_'.($data['filterTglDari'] ?? date('Y-m-d'))
+            .'_sd_'.($data['filterTglSampai'] ?? date('Y-m-d')).'.pdf';
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($dompdf->output())
             ->setStatusCode(200);
     }
@@ -9746,7 +10027,7 @@ public function notifikasiStatus()
     {
         $this->patchAbsensiPembayaranDendaTable();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $filterUserId = $this->request->query('user_id');
         $filterTglDari = $this->request->query('tgl_dari') ?: date('Y-m-01');
@@ -9754,9 +10035,9 @@ public function notifikasiStatus()
         $filterMetode = $this->request->query('metode');
 
         $builder = $db->table('absensi_pembayaran_denda as pd')
-            ->select('pd.*, mg.nama_guru, mg.nip, admin.first_name as admin_first, admin.last_name as admin_last')
-            ->join('master_guru as mg', 'mg.id_user = pd.user_id', 'left')
-            ->join('users as admin', 'admin.id = pd.paid_by', 'left')
+            ->select('pd.*', 'mg.nama_guru', 'mg.nip', 'admin.first_name as admin_first', 'admin.last_name as admin_last')
+            ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'pd.user_id')
+            ->leftJoin('users as admin', 'admin.id', '=', 'pd.paid_by')
             ->where('pd.status', '!=', 'batal');
 
         if ($filterUserId) {
@@ -9782,9 +10063,9 @@ public function notifikasiStatus()
         $totalPoin = 0;
         $totalSaldo = 0;
         foreach ($payments as $p) {
-            $nominal = (float)($p->nominal_bayar ?: $p->total_denda);
+            $nominal = (float) ($p->nominal_bayar ?: $p->total_denda);
             $totalNominal += $nominal;
-            switch (\App\Services\AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null)) {
+            switch (AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null)) {
                 case 'POIN':
                     $totalPoin += $nominal;
                     break;
@@ -9798,19 +10079,21 @@ public function notifikasiStatus()
 
         // Guru list for filter dropdown
         $guruList = $db->table('users as u')
-            ->select('u.id, g.nama_guru, g.nip')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.nama_guru', 'g.nip')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->orderBy('g.nama_guru', 'ASC')
             ->get();
 
         $setting = $this->getSettingRow();
-        $tp_active = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$setting) $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        if (! $setting) {
+            $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         // Nama guru terfilter (untuk judul PDF)
         $filterGuruNama = null;
@@ -9849,11 +10132,11 @@ public function notifikasiStatus()
      */
     public function backupDatabase()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->back()->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tables = [
             'absensi_harian',
             'absensi_koreksi',
@@ -9862,28 +10145,29 @@ public function notifikasiStatus()
             'absensi_setting',
             'absensi_jadwal_kerja',
             'absensi_hari_libur',
-            'absensi_pembayaran_denda'
+            'absensi_pembayaran_denda',
         ];
 
         $sql = "-- Backup Database Absensi \n";
-        $sql .= "-- Date: " . date('Y-m-d H:i:s') . "\n";
+        $sql .= '-- Date: '.date('Y-m-d H:i:s')."\n";
         $sql .= "-- Generated by Admin Panel\n\n";
         $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
 
         foreach ($tables as $table) {
-            if (!\Illuminate\Support\Facades\Schema::hasTable($table))
+            if (! Schema::hasTable($table)) {
                 continue;
+            }
 
             // Structure
             $sql .= "-- Table structure for table `$table` --\n";
             $sql .= "DROP TABLE IF EXISTS `$table`;\n";
             $query = $db->select("SHOW CREATE TABLE `$table`")[0] ?? null;
-            $sql .= $query['Create Table'] . ";\n\n";
+            $sql .= $query['Create Table'].";\n\n";
 
             // Data
             $sql .= "-- Dumping data for table `$table` --\n";
-            $rows = $db->table($table)->get()->map(fn($r) => (array) $r)->all();
-            if (!empty($rows)) {
+            $rows = $db->table($table)->get()->map(fn ($r) => (array) $r)->all();
+            if (! empty($rows)) {
                 foreach ($rows as $row) {
                     $insertKeys = array_map(function ($k) {
                         return "`$k`";
@@ -9891,7 +10175,7 @@ public function notifikasiStatus()
                     $insertVals = array_map(function ($v) use ($db) {
                         return $db->escape($v);
                     }, array_values($row));
-                    $sql .= "INSERT INTO `$table` (" . implode(', ', $insertKeys) . ") VALUES (" . implode(', ', $insertVals) . ");\n";
+                    $sql .= "INSERT INTO `$table` (".implode(', ', $insertKeys).') VALUES ('.implode(', ', $insertVals).");\n";
                 }
             }
             $sql .= "\n";
@@ -9899,7 +10183,7 @@ public function notifikasiStatus()
 
         $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
 
-        $filename = 'backup_absensi_' . date('Y-m-d_H-i-s') . '.sql';
+        $filename = 'backup_absensi_'.date('Y-m-d_H-i-s').'.sql';
 
         return $this->response->download($filename, $sql);
     }
@@ -9909,12 +10193,12 @@ public function notifikasiStatus()
      */
     public function backupDataJson()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->back()->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        
+        $db = DB::connection();
+
         // Dynamically fetch tables
         $tables = [];
         $allTables = $db->listTables();
@@ -9923,37 +10207,39 @@ public function notifikasiStatus()
                 $tables[] = $t;
             }
         }
-        
+
         // Core tables fallback
         $coreTables = [
             'absensi_harian',
             'absensi_koreksi',
             'absensi_izin',
             'absensi_lokasi',
-            'absensi_setting', 
+            'absensi_setting',
             'absensi_jadwal_kerja',
             'absensi_hari_libur',
-            'absensi_pembayaran_denda'
+            'absensi_pembayaran_denda',
         ];
         foreach ($coreTables as $ct) {
-            if (!in_array($ct, $tables)) $tables[] = $ct;
+            if (! in_array($ct, $tables)) {
+                $tables[] = $ct;
+            }
         }
 
         $data = [
             'meta' => [
                 'generated_at' => date('Y-m-d H:i:s'),
-                'version' => '1.0'
+                'version' => '1.0',
             ],
-            'tables' => []
+            'tables' => [],
         ];
 
         foreach ($tables as $table) {
-            if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
-                $data['tables'][$table] = $db->table($table)->get()->map(fn($r) => (array) $r)->all();
+            if (Schema::hasTable($table)) {
+                $data['tables'][$table] = $db->table($table)->get()->map(fn ($r) => (array) $r)->all();
             }
         }
 
-        $filename = 'backup_absensi_json_' . date('Y-m-d_H-i-s') . '.json';
+        $filename = 'backup_absensi_json_'.date('Y-m-d_H-i-s').'.json';
 
         return $this->response->download($filename, json_encode($data, JSON_PRETTY_PRINT));
     }
@@ -9963,11 +10249,11 @@ public function notifikasiStatus()
      */
     public function restoreDataJson()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $file   = $this->request->file('file_backup');
+        $file = $this->request->file('file_backup');
         $isAjax = $this->request->ajax();
 
         $tolak = function (string $msg) use ($isAjax) {
@@ -9975,10 +10261,11 @@ public function notifikasiStatus()
                 return $this->respond(false, $msg);
             }
             session()->flash('message', ['type' => 'error', 'text' => $msg]);
+
             return redirect()->to('admin/presensi/setting');
         };
 
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             return $tolak('File tidak valid atau tidak ada');
         }
 
@@ -9993,18 +10280,18 @@ public function notifikasiStatus()
         }
 
         $content = file_get_contents($file->getPathname());
-        $data    = json_decode((string) $content, true);
+        $data = json_decode((string) $content, true);
 
-        if (!is_array($data) || !isset($data['tables']) || !is_array($data['tables'])) {
+        if (! is_array($data) || ! isset($data['tables']) || ! is_array($data['tables'])) {
             return $tolak('Struktur file JSON tidak valid: bagian "tables" tidak ditemukan.');
         }
 
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            $db = DB::connection();
+            DB::beginTransaction();
 
             $ditulis = 0;
-            $alasan  = [];
+            $alasan = [];
 
             foreach ($data['tables'] as $tableName => $rows) {
                 $tableName = (string) $tableName;
@@ -10012,28 +10299,29 @@ public function notifikasiStatus()
                 // backupDataJson hanya mengekspor tabel berafiks absensi_, jadi
                 // restore pun tidak boleh menyentuh tabel lain — file upload bisa
                 // berisi apa saja, termasuk users/groups/migrations.
-                if (!preg_match('/^absensi_[A-Za-z0-9_]{1,50}$/', $tableName)) {
-                    $alasan[] = $tableName . ': tabel di luar kelompok absensi tidak dipulihkan';
+                if (! preg_match('/^absensi_[A-Za-z0-9_]{1,50}$/', $tableName)) {
+                    $alasan[] = $tableName.': tabel di luar kelompok absensi tidak dipulihkan';
+
                     continue;
                 }
-                if (!\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
-                    $alasan[] = $tableName . ': tabel tidak ada di database ini';
+                if (! Schema::hasTable($tableName)) {
+                    $alasan[] = $tableName.': tabel tidak ada di database ini';
+
                     continue;
                 }
-                if ($rows === [] || !is_array($rows)) {
-                    $alasan[] = $tableName . ': tidak ada baris untuk dipulihkan';
+                if ($rows === [] || ! is_array($rows)) {
+                    $alasan[] = $tableName.': tidak ada baris untuk dipulihkan';
+
                     continue;
                 }
 
-                $kolomSah = array_map(
-                    static fn ($f) => (string) (is_object($f) ? ($f->name ?? '') : ($f['Field'] ?? '')),
-                    $db->getFieldData($tableName)
-                );
+                $kolomSah = Schema::getColumnListing($tableName);
 
                 $builder = $db->table($tableName);
                 foreach ($rows as $nomor => $row) {
-                    if (!is_array($row) || $row === []) {
-                        $alasan[] = $tableName . ' baris #' . $nomor . ': bentuk baris tidak dikenali';
+                    if (! is_array($row) || $row === []) {
+                        $alasan[] = $tableName.' baris #'.$nomor.': bentuk baris tidak dikenali';
+
                         continue;
                     }
 
@@ -10044,23 +10332,26 @@ public function notifikasiStatus()
                     // nilai bukan skalar dibatalkan seluruhnya, tidak ditulis separuh.
                     $cacat = [];
                     foreach ($bersih as $kolom => $nilai) {
-                        if ($nilai !== null && !is_scalar($nilai)) {
+                        if ($nilai !== null && ! is_scalar($nilai)) {
                             $cacat[] = (string) $kolom;
                         }
                     }
                     if ($cacat !== []) {
-                        $alasan[] = $tableName . ' baris #' . $nomor . ': kolom ' . implode(',', $cacat) . ' berisi struktur, bukan nilai';
+                        $alasan[] = $tableName.' baris #'.$nomor.': kolom '.implode(',', $cacat).' berisi struktur, bukan nilai';
+
                         continue;
                     }
 
                     if ($bersih === []) {
-                        $alasan[] = $tableName . ' baris #' . $nomor . ': tidak ada kolom yang cocok';
+                        $alasan[] = $tableName.' baris #'.$nomor.': tidak ada kolom yang cocok';
+
                         continue;
                     }
 
                     if ($builder->replace($bersih) === false) {
-                        Log::error('[restoreDataJson] ' . $tableName . ' #' . $nomor . ' gagal: ' . json_encode(['code' => 0, 'message' => '']));
-                        $alasan[] = $tableName . ' baris #' . $nomor . ': penulisan ditolak database';
+                        Log::error('[restoreDataJson] '.$tableName.' #'.$nomor.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+                        $alasan[] = $tableName.' baris #'.$nomor.': penulisan ditolak database';
+
                         continue;
                     }
                     $ditulis++;
@@ -10071,31 +10362,35 @@ public function notifikasiStatus()
                 // Restore bersifat all-or-nothing: sebagian tabel boleh saja
                 // berasal dari skema lama, tapi memulihkan separuh data absensi
                 // tanpa pemberitahuan lebih berbahaya daripada menolak file-nya.
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('[restoreDataJson] rollback, ' . count($alasan) . ' masalah: ' . json_encode(array_slice($alasan, 0, 20)));
+                DB::rollBack();
+                Log::error('[restoreDataJson] rollback, '.count($alasan).' masalah: '.json_encode(array_slice($alasan, 0, 20)));
+
                 return $tolak('Restore dibatalkan, tidak ada baris yang tersimpan. '
-                    . count($alasan) . ' masalah, contoh: ' . implode('; ', array_slice($alasan, 0, 3)));
+                    .count($alasan).' masalah, contoh: '.implode('; ', array_slice($alasan, 0, 3)));
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             if (true === false) {
-                Log::error('[restoreDataJson] transCommit gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                Log::error('[restoreDataJson] transCommit gagal: '.json_encode(['code' => 0, 'message' => '']));
+
                 return $tolak('Gagal merestore database. Transaksi dibatalkan.');
             }
 
-            $msg = 'Restore berhasil. ' . $ditulis . ' baris data ditulis.';
+            $msg = 'Restore berhasil. '.$ditulis.' baris data ditulis.';
             if ($isAjax) {
                 return $this->respond(true, $msg);
             }
             session()->flash('message', ['type' => 'success', 'text' => $msg]);
+
             return redirect()->to('admin/presensi/setting');
 
         } catch (\Throwable $e) {
             if (isset($db)) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
             }
-            Log::error('[restoreDataJson] ' . $e->getMessage() . ' @ ' . $e->file() . ':' . $e->getLine());
+            Log::error('[restoreDataJson] '.$e->getMessage().' @ '.$e->file().':'.$e->getLine());
+
             // Pesan exception memuat nama kolom/SQL — jangan diteruskan ke browser.
             return $tolak('Restore gagal karena struktur file backup tidak cocok dengan database. Detail ada di log aplikasi.');
         }
@@ -10107,7 +10402,8 @@ public function notifikasiStatus()
         if (is_array($setting)) {
             $setting = (object) $setting;
         }
-        return (new \App\Services\AttendancePenaltyService())->calculatePenalty($minutes, $setting, $type);
+
+        return (new AttendancePenaltyService)->calculatePenalty($minutes, $setting, $type);
     }
 
     private function calculateProgressiveRewardPoints(int $minutes, $setting): int
@@ -10116,7 +10412,8 @@ public function notifikasiStatus()
         if (is_array($setting)) {
             $setting = (object) $setting;
         }
-        return (new \App\Services\AttendancePenaltyService())->calculateReward($minutes, $setting);
+
+        return (new AttendancePenaltyService)->calculateReward($minutes, $setting);
     }
 
     /**
@@ -10125,35 +10422,37 @@ public function notifikasiStatus()
      */
     public function cleanOldPhotos()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        
+        $db = DB::connection();
+
         // Start of current month
         $firstDayOfMonth = date('Y-m-01');
 
         // Find all photos before this month
         $records = $db->table('absensi_harian')
-            ->select('id, foto_masuk, foto_pulang')
+            ->select('id', 'foto_masuk', 'foto_pulang')
             ->where('tgl', '<', $firstDayOfMonth)
-            ->where(function ($q) { $q->whereRaw('foto_masuk IS NOT NULL')->$q->where('foto_masuk', '!=', '')->$q->orWhereRaw('foto_pulang IS NOT NULL')->$q->orWhere('foto_pulang', '!=', ''); })
+            ->where(function ($q) {
+                $q->whereRaw('foto_masuk IS NOT NULL')->where('foto_masuk', '!=', '')->orWhereRaw('foto_pulang IS NOT NULL')->orWhere('foto_pulang', '!=', '');
+            })
             ->get();
 
         $deletedCount = 0;
         $pathTerhapus = [];
-        $gagalUpdate  = 0;
-        $lewatPath    = 0;
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $gagalUpdate = 0;
+        $lewatPath = 0;
+        DB::beginTransaction();
 
         foreach ($records as $row) {
             $updateData = [];
 
-            if (!empty($row->foto_masuk)) {
+            if (! empty($row->foto_masuk)) {
                 $updateData['foto_masuk'] = null;
             }
-            if (!empty($row->foto_pulang)) {
+            if (! empty($row->foto_pulang)) {
                 $updateData['foto_pulang'] = null;
             }
 
@@ -10167,6 +10466,7 @@ public function notifikasiStatus()
                 $nyata = $this->pathFotoAman((string) $row->{$kolom});
                 if ($nyata === null) {
                     $lewatPath++;
+
                     continue;
                 }
                 $pathTerhapus[] = $nyata;
@@ -10175,19 +10475,19 @@ public function notifikasiStatus()
             if ($updateData !== []) {
                 if ($db->table('absensi_harian')->where('id', $row->id)->update($updateData) === false) {
                     $gagalUpdate++;
-                    Log::error('[cleanOldPhotos] update id ' . $row->id . ' gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                    Log::error('[cleanOldPhotos] update id '.$row->id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
                 }
             }
         }
 
         if ($gagalUpdate > 0) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
         }
 
-        \Illuminate\Support\Facades\DB::commit();
+        DB::commit();
 
         if (true === false || $gagalUpdate > 0) {
-            return $this->respond(false, 'Gagal membersihkan foto: ' . $gagalUpdate . ' baris tidak bisa diperbarui, tidak ada file yang dihapus.');
+            return $this->respond(false, 'Gagal membersihkan foto: '.$gagalUpdate.' baris tidak bisa diperbarui, tidak ada file yang dihapus.');
         }
 
         // Database sudah pasti melepas referensinya — baru file fisiknya hilang.
@@ -10199,15 +10499,15 @@ public function notifikasiStatus()
 
         // Log this action
         if (class_exists('App\Models\AuditLogModel')) {
-            $logModel = new \App\Models\AuditLogModel();
+            $logModel = new AuditLogModel;
             if (method_exists($logModel, 'saveLog')) {
                 $this->saveAuditLog(3, "Membersihkan {$deletedCount} foto absensi lama");
             }
         }
 
-        $pesan = "Berhasil menghapus " . $deletedCount . " file foto absensi lama dari server.";
+        $pesan = 'Berhasil menghapus '.$deletedCount.' file foto absensi lama dari server.';
         if ($lewatPath > 0) {
-            $pesan .= " " . $lewatPath . " referensi dilewati karena path-nya di luar folder uploads.";
+            $pesan .= ' '.$lewatPath.' referensi dilewati karena path-nya di luar folder uploads.';
         }
 
         return $this->respond(true, $pesan);
@@ -10219,7 +10519,7 @@ public function notifikasiStatus()
      */
     private function pathFotoAman(string $rel): ?string
     {
-        $root = realpath(public_path() . '/' . 'uploads');
+        $root = realpath(public_path().'/'.'uploads');
         if ($root === false) {
             return null;
         }
@@ -10229,8 +10529,8 @@ public function notifikasiStatus()
             return null;
         }
 
-        $nyata = realpath(public_path() . '/' . $rel);
-        if ($nyata === false || !str_starts_with($nyata, $root . DIRECTORY_SEPARATOR) || !is_file($nyata)) {
+        $nyata = realpath(public_path().'/'.$rel);
+        if ($nyata === false || ! str_starts_with($nyata, $root.DIRECTORY_SEPARATOR) || ! is_file($nyata)) {
             return null;
         }
 
@@ -10246,50 +10546,58 @@ public function notifikasiStatus()
      */
     public function rekapSemester()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $curYear = (int) date('Y');
-        $tahun    = (int) ($this->request->query('tahun')    ?? $curYear);
+        $tahun = (int) ($this->request->query('tahun') ?? $curYear);
         $semester = (int) ($this->request->query('semester') ?? ((date('m') >= 7) ? 1 : 2));
 
         // Validasi + clamp agar tak ada periode mustahil
-        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) $tahun = $curYear;
-        if (!in_array($semester, [1, 2], true)) $semester = ((int) date('m') >= 7) ? 1 : 2;
+        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
+            $tahun = $curYear;
+        }
+        if (! in_array($semester, [1, 2], true)) {
+            $semester = ((int) date('m') >= 7) ? 1 : 2;
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
-        $absenSetting      = $absenSettingModel->first();
-        $minPersen         = (float) ($absenSetting->min_kehadiran_persen ?? 90.0);
+        $absenSettingModel = new AttendanceSettingModel;
+        $absenSetting = $absenSettingModel->first();
+        $minPersen = (float) ($absenSetting->min_kehadiran_persen ?? 90.0);
 
         $rekap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_rekap_semester')) {
+        if (Schema::hasTable('absensi_rekap_semester')) {
             $rekap = $db->table('absensi_rekap_semester as rs')
-                ->select('rs.*, COALESCE(mg.nama_guru, u.username) as nama_guru, mg.nip, mg.foto')
-                ->join('users as u', 'u.id = rs.user_id', 'left')
-                ->join('master_guru as mg', 'mg.id_user = rs.user_id', 'left')
+                ->select('rs.*', 'mg.nip', 'mg.foto')->selectRaw('COALESCE(mg.nama_guru, u.username) as nama_guru')
+                ->leftJoin('users as u', 'u.id', '=', 'rs.user_id')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'rs.user_id')
                 ->where('rs.tahun', $tahun)
                 ->where('rs.semester', $semester)
-                ->get();
+                ->get()
+                ->all();
 
             // Urutkan: tidak_layak -> perhatian -> layak, lalu nama guru
             $statusOrder = ['tidak_layak' => 0, 'perhatian' => 1, 'layak' => 2];
             usort($rekap, function ($a, $b) use ($statusOrder) {
                 $sa = $statusOrder[$a->status_kelayakan] ?? 2;
                 $sb = $statusOrder[$b->status_kelayakan] ?? 2;
-                if ($sa !== $sb) return $sa <=> $sb;
+                if ($sa !== $sb) {
+                    return $sa <=> $sb;
+                }
+
                 return strcmp((string) ($a->nama_guru ?? ''), (string) ($b->nama_guru ?? ''));
             });
         }
 
         $summary = [
-            'guru'            => count($rekap),
-            'layak'           => 0,
-            'perhatian'       => 0,
-            'tidak_layak'     => 0,
-            'rata_kehadiran'  => 0.0,
+            'guru' => count($rekap),
+            'layak' => 0,
+            'perhatian' => 0,
+            'tidak_layak' => 0,
+            'rata_kehadiran' => 0.0,
         ];
         if ($rekap) {
             $rata = 0;
@@ -10308,73 +10616,79 @@ public function notifikasiStatus()
 
         // Meta: total guru aktif, kesegaran data, dan rentang periode
         $startBulan = ($semester === 1) ? 7 : 1;
-        $endBulan   = ($semester === 1) ? 12 : 6;
-        $startDate  = sprintf('%04d-%02d-01', $tahun, $startBulan);
-        $endDate    = date('Y-m-t', mktime(0, 0, 0, $endBulan, 1, $tahun));
-        $today      = date('Y-m-d');
-        $isPartial  = $endDate > $today;
+        $endBulan = ($semester === 1) ? 12 : 6;
+        $startDate = sprintf('%04d-%02d-01', $tahun, $startBulan);
+        $endDate = date('Y-m-t', mktime(0, 0, 0, $endBulan, 1, $tahun));
+        $today = date('Y-m-d');
+        $isPartial = $endDate > $today;
 
         $totalGuruAktif = 0;
         try {
             $totalGuruAktif = (int) $db->table('users as u')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)->where('u.active', 1)
                 ->count();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $generatedAt = null;
         $maxAbsensiTgl = null;
         $isStale = false;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_rekap_semester')) {
+            if (Schema::hasTable('absensi_rekap_semester')) {
                 $gRow = $db->table('absensi_rekap_semester')
-                    ->selectMax('generated_at', 'maks')
+                    ->selectRaw('MAX(generated_at) as maks')
                     ->where('tahun', $tahun)->where('semester', $semester)
                     ->first();
                 $generatedAt = $gRow->maks ?? null;
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (Schema::hasTable('absensi_harian')) {
                 $aRow = $db->table('absensi_harian')
-                    ->selectMax('tgl', 'maks')
+                    ->selectRaw('MAX(tgl) as maks')
                     ->where('tgl', '>=', $startDate)->where('tgl', '<=', min($endDate, $today))
                     ->first();
                 $maxAbsensiTgl = $aRow->maks ?? null;
             }
             // Stale: ada absensi lebih baru dari waktu generate, atau guru aktif > baris rekap
-            if ($generatedAt && $maxAbsensiTgl && $maxAbsensiTgl > substr($generatedAt, 0, 10)) $isStale = true;
-            if ($totalGuruAktif > count($rekap)) $isStale = true;
-        } catch (\Throwable $e) {}
+            if ($generatedAt && $maxAbsensiTgl && $maxAbsensiTgl > substr($generatedAt, 0, 10)) {
+                $isStale = true;
+            }
+            if ($totalGuruAktif > count($rekap)) {
+                $isStale = true;
+            }
+        } catch (\Throwable $e) {
+        }
 
         $semLabel = ($semester === 1) ? 'Ganjil' : 'Genap';
-        $tpStart  = ($semester === 1) ? $tahun : $tahun - 1;
+        $tpStart = ($semester === 1) ? $tahun : $tahun - 1;
         $meta = [
-            'periode'      => ($semester === 1) ? "Juli {$tahun} – Desember {$tahun}" : "Januari {$tahun} – Juni {$tahun}",
-            'tahunAjaran'  => "{$tpStart}/" . ($tpStart + 1),
-            'semLabel'     => $semLabel,
-            'isPartial'    => $isPartial,
-            'totalGuru'    => $totalGuruAktif,
-            'generatedAt'  => $generatedAt,
-            'maxAbsensi'   => $maxAbsensiTgl,
-            'isStale'      => $isStale && !empty($rekap),
+            'periode' => ($semester === 1) ? "Juli {$tahun} – Desember {$tahun}" : "Januari {$tahun} – Juni {$tahun}",
+            'tahunAjaran' => "{$tpStart}/".($tpStart + 1),
+            'semLabel' => $semLabel,
+            'isPartial' => $isPartial,
+            'totalGuru' => $totalGuruAktif,
+            'generatedAt' => $generatedAt,
+            'maxAbsensi' => $maxAbsensiTgl,
+            'isStale' => $isStale && ! empty($rekap),
         ];
 
         $appSetting = $this->getSettingRow();
-        $tp_active  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt_active = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp_active = DB::table('master_tp')->where('active', 1)->first();
+        $smt_active = DB::table('master_smt')->where('active', 1)->first();
 
         return view('admin.presensi.rekap_semester', [
-            'title'      => 'Rekap Semester',
-            'judul'      => 'Rekap Kehadiran Per Semester',
-            'setting'    => $appSetting ?: (object)['nama_aplikasi' => 'absensi by ikasmedia'],
-            'tp_active'  => $tp_active,
+            'title' => 'Rekap Semester',
+            'judul' => 'Rekap Kehadiran Per Semester',
+            'setting' => $appSetting ?: (object) ['nama_aplikasi' => 'absensi by ikasmedia'],
+            'tp_active' => $tp_active,
             'smt_active' => $smt_active,
-            'user'       => $this->getUser(),
-            'rekap'      => $rekap,
-            'summary'    => $summary,
-            'tahun'      => $tahun,
-            'semester'   => $semester,
-            'minPersen'  => $minPersen,
-            'meta'       => $meta,
+            'user' => $this->getUser(),
+            'rekap' => $rekap,
+            'summary' => $summary,
+            'tahun' => $tahun,
+            'semester' => $semester,
+            'minPersen' => $minPersen,
+            'meta' => $meta,
         ]);
     }
 
@@ -10385,38 +10699,40 @@ public function notifikasiStatus()
      */
     public function generateRekapSemester()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $curYear  = (int) date('Y');
+        $curYear = (int) date('Y');
         // Route generate adalah POST (mutasi DB → dilindungi CSRF global).
-        $tahun    = (int) ($this->request->input('tahun')    ?: $curYear);
+        $tahun = (int) ($this->request->input('tahun') ?: $curYear);
         $semester = (int) ($this->request->input('semester') ?: ((date('m') >= 7) ? 1 : 2));
 
-        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1 || !in_array($semester, [1, 2], true)) {
+        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1 || ! in_array($semester, [1, 2], true)) {
             return redirect()
                 ->to(url('admin/presensi/rekap-semester'))
                 ->with('error', 'Parameter tahun/semester tidak valid.');
         }
 
         try {
-            $cron    = new \App\Http\Controllers\CronControllerController();
-            $body    = $cron->runSemesterRecap($tahun, $semester);
+            $cron = new CronControllerController;
+            $body = $cron->runSemesterRecap($tahun, $semester);
 
             // runSemesterRecap() mengembalikan string status, bukan melempar
             // exception. Tanpa pemeriksaan ini, admin melihat
             // "berhasil di-generate (GAGAL: tabel ... tidak ada)".
             if (str_starts_with($body, 'GAGAL:')) {
-                Log::error('generateRekapSemester: ' . $body);
+                Log::error('generateRekapSemester: '.$body);
+
                 return redirect()
                     ->to(url("admin/presensi/rekap-semester?tahun={$tahun}&semester={$semester}"))
                     ->with('error', 'Rekap semester gagal di-generate — periksa log aplikasi.');
             }
 
-            $message = 'Rekap semester berhasil di-generate (' . $body . ').';
+            $message = 'Rekap semester berhasil di-generate ('.$body.').';
         } catch (\Throwable $e2) {
-            Log::error('generateRekapSemester: ' . $e2->getMessage());
+            Log::error('generateRekapSemester: '.$e2->getMessage());
+
             return redirect()
                 ->to(url("admin/presensi/rekap-semester?tahun={$tahun}&semester={$semester}"))
                 ->with('error', 'Rekap semester gagal di-generate — periksa log aplikasi.');
@@ -10432,19 +10748,23 @@ public function notifikasiStatus()
      */
     public function exportRekapSemester()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $tahun    = (int) ($this->request->query('tahun')    ?? date('Y'));
+        $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         $semester = (int) ($this->request->query('semester') ?? 1);
-        $curYear  = (int) date('Y');
-        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) $tahun = $curYear;
-        if (!in_array($semester, [1, 2], true)) $semester = 1;
-        $export    = $this->fetchRekapSemesterData($tahun, $semester);
-        $rekap     = $export['rekap'];
+        $curYear = (int) date('Y');
+        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
+            $tahun = $curYear;
+        }
+        if (! in_array($semester, [1, 2], true)) {
+            $semester = 1;
+        }
+        $export = $this->fetchRekapSemesterData($tahun, $semester);
+        $rekap = $export['rekap'];
         $minPersen = $export['minPersen'];
-        $semLabel  = $export['semLabel'];
+        $semLabel = $export['semLabel'];
         $appSetting = $export['setting'];
 
         if (empty($rekap)) {
@@ -10453,16 +10773,16 @@ public function notifikasiStatus()
                 ->with('error', "Belum ada data rekap semester {$semLabel} {$tahun}. Klik Generate Rekap terlebih dahulu.");
         }
 
-        $rata = $rekap ? round(array_sum(array_map(fn($r) => (float) $r->persentase_kehadiran, $rekap)) / count($rekap), 1) : 0.0;
+        $rata = $rekap ? round(array_sum(array_map(fn ($r) => (float) $r->persentase_kehadiran, $rekap)) / count($rekap), 1) : 0.0;
 
-        $html  = view('admin.presensi.rekap_semester_excel', [
-            'rekap'     => $rekap,
-            'tahun'     => $tahun,
-            'semester'  => $semester,
-            'semLabel'  => $semLabel,
+        $html = view('admin.presensi.rekap_semester_excel', [
+            'rekap' => $rekap,
+            'tahun' => $tahun,
+            'semester' => $semester,
+            'semLabel' => $semLabel,
             'minPersen' => $minPersen,
-            'rata'      => $rata,
-            'setting'   => $appSetting ?: (object)['nama_sekolah' => 'Sekolah'],
+            'rata' => $rata,
+            'setting' => $appSetting ?: (object) ['nama_sekolah' => 'Sekolah'],
         ]);
 
         $filename = "Rekap_Semester_{$semLabel}_{$tahun}.xls";
@@ -10472,7 +10792,7 @@ public function notifikasiStatus()
             ->setHeader('Content-Disposition', "attachment; filename=\"{$filename}\"")
             ->setHeader('Cache-Control', 'max-age=0, no-cache, must-revalidate')
             ->setHeader('Pragma', 'no-cache')
-            ->setBody("\xEF\xBB\xBF" . $html);
+            ->setBody("\xEF\xBB\xBF".$html);
     }
 
     /**
@@ -10484,38 +10804,42 @@ public function notifikasiStatus()
      */
     private function fetchRekapSemesterData(int $tahun, int $semester): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
-        $absenSetting      = $absenSettingModel->first();
-        $minPersen         = (float) ($absenSetting->min_kehadiran_persen ?? 90.0);
-        $semLabel          = ($semester === 1) ? 'Ganjil' : 'Genap';
+        $absenSettingModel = new AttendanceSettingModel;
+        $absenSetting = $absenSettingModel->first();
+        $minPersen = (float) ($absenSetting->min_kehadiran_persen ?? 90.0);
+        $semLabel = ($semester === 1) ? 'Ganjil' : 'Genap';
 
         $rekap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_rekap_semester')) {
+        if (Schema::hasTable('absensi_rekap_semester')) {
             $rekap = $db->table('absensi_rekap_semester as rs')
-                ->select('rs.*, COALESCE(mg.nama_guru, u.username) as nama_guru, mg.nip')
-                ->join('users as u', 'u.id = rs.user_id', 'left')
-                ->join('master_guru as mg', 'mg.id_user = rs.user_id', 'left')
+                ->select('rs.*', 'mg.nip')->selectRaw('COALESCE(mg.nama_guru, u.username) as nama_guru')
+                ->leftJoin('users as u', 'u.id', '=', 'rs.user_id')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'rs.user_id')
                 ->where('rs.tahun', $tahun)
                 ->where('rs.semester', $semester)
-                ->get();
+                ->get()
+                ->all();
 
             // Urutkan: tidak_layak -> perhatian -> layak, lalu nama guru
             $statusOrder = ['tidak_layak' => 0, 'perhatian' => 1, 'layak' => 2];
             usort($rekap, function ($a, $b) use ($statusOrder) {
                 $sa = $statusOrder[$a->status_kelayakan] ?? 2;
                 $sb = $statusOrder[$b->status_kelayakan] ?? 2;
-                if ($sa !== $sb) return $sa <=> $sb;
+                if ($sa !== $sb) {
+                    return $sa <=> $sb;
+                }
+
                 return strcmp((string) ($a->nama_guru ?? ''), (string) ($b->nama_guru ?? ''));
             });
         }
 
         return [
-            'rekap'     => $rekap,
+            'rekap' => $rekap,
             'minPersen' => $minPersen,
-            'semLabel'  => $semLabel,
-            'setting'   => $this->getSettingRow(),
+            'semLabel' => $semLabel,
+            'setting' => $this->getSettingRow(),
         ];
     }
 
@@ -10524,18 +10848,22 @@ public function notifikasiStatus()
      */
     public function exportRekapSemesterPdf()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $tahun    = (int) ($this->request->query('tahun')    ?? date('Y'));
+        $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         $semester = (int) ($this->request->query('semester') ?? 1);
-        $curYear  = (int) date('Y');
-        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) $tahun = $curYear;
-        if (!in_array($semester, [1, 2], true)) $semester = 1;
+        $curYear = (int) date('Y');
+        if ($tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
+            $tahun = $curYear;
+        }
+        if (! in_array($semester, [1, 2], true)) {
+            $semester = 1;
+        }
 
         $export = $this->fetchRekapSemesterData($tahun, $semester);
-        $rekap  = $export['rekap'];
+        $rekap = $export['rekap'];
 
         if (empty($rekap)) {
             return redirect()
@@ -10543,19 +10871,19 @@ public function notifikasiStatus()
                 ->with('error', "Belum ada data rekap semester {$export['semLabel']} {$tahun}. Klik Generate Rekap terlebih dahulu.");
         }
 
-        $rata = round(array_sum(array_map(fn($r) => (float) $r->persentase_kehadiran, $rekap)) / count($rekap), 1);
+        $rata = round(array_sum(array_map(fn ($r) => (float) $r->persentase_kehadiran, $rekap)) / count($rekap), 1);
 
         $html = view('admin.presensi.rekap_semester_pdf', [
-            'rekap'     => $rekap,
-            'tahun'     => $tahun,
-            'semester'  => $semester,
-            'semLabel'  => $export['semLabel'],
+            'rekap' => $rekap,
+            'tahun' => $tahun,
+            'semester' => $semester,
+            'semLabel' => $export['semLabel'],
             'minPersen' => $export['minPersen'],
-            'rata'      => $rata,
-            'setting'   => $export['setting'] ?: (object) ['nama_sekolah' => 'Sekolah'],
+            'rata' => $rata,
+            'setting' => $export['setting'] ?: (object) ['nama_sekolah' => 'Sekolah'],
         ]);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
@@ -10575,11 +10903,11 @@ public function notifikasiStatus()
 
     public function pendingWajah()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $pending = [];
         $history = [];
@@ -10592,26 +10920,28 @@ public function notifikasiStatus()
 
         // Total guru aktif (untuk statistik)
         $stats['total_guru'] = $db->table('users as u')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->count();
 
         // Guru yang belum punya data wajah (bertanda)
-        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'face_descriptor')) {
+        if (Schema::hasColumn('users', 'face_descriptor')) {
             $stats['belum_wajah'] = $db->table('users as u')
-                ->join('users_groups as ug', 'ug.user_id = u.id')
+                ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
                 ->where('ug.group_id', 2)
                 ->where('u.active', 1)
-                ->where(function ($q) { $q->where('u.face_descriptor', null)->$q->orWhere('u.face_descriptor', ''); })
+                ->where(function ($q) {
+                    $q->whereNull('u.face_descriptor')->orWhere('u.face_descriptor', '');
+                })
                 ->count();
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('face_registration_requests')) {
+        if (Schema::hasTable('face_registration_requests')) {
             $pending = $db->table('face_registration_requests as f')
-                ->select('f.*, u.username, u.first_name, u.last_name, mg.nama_guru, mg.nip, mg.foto')
-                ->join('users as u', 'u.id = f.user_id', 'left')
-                ->join('master_guru as mg', 'mg.id_user = f.user_id', 'left')
+                ->select('f.*', 'u.username', 'u.first_name', 'u.last_name', 'mg.nama_guru', 'mg.nip', 'mg.foto')
+                ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'f.user_id')
                 ->where('f.status', 'pending')
                 ->orderBy('f.created_at', 'DESC')
                 ->get();
@@ -10619,16 +10949,16 @@ public function notifikasiStatus()
             $stats['pending'] = count($pending);
             $stats['approved_today'] = $db->table('face_registration_requests')
                 ->where('status', 'approved')
-                ->where('updated_at', 'like', date('Y-m-d') . '%')
+                ->where('updated_at', 'like', date('Y-m-d').'%')
                 ->count();
 
             // Riwayat 15 pengajuan terakhir yang telah diproses (audit)
             $history = $db->table('face_registration_requests as f')
-                ->select('f.*, u.username, u.first_name, u.last_name, mg.nama_guru, mg.nip,
-                          adm.first_name as admin_first, adm.last_name as admin_last')
-                ->join('users as u', 'u.id = f.user_id', 'left')
-                ->join('master_guru as mg', 'mg.id_user = f.user_id', 'left')
-                ->join('users as adm', 'adm.id = f.admin_id', 'left')
+                ->select('f.*', 'u.username', 'u.first_name', 'u.last_name', 'mg.nama_guru', 'mg.nip',
+                    'adm.first_name as admin_first', 'adm.last_name as admin_last')
+                ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
+                ->leftJoin('master_guru as mg', 'mg.id_user', '=', 'f.user_id')
+                ->leftJoin('users as adm', 'adm.id', '=', 'f.admin_id')
                 ->where('f.status', '!=', 'pending')
                 ->orderBy('f.updated_at', 'DESC')
                 ->limit(15)
@@ -10636,21 +10966,21 @@ public function notifikasiStatus()
         }
 
         return view('admin.presensi.pending_wajah', [
-            'title'      => 'Verifikasi Wajah Guru',
-            'judul'      => 'Pengajuan Registrasi Ulang Wajah',
-            'pending'    => $pending,
-            'history'    => $history,
-            'stats'      => $stats,
-            'setting'    => $this->getSettingRow(),
-            'tp_active'  => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-            'user'       => $this->getUser(),
+            'title' => 'Verifikasi Wajah Guru',
+            'judul' => 'Pengajuan Registrasi Ulang Wajah',
+            'pending' => $pending,
+            'history' => $history,
+            'stats' => $stats,
+            'setting' => $this->getSettingRow(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
         ]);
     }
 
     public function approveWajah($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -10659,9 +10989,9 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'face_descriptor')) {
+        if (! Schema::hasColumn('users', 'face_descriptor')) {
             return $this->respond(false, 'Kolom face_descriptor belum tersedia di tabel users', null, null, 500);
         }
 
@@ -10670,7 +11000,7 @@ public function notifikasiStatus()
             ->where('status', 'pending')
             ->first();
 
-        if (!$request) {
+        if (! $request) {
             return $this->respond(false, 'Pengajuan tidak ditemukan atau sudah diproses');
         }
 
@@ -10681,11 +11011,11 @@ public function notifikasiStatus()
 
         // Pastikan akun user masih ada & aktif
         $targetUser = $db->table('users')->where('id', $request->user_id)->first();
-        if (!$targetUser) {
+        if (! $targetUser) {
             return $this->respond(false, 'Akun guru tidak ditemukan');
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             $db->table('face_registration_requests')
@@ -10706,10 +11036,10 @@ public function notifikasiStatus()
                 ->where('id', $request->user_id)
                 ->update(['face_descriptor' => $request->face_descriptor]);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                (new \App\Models\AuditLogModel())->log(
+                (new AuditLogModel)->log(
                     'users',
                     (int) $request->user_id,
                     'UPDATE',
@@ -10717,23 +11047,24 @@ public function notifikasiStatus()
                     $this->getUserId(),
                     ['face_descriptor' => '***'],
                     ['face_descriptor' => '***'],
-                    'Wajah disetujui admin (request #' . $id . ')'
+                    'Wajah disetujui admin (request #'.$id.')'
                 );
             } catch (\Throwable $ex) {
-                Log::error('Audit approve wajah gagal: ' . $ex->getMessage());
+                Log::error('Audit approve wajah gagal: '.$ex->getMessage());
             }
 
             return $this->respond(true, 'Wajah berhasil disetujui. Guru dapat langsung memakai wajah baru untuk absensi.');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Approve Face Error: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Approve Face Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyetujui pengajuan — periksa log aplikasi.', null, null, 500);
         }
     }
 
     public function rejectWajah($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -10742,14 +11073,14 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $request = $db->table('face_registration_requests')
             ->where('id', $id)
             ->where('status', 'pending')
             ->first();
 
-        if (!$request) {
+        if (! $request) {
             return $this->respond(false, 'Pengajuan tidak ditemukan atau sudah diproses');
         }
 
@@ -10758,7 +11089,7 @@ public function notifikasiStatus()
             $keterangan = mb_substr($keterangan, 0, 255);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             $db->table('face_registration_requests')
@@ -10775,10 +11106,10 @@ public function notifikasiStatus()
                 throw new \RuntimeException('Pengajuan sudah diproses admin lain. Muat ulang halaman.');
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
-                (new \App\Models\AuditLogModel())->log(
+                (new AuditLogModel)->log(
                     'face_registration_requests',
                     $id,
                     'UPDATE',
@@ -10786,16 +11117,17 @@ public function notifikasiStatus()
                     $this->getUserId(),
                     ['status' => 'pending'],
                     ['status' => 'rejected'],
-                    'Wajah ditolak admin: ' . mb_substr($keterangan, 0, 200)
+                    'Wajah ditolak admin: '.mb_substr($keterangan, 0, 200)
                 );
             } catch (\Throwable $ex) {
-                Log::error('Audit reject wajah gagal: ' . $ex->getMessage());
+                Log::error('Audit reject wajah gagal: '.$ex->getMessage());
             }
 
             return $this->respond(true, 'Pengajuan ditolak. Wajah lama guru tetap berlaku dan tidak diubah.');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Reject Face Error: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Reject Face Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menolak pengajuan — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -10806,7 +11138,7 @@ public function notifikasiStatus()
      */
     public function deleteWajah($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -10815,13 +11147,13 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID tidak valid');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $request = $db->table('face_registration_requests')
             ->where('id', $id)
             ->first();
 
-        if (!$request) {
+        if (! $request) {
             return $this->respond(false, 'Data riwayat tidak ditemukan');
         }
 
@@ -10837,7 +11169,7 @@ public function notifikasiStatus()
             }
 
             try {
-                (new \App\Models\AuditLogModel())->log(
+                (new AuditLogModel)->log(
                     'face_registration_requests',
                     $id,
                     'DELETE',
@@ -10845,15 +11177,16 @@ public function notifikasiStatus()
                     $this->getUserId(),
                     ['status' => $request->status ?? ''],
                     null,
-                    'Riwayat pengajuan wajah dihapus admin (request #' . $id . ')'
+                    'Riwayat pengajuan wajah dihapus admin (request #'.$id.')'
                 );
             } catch (\Throwable $ex) {
-                Log::error('Audit delete wajah gagal: ' . $ex->getMessage());
+                Log::error('Audit delete wajah gagal: '.$ex->getMessage());
             }
 
             return $this->respond(true, 'Riwayat pengajuan berhasil dihapus.');
         } catch (\Throwable $e) {
-            Log::error('Delete Face History Error: ' . $e->getMessage());
+            Log::error('Delete Face History Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menghapus riwayat — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -10864,16 +11197,16 @@ public function notifikasiStatus()
      */
     public function clearWajahHistory()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         try {
             $count = $db->table('face_registration_requests')
                 ->where('status', '!=', 'pending')
-                ->countAllResults(false);
+                ->count();
 
             if ($count < 1) {
                 return $this->respond(true, 'Tidak ada riwayat yang perlu dihapus.');
@@ -10884,7 +11217,7 @@ public function notifikasiStatus()
                 ->delete();
 
             try {
-                (new \App\Models\AuditLogModel())->log(
+                (new AuditLogModel)->log(
                     'face_registration_requests',
                     0,
                     'DELETE',
@@ -10892,15 +11225,16 @@ public function notifikasiStatus()
                     $this->getUserId(),
                     null,
                     null,
-                    'Seluruh riwayat pengajuan wajah dihapus admin (' . $count . ' data)'
+                    'Seluruh riwayat pengajuan wajah dihapus admin ('.$count.' data)'
                 );
             } catch (\Throwable $ex) {
-                Log::error('Audit clear wajah gagal: ' . $ex->getMessage());
+                Log::error('Audit clear wajah gagal: '.$ex->getMessage());
             }
 
-            return $this->respond(true, $count . ' data riwayat berhasil dihapus.');
+            return $this->respond(true, $count.' data riwayat berhasil dihapus.');
         } catch (\Throwable $e) {
-            Log::error('Clear Face History Error: ' . $e->getMessage());
+            Log::error('Clear Face History Error: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menghapus riwayat — periksa log aplikasi.', null, null, 500);
         }
     }
@@ -10917,8 +11251,8 @@ public function notifikasiStatus()
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $cfgModel = new \App\Models\NotifChannelConfigModel();
-        $config   = $cfgModel->getConfig();
+        $cfgModel = new NotifChannelConfigModel;
+        $config = $cfgModel->getConfig();
 
         $setting = $this->getSettingRow();
         if (! $setting) {
@@ -10926,17 +11260,17 @@ public function notifikasiStatus()
         }
 
         return view('admin.presensi.notif_config', [
-            'title'      => 'Pengaturan Channel Notifikasi',
-            'judul'      => 'Pengaturan Channel Notifikasi',
-            'subjudul'   => 'Atur channel mana yang aktif untuk setiap jenis notifikasi',
-            'setting'    => $setting,
-            'tp_active'  => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-            'user'       => $this->getUser(),
-            'config'     => $config,
-            'jenisList'  => \App\Models\NotifChannelConfigModel::JENIS_LIST,
-            'channels'   => \App\Models\NotifChannelConfigModel::CHANNELS,
-            'chLabels'   => \App\Models\NotifChannelConfigModel::CHANNEL_LABELS,
+            'title' => 'Pengaturan Channel Notifikasi',
+            'judul' => 'Pengaturan Channel Notifikasi',
+            'subjudul' => 'Atur channel mana yang aktif untuk setiap jenis notifikasi',
+            'setting' => $setting,
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'config' => $config,
+            'jenisList' => NotifChannelConfigModel::JENIS_LIST,
+            'channels' => NotifChannelConfigModel::CHANNELS,
+            'chLabels' => NotifChannelConfigModel::CHANNEL_LABELS,
         ]);
     }
 
@@ -10962,8 +11296,8 @@ public function notifikasiStatus()
         }
 
         // Sanitasi: pastikan hanya jenis dan channel yang dikenal yang diproses
-        $allowed = array_keys(\App\Models\NotifChannelConfigModel::JENIS_LIST);
-        $allowedCh = \App\Models\NotifChannelConfigModel::CHANNELS;
+        $allowed = array_keys(NotifChannelConfigModel::JENIS_LIST);
+        $allowedCh = NotifChannelConfigModel::CHANNELS;
         $clean = [];
         foreach ($raw as $jenis => $channels) {
             if (! in_array($jenis, $allowed, true)) {
@@ -10991,11 +11325,11 @@ public function notifikasiStatus()
             }
         }
 
-        $cfgModel = new \App\Models\NotifChannelConfigModel();
+        $cfgModel = new NotifChannelConfigModel;
         $ok = $cfgModel->saveConfig($clean);
 
         return $this->response->setJSON([
-            'status'  => $ok,
+            'status' => $ok,
             'message' => $ok ? 'Konfigurasi notifikasi berhasil disimpan.' : 'Gagal menyimpan sebagian konfigurasi.',
         ]);
     }
@@ -11009,7 +11343,7 @@ public function notifikasiStatus()
      */
     public function suratPanggilan()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -11021,31 +11355,33 @@ public function notifikasiStatus()
         $tahun = ($tahun >= 2000 && $tahun <= 2100) ? $tahun : (int) date('Y');
 
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        $letters   = [];
-        $kandidat  = [];
-        $rekap     = [];
+        $letters = [];
+        $kandidat = [];
+        $rekap = [];
         $teguranSiswa = [];
-        $adaTabel  = \Illuminate\Support\Facades\Schema::hasTable(\App\Services\SuratPanggilanService::TABEL);
+        $adaTabel = Schema::hasTable(SuratPanggilanService::TABEL);
 
         if ($adaTabel) {
             // Hanya surat milik siswa AKTIF (buku_induk.status = '1').
             // Surat siswa LULUS/PINDAH/KELUAR tidak ditampilkan di daftar
             // (arsip fisiknya tetap tersimpan di tabel).
-            $lq = $db->table(\App\Services\SuratPanggilanService::TABEL . ' p')
-                ->select('p.*, s.nama, s.nis, s.nisn, s.kelas_awal')
-                ->join('master_siswa as s', 's.id_siswa = p.id_siswa')
+            $lq = $db->table(SuratPanggilanService::TABEL.' p')
+                ->select('p.*', 's.nama', 's.nis', 's.nisn', 's.kelas_awal')
+                ->join('master_siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->where('p.bulan', $bulan)
                 ->where('p.tahun', $tahun);
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
-                    $lq->join('buku_induk as bi', 'bi.id_siswa = p.id_siswa', 'left')
-                        ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+                if (Schema::hasTable('buku_induk')) {
+                    $lq->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'p.id_siswa')
+                        ->where(function ($q) {
+                            $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                        });
                 }
             } catch (\Throwable $e2) {
             }
@@ -11057,9 +11393,9 @@ public function notifikasiStatus()
             // Rantai: siswa → kelas_siswa → master_kelas.guru_id →
             // absensi_surat_teguran.id_guru (aktif, bulan ini).
             $teguranSiswa = [];
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')
-                && \Illuminate\Support\Facades\Schema::hasTable('master_kelas')
-                && \Illuminate\Support\Facades\Schema::hasTable('kelas_siswa')) {
+            if (Schema::hasTable('absensi_surat_teguran')
+                && Schema::hasTable('master_kelas')
+                && Schema::hasTable('kelas_siswa')) {
                 try {
                     $teguran = $db->table('absensi_surat_teguran')
                         ->select('id_guru')
@@ -11071,15 +11407,15 @@ public function notifikasiStatus()
                     foreach ($teguran as $t) {
                         $idGuruTeguran[] = (int) ($t->id_guru ?? 0);
                     }
-                    if (!empty($idGuruTeguran)) {
+                    if (! empty($idGuruTeguran)) {
                         $idKelasTeguran = $db->table('master_kelas')
                             ->select('id_kelas')
                             ->whereIn('guru_id', $idGuruTeguran)
                             ->get();
                         $idKelasList = array_values(
-                            array_unique(array_map(fn($r) => (int) ($r->id_kelas ?? 0), $idKelasTeguran))
+                            array_unique(array_map(fn ($r) => (int) ($r->id_kelas ?? 0), $idKelasTeguran))
                         );
-                        if (!empty($idKelasList)) {
+                        if (! empty($idKelasList)) {
                             $siswaTeguran = $db->table('kelas_siswa')
                                 ->select('id_siswa')
                                 ->whereIn('id_kelas', $idKelasList)
@@ -11090,18 +11426,18 @@ public function notifikasiStatus()
                         }
                     }
                 } catch (\Throwable $e) {
-                    Log::error('[suratPanggilan] gagal deteksi surat teguran: ' . $e->getMessage());
+                    Log::error('[suratPanggilan] gagal deteksi surat teguran: '.$e->getMessage());
                 }
             }
         }
 
         // Kandidat untuk input manual: siswa yang alpha-nya sudah melewati
         // ambang tapi belum punya surat di periode ini.
-        if ($adaTabel && \Illuminate\Support\Facades\Schema::hasTable('presensi_siswa')) {
+        if ($adaTabel && Schema::hasTable('presensi_siswa')) {
             try {
-                $absenSetting = (new \App\Models\AttendanceSettingModel())->first();
-                $ctx = \App\Services\SuratPanggilanService::buildContext($bulan, $tahun);
-                $rekap = \App\Services\SuratPanggilanService::rekapAlphaBulan($ctx);
+                $absenSetting = (new AttendanceSettingModel)->first();
+                $ctx = SuratPanggilanService::buildContext($bulan, $tahun);
+                $rekap = SuratPanggilanService::rekapAlphaBulan($ctx);
 
                 $sudahPunya = [];
                 foreach ($letters as $l) {
@@ -11117,52 +11453,52 @@ public function notifikasiStatus()
                     if (isset($sudahPunya[$idSiswa])) {
                         continue;
                     }
-                    if ((int) $r['alpha'] < \App\Services\SuratPanggilanService::AMBANG[0]) {
+                    if ((int) $r['alpha'] < SuratPanggilanService::AMBANG[0]) {
                         continue;
                     }
                     $siswa = $db->table('master_siswa')
-                        ->select('id_siswa, nama, nis')
+                        ->select('id_siswa', 'nama', 'nis')
                         ->where('id_siswa', $idSiswa)
                         ->first();
-                    if (!$siswa) {
+                    if (! $siswa) {
                         continue;
                     }
                     $kandidat[] = [
-                        'id_siswa'   => $idSiswa,
-                        'nama'       => $siswa->nama,
-                        'nis'        => $siswa->nis,
-                        'alpha'      => (int) $r['alpha'],
-                        'terlambat'  => (int) $r['terlambat'],
-                        'level'      => \App\Services\SuratPanggilanService::levelTercapai((int) $r['alpha']),
+                        'id_siswa' => $idSiswa,
+                        'nama' => $siswa->nama,
+                        'nis' => $siswa->nis,
+                        'alpha' => (int) $r['alpha'],
+                        'terlambat' => (int) $r['terlambat'],
+                        'level' => SuratPanggilanService::levelTercapai((int) $r['alpha']),
                     ];
                 }
 
-                usort($kandidat, static fn($a, $b) => $b['alpha'] <=> $a['alpha']);
+                usort($kandidat, static fn ($a, $b) => $b['alpha'] <=> $a['alpha']);
             } catch (\Throwable $e) {
-                Log::error('[suratPanggilan] gagal hitung kandidat: ' . $e->getMessage());
+                Log::error('[suratPanggilan] gagal hitung kandidat: '.$e->getMessage());
                 $kandidat = [];
             }
         }
 
         return view('admin.presensi.surat_panggilan', [
-            'title'      => 'Surat Panggilan Orang Tua',
-            'judul'      => 'Surat Panggilan Orang Tua',
-            'setting'    => $setting,
-            'tp_active'  => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-            'user'       => $this->getUser(),
-            'letters'    => $letters,
-            'kandidat'   => $kandidat,
+            'title' => 'Surat Panggilan Orang Tua',
+            'judul' => 'Surat Panggilan Orang Tua',
+            'setting' => $setting,
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'letters' => $letters,
+            'kandidat' => $kandidat,
             // Alpha live per siswa (dari data absen real saat ini) untuk
             // penanda drift: snapshot surat yang beda dari angka ini
             // berarti perlu Hitung Ulang.
             'alpha_live' => array_map(
-                static fn($r) => ['alpha' => (int) ($r['alpha'] ?? 0), 'terlambat' => (int) ($r['terlambat'] ?? 0)],
+                static fn ($r) => ['alpha' => (int) ($r['alpha'] ?? 0), 'terlambat' => (int) ($r['terlambat'] ?? 0)],
                 $rekap
             ),
-            'bulan'      => $bulan,
-            'tahun'      => $tahun,
-            'adaTabel'   => $adaTabel,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'adaTabel' => $adaTabel,
             'teguranSiswa' => $teguranSiswa,
         ]);
     }
@@ -11176,7 +11512,7 @@ public function notifikasiStatus()
      */
     public function kirimNotifikasiPanggilan()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11194,14 +11530,14 @@ public function notifikasiStatus()
             return $this->respond(false, 'Tahun tidak valid.', null, null, 422);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable(\App\Services\SuratPanggilanService::TABEL)) {
+        $db = DB::connection();
+        if (! Schema::hasTable(SuratPanggilanService::TABEL)) {
             return $this->respond(false, 'Tabel surat panggilan belum dibuat.', null, null, 422);
         }
 
         try {
-            $ctx = \App\Services\SuratPanggilanService::buildContext($bulan, $tahun);
-            $hasil = \App\Services\SuratPanggilanService::generate($bulan, $tahun, $ctx);
+            $ctx = SuratPanggilanService::buildContext($bulan, $tahun);
+            $hasil = SuratPanggilanService::generate($bulan, $tahun, $ctx);
 
             if (empty($hasil['detail'])) {
                 return $this->respond(
@@ -11211,27 +11547,27 @@ public function notifikasiStatus()
                 );
             }
 
-            $daftar = \App\Services\SuratPanggilanService::buildDaftarPanggilanDenganWaliKelas(
+            $daftar = SuratPanggilanService::buildDaftarPanggilanDenganWaliKelas(
                 $db,
                 $bulan,
                 $tahun,
                 $hasil['detail']
             );
 
-            $notification = new \App\Services\NotificationService();
+            $notification = new NotificationService;
             $terkirim = $notification->notifySuratPanggilan($daftar, (string) $bulan, (string) $tahun);
 
             return $this->respond(
                 true,
-                'Notifikasi terkirim ke ' . $terkirim . ' wali kelas.',
+                'Notifikasi terkirim ke '.$terkirim.' wali kelas.',
                 [
                     'diterbitkan' => (int) $hasil['diterbitkan'],
-                    'terkirim'    => (int) $terkirim,
-                    'gagal'       => (int) $hasil['gagal'],
+                    'terkirim' => (int) $terkirim,
+                    'gagal' => (int) $hasil['gagal'],
                 ]
             );
         } catch (\Throwable $e) {
-            Log::error('[kirimNotifikasiPanggilan] ' . $e->getMessage());
+            Log::error('[kirimNotifikasiPanggilan] '.$e->getMessage());
 
             return $this->respond(false, 'Gagal mengirim notifikasi — periksa log aplikasi.', null, null, 500);
         }
@@ -11245,7 +11581,7 @@ public function notifikasiStatus()
      */
     public function buatSuratPanggilan()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11254,28 +11590,28 @@ public function notifikasiStatus()
         }
 
         $idSiswa = (int) ($this->request->input('id_siswa') ?? 0);
-        $bulan   = (int) ($this->request->input('bulan') ?: date('n'));
-        $tahun   = (int) ($this->request->input('tahun') ?: date('Y'));
-        $level   = (int) ($this->request->input('level') ?? 0);
-        $ket     = trim((string) ($this->request->input('keterangan') ?? ''));
+        $bulan = (int) ($this->request->input('bulan') ?: date('n'));
+        $tahun = (int) ($this->request->input('tahun') ?: date('Y'));
+        $level = (int) ($this->request->input('level') ?? 0);
+        $ket = trim((string) ($this->request->input('keterangan') ?? ''));
 
         if ($idSiswa <= 0) {
             return $this->respond(false, 'Pilih siswa terlebih dahulu.');
         }
 
-        $hasil = \App\Services\SuratPanggilanService::buatManual($idSiswa, $bulan, $tahun, $level, $ket);
+        $hasil = SuratPanggilanService::buatManual($idSiswa, $bulan, $tahun, $level, $ket);
 
-        if (!$hasil['ok']) {
+        if (! $hasil['ok']) {
             return $this->respond(false, $hasil['message'], null, null, 422);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $nama = $db->table('master_siswa')->select('nama')->where('id_siswa', $idSiswa)->first();
-        $namaSiswa = $nama->nama ?? ('siswa #' . $idSiswa);
+        $namaSiswa = $nama->nama ?? ('siswa #'.$idSiswa);
 
         return $this->respond(
             true,
-            'Surat panggilan untuk ' . $namaSiswa . ' berhasil dibuat.',
+            'Surat panggilan untuk '.$namaSiswa.' berhasil dibuat.',
             ['id' => $hasil['id'] ?? null]
         );
     }
@@ -11302,7 +11638,7 @@ public function notifikasiStatus()
      */
     public function buatSuratTeguran()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11311,26 +11647,26 @@ public function notifikasiStatus()
         }
 
         $idGuru = (int) ($this->request->input('id_guru') ?? 0);
-        $bulan  = (int) ($this->request->input('bulan') ?: date('n'));
-        $tahun  = (int) ($this->request->input('tahun') ?: date('Y'));
+        $bulan = (int) ($this->request->input('bulan') ?: date('n'));
+        $tahun = (int) ($this->request->input('tahun') ?: date('Y'));
 
         if ($idGuru <= 0) {
             return $this->respond(false, 'Pilih guru terlebih dahulu.');
         }
 
-        $db          = \Illuminate\Support\Facades\DB::connection();
-        $absenSetting = (new \App\Models\AttendanceSettingModel())->first();
+        $db = DB::connection();
+        $absenSetting = (new AttendanceSettingModel)->first();
 
         // Alpha dihitung dari user, bukan dari id_guru: yang punya catatan
         // absensi adalah akun guru. id_guru → id_user selalu dari master_guru,
         // dan kalau kolomnya kosong alpha tidak bisa dihitung sama sekali —
         // surat yang terbit dengan angka tebakan akan masuk arsip sekolah.
         $guru = $db->table('master_guru')
-            ->select('id_user, nama_guru')
+            ->select('id_user', 'nama_guru')
             ->where('id_guru', $idGuru)
             ->first();
 
-        if (!$guru) {
+        if (! $guru) {
             return $this->respond(false, 'Data guru tidak ditemukan.', null, null, 404);
         }
 
@@ -11339,10 +11675,10 @@ public function notifikasiStatus()
             return $this->respond(false, 'Guru ini belum terhubung ke akun presensi, alpha tidak bisa dihitung.');
         }
 
-        $alpha = (new \App\Services\AttendancePenaltyService())
+        $alpha = (new AttendancePenaltyService)
             ->calculateTeacherMonthlyAlpha($userId, $bulan, $tahun, $absenSetting);
 
-        $svc = new \App\Services\SuratTeguranService($db);
+        $svc = new SuratTeguranService($db);
         $svc->sinkronkan($idGuru, $alpha, (string) $bulan, (string) $tahun);
 
         $terbit = $svc->terbitkan($idGuru, $alpha, (string) $bulan, (string) $tahun);
@@ -11351,7 +11687,7 @@ public function notifikasiStatus()
             return $this->respond(
                 false,
                 'Surat tidak diterbitkan. Kemungkinan: guru sudah punya surat di periode ini, '
-                . 'atau alpha-nya belum melewati ambang.',
+                .'atau alpha-nya belum melewati ambang.',
                 null,
                 null,
                 422
@@ -11371,7 +11707,7 @@ public function notifikasiStatus()
 
         return $this->respond(
             true,
-            'Surat teguran berhasil dibuat. ' . $hasil['pesan'],
+            'Surat teguran berhasil dibuat. '.$hasil['pesan'],
             ['id' => $terbit['id'], 'level' => $terbit['level']]
         );
     }
@@ -11388,7 +11724,7 @@ public function notifikasiStatus()
      */
     public function batalkanSuratTeguran($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11397,16 +11733,16 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID surat tidak valid.');
         }
 
-        $db     = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $alasan = trim((string) ($this->request->input('alasan') ?? ''));
         $letter = $db->table('absensi_surat_teguran')->where('id', $id)->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return $this->respond(false, 'Surat tidak ditemukan.', null, null, 404);
         }
 
         $update = [
-            'status'           => 'dibatalkan',
+            'status' => 'dibatalkan',
             'keterangan_batal' => $alasan !== ''
                 ? $alasan
                 : 'Dibatalkan manual oleh operator',
@@ -11414,7 +11750,7 @@ public function notifikasiStatus()
 
         // Tanpa penanda ini, sinkronkan() akan menghidupkan kembali surat ini
         // pada evaluation berikutnya begitu alpha-nya kembali di atas ambang.
-        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_surat_teguran', 'dibatalkan_otomatis')) {
+        if (Schema::hasColumn('absensi_surat_teguran', 'dibatalkan_otomatis')) {
             $update['dibatalkan_otomatis'] = 0;
         }
 
@@ -11435,7 +11771,7 @@ public function notifikasiStatus()
      */
     public function kirimSuratTeguran($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11448,14 +11784,14 @@ public function notifikasiStatus()
             return $this->respond(false, 'ID surat tidak valid.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $letter = $db->table('absensi_surat_teguran as a')
-            ->select('a.*, g.nama_guru, g.id_user')
-            ->join('master_guru as g', 'g.id_guru = a.id_guru')
+            ->select('a.*', 'g.nama_guru', 'g.id_user')
+            ->join('master_guru as g', 'g.id_guru', '=', 'a.id_guru')
             ->where('a.id', $id)
             ->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return $this->respond(false, 'Surat tidak ditemukan.', null, null, 404);
         }
 
@@ -11474,30 +11810,31 @@ public function notifikasiStatus()
             $viewData = $this->dataPdfSuratTeguran($letter);
             $html = view('members.guru.surat_teguran_pdf', $viewData);
 
-            $dompdf = new Dompdf();
+            $dompdf = new Dompdf;
             $dompdf->set_option('isHtml5ParserEnabled', true);
             $dompdf->set_option('isRemoteEnabled', true);
             $dompdf->loadHtml($html);
             $dompdf->setPaper('A4', 'portrait');
             $dompdf->render();
 
-            $tmpDir = storage_path('app') . '/' . 'temp' . DIRECTORY_SEPARATOR;
-            if (!is_dir($tmpDir)) {
+            $tmpDir = storage_path('app').'/'.'temp'.DIRECTORY_SEPARATOR;
+            if (! is_dir($tmpDir)) {
                 mkdir($tmpDir, 0755, true);
             }
-            $namaFile = 'Surat_Teguran_' . (int) ($letter->level ?? 0) . '_Hari_'
-                . preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($letter->nama_guru ?? 'Guru')) . '.pdf';
-            $tmpFile = $tmpDir . 'teguran_' . $id . '_' . date('YmdHis') . '.pdf';
+            $namaFile = 'Surat_Teguran_'.(int) ($letter->level ?? 0).'_Hari_'
+                .preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($letter->nama_guru ?? 'Guru')).'.pdf';
+            $tmpFile = $tmpDir.'teguran_'.$id.'_'.date('YmdHis').'.pdf';
             file_put_contents($tmpFile, $dompdf->output());
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguran] render PDF kirim gagal: ' . $e->getMessage());
+            Log::error('[SuratTeguran] render PDF kirim gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal membuat berkas PDF — periksa log aplikasi.');
         }
 
         try {
-            $caption = 'Surat Teguran ' . \App\Libraries\SuratTeguranLevel::label((int) ($letter->level ?? 0))
-                . ' — ' . ($letter->nama_guru ?? '');
-            $notif = new \App\Services\NotificationService();
+            $caption = 'Surat Teguran '.SuratTeguranLevel::label((int) ($letter->level ?? 0))
+                .' — '.($letter->nama_guru ?? '');
+            $notif = new NotificationService;
             $hasil = $notif->kirimDokumenPersonal(
                 'teguran',
                 $userId,
@@ -11510,14 +11847,15 @@ public function notifikasiStatus()
             if ($hasil['ok']) {
                 return $this->respond(
                     true,
-                    'File PDF terkirim ke ' . ($hasil['channel'] === 'whatsapp' ? 'WhatsApp' : 'Telegram') . ' personal guru.',
+                    'File PDF terkirim ke '.($hasil['channel'] === 'whatsapp' ? 'WhatsApp' : 'Telegram').' personal guru.',
                     ['channel' => $hasil['channel']]
                 );
             }
 
-            return $this->respond(false, 'PDF gagal dikirim ke personal: ' . $hasil['error']);
+            return $this->respond(false, 'PDF gagal dikirim ke personal: '.$hasil['error']);
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguran] kirim PDF gagal: ' . $e->getMessage());
+            Log::error('[SuratTeguran] kirim PDF gagal: '.$e->getMessage());
+
             return $this->respond(false, 'PDF gagal dikirim ke personal — periksa log aplikasi.');
         } finally {
             if ($tmpFile !== '' && is_file($tmpFile)) {
@@ -11537,7 +11875,7 @@ public function notifikasiStatus()
     private function kirimNotifikasiTeguran(string $namaGuru, int $level, $bulan, $tahun, int $userId): array
     {
         try {
-            $notif = new \App\Services\NotificationService();
+            $notif = new NotificationService;
             $notif->notifyWarningLetter($namaGuru, $level, (string) $bulan, (string) $tahun, $userId);
             // lastChannel = hasil kaki personal: whatsapp/telegram (DM sampai),
             // grup (DM gagal, sudah diumumkan di grup), preferensi-mati,
@@ -11548,7 +11886,7 @@ public function notifikasiStatus()
                 return [
                     'ok' => true,
                     'pesan' => 'Notifikasi terkirim ke guru via '
-                        . ($via === 'whatsapp' ? 'WhatsApp.' : 'Telegram.'),
+                        .($via === 'whatsapp' ? 'WhatsApp.' : 'Telegram.'),
                     'channel' => $via,
                 ];
             }
@@ -11563,18 +11901,20 @@ public function notifikasiStatus()
                 return [
                     'ok' => true,
                     'pesan' => 'Guru menonaktifkan notifikasi teguran; pengumuman grup tetap dikirim bila kanal grup aktif.'
-                        . ($err !== '' ? ' (' . $err . ')' : ''),
+                        .($err !== '' ? ' ('.$err.')' : ''),
                     'channel' => $via,
                 ];
             }
             if ($via === '' && $err === '') {
                 return ['ok' => true, 'pesan' => 'Kanal personal mati; pengumuman grup dikirim.', 'channel' => 'grup'];
             }
-            $pesan = 'Notifikasi gagal dikirim' . ($err !== '' ? ': ' . $err : '.');
-            Log::error('[SuratTeguran] notifikasi gagal untuk ' . $namaGuru . ': ' . $pesan);
+            $pesan = 'Notifikasi gagal dikirim'.($err !== '' ? ': '.$err : '.');
+            Log::error('[SuratTeguran] notifikasi gagal untuk '.$namaGuru.': '.$pesan);
+
             return ['ok' => false, 'pesan' => $pesan, 'channel' => $via !== '' ? $via : 'tidak-terkirim'];
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguran] notifikasi gagal untuk ' . $namaGuru . ': ' . $e->getMessage());
+            Log::error('[SuratTeguran] notifikasi gagal untuk '.$namaGuru.': '.$e->getMessage());
+
             return ['ok' => false, 'pesan' => 'Notifikasi gagal dikirim.', 'channel' => 'tidak-terkirim'];
         }
     }
@@ -11589,7 +11929,7 @@ public function notifikasiStatus()
      */
     public function batalkanSuratPanggilan($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11599,9 +11939,9 @@ public function notifikasiStatus()
         }
 
         $alasan = trim((string) ($this->request->input('alasan') ?? ''));
-        $ok = \App\Services\SuratPanggilanService::batalkan($id, $alasan);
+        $ok = SuratPanggilanService::batalkan($id, $alasan);
 
-        if (!$ok) {
+        if (! $ok) {
             return $this->respond(false, 'Surat tidak ditemukan atau gagal dibatalkan.', null, null, 404);
         }
 
@@ -11621,7 +11961,7 @@ public function notifikasiStatus()
      */
     public function hitungUlangSuratPanggilan()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11638,27 +11978,27 @@ public function notifikasiStatus()
             return $this->respond(false, 'Tahun tidak valid.');
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!\Illuminate\Support\Facades\Schema::hasTable(\App\Services\SuratPanggilanService::TABEL)) {
+        $db = DB::connection();
+        if (! Schema::hasTable(SuratPanggilanService::TABEL)) {
             return $this->respond(false, 'Tabel surat panggilan belum dibuat. Jalankan php spark migrate.');
         }
 
         try {
-            $absenSetting = (new \App\Models\AttendanceSettingModel())->first();
+            $absenSetting = (new AttendanceSettingModel)->first();
             $setting = $this->getSettingRow();
-            $ctx = \App\Services\SuratPanggilanService::buildContext($bulan, $tahun);
-            $hasil = \App\Services\SuratPanggilanService::hitungUlang($bulan, $tahun, $ctx);
+            $ctx = SuratPanggilanService::buildContext($bulan, $tahun);
+            $hasil = SuratPanggilanService::hitungUlang($bulan, $tahun, $ctx);
         } catch (\Throwable $e) {
-            Log::error('[hitungUlangSuratPanggilan] ' . $e->getMessage());
+            Log::error('[hitungUlangSuratPanggilan] '.$e->getMessage());
 
             return $this->respond(false, 'Gagal menghitung ulang — periksa log aplikasi.');
         }
 
         return $this->respond(
             true,
-            'Hitung ulang selesai: ' . (int) $hasil['dicek'] . ' surat dicek, '
-                . (int) $hasil['diperbarui'] . ' diperbarui, '
-                . (int) $hasil['dibatalkan'] . ' dibatalkan otomatis.',
+            'Hitung ulang selesai: '.(int) $hasil['dicek'].' surat dicek, '
+                .(int) $hasil['diperbarui'].' diperbarui, '
+                .(int) $hasil['dibatalkan'].' dibatalkan otomatis.',
             $hasil
         );
     }
@@ -11675,20 +12015,20 @@ public function notifikasiStatus()
      */
     public function downloadSuratPanggilan($id)
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $id = (int) $id;
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        $letter = $db->table(\App\Services\SuratPanggilanService::TABEL . ' p')
-            ->select('p.*, s.nama, s.nis, s.nisn, s.kelas_awal, s.nama_ayah, s.nohp_ayah, s.nama_ibu, s.nohp_ibu, s.nama_wali, s.nohp_wali')
-            ->join('master_siswa as s', 's.id_siswa = p.id_siswa')
+        $letter = $db->table(SuratPanggilanService::TABEL.' p')
+            ->select('p.*', 's.nama', 's.nis', 's.nisn', 's.kelas_awal', 's.nama_ayah', 's.nohp_ayah', 's.nama_ibu', 's.nohp_ibu', 's.nama_wali', 's.nohp_wali')
+            ->join('master_siswa as s', 's.id_siswa', '=', 'p.id_siswa')
             ->where('p.id', $id)
             ->first();
 
-        if (!$letter) {
+        if (! $letter) {
             return redirect()->back()->with('error', 'Data surat panggilan tidak ditemukan.');
         }
 
@@ -11698,7 +12038,7 @@ public function notifikasiStatus()
 
         $setting = $this->mergeSettingUntukSurat();
 
-        $nomorSurat = \App\Libraries\SuratNomor::build(
+        $nomorSurat = SuratNomor::build(
             (int) ($letter->nomor_urut ?? 0),
             (int) ($letter->bulan ?? date('n')),
             (int) ($letter->tahun ?? date('Y')),
@@ -11708,48 +12048,48 @@ public function notifikasiStatus()
         );
 
         $level = (int) ($letter->level ?? 3);
-        $labelTingkat = \App\Services\SuratPanggilanService::LABEL_LEVEL[$level] ?? ('Tingkat (' . $level . ')');
+        $labelTingkat = SuratPanggilanService::LABEL_LEVEL[$level] ?? ('Tingkat ('.$level.')');
 
         // Penerima: pakai snapshot saat surat terbit; fallback ke data
         // sekarang hanya bila surat dibuat manual tanpa snapshot.
         $penerima = trim((string) ($letter->penerima ?? ''));
         if ($penerima === '') {
-            $snap = \App\Services\SuratPanggilanService::snapshotPenerima((int) $letter->id_siswa);
+            $snap = SuratPanggilanService::snapshotPenerima((int) $letter->id_siswa);
             $penerima = (string) ($snap['penerima'] ?? '');
         }
         $nohp = trim((string) ($letter->nohp_penerima ?? ''));
         if ($nohp === '') {
-            $snap = \App\Services\SuratPanggilanService::snapshotPenerima((int) $letter->id_siswa);
+            $snap = SuratPanggilanService::snapshotPenerima((int) $letter->id_siswa);
             $nohp = (string) ($snap['nohp_penerima'] ?? '');
         }
 
         $viewData = [
-            'setting'         => $setting,
-            'letter'          => $letter,
-            'siswa'           => $letter,
-            'jumlah_alpha'    => (int) ($letter->jumlah_alpha ?? 0),
-            'jumlah_terlambat'=> (int) ($letter->jumlah_terlambat ?? 0),
-            'label_tingkat'   => $labelTingkat,
-            'penerima'        => $penerima,
-            'nohp_penerima'   => $nohp,
-            'nomor_surat'     => $nomorSurat,
-            'periode_bulan'   => (int) ($letter->bulan ?? date('n')),
-            'periode_tahun'   => (int) ($letter->tahun ?? date('Y')),
-            'logo_base64'     => $this->gambarBase64($setting->logo_kiri ?? null),
-            'kop_base64'      => $this->gambarBase64($setting->kopsekolah ?? null),
+            'setting' => $setting,
+            'letter' => $letter,
+            'siswa' => $letter,
+            'jumlah_alpha' => (int) ($letter->jumlah_alpha ?? 0),
+            'jumlah_terlambat' => (int) ($letter->jumlah_terlambat ?? 0),
+            'label_tingkat' => $labelTingkat,
+            'penerima' => $penerima,
+            'nohp_penerima' => $nohp,
+            'nomor_surat' => $nomorSurat,
+            'periode_bulan' => (int) ($letter->bulan ?? date('n')),
+            'periode_tahun' => (int) ($letter->tahun ?? date('Y')),
+            'logo_base64' => $this->gambarBase64($setting->logo_kiri ?? null),
+            'kop_base64' => $this->gambarBase64($setting->kopsekolah ?? null),
         ];
 
         // QR TTE, sama seperti surat teguran — supaya surat panggilan bisa
         // diverifikasi tanpa harus menghubungi sekolah.
-        $viewData['tte_kode'] = \App\Libraries\TteQr::verificationCode(
+        $viewData['tte_kode'] = TteQr::verificationCode(
             $nomorSurat,
             (int) $letter->id_siswa,
             $level,
             (int) $letter->bulan,
             (int) $letter->tahun
         );
-        $viewData['tte_qr'] = \App\Libraries\TteQr::dataUri(
-            \App\Libraries\TteQr::payload(
+        $viewData['tte_qr'] = TteQr::dataUri(
+            TteQr::payload(
                 $nomorSurat,
                 (string) ($letter->nama ?? '-'),
                 (string) ($letter->nis ?? '-'),
@@ -11764,7 +12104,7 @@ public function notifikasiStatus()
 
         $html = view('admin.presensi.surat_panggilan_pdf', $viewData);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->set_option('isRemoteEnabled', true);
         $dompdf->loadHtml($html);
@@ -11775,7 +12115,7 @@ public function notifikasiStatus()
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="Surat_Panggilan_' . $namaFile . '.pdf"')
+            ->setHeader('Content-Disposition', 'inline; filename="Surat_Panggilan_'.$namaFile.'.pdf"')
             ->setBody($dompdf->output());
     }
 
@@ -11787,8 +12127,8 @@ public function notifikasiStatus()
      */
     private function mergeSettingUntukSurat(): object
     {
-        $attSetting = (new \App\Models\AttendanceSettingModel())->first();
-        if (!$attSetting) {
+        $attSetting = (new AttendanceSettingModel)->first();
+        if (! $attSetting) {
             $attSetting = (object) [];
         }
 
@@ -11797,14 +12137,14 @@ public function notifikasiStatus()
         $setting = clone $attSetting;
         if ($globalSetting) {
             foreach (get_object_vars($globalSetting) as $key => $val) {
-                if (!isset($setting->$key)) {
+                if (! isset($setting->$key)) {
                     $setting->$key = $val;
                 }
             }
         }
 
         foreach (['logo_kiri' => null, 'nama_sekolah' => 'Sekolah', 'kota' => 'Kota', 'kepsek' => '..........................', 'nip' => '..........................'] as $k => $v) {
-            if (!isset($setting->$k)) {
+            if (! isset($setting->$k)) {
                 $setting->$k = $v;
             }
         }
@@ -11820,7 +12160,7 @@ public function notifikasiStatus()
      */
     private function gambarBase64(?string $path): string
     {
-        return (new \App\Services\RekapPdfService())->gambarBase64($path);
+        return (new RekapPdfService)->gambarBase64($path);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -11834,11 +12174,12 @@ public function notifikasiStatus()
      * sebagai base64 supaya Dompdf tidak perlu akses jaringan.
      *
      * @return array{pdf:string, filename:string, bulan:string, tahun:string, jumlah_guru:int}
+     *
      * @throws \RuntimeException bila Dompdf tidak menghasilkan output
      */
     private function buildRekapBulananPdf(string $bulan, string $tahun): array
     {
-        return (new \App\Services\RekapPdfService())->buildRekapBulananPdf($bulan, $tahun);
+        return (new RekapPdfService)->buildRekapBulananPdf($bulan, $tahun);
     }
 
     /**
@@ -11849,7 +12190,7 @@ public function notifikasiStatus()
      */
     public function kirimRekapBulanan()
     {
-        if (!$this->isAdmin() && !$this->isPanitia()) {
+        if (! $this->isAdmin() && ! $this->isPanitia()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11868,29 +12209,31 @@ public function notifikasiStatus()
         try {
             $hasil = $this->buildRekapBulananPdf($bulan, $tahun);
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::kirimRekapBulanan] gagal membuat PDF: ' . $e->getMessage());
+            Log::error('[PresensiAdmin::kirimRekapBulanan] gagal membuat PDF: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal menyusun PDF rekap bulanan — periksa log aplikasi.', null, null, 500);
         }
 
         if ($hasil['jumlah_guru'] === 0) {
             return $this->respond(
                 false,
-                'Tidak ada guru aktif untuk periode ' . $bulan . '/' . $tahun . ' sehingga PDF kosong.'
+                'Tidak ada guru aktif untuk periode '.$bulan.'/'.$tahun.' sehingga PDF kosong.'
             );
         }
 
         // Tulis ke file sementara — Telegram (multipart) dan OpenWA (base64)
         // keduanya membaca dari path, bukan dari string.
-        $dir = storage_path('app') . '/' . 'uploads';
-        if (!is_dir($dir)) {
+        $dir = storage_path('app').'/'.'uploads';
+        if (! is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
         // Prefix acak: tidak bisa ditebak dari luar dan tidak bentrok
         // dengan request yang berjalan bersamaan.
-        $path = $dir . '/rekap_bulanan_' . bin2hex(random_bytes(8)) . '.pdf';
+        $path = $dir.'/rekap_bulanan_'.bin2hex(random_bytes(8)).'.pdf';
 
         if (@file_put_contents($path, $hasil['pdf']) === false) {
-            Log::error('[PresensiAdmin::kirimRekapBulanan] gagal menulis ' . $path);
+            Log::error('[PresensiAdmin::kirimRekapBulanan] gagal menulis '.$path);
+
             return $this->respond(false, 'Gagal menyimpan PDF sementara untuk dikirim.', null, null, 500);
         }
 
@@ -11899,14 +12242,14 @@ public function notifikasiStatus()
             5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
             9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
         ];
-        $namaGrup = ($namaBulan[(int) $bulan] ?? $bulan) . ' ' . $tahun;
+        $namaGrup = ($namaBulan[(int) $bulan] ?? $bulan).' '.$tahun;
 
         $caption = "<b>📋 REKAP PRESENSI GURU</b>\n"
-            . "Periode: {$namaGrup}\n"
-            . 'Total guru: ' . $hasil['jumlah_guru'] . ' orang';
+            ."Periode: {$namaGrup}\n"
+            .'Total guru: '.$hasil['jumlah_guru'].' orang';
 
         try {
-            $svc       = new \App\Services\NotificationService();
+            $svc = new NotificationService;
             $hasilKirim = $svc->sendDokumenToGrup(
                 'rekap_bulanan',
                 $path,
@@ -11914,7 +12257,8 @@ public function notifikasiStatus()
                 $caption
             );
         } catch (\Throwable $e) {
-            Log::error('[PresensiAdmin::kirimRekapBulanan] error saat kirim: ' . $e->getMessage());
+            Log::error('[PresensiAdmin::kirimRekapBulanan] error saat kirim: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal mengirim rekap — periksa log aplikasi.', null, null, 500);
         } finally {
             // PDF memuat data kehadiran tiap guru — hapus segera setelah
@@ -11924,30 +12268,29 @@ public function notifikasiStatus()
 
         $berhasil = $hasilKirim['telegram'] || $hasilKirim['whatsapp'];
 
-        $rincian   = [];
-        $rincian[] = 'Telegram: ' . ($hasilKirim['telegram']
+        $rincian = [];
+        $rincian[] = 'Telegram: '.($hasilKirim['telegram']
             ? 'terkirim'
-            : 'GAGAL — ' . ($hasilKirim['telegram_error'] ?? 'tidak diketahui'));
-        $rincian[] = 'WhatsApp: ' . ($hasilKirim['whatsapp']
+            : 'GAGAL — '.($hasilKirim['telegram_error'] ?? 'tidak diketahui'));
+        $rincian[] = 'WhatsApp: '.($hasilKirim['whatsapp']
             ? 'terkirim'
-            : 'GAGAL — ' . ($hasilKirim['whatsapp_error'] ?? 'tidak diketahui'));
+            : 'GAGAL — '.($hasilKirim['whatsapp_error'] ?? 'tidak diketahui'));
 
         return $this->respond(
             $berhasil,
             $berhasil
-                ? 'Rekap ' . $namaGrup . ' berhasil dikirim. ' . implode(' | ', $rincian)
-                : 'Rekap tidak terkirim ke kanal mana pun. '  . implode(' | ', $rincian),
+                ? 'Rekap '.$namaGrup.' berhasil dikirim. '.implode(' | ', $rincian)
+                : 'Rekap tidak terkirim ke kanal mana pun. '.implode(' | ', $rincian),
             [
-                'bulan'       => $bulan,
-                'tahun'       => $tahun,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
                 'jumlah_guru' => $hasil['jumlah_guru'],
-                'filename'    => $hasil['filename'],
-                'telegram'    => $hasilKirim['telegram'],
-                'whatsapp'    => $hasilKirim['whatsapp'],
+                'filename' => $hasil['filename'],
+                'telegram' => $hasilKirim['telegram'],
+                'whatsapp' => $hasilKirim['whatsapp'],
             ],
             null,
             $berhasil ? 200 : 500
         );
     }
 }
-

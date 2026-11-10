@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
-use App\Models\ElearningModel;
 use App\Models\DashboardModel;
+use App\Models\ElearningModel;
 use App\Models\JabatanGuruModel;
 use App\Models\JurnalGuruModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
@@ -22,31 +21,33 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
-
 class JadwalController extends BaseController
 {
     protected $elearningModel;
+
     protected $dashboardModel;
+
     protected $jabatanModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->elearningModel = new ElearningModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->jabatanModel = new JabatanGuruModel();
+        $this->elearningModel = new ElearningModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->jabatanModel = new JabatanGuruModel;
     }
 
     protected function getTpSmt(): object
     {
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+
         return (object) ['tp' => $tp, 'smt' => $smt];
     }
 
     public function index()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -55,10 +56,12 @@ class JadwalController extends BaseController
         $smt = $tpSmt->smt;
 
         // Safety Checks for Null Objects
-        if (!$tp)
+        if (! $tp) {
             $tp = (object) ['id_tp' => 0, 'tahun' => '-'];
-        if (!$smt)
+        }
+        if (! $smt) {
             $smt = (object) ['id_smt' => 0, 'smt' => '-'];
+        }
 
         // Get Data
         $jadk = $this->elearningModel->getJadwalKbm($tp->id_tp, $smt->id_smt);
@@ -66,10 +69,10 @@ class JadwalController extends BaseController
         $settingKbm = (object) [
             'libur' => '7',
             'istirahat' => [],
-            'ada' => false
+            'ada' => false,
         ];
 
-        if (!empty($jadk)) {
+        if (! empty($jadk)) {
             $firstKey = array_key_first($jadk);
             $jadwal = $jadk[$firstKey];
 
@@ -91,8 +94,9 @@ class JadwalController extends BaseController
         $penugasanKosong = $this->elearningModel->getUnassignedSchedulePairs((int) $tp->id_tp, (int) $smt->id_smt);
 
         $setting = $this->getSettingRow();
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_sekolah' => 'absensi by ikasmedia', 'logo' => null, 'website' => ''];
+        }
 
         $data = [
             'title' => 'Jadwal Pelajaran',
@@ -108,7 +112,7 @@ class JadwalController extends BaseController
             'gurus' => $gurus,
             'penugasan_kosong' => $penugasanKosong,
             'is_admin' => true,
-            'id_hari' => '-1'
+            'id_hari' => '-1',
         ];
 
         return view('admin.elearning.jadwal', $data);
@@ -119,11 +123,12 @@ class JadwalController extends BaseController
      */
     public function get_jadwal($hari)
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = $tpSmt->tp;
@@ -143,13 +148,14 @@ class JadwalController extends BaseController
         }
 
         // 1. Calculate Min/Max Time
-        $minTime = "23:59";
-        $maxTime = "06:00";
+        $minTime = '23:59';
+        $maxTime = '06:00';
         $kelasKeys = array_keys($allKelas);
 
         foreach ($jadk as $idKelas => $kelasObj) {
-            if (!in_array($idKelas, $kelasKeys))
+            if (! in_array($idKelas, $kelasKeys)) {
                 continue;
+            }
 
             if ($kelasObj->kbm_jam_selesai > $maxTime) {
                 $maxTime = $kelasObj->kbm_jam_selesai;
@@ -160,16 +166,17 @@ class JadwalController extends BaseController
         }
 
         // Fallback defaults
-        if ($minTime == "23:59") {
-            $minTime = "07:00";
-            $maxTime = "15:00";
+        if ($minTime == '23:59') {
+            $minTime = '07:00';
+            $maxTime = '15:00';
         }
 
         // 2. Generate Time Slots (5 minutes interval)
         $longDay = round(abs(strtotime($maxTime) - strtotime($minTime)) / 60, 2) + 5;
         // Safety cap
-        if ($longDay > 1440)
+        if ($longDay > 1440) {
             $longDay = 1440;
+        }
 
         $startTime = new \DateTime($minTime);
         $timeSlots = [];
@@ -192,7 +199,7 @@ class JadwalController extends BaseController
             $mapelKls = $jadwalMapel[$idKelas] ?? [];
 
             foreach ($mapelKls as $row) {
-                $teachers = $assignmentMap[(int) $row->id_kelas . ':' . (int) $row->id_mapel] ?? [];
+                $teachers = $assignmentMap[(int) $row->id_kelas.':'.(int) $row->id_mapel] ?? [];
                 $row->guru_ids = array_keys($teachers);
                 $row->guru_nama = implode(', ', array_values($teachers));
             }
@@ -207,8 +214,8 @@ class JadwalController extends BaseController
                 'min_time' => $minTime,
                 'max_time' => $maxTime,
                 'mapel' => $jadwalData,
-                'kbm' => $jadk
-            ]
+                'kbm' => $jadk,
+            ],
         ]);
     }
 
@@ -217,11 +224,12 @@ class JadwalController extends BaseController
      */
     public function save_setting()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
@@ -238,7 +246,7 @@ class JadwalController extends BaseController
         if ($mulai >= $selesai) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jam masuk harus lebih awal dari jam pulang']);
         }
-        if (!in_array($libur, ['0', '1', '2', '3', '4', '5', '6', '7'], true)) {
+        if (! in_array($libur, ['0', '1', '2', '3', '4', '5', '6', '7'], true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Hari libur tidak valid']);
         }
 
@@ -246,7 +254,7 @@ class JadwalController extends BaseController
         $upacara = [
             'id_hari' => $this->request->input('hari_upacara'),
             'jam_ke' => $this->request->input('jam_upacara'),
-            'durasi' => $this->request->input('durasi_upacara')
+            'durasi' => $this->request->input('durasi_upacara'),
         ];
 
         // Format details
@@ -257,8 +265,8 @@ class JadwalController extends BaseController
         $jmlIst = (int) $this->request->input('jum_ist');
         for ($i = 0; $i < $jmlIst; $i++) {
             $istirahat[] = [
-                'ist' => $this->request->input('ist' . $i),
-                'dur' => $this->request->input('dur_ist' . $i),
+                'ist' => $this->request->input('ist'.$i),
+                'dur' => $this->request->input('dur_ist'.$i),
             ];
         }
 
@@ -304,33 +312,35 @@ class JadwalController extends BaseController
         // insertBatch/updateBatch mengembalikan false tanpa melempar
         // exception, jadi kegagalan sebagian harus dicek lewat nilai
         // kembali dan status transaksi, bukan lewat catch saja.
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
         try {
             $gagal = [];
-            if (!empty($insertKbm) && $this->elearningModel->insertBatchKbm($insertKbm) === false) {
-                $gagal[] = 'pengaturan ' . count($insertKbm) . ' rombel baru';
+            if (! empty($insertKbm) && $this->elearningModel->insertBatchKbm($insertKbm) === false) {
+                $gagal[] = 'pengaturan '.count($insertKbm).' rombel baru';
             }
-            if (!empty($updateKbm) && $this->elearningModel->updateBatchKbm($updateKbm) === false) {
-                $gagal[] = 'pengaturan ' . count($updateKbm) . ' rombel lama';
+            if (! empty($updateKbm) && $this->elearningModel->updateBatchKbm($updateKbm) === false) {
+                $gagal[] = 'pengaturan '.count($updateKbm).' rombel lama';
             }
             if (true === false) {
                 $gagal[] = 'penyimpanan batch ditolak database';
             }
 
-            if (!empty($gagal)) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('[save_setting] gagal menyimpan KBM: ' . implode('; ', $gagal));
+            if (! empty($gagal)) {
+                DB::rollBack();
+                Log::error('[save_setting] gagal menyimpan KBM: '.implode('; ', $gagal));
+
                 return $this->response->setJSON([
                     'status' => false,
-                    'message' => 'Pengaturan jadwal gagal disimpan (' . implode('; ', $gagal) . ') — perubahan tidak diterapkan.'
+                    'message' => 'Pengaturan jadwal gagal disimpan ('.implode('; ', $gagal).') — perubahan tidak diterapkan.',
                 ]);
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[save_setting] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[save_setting] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan pengaturan jadwal']);
         }
 
@@ -342,7 +352,7 @@ class JadwalController extends BaseController
             'status' => true,
             'message' => $susun
                 ? 'Pengaturan jadwal berhasil disimpan'
-                : 'Pengaturan jam tersimpan, tetapi susunan slot istirahat/upacara gagal disusun ulang. Cek log atau simpan sekali lagi.'
+                : 'Pengaturan jam tersimpan, tetapi susunan slot istirahat/upacara gagal disusun ulang. Cek log atau simpan sekali lagi.',
         ]);
     }
 
@@ -353,11 +363,12 @@ class JadwalController extends BaseController
      */
     public function save_mapel_slot()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
@@ -383,7 +394,7 @@ class JadwalController extends BaseController
         }
 
         $allKelas = $this->elearningModel->getAllKelasSort($tp, $smt);
-        if (!isset($allKelas[$idKelas])) {
+        if (! isset($allKelas[$idKelas])) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif']);
         }
 
@@ -407,12 +418,12 @@ class JadwalController extends BaseController
         if ($jamPulang !== null && $jamSelesai > $jamPulang) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Rentang ' . ($jumlahJam > 0 ? $jumlahJam . ' jam ' : '') . 'melebihi jam pulang (' . $jamPulang . ')'
+                'message' => 'Rentang '.($jumlahJam > 0 ? $jumlahJam.' jam ' : '').'melebihi jam pulang ('.$jamPulang.')',
             ]);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if ($idMapel > 0 && !$db->table('master_mapel')->where('id_mapel', $idMapel)->count()) {
+        $db = DB::connection();
+        if ($idMapel > 0 && ! $db->table('master_mapel')->where('id_mapel', $idMapel)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Mata pelajaran tidak ditemukan']);
         }
         if ($idMapel > 0 && $idGuru <= 0) {
@@ -421,8 +432,8 @@ class JadwalController extends BaseController
 
         $guruNama = '';
         if ($idGuru > 0) {
-            $guruRow = $db->table('master_guru')->select('id_guru, nama_guru')->where('id_guru', $idGuru)->first();
-            if (!$guruRow) {
+            $guruRow = $db->table('master_guru')->select('id_guru', 'nama_guru')->where('id_guru', $idGuru)->first();
+            if (! $guruRow) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Guru pengajar tidak ditemukan']);
             }
             $guruNama = (string) $guruRow->nama_guru;
@@ -435,7 +446,7 @@ class JadwalController extends BaseController
                 ->where('id_tp', $tp)
                 ->where('id_smt', $smt)
                 ->first();
-            if (!$oldRow) {
+            if (! $oldRow) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
             }
         }
@@ -454,23 +465,26 @@ class JadwalController extends BaseController
             ->first();
         if ($classConflict) {
             $conflictLabel = 'jadwal';
-            if ((int) $classConflict->id_mapel === -1) $conflictLabel = 'Istirahat';
-            elseif ((int) $classConflict->id_mapel === -2) $conflictLabel = 'Upacara';
+            if ((int) $classConflict->id_mapel === -1) {
+                $conflictLabel = 'Istirahat';
+            } elseif ((int) $classConflict->id_mapel === -2) {
+                $conflictLabel = 'Upacara';
+            }
 
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Bentrok: kelas sudah memiliki ' . $conflictLabel . ' ' . substr((string) $classConflict->dari, 0, 5) . '-' . substr((string) $classConflict->sampai, 0, 5)
+                'message' => 'Bentrok: kelas sudah memiliki '.$conflictLabel.' '.substr((string) $classConflict->dari, 0, 5).'-'.substr((string) $classConflict->sampai, 0, 5),
             ]);
         }
 
         // Guru tidak boleh mengajar dua kelas pada waktu yang beririsan.
         if ($idMapel > 0 && $idGuru > 0) {
             $pairs = $this->elearningModel->getGuruAssignedPairs($idGuru, $tp, $smt);
-            $pairs[$idKelas . ':' . $idMapel] = true;
+            $pairs[$idKelas.':'.$idMapel] = true;
 
             $teacherRows = $db->table('kelas_jadwal_mapel as jm')
-                ->select('jm.id_jadwal, jm.id_kelas, jm.id_mapel, jm.dari, jm.sampai, k.nama_kelas')
-                ->join('master_kelas as k', 'k.id_kelas = jm.id_kelas', 'left')
+                ->select('jm.id_jadwal', 'jm.id_kelas', 'jm.id_mapel', 'jm.dari', 'jm.sampai', 'k.nama_kelas')
+                ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'jm.id_kelas')
                 ->where('jm.id_tp', $tp)
                 ->where('jm.id_smt', $smt)
                 ->where('jm.id_hari', $idHari)
@@ -480,11 +494,13 @@ class JadwalController extends BaseController
                 ->get();
 
             foreach ($teacherRows as $tr) {
-                if ((int) $tr->id_jadwal === $idJadwal) continue;
-                if (isset($pairs[(int) $tr->id_kelas . ':' . (int) $tr->id_mapel])) {
+                if ((int) $tr->id_jadwal === $idJadwal) {
+                    continue;
+                }
+                if (isset($pairs[(int) $tr->id_kelas.':'.(int) $tr->id_mapel])) {
                     return $this->response->setJSON([
                         'status' => false,
-                        'message' => 'Bentrok guru: ' . ($guruNama ?: 'guru ini') . ' sudah mengajar di ' . ($tr->nama_kelas ?: ('kelas #' . $tr->id_kelas)) . ' pada jam tersebut'
+                        'message' => 'Bentrok guru: '.($guruNama ?: 'guru ini').' sudah mengajar di '.($tr->nama_kelas ?: ('kelas #'.$tr->id_kelas)).' pada jam tersebut',
                     ]);
                 }
             }
@@ -500,7 +516,7 @@ class JadwalController extends BaseController
             'sampai' => $jamSelesai,
         ];
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             if ($idJadwal > 0) {
                 $db->table('kelas_jadwal_mapel')->where('id_jadwal', $idJadwal)->update($data);
@@ -508,7 +524,7 @@ class JadwalController extends BaseController
             } else {
                 $data['jam_ke'] = 0;
                 $db->table('kelas_jadwal_mapel')->insert($data);
-                $idJadwal = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+                $idJadwal = (int) DB::getPdo()->lastInsertId();
                 $msg = 'Jadwal berhasil ditambahkan';
             }
 
@@ -529,7 +545,7 @@ class JadwalController extends BaseController
 
             // Slot ini bisa saja baru saja dipindah kelas/mapelnya, padahal
             // ada jurnal lama yang masih menautkan id_jadwal ke slot tersebut.
-            (new JurnalGuruModel())->detachStaleJadwalLinks($tp, $smt);
+            (new JurnalGuruModel)->detachStaleJadwalLinks($tp, $smt);
 
             if ($idMapel > 0 && $idGuru > 0) {
                 // Satu pasangan kelas:mapel diampu satu guru agar quick-pick
@@ -538,16 +554,17 @@ class JadwalController extends BaseController
                 $this->assignTeacherPair($tp, $smt, $idGuru, $idKelas, $idMapel);
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[save_mapel_slot] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[save_mapel_slot] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan jadwal']);
         }
 
         // Bersihkan penugasan pasangan lama yang sudah tidak punya slot.
         if ($oldRow && (int) $oldRow->id_mapel > 0) {
-            $oldKey = (int) $oldRow->id_kelas . ':' . (int) $oldRow->id_mapel;
+            $oldKey = (int) $oldRow->id_kelas.':'.(int) $oldRow->id_mapel;
             if ((int) $oldRow->id_kelas !== $idKelas || (int) $oldRow->id_mapel !== $idMapel) {
                 $this->cleanupPairAssignments($tp, $smt, [$oldKey => true]);
             }
@@ -566,35 +583,38 @@ class JadwalController extends BaseController
      */
     public function delete_mapel()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $id = (int) $this->request->input('id_jadwal');
-        if (!$id)
+        if (! $id) {
             return $this->response->setJSON(['status' => false, 'message' => 'ID Jadwal tidak ditemukan']);
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $db->table('kelas_jadwal_mapel')
             ->where('id_jadwal', $id)
             ->where('id_tp', $tp)
             ->where('id_smt', $smt)
             ->first();
-        if (!$row) {
+        if (! $row) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $deleted = $this->elearningModel->deleteJadwalMapel($id);
-            if (!$deleted) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $deleted) {
+                DB::rollBack();
+
                 return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
             }
 
@@ -602,17 +622,18 @@ class JadwalController extends BaseController
 
             // Jurnal yang tertaut ke slot terhapus tidak boleh menggantung:
             // tautan basi menutupi fallback pencocokan kelas:mapel:jam.
-            (new JurnalGuruModel())->detachStaleJadwalLinks($tp, $smt);
+            (new JurnalGuruModel)->detachStaleJadwalLinks($tp, $smt);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[delete_mapel] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[delete_mapel] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
         }
 
         if ((int) $row->id_mapel > 0) {
-            $this->cleanupPairAssignments($tp, $smt, [(int) $row->id_kelas . ':' . (int) $row->id_mapel => true]);
+            $this->cleanupPairAssignments($tp, $smt, [(int) $row->id_kelas.':'.(int) $row->id_mapel => true]);
         }
 
         return $this->response->setJSON(['status' => true, 'message' => 'Jadwal mapel berhasil dihapus']);
@@ -623,23 +644,24 @@ class JadwalController extends BaseController
      */
     public function delete_jadwal()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $type = $this->request->input('type');
         $all = $this->request->input('all') === 'true'; // string from JS FormData
         $idHari = (int) $this->request->input('id_hari');
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $builder = $db->table('kelas_jadwal_mapel')
-            ->select('id_kelas, id_mapel, id_hari')
+            ->select('id_kelas', 'id_mapel', 'id_hari')
             ->where('id_tp', $tp)
             ->where('id_smt', $smt);
 
@@ -649,50 +671,53 @@ class JadwalController extends BaseController
 
         $affected = $builder->get();
         if (empty($affected)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jadwal pada periode ini' . ($idHari ? ' untuk hari tersebut' : '')]);
+            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jadwal pada periode ini'.($idHari ? ' untuk hari tersebut' : '')]);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $terhapus = $this->elearningModel->deleteJadwalHarian($tp, $smt, ($type == 'r1' && $idHari) ? $idHari : null, true);
-            if (!$terhapus) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $terhapus) {
+                DB::rollBack();
+
                 return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
             }
 
             // Sama seperti delete_mapel: jurnal yang tertaut ke slot hari ini
             // harus dilepas, bukan dibiarkan menunjuk id_jadwal yang sudah
             // tidak ada.
-            (new JurnalGuruModel())->detachStaleJadwalLinks($tp, $smt);
+            (new JurnalGuruModel)->detachStaleJadwalLinks($tp, $smt);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[delete_jadwal] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[delete_jadwal] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
         }
 
         $pairs = [];
         foreach ($affected as $row) {
             if ((int) $row->id_mapel > 0) {
-                $pairs[(int) $row->id_kelas . ':' . (int) $row->id_mapel] = true;
+                $pairs[(int) $row->id_kelas.':'.(int) $row->id_mapel] = true;
             }
         }
         $this->cleanupPairAssignments($tp, $smt, $pairs);
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => count($affected) . ' slot jadwal berhasil dihapus',
+            'message' => count($affected).' slot jadwal berhasil dihapus',
         ]);
     }
 
     public function reformat_jadwal()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
@@ -702,14 +727,16 @@ class JadwalController extends BaseController
         $jadwal_mapel = $this->elearningModel->getAllJadwalHarianFull($tp, $smt);
         $jadwal_kbm = $this->elearningModel->getJadwalKbm($tp, $smt);
 
-        $minTime = "23:59";
-        $maxTime = "06:00";
+        $minTime = '23:59';
+        $maxTime = '06:00';
         if (count($jadwal_mapel) > 0) {
             foreach ($jadwal_mapel as $mapel) {
-                if ($mapel->sampai > $maxTime)
+                if ($mapel->sampai > $maxTime) {
                     $maxTime = $mapel->sampai;
-                if ($mapel->dari < $minTime)
+                }
+                if ($mapel->dari < $minTime) {
                     $minTime = $mapel->dari;
+                }
             }
 
             // Update KBM settings
@@ -717,29 +744,31 @@ class JadwalController extends BaseController
             foreach ($jadwal_kbm as $idKelas => $kbm) {
                 $updateKbm[] = [
                     'id_kbm' => $kbm->id_kbm,
-                    'kbm_jam_mulai' => ($minTime != "23:59") ? $minTime : $kbm->kbm_jam_mulai,
-                    'kbm_jam_selesai' => ($minTime != "23:59") ? $maxTime : $kbm->kbm_jam_selesai
+                    'kbm_jam_mulai' => ($minTime != '23:59') ? $minTime : $kbm->kbm_jam_mulai,
+                    'kbm_jam_selesai' => ($minTime != '23:59') ? $maxTime : $kbm->kbm_jam_selesai,
                 ];
             }
-            if (!empty($updateKbm))
+            if (! empty($updateKbm)) {
                 $this->elearningModel->updateBatchKbm($updateKbm);
+            }
         }
 
         return $this->response->setJSON([
             'status' => true,
             'min_time' => $minTime,
             'max_time' => $maxTime,
-            'message' => 'Jadwal berhasil diformat ulang'
+            'message' => 'Jadwal berhasil diformat ulang',
         ]);
     }
 
     public function copy_jadwal()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+        }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
@@ -749,10 +778,12 @@ class JadwalController extends BaseController
         $smtLalu = (int) $this->request->input('smtLalu');
 
         $thnLalu = $this->elearningModel->getTpByTahun($thnLaluStr);
-        if (!$thnLalu)
+        if (! $thnLalu) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun lalu tidak ditemukan']);
-        if ($smtLalu <= 0)
+        }
+        if ($smtLalu <= 0) {
             return $this->response->setJSON(['status' => false, 'message' => 'Semester sumber tidak valid']);
+        }
 
         // Menyalin periode ke dirinya sendiri akan menghapus jadwal lebih
         // dulu lalu membaca sumber yang sudah kosong — hasil akhirnya
@@ -780,12 +811,12 @@ class JadwalController extends BaseController
 
         // I'll add direct query here for simplicity or model method.
         // Direct builder access in controller is acceptable for bulk ops.
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Penghapusan di bawah ini bersifat permanen untuk TP/SMT berjalan.
         // Tanpa transaksi, kegagalan di tahap baca/sisip berikutnya membuat
         // jadwal semester ini hilang sementara salinan gagal terbentuk.
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $db->table('kelas_jadwal_kbm')->where('id_tp', $tp)->where('id_smt', $smt)->delete();
             $db->table('kelas_jadwal_mapel')->where('id_tp', $tp)->where('id_smt', $smt)->delete();
@@ -814,12 +845,13 @@ class JadwalController extends BaseController
                         'kbm_jml_mapel_hari' => $kbm->kbm_jml_mapel_hari,
                         'istirahat' => $kbm->istirahat,
                         'libur' => $kbm->libur,
-                        'upacara' => $kbm->upacara
+                        'upacara' => $kbm->upacara,
                     ];
                 }
             }
-            if (!empty($insertKbm))
+            if (! empty($insertKbm)) {
                 $this->elearningModel->insertBatchKbm($insertKbm);
+            }
 
             // 4. Process Mapel
             $insertMapel = [];
@@ -837,7 +869,7 @@ class JadwalController extends BaseController
                         'jam_ke' => $mapel->jam_ke,
                         'id_mapel' => $mapel->id_mapel,
                         'dari' => $mapel->dari,
-                        'sampai' => $mapel->sampai
+                        'sampai' => $mapel->sampai,
                     ];
                 } else {
                     // Kode kelas lama tidak lagi ada sebagai rombel periode
@@ -846,26 +878,31 @@ class JadwalController extends BaseController
                     $lewatKelas[(string) ($mapel->kode_kelas ?: '?')] = true;
                 }
             }
-            if (!empty($insertMapel))
+            if (! empty($insertMapel)) {
                 $this->elearningModel->insertBatchJadwal($insertMapel);
+            }
 
             // Slot lama periode ini sudah dihapus total, jadi semua tautan
             // jurnal periode ini menunjuk ke baris yang tidak ada lagi.
-            (new JurnalGuruModel())->detachStaleJadwalLinks($tp, $smt);
+            (new JurnalGuruModel)->detachStaleJadwalLinks($tp, $smt);
 
             // 5. Salin penugasan guru (kelas:mapel) dari periode sumber.
             $oldAssign = $this->elearningModel->getGuruAssignmentMap((int) $thnLalu->id_tp, (int) $smtLalu);
             foreach ($jadwalMapelLalu as $mapel) {
-                if ((int) $mapel->id_mapel <= 0) continue;
+                if ((int) $mapel->id_mapel <= 0) {
+                    continue;
+                }
 
                 $kode = $this->normalize($mapel->kode_kelas);
-                if (!isset($mapKelas[$kode])) continue;
+                if (! isset($mapKelas[$kode])) {
+                    continue;
+                }
 
                 // Semua guru pada pasangan kelas:mapel itu ikut disalin.
                 // Sebelumya hanya array_key_first() yang dipakai, sehingga
                 // guru kedua (mapel yang diampu dua orang) hilang tanpa jejak.
                 // Catatan bentuk data: key = id_guru, value = nama_guru.
-                $teachers = $oldAssign[(int) $mapel->id_kelas . ':' . (int) $mapel->id_mapel] ?? [];
+                $teachers = $oldAssign[(int) $mapel->id_kelas.':'.(int) $mapel->id_mapel] ?? [];
                 foreach (array_keys(is_array($teachers) ? $teachers : []) as $idGuruLama) {
                     $idGuruLama = (int) $idGuruLama;
                     if ($idGuruLama > 0) {
@@ -876,26 +913,28 @@ class JadwalController extends BaseController
             $this->pruneAllUnusedPairAssignments($tp, $smt);
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['status' => false, 'message' => 'Jadwal gagal disalin — jadwal lama Anda tidak diubah.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[copy_jadwal] ' . $e->getMessage() . ' | baris ' . $e->getLine());
+            DB::rollBack();
+            Log::error('[copy_jadwal] '.$e->getMessage().' | baris '.$e->getLine());
+
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Jadwal gagal disalin — jadwal lama Anda tidak diubah. Silakan ulangi.'
+                'message' => 'Jadwal gagal disalin — jadwal lama Anda tidak diubah. Silakan ulangi.',
             ]);
         }
 
         $pesan = 'Jadwal berhasil disalin';
-        if (!empty($lewatKelas)) {
+        if (! empty($lewatKelas)) {
             $kodeLewat = array_keys($lewatKelas);
-            Log::warning('[copy_jadwal] rombel dilewati karena kode tidak dikenali: ' . implode(', ', $kodeLewat));
-            $pesan .= ' — ' . count($kodeLewat) . ' rombel tidak ikut tersalin karena kode kelasnya tidak ada pada periode aktif ('
-                . implode(', ', array_slice($kodeLewat, 0, 5)) . (count($kodeLewat) > 5 ? ' …' : ')')
-                . '. Perbaiki kode rombel lalu salin ulang.';
+            Log::warning('[copy_jadwal] rombel dilewati karena kode tidak dikenali: '.implode(', ', $kodeLewat));
+            $pesan .= ' — '.count($kodeLewat).' rombel tidak ikut tersalin karena kode kelasnya tidak ada pada periode aktif ('
+                .implode(', ', array_slice($kodeLewat, 0, 5)).(count($kodeLewat) > 5 ? ' …' : ')')
+                .'. Perbaiki kode rombel lalu salin ulang.';
         }
 
         return $this->response->setJSON([
@@ -913,31 +952,43 @@ class JadwalController extends BaseController
     private function syncKbmLayout(int $tp, int $smt, bool $withEmptySlots): bool
     {
         $kbmByKelas = $this->elearningModel->getJadwalKbm($tp, $smt);
-        if (empty($kbmByKelas)) return true;
+        if (empty($kbmByKelas)) {
+            return true;
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $beres = true;
 
         foreach ($this->elearningModel->getAllKelasSort($tp, $smt) as $idKelas => $namaKelas) {
             $kbm = $kbmByKelas[$idKelas] ?? null;
-            if (!$kbm) continue;
+            if (! $kbm) {
+                continue;
+            }
 
             $mulai = $this->timeToMinutes($kbm->kbm_jam_mulai ?? '') ?? (7 * 60);
             $selesai = $this->timeToMinutes($kbm->kbm_jam_selesai ?? '') ?? (15 * 60);
-            if ($selesai <= $mulai) continue;
+            if ($selesai <= $mulai) {
+                continue;
+            }
 
             $jamMapel = max(1, (int) ($kbm->kbm_jam_pel ?: 45));
             $jmlMapel = max(1, (int) ($kbm->kbm_jml_mapel_hari ?: 10));
             $libur = (string) ($kbm->libur ?? '7');
 
             $istirahat = json_decode((string) ($kbm->istirahat ?? ''), true);
-            if (!is_array($istirahat)) $istirahat = [];
+            if (! is_array($istirahat)) {
+                $istirahat = [];
+            }
 
             $upacara = json_decode((string) ($kbm->upacara ?? ''), true);
-            if (!is_array($upacara)) $upacara = [];
+            if (! is_array($upacara)) {
+                $upacara = [];
+            }
 
             for ($hari = 1; $hari <= 7; $hari++) {
-                if ($libur !== '0' && $libur === (string) $hari) continue;
+                if ($libur !== '0' && $libur === (string) $hari) {
+                    continue;
+                }
 
                 $beres = $this->syncDayLayout(
                     $db,
@@ -967,15 +1018,21 @@ class JadwalController extends BaseController
             ->get();
 
         // Hari tanpa jadwal dibiarkan apa adanya kecuali sedang membuat format penuh.
-        if (empty($rows) && !$withEmptySlots) return true;
+        if (empty($rows) && ! $withEmptySlots) {
+            return true;
+        }
 
         $lessons = [];
         foreach ($rows as $row) {
-            if ((int) $row->id_mapel <= 0) continue;
+            if ((int) $row->id_mapel <= 0) {
+                continue;
+            }
 
             $from = $this->timeToMinutes($row->dari ?? '');
             $to = $this->timeToMinutes($row->sampai ?? '');
-            if ($from !== null && $to !== null && $to > $from) $lessons[] = [$from, $to];
+            if ($from !== null && $to !== null && $to > $from) {
+                $lessons[] = [$from, $to];
+            }
         }
 
         $breaks = [];
@@ -983,7 +1040,9 @@ class JadwalController extends BaseController
         foreach ($istirahat as $item) {
             $ke = (int) ($item['ist'] ?? 0);
             $dur = (int) ($item['dur'] ?? 0);
-            if ($ke < 1 || $dur < 1) continue;
+            if ($ke < 1 || $dur < 1) {
+                continue;
+            }
 
             $breaks[$ke] = ($breaks[$ke] ?? 0) + $dur;
             $lastBreak = max($lastBreak, $ke);
@@ -1002,9 +1061,13 @@ class JadwalController extends BaseController
         $cursor = $mulai;
 
         $add = function (int $from, int $to, int $idMapel, int $jamKe, bool $placeholder) use (&$placeholders, &$emptySlots, $selesai): void {
-            if ($from >= $selesai) return;
+            if ($from >= $selesai) {
+                return;
+            }
             $to = min($to, $selesai);
-            if ($to <= $from) return;
+            if ($to <= $from) {
+                return;
+            }
 
             $range = ['start' => $from, 'end' => $to, 'id_mapel' => $idMapel, 'jam_ke' => $jamKe];
             if ($placeholder) {
@@ -1033,19 +1096,26 @@ class JadwalController extends BaseController
                 $cursor += $breaks[$i];
             }
 
-            if ($cursor >= $selesai) break;
+            if ($cursor >= $selesai) {
+                break;
+            }
         }
 
         $overlapsLesson = function (int $from, int $to) use ($lessons): bool {
             foreach ($lessons as $lesson) {
-                if ($from < $lesson[1] && $to > $lesson[0]) return true;
+                if ($from < $lesson[1] && $to > $lesson[0]) {
+                    return true;
+                }
             }
+
             return false;
         };
 
         $insert = [];
         foreach ($placeholders as $range) {
-            if ($overlapsLesson($range['start'], $range['end'])) continue;
+            if ($overlapsLesson($range['start'], $range['end'])) {
+                continue;
+            }
 
             $insert[] = [
                 'id_tp' => $tp,
@@ -1061,7 +1131,9 @@ class JadwalController extends BaseController
 
         if ($withEmptySlots) {
             foreach ($emptySlots as $range) {
-                if ($overlapsLesson($range['start'], $range['end'])) continue;
+                if ($overlapsLesson($range['start'], $range['end'])) {
+                    continue;
+                }
 
                 $insert[] = [
                     'id_tp' => $tp,
@@ -1076,7 +1148,7 @@ class JadwalController extends BaseController
             }
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $placeholderIds = $withEmptySlots ? [-2, -1, 0] : [-2, -1];
 
@@ -1085,22 +1157,24 @@ class JadwalController extends BaseController
                 ->whereIn('id_mapel', $placeholderIds)
                 ->delete();
 
-            if (!empty($insert)) {
-                $db->table('kelas_jadwal_mapel')->insertBatch($insert);
+            if (! empty($insert)) {
+                $db->table('kelas_jadwal_mapel')->insert($insert);
             }
 
             $this->reindexJamKe($tp, $smt, $idKelas, $hari);
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
                 Log::error("[syncKbmLayout] susunan slot gagal untuk kelas {$idKelas} hari {$hari}");
+
                 return false;
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[syncKbmLayout] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[syncKbmLayout] '.$e->getMessage());
+
             return false;
         }
 
@@ -1110,12 +1184,18 @@ class JadwalController extends BaseController
     /** Konversi jam "HH:MM[:SS]" ke menit sejak tengah malam. */
     private function timeToMinutes(?string $time): ?int
     {
-        if ($time === null || trim($time) === '') return null;
-        if (!preg_match('/^(\d{1,2}):(\d{2})/', trim($time), $m)) return null;
+        if ($time === null || trim($time) === '') {
+            return null;
+        }
+        if (! preg_match('/^(\d{1,2}):(\d{2})/', trim($time), $m)) {
+            return null;
+        }
 
         $hour = (int) $m[1];
         $minute = (int) $m[2];
-        if ($hour > 23 || $minute > 59) return null;
+        if ($hour > 23 || $minute > 59) {
+            return null;
+        }
 
         return ($hour * 60) + $minute;
     }
@@ -1123,6 +1203,7 @@ class JadwalController extends BaseController
     private function minutesToTime(int $minutes): string
     {
         $minutes = max(0, min((24 * 60) - 1, $minutes));
+
         return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
     }
 
@@ -1130,11 +1211,15 @@ class JadwalController extends BaseController
     private function normalizeTime(string $value): ?string
     {
         $value = trim($value);
-        if (!preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $m)) return null;
+        if (! preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $m)) {
+            return null;
+        }
 
         $hour = (int) $m[1];
         $minute = (int) $m[2];
-        if ($hour > 23 || $minute > 59) return null;
+        if ($hour > 23 || $minute > 59) {
+            return null;
+        }
 
         return sprintf('%02d:%02d', $hour, $minute);
     }
@@ -1142,9 +1227,9 @@ class JadwalController extends BaseController
     /** Urutkan ulang jam_ke berdasarkan waktu mulai slot pada satu kelas/hari. */
     private function reindexJamKe(int $tp, int $smt, int $idKelas, int $idHari): void
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $rows = $db->table('kelas_jadwal_mapel')
-            ->select('id_jadwal, jam_ke')
+            ->select('id_jadwal', 'jam_ke')
             ->where('id_tp', $tp)
             ->where('id_smt', $smt)
             ->where('id_kelas', $idKelas)
@@ -1165,18 +1250,22 @@ class JadwalController extends BaseController
     /** Tambahkan pasangan kelas:mapel ke penugasan guru pada jabatan_guru. */
     private function assignTeacherPair(int $tp, int $smt, int $idGuru, int $idKelas, int $idMapel): void
     {
-        if ($idGuru <= 0 || $idKelas <= 0 || $idMapel <= 0) return;
+        if ($idGuru <= 0 || $idKelas <= 0 || $idMapel <= 0) {
+            return;
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $this->jabatanModel->findForGuru($idGuru, $tp, $smt);
 
         $mapels = $row ? $this->elearningModel->decodeMapelKelasAssignments($row->mapel_kelas) : [];
         $namaMapel = (string) ($db->table('master_mapel')->select('nama_mapel')
-            ->where('id_mapel', $idMapel)->first()->nama_mapel ?? ('Mapel #' . $idMapel));
+            ->where('id_mapel', $idMapel)->first()->nama_mapel ?? ('Mapel #'.$idMapel));
 
         $found = false;
         foreach ($mapels as $i => $item) {
-            if (!is_array($item) || (int) ($item['id_mapel'] ?? 0) !== $idMapel) continue;
+            if (! is_array($item) || (int) ($item['id_mapel'] ?? 0) !== $idMapel) {
+                continue;
+            }
 
             $kelasList = isset($item['kelas_mapel']) && is_array($item['kelas_mapel']) ? $item['kelas_mapel'] : [];
             $hasKelas = false;
@@ -1186,7 +1275,9 @@ class JadwalController extends BaseController
                     break;
                 }
             }
-            if (!$hasKelas) $kelasList[] = ['kelas' => $idKelas];
+            if (! $hasKelas) {
+                $kelasList[] = ['kelas' => $idKelas];
+            }
 
             $mapels[$i]['kelas_mapel'] = array_values($kelasList);
             $mapels[$i]['nama_mapel'] = $mapels[$i]['nama_mapel'] ?? $namaMapel;
@@ -1194,7 +1285,7 @@ class JadwalController extends BaseController
             break;
         }
 
-        if (!$found) {
+        if (! $found) {
             $mapels[] = [
                 'id_mapel' => $idMapel,
                 'nama_mapel' => $namaMapel,
@@ -1209,11 +1300,13 @@ class JadwalController extends BaseController
     /** Lepas pasangan kelas:mapel dari guru lain selain guru terpilih. */
     private function removePairFromOtherTeachers(int $tp, int $smt, int $idKelas, int $idMapel, int $keepGuru): void
     {
-        if ($idKelas <= 0 || $idMapel <= 0) return;
+        if ($idKelas <= 0 || $idMapel <= 0) {
+            return;
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $rows = $db->table('jabatan_guru')
-            ->select('id_jabatan_guru, id_guru, mapel_kelas')
+            ->select('id_jabatan_guru', 'id_guru', 'mapel_kelas')
             ->where('id_tp', $tp)
             ->where('id_smt', $smt)
             ->where('id_guru', '!=', $keepGuru)
@@ -1224,7 +1317,9 @@ class JadwalController extends BaseController
             $changed = false;
 
             foreach ($mapels as $i => $item) {
-                if (!is_array($item) || (int) ($item['id_mapel'] ?? 0) !== $idMapel) continue;
+                if (! is_array($item) || (int) ($item['id_mapel'] ?? 0) !== $idMapel) {
+                    continue;
+                }
 
                 $kelasList = isset($item['kelas_mapel']) && is_array($item['kelas_mapel']) ? $item['kelas_mapel'] : [];
                 $sisa = [];
@@ -1232,6 +1327,7 @@ class JadwalController extends BaseController
                     $kls = (int) (is_array($km) ? ($km['kelas'] ?? 0) : 0);
                     if ($kls === $idKelas) {
                         $changed = true;
+
                         continue;
                     }
                     $sisa[] = $km;
@@ -1258,13 +1354,17 @@ class JadwalController extends BaseController
      */
     private function cleanupPairAssignments(int $tp, int $smt, array $pairs): void
     {
-        if (empty($pairs)) return;
+        if (empty($pairs)) {
+            return;
+        }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $unused = [];
         foreach ($pairs as $key => $_) {
             [$idKelas, $idMapel] = array_map('intval', explode(':', $key));
-            if ($idKelas <= 0 || $idMapel <= 0) continue;
+            if ($idKelas <= 0 || $idMapel <= 0) {
+                continue;
+            }
 
             $masihAda = $db->table('kelas_jadwal_mapel')
                 ->where('id_tp', $tp)
@@ -1273,13 +1373,17 @@ class JadwalController extends BaseController
                 ->where('id_mapel', $idMapel)
                 ->count();
 
-            if ($masihAda === 0) $unused[$idKelas . ':' . $idMapel] = true;
+            if ($masihAda === 0) {
+                $unused[$idKelas.':'.$idMapel] = true;
+            }
         }
 
-        if (empty($unused)) return;
+        if (empty($unused)) {
+            return;
+        }
 
         $rows = $db->table('jabatan_guru')
-            ->select('id_jabatan_guru, mapel_kelas')
+            ->select('id_jabatan_guru', 'mapel_kelas')
             ->where('id_tp', $tp)
             ->where('id_smt', $smt)
             ->get();
@@ -1289,7 +1393,9 @@ class JadwalController extends BaseController
             $changed = false;
 
             foreach ($mapels as $i => $item) {
-                if (!is_array($item)) continue;
+                if (! is_array($item)) {
+                    continue;
+                }
 
                 $idMapel = (int) ($item['id_mapel'] ?? 0);
                 $kelasList = isset($item['kelas_mapel']) && is_array($item['kelas_mapel']) ? $item['kelas_mapel'] : [];
@@ -1297,8 +1403,9 @@ class JadwalController extends BaseController
 
                 foreach ($kelasList as $km) {
                     $idKelas = (int) (is_array($km) ? ($km['kelas'] ?? 0) : 0);
-                    if ($idKelas > 0 && isset($unused[$idKelas . ':' . $idMapel])) {
+                    if ($idKelas > 0 && isset($unused[$idKelas.':'.$idMapel])) {
                         $changed = true;
+
                         continue;
                     }
                     $sisa[] = $km;
@@ -1322,9 +1429,9 @@ class JadwalController extends BaseController
     /** Buang penugasan guru yang pasangannya tidak lagi ada di jadwal periode. */
     private function pruneAllUnusedPairAssignments(int $tp, int $smt): void
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $rows = $db->table('kelas_jadwal_mapel')
-            ->select('id_kelas, id_mapel')
+            ->select('id_kelas', 'id_mapel')
             ->where('id_tp', $tp)
             ->where('id_smt', $smt)
             ->where('id_mapel', '>', 0)
@@ -1332,12 +1439,14 @@ class JadwalController extends BaseController
 
         $used = [];
         foreach ($rows as $row) {
-            $used[(int) $row->id_kelas . ':' . (int) $row->id_mapel] = true;
+            $used[(int) $row->id_kelas.':'.(int) $row->id_mapel] = true;
         }
 
         $unused = [];
         foreach ($this->elearningModel->getGuruAssignmentMap($tp, $smt) as $key => $_) {
-            if (!isset($used[$key])) $unused[$key] = true;
+            if (! isset($used[$key])) {
+                $unused[$key] = true;
+            }
         }
 
         $this->cleanupPairAssignments($tp, $smt, $unused);
@@ -1361,7 +1470,7 @@ class JadwalController extends BaseController
      */
     public function export_template_jadwal()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1369,29 +1478,31 @@ class JadwalController extends BaseController
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
 
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return redirect()->back()->with('error', 'Tahun pelajaran/semester aktif belum diset');
         }
 
-        $kelas  = $this->elearningModel->getAllKelas($tp->id_tp, $smt->id_smt);
+        $kelas = $this->elearningModel->getAllKelas($tp->id_tp, $smt->id_smt);
         $mapels = $this->elearningModel->getAllMapel();
-        $gurus  = $this->elearningModel->getAllGuru();
+        $gurus = $this->elearningModel->getAllGuru();
 
         try {
             $spreadsheet = $this->buildTemplateSpreadsheet($kelas, $mapels, $gurus);
         } catch (\Throwable $e) {
-            Log::error('[export_template_jadwal] ' . $e->getMessage());
+            Log::error('[export_template_jadwal] '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Gagal membuat template Excel');
         }
 
-        $filename = 'template_jadwal_' . ($tp->tahun ?? 'tp') . '_smt' . ($smt->smt ?? '0') . '.xlsx';
+        $filename = 'template_jadwal_'.($tp->tahun ?? 'tp').'_smt'.($smt->smt ?? '0').'.xlsx';
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'jadwal_template_');
         try {
             (new XlsxWriter($spreadsheet))->save($tmpFile);
             $content = file_get_contents($tmpFile);
         } catch (\Throwable $e) {
-            Log::error('[export_template_jadwal] ' . $e->getMessage());
+            Log::error('[export_template_jadwal] '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Gagal membuat template Excel');
         } finally {
             if ($tmpFile !== false && is_file($tmpFile)) {
@@ -1406,7 +1517,7 @@ class JadwalController extends BaseController
 
         return $this->response
             ->setContentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setHeader('Cache-Control', 'no-cache, must-revalidate')
             ->setBody($content);
     }
@@ -1416,7 +1527,7 @@ class JadwalController extends BaseController
      */
     private function buildTemplateSpreadsheet(array $kelas, array $mapels, array $gurus): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $spreadsheet->getProperties()
             ->setCreator('Sistem Presensi Ikasmedia')
             ->setTitle('Template Import Jadwal Pelajaran');
@@ -1433,7 +1544,7 @@ class JadwalController extends BaseController
         $contoh = [];
         $kelasContoh = array_values($kelas)[0] ?? null;
         $mapelContoh = array_values($mapels)[0] ?? null;
-        $guruContoh  = array_values($gurus)[0] ?? null;
+        $guruContoh = array_values($gurus)[0] ?? null;
         if ($kelasContoh && $mapelContoh && $guruContoh) {
             $contoh[] = [
                 (string) ($kelasContoh->kode_kelas ?? ''),
@@ -1475,9 +1586,9 @@ class JadwalController extends BaseController
         $refMapel = $spreadsheet->createSheet();
         $refMapel->setTitle('Data Mapel & Guru');
         $mapelArr = array_values($mapels);
-        $guruArr  = array_values($gurus);
-        $rowsRef  = [['Kode Mapel', 'Nama Mapel', 'Kode Guru', 'Nama Guru']];
-        $maxRow   = max(count($mapelArr), count($guruArr));
+        $guruArr = array_values($gurus);
+        $rowsRef = [['Kode Mapel', 'Nama Mapel', 'Kode Guru', 'Nama Guru']];
+        $maxRow = max(count($mapelArr), count($guruArr));
         for ($i = 0; $i < $maxRow; $i++) {
             $rowsRef[] = [
                 (string) ($mapelArr[$i]->kode ?? ''),
@@ -1498,7 +1609,7 @@ class JadwalController extends BaseController
     private function styleImportReferenceSheet(Worksheet $sheet, array $widths): void
     {
         $lastColumn = Coordinate::stringFromColumnIndex(count($widths));
-        $sheet->getStyle('A1:' . $lastColumn . '1')->applyFromArray([
+        $sheet->getStyle('A1:'.$lastColumn.'1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4338CA']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -1518,7 +1629,7 @@ class JadwalController extends BaseController
      */
     public function import_jadwal()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -1526,19 +1637,19 @@ class JadwalController extends BaseController
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
 
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tpId = (int) $tp->id_tp;
         $smtId = (int) $smt->id_smt;
 
         $file = $this->request->file('jadwal_file');
-        if (!$file || !$file->isValid() || false /* was: $file->hasMoved() */) {
+        if (! $file || ! $file->isValid() || false /* was: $file->hasMoved() */) {
             return $this->response->setJSON(['status' => false, 'message' => 'File tidak valid atau tidak diunggah']);
         }
 
         $ext = strtolower((string) $file->getClientOriginalExtension());
-        if (!in_array($ext, ['xlsx', 'xls', 'xml', 'csv'], true)) {
+        if (! in_array($ext, ['xlsx', 'xls', 'xml', 'csv'], true)) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Format file tidak didukung. Gunakan .xlsx, .xls, .xml (Excel 2003) atau .csv',
@@ -1548,7 +1659,8 @@ class JadwalController extends BaseController
         try {
             $rows = $this->readImportRows($file->getPathname(), $ext);
         } catch (\Throwable $e) {
-            Log::error('[import_jadwal] baca file gagal: ' . $e->getMessage());
+            Log::error('[import_jadwal] baca file gagal: '.$e->getMessage());
+
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Gagal membaca file. Pastikan isinya benar-benar .xlsx, .xls, .xml (Excel 2003) atau .csv',
@@ -1589,75 +1701,85 @@ class JadwalController extends BaseController
             '1' => 1, '2' => 2, '3' => 3, '4' => 4, '5' => 5, '6' => 6, '7' => 7,
         ];
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $insert = [];
         $errorRows = [];
         $success = 0;
         foreach ($rows as $lineNo => $r) {
-            $kodeKelas   = strtoupper(trim($r[0] ?? ''));
-            $namaKelas   = strtoupper(trim($r[1] ?? ''));
-            $hari        = strtoupper(trim($r[2] ?? ''));
-            $namaMapel   = strtoupper(trim($r[3] ?? ''));
-            $kodeGuru    = strtoupper(trim($r[4] ?? ''));
-            $jamMulai    = trim($r[5] ?? '');
-            $jamSelesai  = trim($r[6] ?? '');
+            $kodeKelas = strtoupper(trim($r[0] ?? ''));
+            $namaKelas = strtoupper(trim($r[1] ?? ''));
+            $hari = strtoupper(trim($r[2] ?? ''));
+            $namaMapel = strtoupper(trim($r[3] ?? ''));
+            $kodeGuru = strtoupper(trim($r[4] ?? ''));
+            $jamMulai = trim($r[5] ?? '');
+            $jamSelesai = trim($r[6] ?? '');
 
             // Validasi kolom wajib
             if ($kodeKelas === '' && $namaKelas === '') {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Kelas kosong'];
+
                 continue;
             }
             if ($hari === '') {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Hari kosong'];
+
                 continue;
             }
             if ($namaMapel === '') {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Mata pelajaran kosong'];
+
                 continue;
             }
             if ($jamMulai === '' || $jamSelesai === '') {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Jam masuk/keluar kosong'];
+
                 continue;
             }
 
             // Resolve ID kelas
             $idKelas = $kelasMap[$kodeKelas] ?? $kelasMap[$namaKelas] ?? null;
-            if (!$idKelas) {
-                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Kelas tidak ditemukan: ' . ($kodeKelas ?: $namaKelas)];
+            if (! $idKelas) {
+                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Kelas tidak ditemukan: '.($kodeKelas ?: $namaKelas)];
+
                 continue;
             }
 
             // Resolve ID mapel
             $idMapel = $mapelMap[$namaMapel] ?? null;
-            if (!$idMapel) {
-                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Mata pelajaran tidak ditemukan: ' . $namaMapel];
+            if (! $idMapel) {
+                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Mata pelajaran tidak ditemukan: '.$namaMapel];
+
                 continue;
             }
 
             // Resolve ID guru (opsional)
             $idGuru = $guruMap[$kodeGuru] ?? null;
-            if ($kodeGuru !== '' && !$idGuru) {
-                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Guru tidak ditemukan: ' . $kodeGuru];
+            if ($kodeGuru !== '' && ! $idGuru) {
+                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Guru tidak ditemukan: '.$kodeGuru];
+
                 continue;
             }
 
             // Resolve hari
             $idHari = $hariMap[$hari] ?? null;
-            if (!$idHari || $idHari < 1 || $idHari > 7) {
-                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Hari tidak valid: ' . $hari];
+            if (! $idHari || $idHari < 1 || $idHari > 7) {
+                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Hari tidak valid: '.$hari];
+
                 continue;
             }
 
             // Validasi waktu
-            if (!preg_match('/^(\d{1,2}):(\d{2})$/', $jamMulai, $m1) ||
-                !preg_match('/^(\d{1,2}):(\d{2})$/', $jamSelesai, $m2)) {
+            if (! preg_match('/^(\d{1,2}):(\d{2})$/', $jamMulai, $m1) ||
+                ! preg_match('/^(\d{1,2}):(\d{2})$/', $jamSelesai, $m2)) {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Format jam tidak valid (HH:MM)'];
+
                 continue;
             }
-            $jamMulaiNorm  = sprintf('%02d:%02d', (int)$m1[1], (int)$m1[2]);
-            $jamSelesaiNorm = sprintf('%02d:%02d', (int)$m2[1], (int)$m2[2]);
+            $jamMulaiNorm = sprintf('%02d:%02d', (int) $m1[1], (int) $m1[2]);
+            $jamSelesaiNorm = sprintf('%02d:%02d', (int) $m2[1], (int) $m2[2]);
             if ($jamMulaiNorm >= $jamSelesaiNorm) {
                 $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Jam mulai harus lebih awal dari jam selesai'];
+
                 continue;
             }
 
@@ -1672,14 +1794,15 @@ class JadwalController extends BaseController
                 ->where('sampai', '>', $jamMulaiNorm)
                 ->first();
             if ($conflict) {
-                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Bentrok jadwal kelas pada ' . substr($conflict->dari, 0, 5) . '-' . substr($conflict->sampai, 0, 5)];
+                $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Bentrok jadwal kelas pada '.substr($conflict->dari, 0, 5).'-'.substr($conflict->sampai, 0, 5)];
+
                 continue;
             }
 
             // Cek bentrok guru
             if ($idGuru > 0) {
                 $teacherConflict = $db->table('kelas_jadwal_mapel as jm')
-                    ->select('jm.id_jadwal, jm.id_kelas, jm.id_mapel, jm.dari, jm.sampai')
+                    ->select('jm.id_jadwal', 'jm.id_kelas', 'jm.id_mapel', 'jm.dari', 'jm.sampai')
                     ->where('jm.id_tp', $tpId)
                     ->where('jm.id_smt', $smtId)
                     ->where('jm.id_hari', $idHari)
@@ -1689,7 +1812,7 @@ class JadwalController extends BaseController
                     ->get();
 
                 foreach ($teacherConflict as $tc) {
-                    $pairKey = (int)$tc->id_kelas . ':' . (int)$tc->id_mapel;
+                    $pairKey = (int) $tc->id_kelas.':'.(int) $tc->id_mapel;
                     // Cek apakah guru ini mengajar kelas:mapel tersebut
                     $guruPair = $db->table('jabatan_guru')
                         ->where('id_tp', $tpId)
@@ -1699,39 +1822,44 @@ class JadwalController extends BaseController
                     foreach ($guruPair as $gp) {
                         $mapels = $this->elearningModel->decodeMapelKelasAssignments($gp->mapel_kelas);
                         foreach ($mapels as $m) {
-                            if ((int)($m['id_mapel'] ?? 0) === (int)$tc->id_mapel) {
+                            if ((int) ($m['id_mapel'] ?? 0) === (int) $tc->id_mapel) {
                                 foreach (($m['kelas_mapel'] ?? []) as $km) {
-                                    if ((int)($km['kelas'] ?? 0) === (int)$tc->id_kelas) {
+                                    if ((int) ($km['kelas'] ?? 0) === (int) $tc->id_kelas) {
                                         $mengajar = true;
                                         break;
                                     }
                                 }
-                                if ($mengajar) break;
+                                if ($mengajar) {
+                                    break;
+                                }
                             }
                         }
-                        if ($mengajar) break;
+                        if ($mengajar) {
+                            break;
+                        }
                     }
                     if ($mengajar) {
                         $errorRows[] = ['baris' => $lineNo, 'pesan' => 'Bentrok guru: sudah mengajar kelas lain pada jam tersebut'];
+
                         continue 2;
                     }
                 }
             }
 
             $insert[] = [
-                'id_tp'      => $tpId,
-                'id_smt'     => $smtId,
-                'id_kelas'   => $idKelas,
-                'id_hari'    => $idHari,
-                'id_mapel'   => $idMapel,
-                'dari'       => $jamMulaiNorm,
-                'sampai'     => $jamSelesaiNorm,
-                'jam_ke'     => 0,
+                'id_tp' => $tpId,
+                'id_smt' => $smtId,
+                'id_kelas' => $idKelas,
+                'id_hari' => $idHari,
+                'id_mapel' => $idMapel,
+                'dari' => $jamMulaiNorm,
+                'sampai' => $jamSelesaiNorm,
+                'jam_ke' => 0,
             ];
             $success++;
         }
 
-        if (empty($insert) && !empty($errorRows)) {
+        if (empty($insert) && ! empty($errorRows)) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Semua baris gagal diimpor',
@@ -1739,28 +1867,30 @@ class JadwalController extends BaseController
             ]);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            if (!empty($insert)) {
-                $db->table('kelas_jadwal_mapel')->insertBatch($insert);
+            if (! empty($insert)) {
+                $db->table('kelas_jadwal_mapel')->insert($insert);
             }
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan ke database']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[import_jadwal] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[import_jadwal] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal mengimpor jadwal']);
         }
 
         // Reindex jam_ke untuk semua kelas yang terpengaruh
         $touchedKelas = array_unique(array_column($insert, 'id_kelas'));
-        $touchedHari  = array_unique(array_column($insert, 'id_hari'));
+        $touchedHari = array_unique(array_column($insert, 'id_hari'));
         foreach ($touchedKelas as $k) {
             foreach ($touchedHari as $h) {
-                $this->reindexJamKe($tpId, $smtId, (int)$k, (int)$h);
+                $this->reindexJamKe($tpId, $smtId, (int) $k, (int) $h);
             }
         }
 
@@ -1771,9 +1901,9 @@ class JadwalController extends BaseController
             }
         }
 
-        $pesan = 'Berhasil mengimpor ' . $success . ' jadwal pelajaran';
-        if (!empty($errorRows)) {
-            $pesan .= ' (' . count($errorRows) . ' baris gagal)';
+        $pesan = 'Berhasil mengimpor '.$success.' jadwal pelajaran';
+        if (! empty($errorRows)) {
+            $pesan .= ' ('.count($errorRows).' baris gagal)';
         }
 
         return $this->response->setJSON([
@@ -1822,7 +1952,7 @@ class JadwalController extends BaseController
         for ($row = 1; $row <= $lastRow; $row++) {
             $cells = [];
             for ($col = 1; $col <= 7; $col++) {
-                $coordinate = Coordinate::stringFromColumnIndex($col) . $row;
+                $coordinate = Coordinate::stringFromColumnIndex($col).$row;
                 // Kolom F & G berisi jam.
                 $cells[] = $this->importCellText($sheet->getCell($coordinate), $col >= 6);
             }
@@ -1841,10 +1971,10 @@ class JadwalController extends BaseController
     private function importReaders(string $ext): array
     {
         return match ($ext) {
-            'xlsx' => [new XlsxReader(), new XlsReader(), new XmlReader()],
-            'xls'  => [new XlsReader(), new XmlReader(), new XlsxReader()],
-            'xml'  => [new XmlReader(), new XlsxReader()],
-            'csv'  => [new CsvReader()],
+            'xlsx' => [new XlsxReader, new XlsReader, new XmlReader],
+            'xls' => [new XlsReader, new XmlReader, new XlsxReader],
+            'xml' => [new XmlReader, new XlsxReader],
+            'csv' => [new CsvReader],
             default => [],
         };
     }
@@ -1867,8 +1997,10 @@ class JadwalController extends BaseController
             $number = (float) $value;
             if ($isTime && $number > 0 && $number < 1) {
                 $minutes = (int) round($number * 1440) % 1440;
+
                 return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
             }
+
             return trim((string) $cell->getFormattedValue());
         }
 
@@ -1879,7 +2011,7 @@ class JadwalController extends BaseController
     private function detectCsvDelimiter(string $path): string
     {
         $handle = @fopen($path, 'r');
-        if (!$handle) {
+        if (! $handle) {
             return ',';
         }
         $line = (string) fgets($handle, 4096);

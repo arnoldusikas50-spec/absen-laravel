@@ -107,8 +107,8 @@
     <script src="{{ asset('assets/plugins/jquery/jquery.min.js') }}"></script>
     <script>
     $(document).ready(function () {
-        const TOKEN = {{ json_encode($token, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) }};
-        const MODE = {{ json_encode($mode, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) }};
+        const TOKEN = {!! json_encode($token, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
+        const MODE = {!! json_encode($mode, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
         const CHECKIN_URL = '{{ url('presensi/qr-checkin') }}';
         const CHECKOUT_URL = '{{ url('presensi/qr-checkout') }}';
         const CSRF_REFRESH_URL = '{{ url('presensi/csrf-refresh') }}';

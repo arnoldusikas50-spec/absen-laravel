@@ -684,7 +684,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         const btn = $(this);
         const st = $('#tg-test-status');
         const raw = ($('#formEditProfile input[name="telegram_id"]').val() || '').replace(/[\s@]/g, '').trim();
-        const saved = {{ json_encode((string) ($guru->telegram_id ?? '')) }};
+        const saved = {!! json_encode((string) ($guru->telegram_id ?? ''))!!};
 
         if (raw !== '' && raw !== saved) {
             st.textContent = 'Simpan profil dulu';
@@ -728,7 +728,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         const btn = $(this);
         const st = $('#wa-test-status');
         const raw = ($('#formEditProfile input[name="wa_number"]').val() || '').replace(/\D/g, '');
-        const saved = {{ json_encode((string) ($waNotifNumber ?? '')) }};
+        const saved = {!! json_encode((string) ($waNotifNumber ?? ''))!!};
 
         if (raw !== saved) {
             st.textContent = 'Simpan profil dulu';

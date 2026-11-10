@@ -400,7 +400,7 @@ $kelompok_mapel = $kelompok_mapel ?? [];
 
 @section('scripts')
 <script>
-    var jsonkelompokMapel = {{ json_encode($kelompok_mapel) }};
+    var jsonkelompokMapel = {!! json_encode($kelompok_mapel)!!};
     var table, tableKelompok, tableSubKelompok;
 
     function resetKelompokForm() {

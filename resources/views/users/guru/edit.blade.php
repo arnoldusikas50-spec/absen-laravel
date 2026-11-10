@@ -145,7 +145,7 @@ $(document).ready(function () {
     // CSRF_NAME & CSRF_HASH sudah global dari layouts/main.php — jangan dideklarasikan ulang.
     const guruId = '{{ (int) $guru->id_guru }}';
     const userId = '{{ (int) ($users->id ?? 0) }}';
-    const namaGuru = {{ json_encode($guru->nama_guru ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) }};
+    const namaGuru = {!! json_encode($guru->nama_guru ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
 
     function spinBtn($btn, busy, orig) {
         if (busy) {
@@ -250,7 +250,7 @@ $(document).ready(function () {
         const payload = {
             id: userId,
             id_guru: guruId,
-            old_username: {{ json_encode($guru->username ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) }},
+            old_username: {!! json_encode($guru->username ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!},
             username: $('#username').val(),
             old: $('#old').val(),
             new: pwd,

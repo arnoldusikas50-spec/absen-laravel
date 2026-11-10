@@ -2,16 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Models\AttendanceModel;
 use App\Models\AttendanceSettingModel;
 use App\Models\AuditLogModel;
 use App\Models\JurnalGuruModel;
-use App\Services\NotificationService;
+use App\Models\PiketJadwalModel;
+use App\Models\PiketModel;
+use App\Models\PoinHistoryModel;
+use App\Models\ShiftModel;
 use App\Services\AttendancePenaltyService;
+use App\Services\AttendancePolicy;
 use App\Services\HariSekolahService;
+use App\Services\NotificationService;
+use App\Services\RekapPdfService;
+use App\Services\SiswaDendaService;
+use App\Services\SiswaPoinService;
+use App\Services\SuratPanggilanService;
+use App\Services\SuratTeguranService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * CronController — Proses otomatis harian/periodik untuk sistem presensi.
@@ -23,17 +33,20 @@ use App\Services\HariSekolahService;
 class CronControllerController extends BaseController
 {
     protected AttendanceModel $attendanceModel;
+
     protected AttendanceSettingModel $settingModel;
+
     protected NotificationService $notification;
+
     protected AttendancePenaltyService $penaltyService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->attendanceModel = new AttendanceModel();
-        $this->settingModel    = new AttendanceSettingModel();
-        $this->notification    = new NotificationService();
-        $this->penaltyService  = new AttendancePenaltyService();
+        $this->attendanceModel = new AttendanceModel;
+        $this->settingModel = new AttendanceSettingModel;
+        $this->notification = new NotificationService;
+        $this->penaltyService = new AttendancePenaltyService;
     }
 
     // ----------------------------------------------------------------
@@ -51,20 +64,20 @@ class CronControllerController extends BaseController
      */
     public function dailyProcess()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
         // Kunci yang sama dipakai /cron/mark-alpha: keduanya menulis alpha
         // harian, jadi tidak boleh berjalan berdampingan.
-        if (!$this->cobaKunci('absen-cron-alpha-harian')) {
+        if (! $this->cobaKunci('absen-cron-alpha-harian')) {
             return $this->response->setStatusCode(409)->setBody('SKIP: cron harian/alpha masih berjalan.');
         }
 
-        $db      = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->settingModel->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return $this->response->setBody('Setting not found');
         }
 
@@ -106,7 +119,7 @@ class CronControllerController extends BaseController
 
         $prefix = $adaGagal ? 'GAGAL: ' : 'OK: ';
 
-        $response = $this->response->setBody($prefix . date('Y-m-d H:i:s') . "\n" . implode("\n", array_filter($log)));
+        $response = $this->response->setBody($prefix.date('Y-m-d H:i:s')."\n".implode("\n", array_filter($log)));
 
         if ($adaGagal) {
             // 500 bukan 200: pemantau cron berbasis HTTP (curl --fail)
@@ -129,17 +142,17 @@ class CronControllerController extends BaseController
      */
     public function rekapPiket()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
         $tanggal = trim((string) $this->request->query('tanggal'));
-        if ($tanggal !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
+        if ($tanggal !== '' && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
             return $this->response->setStatusCode(400)
                 ->setBody('Format tanggal harus YYYY-MM-DD');
         }
 
-        $force  = $this->dimintaForce();
+        $force = $this->dimintaForce();
         $result = $this->sendPiketRecap($tanggal !== '' ? $tanggal : null, $force);
         $failed = $this->isSendFailure($result);
 
@@ -147,7 +160,7 @@ class CronControllerController extends BaseController
         // merem semua akan menyembunyikan gateway yang down berhari-hari.
         return $this->response
             ->setStatusCode($failed ? 500 : 200)
-            ->setBody($result . ' — ' . date('Y-m-d H:i:s'));
+            ->setBody($result.' — '.date('Y-m-d H:i:s'));
     }
 
     /**
@@ -156,23 +169,24 @@ class CronControllerController extends BaseController
      */
     public function markAlpha()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
-        if (!$this->cobaKunci('absen-cron-alpha-harian')) {
+        if (! $this->cobaKunci('absen-cron-alpha-harian')) {
             return $this->response->setStatusCode(409)->setBody('SKIP: cron harian/alpha masih berjalan.');
         }
 
-        $db      = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->settingModel->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return $this->response->setBody('Setting not found');
         }
 
         $result = $this->markAbsentTeachers($db, $setting);
-        return $this->response->setBody('Alpha marked: ' . date('Y-m-d H:i:s') . ' | ' . $result);
+
+        return $this->response->setBody('Alpha marked: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -183,7 +197,7 @@ class CronControllerController extends BaseController
      */
     public function poinSiswa()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
@@ -191,17 +205,18 @@ class CronControllerController extends BaseController
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         if ($bulan < 1 || $bulan > 12 || $tahun < 2020 || $tahun > (int) date('Y') + 1) {
             return $this->response->setStatusCode(400)->setBody(
-                'PARAM: bulan harus 1-12 dan tahun antara 2020 dan ' . ((int) date('Y') + 1) . '.'
+                'PARAM: bulan harus 1-12 dan tahun antara 2020 dan '.((int) date('Y') + 1).'.'
             );
         }
 
-        if (!$this->cobaKunci('absen-cron-poin-siswa')) {
+        if (! $this->cobaKunci('absen-cron-poin-siswa')) {
             return $this->response->setStatusCode(409)->setBody('SKIP: recalc poin siswa masih berjalan.');
         }
 
-        $res = (new \App\Services\SiswaPoinService())->recalcBulan($bulan, $tahun);
+        $res = (new SiswaPoinService)->recalcBulan($bulan, $tahun);
+
         return $this->response->setBody(
-            'Poin siswa ' . date('Y-m-d H:i:s') . ' | ' . $res['message']
+            'Poin siswa '.date('Y-m-d H:i:s').' | '.$res['message']
         );
     }
 
@@ -211,15 +226,15 @@ class CronControllerController extends BaseController
      */
     public function semesterRecap()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
-        if (!$this->cobaKunci('absen-cron-semester-recap')) {
+        if (! $this->cobaKunci('absen-cron-semester-recap')) {
             return $this->response->setStatusCode(409)->setBody('SKIP: rekap semester masih berjalan.');
         }
 
-        $tahun    = (int) ($this->request->query('tahun') ?? date('Y'));
+        $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         $semester = (int) ($this->request->query('semester') ?? ((date('m') >= 7) ? 1 : 2));
 
         $result = $this->runSemesterRecap($tahun, $semester);
@@ -229,15 +244,15 @@ class CronControllerController extends BaseController
         // sehingga `?tahun=abc` terlihat sama sehatnya dengan rekap yang
         // benar-benar berhasil.
         if (str_starts_with($result, 'PARAM:')) {
-            return $this->response->setStatusCode(400)->setBody('Semester rekap: ' . $result);
+            return $this->response->setStatusCode(400)->setBody('Semester rekap: '.$result);
         }
         if ($this->isSendFailure($result)) {
             return $this->response->setStatusCode(500)->setBody(
-                'Semester rekap: ' . date('Y-m-d H:i:s') . ' | ' . $result
+                'Semester rekap: '.date('Y-m-d H:i:s').' | '.$result
             );
         }
 
-        return $this->response->setBody('Semester rekap: ' . date('Y-m-d H:i:s') . ' | ' . $result);
+        return $this->response->setBody('Semester rekap: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -256,10 +271,10 @@ class CronControllerController extends BaseController
             return 'PARAM: semester harus 1 atau 2.';
         }
 
-        $db      = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->settingModel->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php spark migrate dan isi lewat Pengaturan.';
         }
 
@@ -287,9 +302,10 @@ class CronControllerController extends BaseController
     private function cobaKunci(string $nama): bool
     {
         try {
-            $row = \Illuminate\Support\Facades\DB::connection()->select('SELECT GET_LOCK(?, 0) AS l', [$nama])[0] ?? null;
+            $row = DB::connection()->select('SELECT GET_LOCK(?, 0) AS l', [$nama])[0] ?? null;
         } catch (\Throwable $e) {
-            Log::error("[cron] GET_LOCK({$nama}) gagal: " . $e->getMessage());
+            Log::error("[cron] GET_LOCK({$nama}) gagal: ".$e->getMessage());
+
             // Jangan sampai kerja cron berhenti hanya karena mekanisme lock-nya
             // bermasalah (mis. user DB tanpa hak SELECT_LOCK).
             return true;
@@ -319,10 +335,11 @@ class CronControllerController extends BaseController
 
         if ($raw === '') {
             static $sudahDilaporkan = false;
-            if (!$sudahDilaporkan) {
+            if (! $sudahDilaporkan) {
                 $sudahDilaporkan = true;
                 Log::critical('[CronController] CRON_SECRET_KEY kosong di .env. Semua endpoint cron ditolak (fail-closed) sampai key diisi.');
             }
+
             return false;
         }
 
@@ -343,26 +360,27 @@ class CronControllerController extends BaseController
     private function selarasJurnalJadwal($db): string
     {
         try {
-            $tpRow  = \Illuminate\Support\Facades\Schema::hasTable('master_tp') ? $db->table('master_tp')->where('active', 1)->first() : null;
-            $smtRow = \Illuminate\Support\Facades\Schema::hasTable('master_smt') ? $db->table('master_smt')->where('active', 1)->first() : null;
-            $idTp   = (int) ($tpRow->id_tp ?? 0);
-            $idSmt  = (int) ($smtRow->id_smt ?? 0);
-            if ($idTp <= 0 || $idSmt <= 0 || !\Illuminate\Support\Facades\Schema::hasTable('guru_jurnal')) {
+            $tpRow = Schema::hasTable('master_tp') ? $db->table('master_tp')->where('active', 1)->first() : null;
+            $smtRow = Schema::hasTable('master_smt') ? $db->table('master_smt')->where('active', 1)->first() : null;
+            $idTp = (int) ($tpRow->id_tp ?? 0);
+            $idSmt = (int) ($smtRow->id_smt ?? 0);
+            if ($idTp <= 0 || $idSmt <= 0 || ! Schema::hasTable('guru_jurnal')) {
                 return '';
             }
 
-            $lepas = (new JurnalGuruModel())->detachStaleJadwalLinks($idTp, $idSmt);
+            $lepas = (new JurnalGuruModel)->detachStaleJadwalLinks($idTp, $idSmt);
             if ($lepas <= 0) {
                 return '';
             }
 
-            return 'Tautan jurnal: ' . $lepas . ' tautan ke slot jadwal lama dilepas.';
+            return 'Tautan jurnal: '.$lepas.' tautan ke slot jadwal lama dilepas.';
         } catch (\Throwable $e) {
             // Sengaja tanpa kata 'GAGAL': langkah ini merapikan data, dan
             // kegagalannya tidak boleh membuat seluruh cron harian dianggap
             // tidak sehat oleh pemantau.
             $this->logCronFailure('selaras-jurnal-jadwal', $e->getMessage());
-            return 'Lewati perapian tautan jurnal: ' . $e->getMessage();
+
+            return 'Lewati perapian tautan jurnal: '.$e->getMessage();
         }
     }
 
@@ -376,8 +394,8 @@ class CronControllerController extends BaseController
 
         // Libur (mingguan ternormalisasi + kalender + jadwal sekolah) — satu
         // sumber dengan modul absensi lain.
-        if ($libur = \App\Services\AttendancePolicy::alasanLibur($today)) {
-            return 'Skip: ' . $libur;
+        if ($libur = AttendancePolicy::alasanLibur($today)) {
+            return 'Skip: '.$libur;
         }
 
         // Nomor hari ISO untuk cutoff per jadwal/shift di bawah (1=Sen..7=Min).
@@ -385,9 +403,9 @@ class CronControllerController extends BaseController
 
         // Ambil semua guru aktif
         $guruList = $db->table('users as u')
-            ->select('u.id, g.id_guru, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.id_guru', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->get();
@@ -406,20 +424,20 @@ class CronControllerController extends BaseController
         // Cutoff per user: jam masuk efektif (shift → jadwal → setting) + 2 jam.
         // Guru shift sore tidak ditandai alpha saat cron pagi berjalan.
         $globalJadwal = null;
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+        if (Schema::hasTable('absensi_jadwal_kerja')) {
             $globalJadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayNumISO)->first();
         }
-        $shiftModel = new \App\Models\ShiftModel();
+        $shiftModel = new ShiftModel;
 
-        $dendaAlpha  = (int) ($setting->denda_alpha_per_hari ?? 5000);
-        $pointAlpha  = (int) ($setting->point_alpa ?? 5);
-        $alphaCount  = 0;
-        $gagalAlpha  = 0;
-        $skipCutoff  = 0;
+        $dendaAlpha = (int) ($setting->denda_alpha_per_hari ?? 5000);
+        $pointAlpha = (int) ($setting->point_alpa ?? 5);
+        $alphaCount = 0;
+        $gagalAlpha = 0;
+        $skipCutoff = 0;
 
         // Izin approved yang mencakup hari ini (tanpa baris harian) bukan alpha.
         $leaveIds = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin')) {
             try {
                 $leaveRows = $db->table('absensi_izin')
                     ->select('user_id')
@@ -436,7 +454,7 @@ class CronControllerController extends BaseController
                 // dicatat — meski prosesnya tetap lanjut supaya satu tabel
                 // bermasalah tidak membekukan seluruh penilaian.
                 Log::error('[Cron] gagal membaca absensi_izin saat menandai alpha: '
-                    . $e->getMessage() . ' — guru yang sedang izin berisiko salah dihitung alpha.');
+                    .$e->getMessage().' — guru yang sedang izin berisiko salah dihitung alpha.');
             }
         }
 
@@ -452,53 +470,55 @@ class CronControllerController extends BaseController
             $cutoffTime = date('H:i:s', strtotime('+2 hours', strtotime($sched['jam_masuk'])));
             if (date('H:i:s') < $cutoffTime) {
                 $skipCutoff++;
+
                 continue;
             }
 
             // Denda alpa flat per hari (progresif dihapus)
-            $penaltyService = new \App\Services\AttendancePenaltyService();
+            $penaltyService = new AttendancePenaltyService;
 
             $dendaHariIni = (float) $dendaAlpha;
-            $ketDendaAlpha = 'Alpa (Rp ' . number_format($dendaAlpha, 0, ',', '.') . ')';
+            $ketDendaAlpha = 'Alpa (Rp '.number_format($dendaAlpha, 0, ',', '.').')';
 
             // Tegakkan cap denda bulanan: alpha tidak menambah denda bila cap tercapai.
             // Baca-cap + tulis dibungkus transaksi agar konsisten dengan koreksi
             // manual yang berjalan bersamaan.
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 $capped = $penaltyService->applyMonthlyCap((int) $guru->id, $today, $dendaHariIni, $setting, null, true);
                 if ($capped['capped']) {
                     $dendaHariIni = $capped['total'];
-                    $ketDendaAlpha .= ' (dibatasi cap bulanan Rp ' . number_format($dendaHariIni, 0, ',', '.') . ')';
+                    $ketDendaAlpha .= ' (dibatasi cap bulanan Rp '.number_format($dendaHariIni, 0, ',', '.').')';
                 }
 
                 $insertId = $this->attendanceModel->insert([
-                    'user_id'          => $guru->id,
-                    'id_guru'          => $guru->id_guru ?? null,
-                    'tgl'              => $today,
-                    'status_masuk'     => 'ALPHA',
-                    'status_pulang'    => 'ALPHA',
-                    'points'           => -$pointAlpha,
-                    'denda'            => $dendaHariIni,
-                    'keterangan'       => 'Otomatis: Tidak melakukan presensi',
+                    'user_id' => $guru->id,
+                    'id_guru' => $guru->id_guru ?? null,
+                    'tgl' => $today,
+                    'status_masuk' => 'ALPHA',
+                    'status_pulang' => 'ALPHA',
+                    'points' => -$pointAlpha,
+                    'denda' => $dendaHariIni,
+                    'keterangan' => 'Otomatis: Tidak melakukan presensi',
                     'keterangan_denda' => $ketDendaAlpha,
                 ]);
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
             } catch (\Throwable $e) {
                 try {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                    DB::rollBack();
                 } catch (\Throwable $e2) {
                 }
-                Log::error('Cron alpha gagal untuk user ' . $guru->id . ': ' . $e->getMessage());
+                Log::error('Cron alpha gagal untuk user '.$guru->id.': '.$e->getMessage());
                 $gagalAlpha++;
+
                 continue;
             }
 
             // Sync poin history
             try {
-                (new \App\Models\PoinHistoryModel())->syncAttendancePoint($insertId);
+                (new PoinHistoryModel)->syncAttendancePoint($insertId);
             } catch (\Throwable $e) {
-                Log::error('Cron alpha sync poin: ' . $e->getMessage());
+                Log::error('Cron alpha sync poin: '.$e->getMessage());
             }
 
             // Surat teguran + notifikasi, lewat service yang sama dengan
@@ -519,7 +539,7 @@ class CronControllerController extends BaseController
                 );
 
                 $idGuru = (int) ($guru->id_guru ?? 0);
-                $svcTeguran = new \App\Services\SuratTeguranService($db);
+                $svcTeguran = new SuratTeguranService($db);
 
                 $sinkron = $svcTeguran->sinkronkan($idGuru, $alphaThisMonth, (string) date('m'), (string) date('Y'));
                 if (count($sinkron['batal']) > 0 || count($sinkron['hidup']) > 0) {
@@ -549,7 +569,7 @@ class CronControllerController extends BaseController
                         // memberitahu guru. Dicatat supaya terlihat, bukan
                         // hilang tanpa jejak.
                         $this->logCronFailure(
-                            'Notifikasi surat teguran ' . $guru->nama_guru,
+                            'Notifikasi surat teguran '.$guru->nama_guru,
                             $e->getMessage()
                         );
                     }
@@ -571,13 +591,13 @@ class CronControllerController extends BaseController
         // method-nya supaya instalasi tanpa tabel audit_logs (atau tanpa
         // class) tidak ikut gagal.
         $this->catatAudit(
-            'Cron: Menandai ' . $alphaCount . ' guru ALPA pada ' . $today,
+            'Cron: Menandai '.$alphaCount.' guru ALPA pada '.$today,
             $alphaCount
         );
 
         return "Alpha marked: {$alphaCount} guru"
-            . ($skipCutoff > 0 ? " ({$skipCutoff} belum lewat cutoff shift)" : '')
-            . ($gagalAlpha > 0 ? " — GAGAL: {$gagalAlpha} baris tidak tertulis, periksa log" : '');
+            .($skipCutoff > 0 ? " ({$skipCutoff} belum lewat cutoff shift)" : '')
+            .($gagalAlpha > 0 ? " — GAGAL: {$gagalAlpha} baris tidak tertulis, periksa log" : '');
     }
 
     /**
@@ -603,18 +623,18 @@ class CronControllerController extends BaseController
      */
     private function finalisasiPendingVerifikasi($db, $setting): string
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (! Schema::hasTable('absensi_harian')) {
             return 'Skip: tabel absensi_harian tidak ada';
         }
 
-        $hariTinjau = \App\Services\AttendancePolicy::PENDING_REVIEW_HARI;
-        $batas = date('Y-m-d', strtotime('-' . $hariTinjau . ' day'));
+        $hariTinjau = AttendancePolicy::PENDING_REVIEW_HARI;
+        $batas = date('Y-m-d', strtotime('-'.$hariTinjau.' day'));
 
         // Jendela bawah: tanpa batas ini, satu kali jalan menyapu SEMUA riwayat
         // PENDING_VERIFICATION dan men-AlPHA-kannya sekaligus — berbulan-bulan
         // denda dan surat teguran muncul dalam satu request. Cron alpha harian
         // memakai rentang yang sama (lihat scanStartAlpha di recalc bulanan).
-        $awal = date('Y-m-d', strtotime('-' . ($hariTinjau + 62) . ' day'));
+        $awal = date('Y-m-d', strtotime('-'.($hariTinjau + 62).' day'));
 
         // Nilai status dipakai apa adanya (bukan UPPER()) pada UPDATE di bawah
         // sebagai penjaga idempoten: kalau admin memproses baris yang sama
@@ -628,22 +648,23 @@ class CronControllerController extends BaseController
                 [$awal, $batas]
             );
         } catch (\Throwable $e) {
-            Log::error('[Cron] gagal membaca antrean verifikasi: ' . $e->getMessage());
-            return 'Pending verifikasi: GAGAL membaca antrean (' . $e->getMessage() . ')';
+            Log::error('[Cron] gagal membaca antrean verifikasi: '.$e->getMessage());
+
+            return 'Pending verifikasi: GAGAL membaca antrean ('.$e->getMessage().')';
         }
 
         if (empty($rows)) {
-            return 'Pending verifikasi: 0 baris kedaluwarsa (batas ' . $awal . ' .. ' . $batas . ')';
+            return 'Pending verifikasi: 0 baris kedaluwarsa (batas '.$awal.' .. '.$batas.')';
         }
 
         // Hari libur dan izin approved bukan alpha, sama seperti cron alpha
         // harian. Tanpa checks ini, baris pending yang tertinggal di hari libur
         // atau di tengah cuti otomatis berubah menjadi alpa berdenda.
         $izinMap = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_izin')) {
+        if (Schema::hasTable('absensi_izin')) {
             try {
                 $coverRows = $db->table('absensi_izin')
-                    ->select('user_id, tgl_mulai, tgl_selesai')
+                    ->select('user_id', 'tgl_mulai', 'tgl_selesai')
                     ->where('status', 'approved')
                     ->where('tgl_mulai', '<=', $batas)
                     ->where('tgl_selesai', '>=', $awal)
@@ -658,7 +679,7 @@ class CronControllerController extends BaseController
                 }
             } catch (\Throwable $e) {
                 Log::error('[Cron] gagal membaca absensi_izin saat finalisasi pending: '
-                    . $e->getMessage() . ' — guru yang sedang izin berisiko salah dihitung alpha.');
+                    .$e->getMessage().' — guru yang sedang izin berisiko salah dihitung alpha.');
             }
         }
 
@@ -666,49 +687,51 @@ class CronControllerController extends BaseController
         $namaGuru = [];
         try {
             $ids = array_unique(array_map(static fn ($r) => (int) $r['user_id'], $rows));
-            foreach ($db->table('master_guru')->select('id_user, nama_guru')->whereIn('id_user', $ids)->get() as $g) {
+            foreach ($db->table('master_guru')->select('id_user', 'nama_guru')->whereIn('id_user', $ids)->get() as $g) {
                 $namaGuru[(int) $g->id_user] = (string) $g->nama_guru;
             }
         } catch (\Throwable $e) {
             // Notifikasi tanpa nama tidak mengubah penilaian; biarkan kosong.
         }
 
-        $baseAlpha  = (float) ($setting->denda_alpha_per_hari ?? 5000);
+        $baseAlpha = (float) ($setting->denda_alpha_per_hari ?? 5000);
         $pointAlpha = abs((int) ($setting->point_alpa ?? 5));
-        $perubahan  = 0;
-        $gagal      = 0;
-        $skipLibur  = 0;
-        $skipIzin   = 0;
+        $perubahan = 0;
+        $gagal = 0;
+        $skipLibur = 0;
+        $skipIzin = 0;
 
         foreach ($rows as $row) {
-            $id     = (int) $row['id'];
+            $id = (int) $row['id'];
             $userId = (int) $row['user_id'];
             $tanggal = substr((string) $row['tgl'], 0, 10);
 
-            if (\App\Services\AttendancePolicy::isLibur($tanggal)) {
+            if (AttendancePolicy::isLibur($tanggal)) {
                 $skipLibur++;
+
                 continue;
             }
             if (isset($izinMap[$userId][$tanggal])) {
                 $skipIzin++;
+
                 continue;
             }
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 $capped = $this->penaltyService->applyMonthlyCap($userId, $tanggal, $baseAlpha, $setting, $id, true);
                 $denda = (float) $capped['total'];
-                $ketDenda = 'Alpa (Rp ' . number_format($baseAlpha, 0, ',', '.') . ')'
-                    . ($capped['capped'] ? ' (dibatasi cap bulanan Rp ' . number_format($denda, 0, ',', '.') . ')' : '');
+                $ketDenda = 'Alpa (Rp '.number_format($baseAlpha, 0, ',', '.').')'
+                    .($capped['capped'] ? ' (dibatasi cap bulanan Rp '.number_format($denda, 0, ',', '.').')' : '');
 
                 $update = [
-                    'status_masuk'     => 'ALPHA',
-                    'status_pulang'    => 'ALPHA',
-                    'points'           => -$pointAlpha,
-                    'denda'            => $denda,
+                    'status_masuk' => 'ALPHA',
+                    'status_pulang' => 'ALPHA',
+                    'points' => -$pointAlpha,
+                    'denda' => $denda,
                     'keterangan_denda' => $ketDenda,
-                    'keterangan'       => "Alpha otomatis: verifikasi tidak ditindak dalam {$hariTinjau} hari",
-                    'updated_at'       => date('Y-m-d H:i:s'),
+                    'keterangan' => "Alpha otomatis: verifikasi tidak ditindak dalam {$hariTinjau} hari",
+                    'updated_at' => date('Y-m-d H:i:s'),
                 ];
 
                 $db->table('absensi_harian')
@@ -720,9 +743,9 @@ class CronControllerController extends BaseController
                 }
 
                 try {
-                    (new \App\Models\PoinHistoryModel())->syncAttendancePoint($id);
+                    (new PoinHistoryModel)->syncAttendancePoint($id);
                 } catch (\Throwable $e) {
-                    Log::error('[Cron] pending→alpha sync poin baris ' . $id . ': ' . $e->getMessage());
+                    Log::error('[Cron] pending→alpha sync poin baris '.$id.': '.$e->getMessage());
                 }
 
                 try {
@@ -733,23 +756,24 @@ class CronControllerController extends BaseController
                         $setting
                     );
                 } catch (\Throwable $e) {
-                    Log::error('[Cron] pending→alpha sinkron surat baris ' . $id . ': ' . $e->getMessage());
+                    Log::error('[Cron] pending→alpha sinkron surat baris '.$id.': '.$e->getMessage());
                 }
 
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
                 $perubahan++;
             } catch (\Throwable $e) {
                 try {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                    DB::rollBack();
                 } catch (\Throwable $e2) {
                 }
                 $gagal++;
-                Log::error('[Cron] konversi pending→alpha gagal untuk baris ' . $id . ': ' . $e->getMessage());
+                Log::error('[Cron] konversi pending→alpha gagal untuk baris '.$id.': '.$e->getMessage());
+
                 continue;
             }
 
             $this->catatAudit(
-                'Cron: Verifikasi kehadiran lewat batas (' . $hariTinjau . ' hari) pada ' . $tanggal . ' dijadikan ALPHA',
+                'Cron: Verifikasi kehadiran lewat batas ('.$hariTinjau.' hari) pada '.$tanggal.' dijadikan ALPHA',
                 $id
             );
 
@@ -761,7 +785,7 @@ class CronControllerController extends BaseController
                     $userId
                 );
             } catch (\Throwable $e) {
-                $this->logCronFailure('Notifikasi verifikasi kedaluwarsa user ' . $userId, $e->getMessage());
+                $this->logCronFailure('Notifikasi verifikasi kedaluwarsa user '.$userId, $e->getMessage());
             }
         }
 
@@ -772,7 +796,7 @@ class CronControllerController extends BaseController
         if ($gagal > 0) {
             // Kata 'GAGAL' membuat isSendFailure() mengubah balasan cron
             // menjadi 500, supaya pemantau cron tahu ada baris yang mandek.
-            $pesan .= ' — GAGAL: ' . $gagal . ' baris tidak bisa dikonversi';
+            $pesan .= ' — GAGAL: '.$gagal.' baris tidak bisa dikonversi';
         }
 
         return $pesan;
@@ -794,34 +818,36 @@ class CronControllerController extends BaseController
             $tpId = 0;
             $smtId = 0;
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('master_tp')) {
+                if (Schema::hasTable('master_tp')) {
                     $tp = $db->table('master_tp')->where('active', 1)->first();
                     $tpId = (int) ($tp->id_tp ?? 0);
                 }
-                if (\Illuminate\Support\Facades\Schema::hasTable('master_smt')) {
+                if (Schema::hasTable('master_smt')) {
                     $smt = $db->table('master_smt')->where('active', 1)->first();
                     $smtId = (int) ($smt->id_smt ?? 0);
                 }
             } catch (\Throwable $e) {
             }
 
-            $piket = new \App\Models\PiketModel();
+            $piket = new PiketModel;
             $sync = $piket->syncAlphaOtomatis($today, null, [], $tpId, $smtId);
-            if (!$sync['layak']) {
-                return 'Skip: alpha siswa (' . ($sync['alasan'] ?: 'belum layak') . ')';
+            if (! $sync['layak']) {
+                return 'Skip: alpha siswa ('.($sync['alasan'] ?: 'belum layak').')';
             }
-            if (!empty($sync['batch'])) {
+            if (! empty($sync['batch'])) {
                 try {
                     $piket->syncPiketKeFormal($sync['batch'], $today);
                 } catch (\Throwable $e) {
-                    Log::error('[Cron] alpha siswa sync formal: ' . $e->getMessage());
+                    Log::error('[Cron] alpha siswa sync formal: '.$e->getMessage());
                 }
             }
-            $this->catatAudit('Cron: Menandai ' . $sync['ditandai'] . ' siswa ALPHA/BDR pada ' . $today, $sync['ditandai']);
-            return 'Alpha siswa: ' . ($sync['ditandai'] - (int) ($sync['bdr'] ?? 0)) . ' siswa, BDR: ' . (int) ($sync['bdr'] ?? 0) . ' siswa';
+            $this->catatAudit('Cron: Menandai '.$sync['ditandai'].' siswa ALPHA/BDR pada '.$today, $sync['ditandai']);
+
+            return 'Alpha siswa: '.($sync['ditandai'] - (int) ($sync['bdr'] ?? 0)).' siswa, BDR: '.(int) ($sync['bdr'] ?? 0).' siswa';
         } catch (\Throwable $e) {
-            Log::error('[Cron] markAbsentStudents: ' . $e->getMessage());
-            return 'GAGAL: alpha siswa (' . $e->getMessage() . ')';
+            Log::error('[Cron] markAbsentStudents: '.$e->getMessage());
+
+            return 'GAGAL: alpha siswa ('.$e->getMessage().')';
         }
     }
 
@@ -845,39 +871,40 @@ class CronControllerController extends BaseController
         $today = date('Y-m-d');
 
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('presensi_siswa')) {
+            if (! Schema::hasTable('presensi_siswa')) {
                 return 'Skip: tabel presensi_siswa tidak ada';
             }
             if (! $this->pastikanKolom($db, 'presensi_siswa', 'pulang_tidak_tercatat', [
                 'type' => 'TINYINT', 'constraint' => 1, 'default' => 0, 'null' => false,
             ])) {
                 return 'GAGAL: kolom pulang_tidak_tercatat tidak ada dan tidak bisa dibuat '
-                    . '— jalankan migration AddPulangTidakTercatatToPresensiSiswa';
+                    .'— jalankan migration AddPulangTidakTercatatToPresensiSiswa';
             }
             if (! $this->pastikanKolom($db, 'absensi_setting', 'pulang_close_dari_tgl', [
                 'type' => 'DATE', 'null' => true, 'default' => null,
             ])) {
                 return 'GAGAL: kolom pulang_close_dari_tgl tidak ada dan tidak bisa dibuat '
-                    . '— jalankan migration AddPulangCloseWatermark';
+                    .'— jalankan migration AddPulangCloseWatermark';
             }
 
             $dari = trim((string) ($setting->pulang_close_dari_tgl ?? ''));
             if ($dari === '' || strtotime($dari) === false || $dari > $today) {
                 $db->table('absensi_setting')->where('id', (int) $setting->id)
                     ->update(['pulang_close_dari_tgl' => $today]);
-                return 'Tanda pulang siswa: mulai dihitung dari ' . $today . ' (baris sebelumnya tidak disentuh)';
+
+                return 'Tanda pulang siswa: mulai dihitung dari '.$today.' (baris sebelumnya tidak disentuh)';
             }
 
             $kemarin = date('Y-m-d', strtotime('-1 day'));
-            $batas   = max($dari, date('Y-m-d', strtotime('-60 day')));
+            $batas = max($dari, date('Y-m-d', strtotime('-60 day')));
 
-            $ditandai  = 0;
+            $ditandai = 0;
             $hariDitut = 0;
-            $denda     = new \App\Services\SiswaDendaService();
+            $denda = new SiswaDendaService;
             $dendaTertulis = 0;
             for ($ts = strtotime($batas); $ts <= strtotime($kemarin); $ts = strtotime('+1 day', $ts)) {
                 $tgl = date('Y-m-d', $ts);
-                if (\App\Services\AttendancePolicy::isLibur($tgl)) {
+                if (AttendancePolicy::isLibur($tgl)) {
                     continue;
                 }
                 $hariDitut++;
@@ -888,7 +915,7 @@ class CronControllerController extends BaseController
                 // perubahan presensi oleh manusia/alat, bukan penanda administratif.
                 $db->table('presensi_siswa')
                     ->where('tgl', $tgl)
-                    ->where('jam_masuk IS NOT NULL', null, false)
+                    ->whereNotNull('jam_masuk')
                     ->whereRaw("(jam_keluar IS NULL OR jam_keluar = '')")
                     ->whereRaw("UPPER(TRIM(status)) IN ('HADIR','HADIR TELAT','TERLAMBAT')")
                     ->where('pulang_tidak_tercatat', 0)
@@ -915,17 +942,18 @@ class CronControllerController extends BaseController
             }
 
             if ($ditandai > 0) {
-                $this->catatAudit('Cron: Menandai ' . $ditandai . ' siswa tanpa absen pulang ('
-                    . $batas . '…' . $kemarin . ')'
-                    . ($dendaTertulis ? ' dengan ' . $dendaTertulis . ' denda tercatat' : ''), $ditandai);
+                $this->catatAudit('Cron: Menandai '.$ditandai.' siswa tanpa absen pulang ('
+                    .$batas.'…'.$kemarin.')'
+                    .($dendaTertulis ? ' dengan '.$dendaTertulis.' denda tercatat' : ''), $ditandai);
             }
 
-            return 'Pulang tidak tercatat: ' . $ditandai . ' siswa, ' . $hariDitut . ' hari ditutup ('
-                . $batas . '…' . $kemarin . ')'
-                . ($dendaTertulis ? ', denda: ' . $dendaTertulis . ' baris' : '');
+            return 'Pulang tidak tercatat: '.$ditandai.' siswa, '.$hariDitut.' hari ditutup ('
+                .$batas.'…'.$kemarin.')'
+                .($dendaTertulis ? ', denda: '.$dendaTertulis.' baris' : '');
         } catch (\Throwable $e) {
-            Log::error('[Cron] markSiswaBelumPulang: ' . $e->getMessage());
-            return 'GAGAL: tanda pulang siswa (' . $e->getMessage() . ')';
+            Log::error('[Cron] markSiswaBelumPulang: '.$e->getMessage());
+
+            return 'GAGAL: tanda pulang siswa ('.$e->getMessage().')';
         }
     }
 
@@ -941,9 +969,10 @@ class CronControllerController extends BaseController
         }
 
         try {
-            (new \App\Http\Controllers\CiForge())->addColumn($tabel, [$kolom => $definisi]);
+            (new CiForge)->addColumn($tabel, [$kolom => $definisi]);
         } catch (\Throwable $e) {
-            Log::error("[Cron] buat kolom {$tabel}.{$kolom}: " . $e->getMessage());
+            Log::error("[Cron] buat kolom {$tabel}.{$kolom}: ".$e->getMessage());
+
             return false;
         }
 
@@ -953,13 +982,13 @@ class CronControllerController extends BaseController
     private function kolomAda($db, string $tabel, string $kolom): bool
     {
         try {
-            foreach ($db->select('SHOW COLUMNS FROM `' . str_replace('`', '``', $tabel) . '`')->getResultObject() as $c) {
+            foreach ($db->select('SHOW COLUMNS FROM `'.str_replace('`', '``', $tabel).'`') as $c) {
                 if ($c->Field === $kolom) {
                     return true;
                 }
             }
         } catch (\Throwable $e) {
-            Log::error("[Cron] baca kolom {$tabel}.{$kolom}: " . $e->getMessage());
+            Log::error("[Cron] baca kolom {$tabel}.{$kolom}: ".$e->getMessage());
         }
 
         return false;
@@ -973,11 +1002,11 @@ class CronControllerController extends BaseController
     {
         $dayOfMonth = (int) date('j');
         $lastDayOfMonth = (int) date('t');
-        if (!in_array($dayOfMonth, [7, 14, 21, $lastDayOfMonth], true)) {
+        if (! in_array($dayOfMonth, [7, 14, 21, $lastDayOfMonth], true)) {
             return 'Skip: bukan tanggal evaluasi surat teguran';
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_teguran')) {
+        if (! Schema::hasTable('absensi_surat_teguran')) {
             return 'GAGAL: tabel absensi_surat_teguran tidak ada — jalankan php spark migrate.';
         }
 
@@ -985,17 +1014,17 @@ class CronControllerController extends BaseController
         $tahun = (int) date('Y');
 
         $guruList = $db->table('users as u')
-            ->select('u.id, g.id_guru, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.id_guru', 'g.nama_guru')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->groupBy('u.id')
             ->get();
 
-        $svc      = new \App\Services\SuratTeguranService($db);
+        $svc = new SuratTeguranService($db);
         $generated = 0;
-        $revived  = 0;
+        $revived = 0;
         $canceled = 0;
 
         foreach ($guruList as $guru) {
@@ -1023,7 +1052,7 @@ class CronControllerController extends BaseController
             // kembali sah dihidupkan — baru terbitkan yang baru.
             $sinkron = $svc->sinkronkan($idGuru, $alpha, $bulan, $tahun);
             $canceled += count($sinkron['batal']);
-            $revived   += count($sinkron['hidup']);
+            $revived += count($sinkron['hidup']);
 
             $terbit = $svc->terbitkan($idGuru, $alpha, $bulan, $tahun);
             if ($terbit === null) {
@@ -1042,7 +1071,7 @@ class CronControllerController extends BaseController
                 // Surat sudah tercatat di database; yang gagal hanya
                 // memberitahu guru. Dicatat supaya ketahuan, bukan
                 // hilang tanpa jejak.
-                $this->logCronFailure('Notifikasi surat teguran ' . $guru->nama_guru, $e->getMessage());
+                $this->logCronFailure('Notifikasi surat teguran '.$guru->nama_guru, $e->getMessage());
             }
 
             $generated++;
@@ -1076,11 +1105,11 @@ class CronControllerController extends BaseController
     {
         $dayOfMonth = (int) date('j');
         $lastDayOfMonth = (int) date('t');
-        if (!in_array($dayOfMonth, [7, 14, 21, $lastDayOfMonth], true)) {
+        if (! in_array($dayOfMonth, [7, 14, 21, $lastDayOfMonth], true)) {
             return 'Skip: bukan tanggal evaluasi surat panggilan';
         }
 
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_surat_panggilan')) {
+        if (! Schema::hasTable('absensi_surat_panggilan')) {
             return 'GAGAL: tabel absensi_surat_panggilan tidak ada — jalankan php spark migrate.';
         }
 
@@ -1089,32 +1118,32 @@ class CronControllerController extends BaseController
 
         try {
             $absenSetting = $this->settingModel->first();
-            $ctx = \App\Services\SuratPanggilanService::buildContext($bulan, $tahun);
-            $hasil = \App\Services\SuratPanggilanService::generate($bulan, $tahun, $ctx);
+            $ctx = SuratPanggilanService::buildContext($bulan, $tahun);
+            $hasil = SuratPanggilanService::generate($bulan, $tahun, $ctx);
 
             // Notifikasi WA/Telegram ke wali kelas untuk surat yang baru terbit
-            if (!empty($hasil['detail'])) {
+            if (! empty($hasil['detail'])) {
                 try {
                     $daftar = $this->buildDaftarPanggilanDenganWaliKelas($db, $bulan, $tahun, $hasil['detail']);
                     $terkirim = $this->notification->notifySuratPanggilan($daftar, (string) $bulan, (string) $tahun);
-                    Log::info('[Cron] Notifikasi surat panggilan: ' . $terkirim . ' wali kelas terkirim.');
+                    Log::info('[Cron] Notifikasi surat panggilan: '.$terkirim.' wali kelas terkirim.');
                 } catch (\Throwable $e) {
                     // Surat sudah tercetak di DB; notifikasi gagal tidak boleh
                     // membatalkan cron. Catat saja ke log.
-                    Log::error('[Cron] Gagal notifikasi surat panggilan ke wali: ' . $e->getMessage());
+                    Log::error('[Cron] Gagal notifikasi surat panggilan ke wali: '.$e->getMessage());
                 }
             }
 
             $baris = "Surat panggilan: {$hasil['diterbitkan']} terbit dari {$hasil['dicek']} siswa";
             if ($hasil['gagal'] > 0) {
-                return 'GAGAL: ' . $baris . ", {$hasil['gagal']} gagal";
+                return 'GAGAL: '.$baris.", {$hasil['gagal']} gagal";
             }
 
             return $baris;
         } catch (\Throwable $e) {
             $this->logCronFailure('Surat panggilan siswa', $e->getMessage());
 
-            return 'GAGAL: surat panggilan error — ' . $e->getMessage();
+            return 'GAGAL: surat panggilan error — '.$e->getMessage();
         }
     }
 
@@ -1125,7 +1154,7 @@ class CronControllerController extends BaseController
      * Alur: siswa → kelas_siswa.id_kelas → master_kelas.guru_id →
      * master_guru.id_user → user_id (tujuan notifikasi personal).
      *
-     * @param array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int}> $detail
+     * @param  array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int}>  $detail
      * @return array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int,id_user_wali:int}>
      */
     private function buildDaftarPanggilanDenganWaliKelas(object $db, int $bulan, int $tahun, array $detail): array
@@ -1144,14 +1173,14 @@ class CronControllerController extends BaseController
         $kelasSiswa = [];
         try {
             $rows = $db->table('kelas_siswa')
-                ->select('id_siswa, id_kelas')
+                ->select('id_siswa', 'id_kelas')
                 ->whereIn('id_siswa', $idSiswaList)
                 ->get();
             foreach ($rows as $r) {
                 $kelasSiswa[(int) $r->id_siswa] = (int) $r->id_kelas;
             }
         } catch (\Throwable $e) {
-            Log::error('[Cron] Gagal baca kelas_siswa untuk notif panggilan: ' . $e->getMessage());
+            Log::error('[Cron] Gagal baca kelas_siswa untuk notif panggilan: '.$e->getMessage());
         }
 
         // Ambil semua id_kelas yang terlibat
@@ -1159,10 +1188,10 @@ class CronControllerController extends BaseController
 
         // ── kelas → wali guru (guru_id) ───────────────────
         $kelasWaliGuru = [];
-        if (!empty($idKelasList)) {
+        if (! empty($idKelasList)) {
             try {
                 $rows = $db->table('master_kelas')
-                    ->select('id_kelas, guru_id')
+                    ->select('id_kelas', 'guru_id')
                     ->whereIn('id_kelas', $idKelasList)
                     ->whereRaw('guru_id IS NOT NULL')
                     ->where('guru_id', '!=', 0)
@@ -1171,24 +1200,24 @@ class CronControllerController extends BaseController
                     $kelasWaliGuru[(int) $r->id_kelas] = (int) $r->guru_id;
                 }
             } catch (\Throwable $e) {
-                Log::error('[Cron] Gagal baca master_kelas wali untuk notif panggilan: ' . $e->getMessage());
+                Log::error('[Cron] Gagal baca master_kelas wali untuk notif panggilan: '.$e->getMessage());
             }
         }
 
         // ── guru_id → user_id ─────────────────────────────
         $guruIds = array_values(array_unique(array_filter($kelasWaliGuru)));
         $guruUser = [];
-        if (!empty($guruIds)) {
+        if (! empty($guruIds)) {
             try {
                 $rows = $db->table('master_guru')
-                    ->select('id_guru, id_user')
+                    ->select('id_guru', 'id_user')
                     ->whereIn('id_guru', $guruIds)
                     ->get();
                 foreach ($rows as $r) {
                     $guruUser[(int) $r->id_guru] = (int) $r->id_user;
                 }
             } catch (\Throwable $e) {
-                Log::error('[Cron] Gagal baca master_guru user_id untuk notif panggilan: ' . $e->getMessage());
+                Log::error('[Cron] Gagal baca master_guru user_id untuk notif panggilan: '.$e->getMessage());
             }
         }
 
@@ -1197,14 +1226,14 @@ class CronControllerController extends BaseController
         foreach ($detail as $d) {
             $idSiswa = (int) $d['id_siswa'];
             $idKelas = $kelasSiswa[$idSiswa] ?? 0;
-            $idGuru  = $kelasWaliGuru[$idKelas] ?? 0;
-            $idUser  = $guruUser[$idGuru] ?? 0;
+            $idGuru = $kelasWaliGuru[$idKelas] ?? 0;
+            $idUser = $guruUser[$idGuru] ?? 0;
 
             $daftar[] = [
-                'id_siswa'     => $idSiswa,
-                'level'        => (int) $d['level'],
-                'alpha'        => (int) $d['alpha'],
-                'terlambat'    => (int) $d['terlambat'],
+                'id_siswa' => $idSiswa,
+                'level' => (int) $d['level'],
+                'alpha' => (int) $d['alpha'],
+                'terlambat' => (int) $d['terlambat'],
                 'id_user_wali' => $idUser,
             ];
         }
@@ -1228,9 +1257,9 @@ class CronControllerController extends BaseController
         $minPersen = (float) ($setting->min_kehadiran_persen ?? 90.0);
 
         $guruList = $db->table('users as u')
-            ->select('u.id, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->get();
@@ -1247,13 +1276,13 @@ class CronControllerController extends BaseController
         }
 
         if (empty($rendahList)) {
-            return 'Kehadiran check: semua guru di atas ' . $minPersen . '%';
+            return 'Kehadiran check: semua guru di atas '.$minPersen.'%';
         }
 
         // Penjaga idempotensi SEBELUM kirim: tanpa ini, pemanggilan kedua
         // /cron/daily di hari yang sama tetap menembak gateway dulu lalu
         // baru bilang "sudah terkirim, dilewati" — pesan dobel.
-        $kunciBulan = 'rendah_' . date('Y-m');
+        $kunciBulan = 'rendah_'.date('Y-m');
 
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('kehadiran_rendah', $kunciBulan)) {
             return sprintf(
@@ -1272,8 +1301,9 @@ class CronControllerController extends BaseController
             $sent = $this->notification->notifyKehadiranRendah($rendahList, $minPersen, date('m/Y'));
         } catch (\Throwable $e) {
             $this->logCronFailure('Kehadiran rendah', $e->getMessage());
-            return 'Kehadiran check GAGAL: ' . $e->getMessage()
-                . ' (' . count($rendahList) . ' guru di bawah ' . $minPersen . '%)';
+
+            return 'Kehadiran check GAGAL: '.$e->getMessage()
+                .' ('.count($rendahList).' guru di bawah '.$minPersen.'%)';
         }
 
         $ringkas = sprintf('Kehadiran check: %d guru di bawah %s%%', count($rendahList), $minPersen);
@@ -1285,8 +1315,8 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Kehadiran rendah', $alasan);
             $this->catatNotifikasiCron('kehadiran_rendah', $kunciBulan, false, $alasan);
 
-            return 'Kehadiran check GAGAL: ' . $alasan
-                . ' (' . count($rendahList) . ' guru di bawah ' . $minPersen . '%)';
+            return 'Kehadiran check GAGAL: '.$alasan
+                .' ('.count($rendahList).' guru di bawah '.$minPersen.'%)';
         }
 
         $this->catatNotifikasiCron('kehadiran_rendah', $kunciBulan, true);
@@ -1310,7 +1340,7 @@ class CronControllerController extends BaseController
      */
     private function sendPiketRecap(?string $tanggal, bool $force = false): string
     {
-        $today   = date('Y-m-d');
+        $today = date('Y-m-d');
         $tanggal = $tanggal !== null && $tanggal !== '' ? $tanggal : $today;
         $isToday = ($tanggal === $today);
 
@@ -1320,29 +1350,29 @@ class CronControllerController extends BaseController
 
         // Hari Minggu/libur/cuti: rekap kosong tidak berguna untuk grup.
         // Gate yang sama dengan rekap harian (AttendancePolicy).
-        if ($libur = \App\Services\AttendancePolicy::alasanLibur($tanggal)) {
-            return 'Skip: ' . $libur;
+        if ($libur = AttendancePolicy::alasanLibur($tanggal)) {
+            return 'Skip: '.$libur;
         }
 
         // Idempotensi: satu pengiriman per tanggal, dibagi dengan kirim
         // manual petugas (keduanya menulis jenis 'rekap_piket'). Kirim
         // manual pagi membuat cron sore selewati, bukan dobel.
-        if (!$force && $this->notifikasiCronTerkirim('rekap_piket', $tanggal)) {
-            return 'Rekap piket ' . $tanggal . ' sudah terkirim sebelumnya, dilewati. '
-                . 'Gunakan &force=1 untuk mengirim ulang.';
+        if (! $force && $this->notifikasiCronTerkirim('rekap_piket', $tanggal)) {
+            return 'Rekap piket '.$tanggal.' sudah terkirim sebelumnya, dilewati. '
+                .'Gunakan &force=1 untuk mengirim ulang.';
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // TP/SMT aktif — gate yang sama seperti markAbsentStudents().
-        $tpId  = 0;
+        $tpId = 0;
         $smtId = 0;
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_tp')) {
+            if (Schema::hasTable('master_tp')) {
                 $tp = $db->table('master_tp')->where('active', 1)->first();
                 $tpId = (int) ($tp->id_tp ?? 0);
             }
-            if (\Illuminate\Support\Facades\Schema::hasTable('master_smt')) {
+            if (Schema::hasTable('master_smt')) {
                 $smt = $db->table('master_smt')->where('active', 1)->first();
                 $smtId = (int) ($smt->id_smt ?? 0);
             }
@@ -1355,29 +1385,31 @@ class CronControllerController extends BaseController
 
         // Tanggal lampau: ikuti manual path — 0/0 supaya agregasi tidak
         // menyeleksi baris piket_absensi berdasarkan tp/smt yang tak pasti.
-        if (!$isToday) {
-            $tpId  = 0;
+        if (! $isToday) {
+            $tpId = 0;
             $smtId = 0;
         }
 
-        $piket         = new \App\Models\PiketModel();
-        $piketJadwal   = new \App\Models\PiketJadwalModel();
+        $piket = new PiketModel;
+        $piketJadwal = new PiketJadwalModel;
 
-        $hariIndo  = $this->hariIndo(date('l', strtotime($tanggal)));
+        $hariIndo = $this->hariIndo(date('l', strtotime($tanggal)));
         $bulanList = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
             'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         $ts = strtotime($tanggal);
-        $labelTgl = $this->hariIndo(date('l', $ts)) . ', ' . date('j', $ts) . ' '
-            . ($bulanList[(int) date('n', $ts)] ?? '') . ' ' . date('Y', $ts);
+        $labelTgl = $this->hariIndo(date('l', $ts)).', '.date('j', $ts).' '
+            .($bulanList[(int) date('n', $ts)] ?? '').' '.date('Y', $ts);
 
         // Petugas piket tanggal tersebut (roster hari, TP/SMT aktif).
         $petugas = [];
         try {
             foreach ($piketJadwal->getPiketHariIni($hariIndo, $tpId, $smtId) as $c) {
-                if (!empty($c->nama_guru)) $petugas[] = (string) $c->nama_guru;
+                if (! empty($c->nama_guru)) {
+                    $petugas[] = (string) $c->nama_guru;
+                }
             }
         } catch (\Throwable $e) {
-            Log::error('[Cron] rekap piket petugas: ' . $e->getMessage());
+            Log::error('[Cron] rekap piket petugas: '.$e->getMessage());
         }
 
         // Siswa per kelas + subtotal — format baris identik manual.
@@ -1385,26 +1417,26 @@ class CronControllerController extends BaseController
         try {
             $siswaRekap = $piket->getRekapSiswaLaporan($tanggal, $tpId, $smtId, 0);
         } catch (\Throwable $e) {
-            Log::error('[Cron] rekap piket siswa: ' . $e->getMessage());
+            Log::error('[Cron] rekap piket siswa: '.$e->getMessage());
         }
         $siswaRows = [];
         foreach (($siswaRekap['kelas'] ?? []) as $rk) {
             $siswaRows[] = [
-                'nama_kelas'   => (string) ($rk->nama_kelas ?? '-'),
-                'total'        => (int) ($rk->total ?? 0),
-                'H'            => (int) ($rk->r_hadir ?? 0),
-                'S'            => (int) ($rk->r_sakit ?? 0),
-                'I'            => (int) ($rk->r_izin ?? 0),
-                'A'            => (int) ($rk->r_alpha ?? 0),
-                'T'            => (int) ($rk->r_telat ?? 0),
-                'masuk'        => (int) ($rk->masuk ?? 0),
-                'pulang'       => (int) ($rk->pulang ?? 0),
+                'nama_kelas' => (string) ($rk->nama_kelas ?? '-'),
+                'total' => (int) ($rk->total ?? 0),
+                'H' => (int) ($rk->r_hadir ?? 0),
+                'S' => (int) ($rk->r_sakit ?? 0),
+                'I' => (int) ($rk->r_izin ?? 0),
+                'A' => (int) ($rk->r_alpha ?? 0),
+                'T' => (int) ($rk->r_telat ?? 0),
+                'masuk' => (int) ($rk->masuk ?? 0),
+                'pulang' => (int) ($rk->pulang ?? 0),
                 'tanpa_pulang' => (int) ($rk->r_tanpa_pulang ?? 0),
-                'belum'        => (int) ($rk->r_belum ?? 0),
+                'belum' => (int) ($rk->r_belum ?? 0),
             ];
         }
         $siswaTotal = [];
-        $siswaMap   = [
+        $siswaMap = [
             'total' => 'total', 'H' => 'r_hadir', 'S' => 'r_sakit', 'I' => 'r_izin',
             'A' => 'r_alpha', 'T' => 'r_telat', 'masuk' => 'masuk', 'pulang' => 'pulang',
             'tanpa_pulang' => 'r_tanpa_pulang', 'belum' => 'r_belum',
@@ -1417,72 +1449,73 @@ class CronControllerController extends BaseController
         $guruHadirTotal = 0;
         $guruHadirTepat = 0;
         $guruHadirTelat = 0;
-        $guruList       = [];
+        $guruList = [];
         try {
             $guruList = $piket->getAllGuruWithAbsensi($tanggal);
         } catch (\Throwable $e) {
-            Log::error('[Cron] rekap piket guru: ' . $e->getMessage());
+            Log::error('[Cron] rekap piket guru: '.$e->getMessage());
         }
         $alasanMap = [];
         try {
             $alasanMap = $piket->getAlasanGuruMap($tanggal);
         } catch (\Throwable $e) {
-            Log::error('[Cron] rekap piket alasan guru: ' . $e->getMessage());
+            Log::error('[Cron] rekap piket alasan guru: '.$e->getMessage());
         }
         $guruAbsen = [];
         foreach ($guruList as $g) {
-            if (!empty($g->jam_masuk)) {
+            if (! empty($g->jam_masuk)) {
                 $guruHadirTotal++;
                 strtolower((string) ($g->status_masuk ?? '')) === 'late'
                     ? $guruHadirTelat++
                     : $guruHadirTepat++;
+
                 continue;
             }
             $als = (string) ($alasanMap[(int) ($g->id_guru ?? 0)] ?? 'Tanpa keterangan');
             $guruAbsen[] = [
-                'nama'   => (string) ($g->nama_guru ?? 'Guru'),
+                'nama' => (string) ($g->nama_guru ?? 'Guru'),
                 'alasan' => $als,
-                'alpha'  => strncasecmp(trim($als), 'alpha', 5) === 0,
+                'alpha' => strncasecmp(trim($als), 'alpha', 5) === 0,
             ];
         }
 
         // Bolos: masuk tanpa absen pulang, hanya nampak setelah lewat jam pulang.
-        $bolosRows  = [];
+        $bolosRows = [];
         $bolosResmi = false;
         try {
             $bolosResmi = $piket->sudahLewatJamPulang($tanggal);
             if ($bolosResmi) {
                 foreach ($piket->getSiswaTanpaPulang($tanggal, null, $tpId, $smtId) as $b) {
                     $bolosRows[] = [
-                        'nama'  => (string) ($b->nama ?? 'Siswa'),
+                        'nama' => (string) ($b->nama ?? 'Siswa'),
                         'kelas' => (string) ($b->nama_kelas ?? ''),
-                        'jam'   => substr((string) ($b->jam_masuk ?? ''), 0, 5),
+                        'jam' => substr((string) ($b->jam_masuk ?? ''), 0, 5),
                     ];
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[Cron] rekap piket bolos: ' . $e->getMessage());
+            Log::error('[Cron] rekap piket bolos: '.$e->getMessage());
         }
 
         try {
             $ok = $this->notification->notifyRekapPiket([
-                'tanggal'          => $labelTgl,
-                'petugas'          => $petugas,
-                'siswa'            => $siswaRows,
-                'siswa_total'      => $siswaTotal,
-                'siswa_bolos'      => $bolosRows,
-                'bolos_resmi'      => $bolosResmi,
-                'guru_absen'       => $guruAbsen,
+                'tanggal' => $labelTgl,
+                'petugas' => $petugas,
+                'siswa' => $siswaRows,
+                'siswa_total' => $siswaTotal,
+                'siswa_bolos' => $bolosRows,
+                'bolos_resmi' => $bolosResmi,
+                'guru_absen' => $guruAbsen,
                 'guru_hadir_total' => $guruHadirTotal,
                 'guru_hadir_tepat' => $guruHadirTepat,
                 'guru_hadir_telat' => $guruHadirTelat,
-                'pengirim'         => 'Cron otomatis',
+                'pengirim' => 'Cron otomatis',
             ]);
         } catch (\Throwable $e) {
             $this->logCronFailure('Rekap piket', $e->getMessage());
             $this->catatNotifikasiCron('rekap_piket', $tanggal, false, $e->getMessage());
 
-            return 'Rekap piket GAGAL: ' . $e->getMessage();
+            return 'Rekap piket GAGAL: '.$e->getMessage();
         }
 
         if ($ok !== true) {
@@ -1492,14 +1525,14 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Rekap piket', $alasan);
             $this->catatNotifikasiCron('rekap_piket', $tanggal, false, $alasan);
 
-            return 'Rekap piket GAGAL: ' . $alasan
-                . ' (' . count($guruAbsen) . ' guru tidak hadir)';
+            return 'Rekap piket GAGAL: '.$alasan
+                .' ('.count($guruAbsen).' guru tidak hadir)';
         }
 
         $this->catatNotifikasiCron('rekap_piket', $tanggal, true, 'Otomatis via /cron/rekap-piket');
 
-        return 'Rekap piket terkirim (' . count($guruAbsen) . ' guru tidak hadir, '
-            . count($bolosRows) . ' siswa bolos)';
+        return 'Rekap piket terkirim ('.count($guruAbsen).' guru tidak hadir, '
+            .count($bolosRows).' siswa bolos)';
     }
 
     /**
@@ -1510,13 +1543,13 @@ class CronControllerController extends BaseController
     private function hariIndo(string $day): string
     {
         $days = [
-            'Sunday'    => 'Minggu',
-            'Monday'    => 'Senin',
-            'Tuesday'   => 'Selasa',
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
             'Wednesday' => 'Rabu',
-            'Thursday'  => 'Kamis',
-            'Friday'    => 'Jumat',
-            'Saturday'  => 'Sabtu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
         ];
 
         return $days[$day] ?? $day;
@@ -1530,7 +1563,7 @@ class CronControllerController extends BaseController
      */
     private function logCronFailure(string $step, string $reason): void
     {
-        Log::error('[Cron] ' . $step . ' GAGAL: ' . $reason);
+        Log::error('[Cron] '.$step.' GAGAL: '.$reason);
     }
 
     /**
@@ -1545,7 +1578,7 @@ class CronControllerController extends BaseController
     {
         try {
             if ($this->notification->isGrupDisabled($jenis)) {
-                return $label . ' dilewati: channel TG Grup + WA Grup dinonaktifkan di Pengaturan → Channel Notifikasi.';
+                return $label.' dilewati: channel TG Grup + WA Grup dinonaktifkan di Pengaturan → Channel Notifikasi.';
             }
         } catch (\Throwable $e) {
             // Fail-open: anggap aktif, biar notifyGrup yang memutuskan.
@@ -1569,10 +1602,10 @@ class CronControllerController extends BaseController
      */
     private function catatNotifikasiCron(string $jenis, string $periode, bool $terkirim, ?string $catatan = null): bool
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('cron_notifikasi_log')) {
+            if (! Schema::hasTable('cron_notifikasi_log')) {
                 return false; // migrasi belum dijalankan
             }
 
@@ -1588,7 +1621,7 @@ class CronControllerController extends BaseController
              * - Baris baru   : percobaan = 1
              * - Baris sudah ada: percobaan = percobaan + 1, terkirim/catatan/updated_at diupdate
              */
-            $db->select("
+            $db->select('
                 INSERT INTO cron_notifikasi_log
                     (jenis, periode, terkirim, percobaan, catatan, created_at, updated_at)
                 VALUES (?, ?, ?, 1, ?, ?, ?)
@@ -1597,7 +1630,7 @@ class CronControllerController extends BaseController
                     percobaan = percobaan + 1,
                     catatan   = VALUES(catatan),
                     updated_at = VALUES(updated_at)
-            ", [
+            ', [
                 $jenis,
                 $periode,
                 $terkirimInt,
@@ -1611,8 +1644,9 @@ class CronControllerController extends BaseController
             // Penjaga idempotensi tidak boleh menggagalkan pengiriman yang
             // sendiri bisa saja berhasil. Lebih baik kirim dobel daripada
             // tidak terkirim sama sekali — dan operator melihat log error ini.
-            Log::error('[Cron] gagal mencatat idempotensi ' . $jenis . '/' . $periode
-                . ': ' . $e->getMessage());
+            Log::error('[Cron] gagal mencatat idempotensi '.$jenis.'/'.$periode
+                .': '.$e->getMessage());
+
             return false;
         }
     }
@@ -1641,10 +1675,10 @@ class CronControllerController extends BaseController
      */
     private function notifikasiCronTerkirim(string $jenis, string $periode): bool
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('cron_notifikasi_log')) {
+            if (! Schema::hasTable('cron_notifikasi_log')) {
                 return false;
             }
             $row = $db->table('cron_notifikasi_log')
@@ -1654,8 +1688,9 @@ class CronControllerController extends BaseController
 
             return $row !== null && (int) $row->terkirim === 1;
         } catch (\Throwable $e) {
-            Log::error('[Cron] gagal membaca idempotensi ' . $jenis . '/' . $periode
-                . ': ' . $e->getMessage());
+            Log::error('[Cron] gagal membaca idempotensi '.$jenis.'/'.$periode
+                .': '.$e->getMessage());
+
             // Tidak diketahui != sudah terkirim. Mengirim ulang lebih baik
             // daripada diam-diam tidak mengirim.
             return false;
@@ -1684,17 +1719,17 @@ class CronControllerController extends BaseController
         // status_pulang ikut diperiksa karena dinas/WFH bisa tercatat di kolom
         // itu sementara status_masuk masih ONTIME/LATE.
         $forgotList = $db->table('absensi_harian as a')
-            ->select('a.id, a.user_id, mg.nama_guru')
-            ->join('master_guru as mg', 'mg.id_user = a.user_id')
+            ->select('a.id', 'a.user_id', 'mg.nama_guru')
+            ->join('master_guru as mg', 'mg.id_user', '=', 'a.user_id')
             ->where('a.tgl', $today)
             ->whereRaw('a.jam_masuk IS NOT NULL')
             ->whereRaw('a.jam_pulang IS NULL')
-            ->where(\App\Services\AttendancePolicy::sqlBebasPulangStatus('a.status_masuk'), null, false)
-            ->where(\App\Services\AttendancePolicy::sqlBebasPulangStatus('a.status_pulang'), null, false)
+            ->whereRaw(AttendancePolicy::sqlBebasPulangStatus('a.status_masuk'))
+            ->whereRaw(AttendancePolicy::sqlBebasPulangStatus('a.status_pulang'))
             ->get();
 
-        $count      = 0;
-        $berhasil   = 0;
+        $count = 0;
+        $berhasil = 0;
         $gagalNames = [];
 
         foreach ($forgotList as $rec) {
@@ -1707,7 +1742,7 @@ class CronControllerController extends BaseController
             // periode VARCHAR(20): 'lupa_' + 8 digit + '_' + user_id.
             // Kunci lama ('lupa_<id>' tanpa tanggal) selamanya mengunci
             // guru itu — pengingat besok tidak akan pernah terkirim lagi.
-            $kunciLupa = 'lupa_' . date('Ymd') . '_' . (int) $rec->user_id;
+            $kunciLupa = 'lupa_'.date('Ymd').'_'.(int) $rec->user_id;
             if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('lupa_checkout', $kunciLupa)) {
                 continue;
             }
@@ -1723,7 +1758,7 @@ class CronControllerController extends BaseController
             } catch (\Throwable $e) {
                 $gagalNames[] = $rec->nama_guru;
                 $this->catatNotifikasiCron('lupa_checkout', $kunciLupa, false, $e->getMessage());
-                $this->logCronFailure('Lupa check-out ' . $rec->nama_guru, $e->getMessage());
+                $this->logCronFailure('Lupa check-out '.$rec->nama_guru, $e->getMessage());
             }
         }
 
@@ -1732,7 +1767,7 @@ class CronControllerController extends BaseController
         if ($gagalNames !== []) {
             $this->logCronFailure(
                 'Lupa check-out',
-                count($gagalNames) . ' dari ' . $count . ' kiriman gagal: ' . implode(', ', array_slice($gagalNames, 0, 5))
+                count($gagalNames).' dari '.$count.' kiriman gagal: '.implode(', ', array_slice($gagalNames, 0, 5))
             );
 
             return sprintf(
@@ -1770,14 +1805,14 @@ class CronControllerController extends BaseController
     private function penaltiGuruLupaPulang($db, $setting): string
     {
         $today = date('Y-m-d');
-        $poin  = max(0, (int) ($setting->point_lupa_pulang ?? 5));
+        $poin = max(0, (int) ($setting->point_lupa_pulang ?? 5));
 
         if ($poin === 0) {
             return 'Penalti tidak absen pulang guru: dilewati (point_lupa_pulang = 0)';
         }
 
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+            if (! Schema::hasTable('absensi_harian')) {
                 return 'Skip: tabel absensi_harian tidak ada';
             }
             if (! $this->pastikanKolom($db, 'absensi_harian', 'pulang_tidak_tercatat', [
@@ -1786,13 +1821,13 @@ class CronControllerController extends BaseController
                 'type' => 'INT', 'constraint' => 11, 'default' => 0, 'null' => false,
             ])) {
                 return 'GAGAL: kolom penalti tidak absen pulang tidak ada dan tidak bisa dibuat '
-                    . '— jalankan migration AddPenaltiLupaPulangGuru';
+                    .'— jalankan migration AddPenaltiLupaPulangGuru';
             }
             if (! $this->pastikanKolom($db, 'absensi_setting', 'lupa_pulang_dari_tgl', [
                 'type' => 'DATE', 'null' => true, 'default' => null,
             ])) {
                 return 'GAGAL: kolom lupa_pulang_dari_tgl tidak ada dan tidak bisa dibuat '
-                    . '— jalankan migration AddPenaltiLupaPulangGuru';
+                    .'— jalankan migration AddPenaltiLupaPulangGuru';
             }
 
             $dari = trim((string) ($setting->lupa_pulang_dari_tgl ?? ''));
@@ -1800,31 +1835,31 @@ class CronControllerController extends BaseController
                 $db->table('absensi_setting')->where('id', (int) $setting->id)
                     ->update(['lupa_pulang_dari_tgl' => $today]);
 
-                return 'Penalti tidak absen pulang guru: mulai dihitung dari ' . $today
-                    . ' (' . $poin . ' poin/hari; baris sebelumnya tidak dipotong)';
+                return 'Penalti tidak absen pulang guru: mulai dihitung dari '.$today
+                    .' ('.$poin.' poin/hari; baris sebelumnya tidak dipotong)';
             }
 
             $kemarin = date('Y-m-d', strtotime('-1 day'));
-            $batas   = max($dari, date('Y-m-d', strtotime('-60 day')));
+            $batas = max($dari, date('Y-m-d', strtotime('-60 day')));
 
             $kandidat = $db->table('absensi_harian')
-                ->select('id, user_id, tgl')
+                ->select('id', 'user_id', 'tgl')
                 ->where('tgl', '>=', $batas)
                 ->where('tgl', '<=', $kemarin)
-                ->where("(jam_masuk IS NOT NULL AND jam_masuk <> '0000-00-00 00:00:00')", null, false)
-                ->where("(jam_pulang IS NULL OR jam_pulang = '0000-00-00 00:00:00')", null, false)
+                ->whereRaw("(jam_masuk IS NOT NULL AND jam_masuk <> '0000-00-00 00:00:00')")
+                ->whereRaw("(jam_pulang IS NULL OR jam_pulang = '0000-00-00 00:00:00')")
                 ->where('pulang_tidak_tercatat', 0)
-                ->where(\App\Services\AttendancePolicy::sqlBebasPulangStatus('status_masuk'), null, false)
-                ->where(\App\Services\AttendancePolicy::sqlBebasPulangStatus('status_pulang'), null, false)
+                ->whereRaw(AttendancePolicy::sqlBebasPulangStatus('status_masuk'))
+                ->whereRaw(AttendancePolicy::sqlBebasPulangStatus('status_pulang'))
                 ->orderBy('tgl', 'ASC')
                 ->get();
 
-            $dipotong  = 0;
+            $dipotong = 0;
             $syncGagal = 0;
             $gagalTulis = 0;
 
             foreach ($kandidat as $r) {
-                \Illuminate\Support\Facades\DB::beginTransaction();
+                DB::beginTransaction();
                 try {
                     // points = points - N dikerjakan di sisi database, bukan
                     // baca-ubah-tulis: absen pulang yang tercatat di detik yang
@@ -1843,43 +1878,45 @@ class CronControllerController extends BaseController
                     );
 
                     if (1 === 0) {
-                        \Illuminate\Support\Facades\DB::commit();
+                        DB::commit();
+
                         continue;
                     }
 
-                    $poinModel = new \App\Models\PoinHistoryModel();
+                    $poinModel = new PoinHistoryModel;
                     if (! $poinModel->syncAttendancePoint($r->id)) {
                         $syncGagal++;
                     }
 
-                    \Illuminate\Support\Facades\DB::commit();
+                    DB::commit();
                     $dipotong++;
                 } catch (\Throwable $e) {
                     try {
-                        \Illuminate\Support\Facades\DB::rollBack();
+                        DB::rollBack();
                     } catch (\Throwable $e2) {
                     }
                     $gagalTulis++;
                     Log::error('[Cron] penalti lupa pulang guru user '
-                        . $r->user_id . ' tgl ' . $r->tgl . ': ' . $e->getMessage());
+                        .$r->user_id.' tgl '.$r->tgl.': '.$e->getMessage());
                 }
             }
 
             if ($dipotong > 0) {
                 $this->catatAudit(
-                    'Cron: Memotong ' . $poin . ' poin untuk ' . $dipotong
-                    . ' hari guru tanpa absen pulang (' . $batas . '…' . $kemarin . ')',
+                    'Cron: Memotong '.$poin.' poin untuk '.$dipotong
+                    .' hari guru tanpa absen pulang ('.$batas.'…'.$kemarin.')',
                     $dipotong
                 );
             }
 
-            return 'Penalti tidak absen pulang guru: ' . $dipotong . ' baris (-' . $poin
-                . ' poin) (' . $batas . '…' . $kemarin . ')'
-                . ($syncGagal > 0 ? " — {$syncGagal} sinkronisasi poin_history gagal, periksa log" : '')
-                . ($gagalTulis > 0 ? " — GAGAL: {$gagalTulis} baris tidak tertulis" : '');
+            return 'Penalti tidak absen pulang guru: '.$dipotong.' baris (-'.$poin
+                .' poin) ('.$batas.'…'.$kemarin.')'
+                .($syncGagal > 0 ? " — {$syncGagal} sinkronisasi poin_history gagal, periksa log" : '')
+                .($gagalTulis > 0 ? " — GAGAL: {$gagalTulis} baris tidak tertulis" : '');
         } catch (\Throwable $e) {
-            Log::error('[Cron] penaltiGuruLupaPulang: ' . $e->getMessage());
-            return 'GAGAL: penalti tidak absen pulang guru (' . $e->getMessage() . ')';
+            Log::error('[Cron] penaltiGuruLupaPulang: '.$e->getMessage());
+
+            return 'GAGAL: penalti tidak absen pulang guru ('.$e->getMessage().')';
         }
     }
 
@@ -1897,26 +1934,33 @@ class CronControllerController extends BaseController
      */
     private function generateSemesterRekap($db, $setting, int $tahun = 0, int $semester = 0): string
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('absensi_rekap_semester')) {
+        if (! Schema::hasTable('absensi_rekap_semester')) {
             return 'GAGAL: tabel absensi_rekap_semester tidak ada — jalankan php spark migrate.';
         }
 
-        if ($tahun < 2000 || $tahun > 2100) $tahun = (int) date('Y');
-        if (!in_array($semester, [1, 2], true)) $semester = ((int) date('m') >= 7) ? 1 : 2;
+        if ($tahun < 2000 || $tahun > 2100) {
+            $tahun = (int) date('Y');
+        }
+        if (! in_array($semester, [1, 2], true)) {
+            $semester = ((int) date('m') >= 7) ? 1 : 2;
+        }
 
         // Semester: 1 = Juli-Des (ganjil), 2 = Jan-Jun (genap)
-        $startBulan  = ($semester === 1) ? 7 : 1;
-        $endBulan    = ($semester === 1) ? 12 : 6;
-        $startDate   = sprintf('%04d-%02d-01', $tahun, $startBulan);
-        $endDate     = date('Y-m-t', mktime(0, 0, 0, $endBulan, 1, $tahun));
-        $today       = date('Y-m-d');
-        $isPartial   = false;
-        if ($endDate > $today) { $endDate = $today; $isPartial = true; }
+        $startBulan = ($semester === 1) ? 7 : 1;
+        $endBulan = ($semester === 1) ? 12 : 6;
+        $startDate = sprintf('%04d-%02d-01', $tahun, $startBulan);
+        $endDate = date('Y-m-t', mktime(0, 0, 0, $endBulan, 1, $tahun));
+        $today = date('Y-m-d');
+        $isPartial = false;
+        if ($endDate > $today) {
+            $endDate = $today;
+            $isPartial = true;
+        }
 
         $guruList = $db->table('users as u')
-            ->select('u.id, g.id_guru, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.id_guru', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->get();
@@ -1929,7 +1973,7 @@ class CronControllerController extends BaseController
         $cur = strtotime($startDate);
         $endTs = strtotime($endDate);
         while ($cur <= $endTs) {
-            if (!\App\Services\AttendancePolicy::isLibur(date('Y-m-d', $cur))) {
+            if (! AttendancePolicy::isLibur(date('Y-m-d', $cur))) {
                 $effDays++;
             }
             $cur = strtotime('+1 day', $cur);
@@ -1937,10 +1981,10 @@ class CronControllerController extends BaseController
 
         $count = 0;
         $statsByUser = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_harian')) {
+        if (Schema::hasTable('absensi_harian')) {
             $statsByUser = $db->table('absensi_harian')
-                ->select("
-                    user_id,
+                ->select('user_id')
+                ->selectRaw("
                     SUM(CASE WHEN status_masuk IN ('ONTIME','LATE','WFH') THEN 1 ELSE 0 END) as hadir_biasa,
                     SUM(CASE WHEN status_masuk = 'LATE' THEN 1 ELSE 0 END) as telat,
                     SUM(CASE WHEN status_masuk IN ('IJIN','IZIN') THEN 1 ELSE 0 END) as izin,
@@ -1966,7 +2010,7 @@ class CronControllerController extends BaseController
         }
 
         $now = date('Y-m-d H:i:s');
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         foreach ($guruList as $guru) {
             $recs = $stats[$guru->id] ?? (object) [
@@ -1979,13 +2023,15 @@ class CronControllerController extends BaseController
             // Dinas resmi = HADIR (guru bertugas, bukan bolos)
             $hadir = (int) ($recs->hadir_biasa ?? 0) + (int) ($recs->dinas ?? 0);
             // Batas atas: satu baris per hari, hadir tak boleh melebihi hari efektif
-            if ($hadir > $effDays) $hadir = $effDays;
+            if ($hadir > $effDays) {
+                $hadir = $effDays;
+            }
 
-            $izin         = (int) ($recs->izin ?? 0);
-            $sakit        = (int) ($recs->sakit ?? 0);
-            $cuti         = (int) ($recs->cuti ?? 0);
+            $izin = (int) ($recs->izin ?? 0);
+            $sakit = (int) ($recs->sakit ?? 0);
+            $cuti = (int) ($recs->cuti ?? 0);
             $dinasPending = (int) ($recs->dinas_pending ?? 0);
-            $dinasOk      = (int) ($recs->dinas ?? 0);
+            $dinasOk = (int) ($recs->dinas ?? 0);
             // Antrean verifikasi masih terbuka: bukan hadir, bukan alpha
             // (kebijakan yang sama dipakai Dashboard dan AttendancePenaltyService).
             $pendingVerif = (int) ($recs->pending_verifikasi ?? 0);
@@ -1995,31 +2041,34 @@ class CronControllerController extends BaseController
             // Tanpa $pendingVerif di sisi kanan, hari yang menunggu verifikasi
             // diam-diam dihitung alpha di sini — beda dari halaman rekap harian
             // dan beda dari surat teguran.
-            $alpha  = $effDays - $hadir - $izin - $sakit - $cuti - $dinasPending - $pendingVerif;
-            $alpha  = max(0, $alpha);
+            $alpha = $effDays - $hadir - $izin - $sakit - $cuti - $dinasPending - $pendingVerif;
+            $alpha = max(0, $alpha);
             $persen = $effDays > 0 ? round(($hadir / $effDays) * 100, 2) : 100.0;
 
             $kelayakan = 'layak';
-            if ($persen < $minPersen - 10) $kelayakan = 'tidak_layak';
-            elseif ($persen < $minPersen)  $kelayakan = 'perhatian';
+            if ($persen < $minPersen - 10) {
+                $kelayakan = 'tidak_layak';
+            } elseif ($persen < $minPersen) {
+                $kelayakan = 'perhatian';
+            }
 
             $data = [
-                'user_id'              => $guru->id,
-                'tahun'                => $tahun,
-                'semester'             => $semester,
-                'total_hari_efektif'   => $effDays,
-                'total_hadir'          => $hadir,
-                'total_telat'          => (int) ($recs->telat  ?? 0),
-                'total_izin'           => $izin,
-                'total_sakit'          => $sakit,
-                'total_alpha'          => $alpha,
-                'total_dinas'          => $dinasOk,
+                'user_id' => $guru->id,
+                'tahun' => $tahun,
+                'semester' => $semester,
+                'total_hari_efektif' => $effDays,
+                'total_hadir' => $hadir,
+                'total_telat' => (int) ($recs->telat ?? 0),
+                'total_izin' => $izin,
+                'total_sakit' => $sakit,
+                'total_alpha' => $alpha,
+                'total_dinas' => $dinasOk,
                 'persentase_kehadiran' => $persen,
-                'total_poin'           => (int) ($recs->total_poin  ?? 0),
-                'total_denda'          => (float) ($recs->total_denda ?? 0),
-                'status_kelayakan'     => $kelayakan,
-                'generated_at'         => $now,
-                'updated_at'           => $now,
+                'total_poin' => (int) ($recs->total_poin ?? 0),
+                'total_denda' => (float) ($recs->total_denda ?? 0),
+                'status_kelayakan' => $kelayakan,
+                'generated_at' => $now,
+                'updated_at' => $now,
             ];
 
             // Upsert
@@ -2041,13 +2090,14 @@ class CronControllerController extends BaseController
             $count++;
         }
 
-        \Illuminate\Support\Facades\DB::commit();
+        DB::commit();
 
         if (true === false) {
             return "Gagal menyimpan rekap semester {$semester}/{$tahun} (transaksi dibatalkan)";
         }
 
         $suffix = $isPartial ? ' (parsial s/d hari ini)' : '';
+
         return "Semester rekap generated: {$count} guru (Semester {$semester}/{$tahun}, {$effDays} hari efektif{$suffix})";
     }
 
@@ -2061,7 +2111,7 @@ class CronControllerController extends BaseController
      */
     public function weeklyDendaRecap()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
@@ -2071,8 +2121,8 @@ class CronControllerController extends BaseController
 
         // Periode: Senin – Sabtu minggu ini
         $saturday = ($dayName === 'Sat') ? $today : date('Y-m-d', strtotime('last Saturday'));
-        $monday   = date('Y-m-d', strtotime('-5 days', strtotime($saturday)));
-        $periode  = date('d/m/Y', strtotime($monday)) . ' – ' . date('d/m/Y', strtotime($saturday));
+        $monday = date('Y-m-d', strtotime('-5 days', strtotime($saturday)));
+        $periode = date('d/m/Y', strtotime($monday)).' – '.date('d/m/Y', strtotime($saturday));
 
         // Pengamanan: periode tidak boleh kosong / tidak ter-parse agar
         // kunci idempotensi (`denda_mingguan_<tgl>`) selalu valid dan unik.
@@ -2080,18 +2130,19 @@ class CronControllerController extends BaseController
             || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $saturday)
             || strtotime($monday) === false
             || strtotime($saturday) === false) {
-            Log::error('[Cron] weeklyDendaRecap periode tidak valid: monday=' . $monday . ', saturday=' . $saturday);
+            Log::error('[Cron] weeklyDendaRecap periode tidak valid: monday='.$monday.', saturday='.$saturday);
+
             return $this->response
                 ->setStatusCode(500)
                 ->setBody('Weekly denda recap: GAGAL menentukan periode Sabtu (tanggal tidak valid).');
         }
 
-        $result  = $this->sendDendaRecap($monday, $saturday, $periode, $this->dimintaForce());
-        $failed  = $this->isSendFailure($result);
+        $result = $this->sendDendaRecap($monday, $saturday, $periode, $this->dimintaForce());
+        $failed = $this->isSendFailure($result);
 
         return $this->response
             ->setStatusCode($failed ? 500 : 200)
-            ->setBody('Weekly denda recap: ' . date('Y-m-d H:i:s') . ' | ' . $result);
+            ->setBody('Weekly denda recap: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -2110,21 +2161,21 @@ class CronControllerController extends BaseController
      */
     public function monthlyPdf()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
         [$bulan, $tahun, $paramError] = $this->targetPeriodePdf();
         if ($paramError !== null) {
-            return $this->response->setStatusCode(400)->setBody('PARAM: ' . $paramError);
+            return $this->response->setStatusCode(400)->setBody('PARAM: '.$paramError);
         }
 
-        $force   = $this->dimintaForce();
+        $force = $this->dimintaForce();
         $periode = sprintf('%04d-%02d', $tahun, $bulan);
-        $label   = $this->namaBulanIndonesia((int) $bulan) . ' ' . $tahun;
+        $label = $this->namaBulanIndonesia((int) $bulan).' '.$tahun;
 
-        $pdfService = new \App\Services\RekapPdfService();
-        $baris      = [];
+        $pdfService = new RekapPdfService;
+        $baris = [];
 
         // Presensi — PDF landscape per guru
         $baris[] = $this->kirimSatuPdfBulanan(
@@ -2134,7 +2185,7 @@ class CronControllerController extends BaseController
             $periode,
             $label,
             'presensi',
-            static fn() => $pdfService->buildRekapBulananPdf($bulan, $tahun),
+            static fn () => $pdfService->buildRekapBulananPdf($bulan, $tahun),
             "<b>📋 REKAP PRESENSI GURU</b>\nPeriode: {$label}",
             'rekap_presensi_',
             $force
@@ -2148,18 +2199,18 @@ class CronControllerController extends BaseController
             $periode,
             $label,
             'denda',
-            static fn() => $pdfService->buildDendaPdf($bulan, $tahun),
+            static fn () => $pdfService->buildDendaPdf($bulan, $tahun),
             "<b>📄 REKAP DENDA PRESENSI</b>\nPeriode: {$label}",
             'rekap_denda_',
             $force
         );
 
         $gabungan = implode("\n", $baris);
-        $gagal    = $this->isSendFailure($gabungan);
+        $gagal = $this->isSendFailure($gabungan);
 
         return $this->response
             ->setStatusCode($gagal ? 500 : 200)
-            ->setBody('Monthly PDF ' . $label . ': ' . date('Y-m-d H:i:s') . "\n" . $gabungan);
+            ->setBody('Monthly PDF '.$label.': '.date('Y-m-d H:i:s')."\n".$gabungan);
     }
 
     /**
@@ -2201,7 +2252,7 @@ class CronControllerController extends BaseController
     public static function bulanLaluDari(string $ymd): array
     {
         $jangkar = date('Y-m-01', strtotime($ymd));
-        $prev    = strtotime($jangkar . ' -1 month');
+        $prev = strtotime($jangkar.' -1 month');
 
         return [date('m', $prev), date('Y', $prev)];
     }
@@ -2209,12 +2260,12 @@ class CronControllerController extends BaseController
     /**
      * Bangun + kirim SATU pdf bulanan, dengan idempotensi + channel guard.
      *
-     * @param callable $bangun  Tanpa argumen, mengembalikan array hasil builder
-     *                          ['pdf'=>string,'filename'=>string,'jumlah_guru'=>int]
+     * @param  callable  $bangun  Tanpa argumen, mengembalikan array hasil builder
+     *                            ['pdf'=>string,'filename'=>string,'jumlah_guru'=>int]
      * @return string Satu baris log (jujur: GAGAL hanya bila benar-benar gagal)
      */
     private function kirimSatuPdfBulanan(
-        \App\Services\RekapPdfService $pdfService,
+        RekapPdfService $pdfService,
         string $jenisLog,
         string $jenisChannel,
         string $periode,
@@ -2225,40 +2276,40 @@ class CronControllerController extends BaseController
         string $prefixFile,
         bool $force
     ): string {
-        if ($skip = $this->grupDinonaktifkan($jenisChannel, 'PDF ' . $namaJenis . ' ' . $label)) {
+        if ($skip = $this->grupDinonaktifkan($jenisChannel, 'PDF '.$namaJenis.' '.$label)) {
             return $skip;
         }
 
         if (! $force && $this->notifikasiCronTerkirim($jenisLog, $periode)) {
             return "PDF {$namaJenis} {$label} sudah terkirim sebelumnya, dilewati. "
-                . 'Gunakan /cron/monthly-pdf?force=1 untuk mengirim ulang.';
+                .'Gunakan /cron/monthly-pdf?force=1 untuk mengirim ulang.';
         }
 
         try {
             $hasil = $bangun();
         } catch (\Throwable $e) {
-            $this->logCronFailure('PDF ' . $namaJenis . ' ' . $label, $e->getMessage());
+            $this->logCronFailure('PDF '.$namaJenis.' '.$label, $e->getMessage());
             $this->catatNotifikasiCron($jenisLog, $periode, false, $e->getMessage());
 
-            return "PDF {$namaJenis} {$label} GAGAL disusun: " . $e->getMessage();
+            return "PDF {$namaJenis} {$label} GAGAL disusun: ".$e->getMessage();
         }
 
         if (($hasil['jumlah_guru'] ?? 0) === 0) {
             $alasan = 'tidak ada guru aktif — PDF kosong, tidak dikirim';
-            $this->logCronFailure('PDF ' . $namaJenis . ' ' . $label, $alasan);
+            $this->logCronFailure('PDF '.$namaJenis.' '.$label, $alasan);
             $this->catatNotifikasiCron($jenisLog, $periode, false, $alasan);
 
-            return "PDF {$namaJenis} {$label} GAGAL: " . $alasan . '.';
+            return "PDF {$namaJenis} {$label} GAGAL: ".$alasan.'.';
         }
 
         // PDF perlu file di disk: Telegram multipart dan OpenWA membaca
         // dari path, bukan dari string. Nama acak supaya tidak bisa ditebak
         // dari luar dan tidak bentrok antar request.
-        $dir = storage_path('app') . '/' . 'uploads';
+        $dir = storage_path('app').'/'.'uploads';
         if (! is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
-        $path = $dir . '/' . $prefixFile . bin2hex(random_bytes(8)) . '.pdf';
+        $path = $dir.'/'.$prefixFile.bin2hex(random_bytes(8)).'.pdf';
 
         try {
             if (@file_put_contents($path, $hasil['pdf']) === false) {
@@ -2269,13 +2320,13 @@ class CronControllerController extends BaseController
                 $jenisChannel,
                 $path,
                 $hasil['filename'],
-                $caption . "\n" . 'Total guru: ' . $hasil['jumlah_guru'] . ' orang'
+                $caption."\n".'Total guru: '.$hasil['jumlah_guru'].' orang'
             );
         } catch (\Throwable $e) {
-            $this->logCronFailure('PDF ' . $namaJenis . ' ' . $label, $e->getMessage());
+            $this->logCronFailure('PDF '.$namaJenis.' '.$label, $e->getMessage());
             $this->catatNotifikasiCron($jenisLog, $periode, false, $e->getMessage());
 
-            return "PDF {$namaJenis} {$label} GAGAL: " . $e->getMessage();
+            return "PDF {$namaJenis} {$label} GAGAL: ".$e->getMessage();
         } finally {
             // PDF memuat data tiap guru — hapus segera, di semua jalur.
             if (isset($path) && is_file($path)) {
@@ -2284,12 +2335,12 @@ class CronControllerController extends BaseController
         }
 
         if (! ($kirim['telegram'] || $kirim['whatsapp'])) {
-            $alasan = 'Telegram: ' . ($kirim['telegram_error'] ?? '?')
-                . ' | WhatsApp: ' . ($kirim['whatsapp_error'] ?? '?');
-            $this->logCronFailure('PDF ' . $namaJenis . ' ' . $label, $alasan);
+            $alasan = 'Telegram: '.($kirim['telegram_error'] ?? '?')
+                .' | WhatsApp: '.($kirim['whatsapp_error'] ?? '?');
+            $this->logCronFailure('PDF '.$namaJenis.' '.$label, $alasan);
             $this->catatNotifikasiCron($jenisLog, $periode, false, $alasan);
 
-            return "PDF {$namaJenis} {$label} GAGAL: " . $alasan;
+            return "PDF {$namaJenis} {$label} GAGAL: ".$alasan;
         }
 
         $this->catatNotifikasiCron($jenisLog, $periode, true);
@@ -2302,8 +2353,8 @@ class CronControllerController extends BaseController
             $lewat[] = 'WhatsApp';
         }
 
-        return "PDF {$namaJenis} {$label} terkirim via " . implode(' + ', $lewat)
-            . " ({$hasil['jumlah_guru']} guru).";
+        return "PDF {$namaJenis} {$label} terkirim via ".implode(' + ', $lewat)
+            ." ({$hasil['jumlah_guru']} guru).";
     }
 
     private function namaBulanIndonesia(int $bulan): string
@@ -2343,19 +2394,20 @@ class CronControllerController extends BaseController
     private function catatAudit(string $action, ?int $recordId = null): void
     {
         try {
-            if (! class_exists(\App\Models\AuditLogModel::class)) {
+            if (! class_exists(AuditLogModel::class)) {
                 return;
             }
-            $model = new \App\Models\AuditLogModel();
+            $model = new AuditLogModel;
             if (! method_exists($model, 'log')) {
                 // Nama method pernah beda antar versi; jangan diam-diam
                 // hilang jejak tanpa memberi tahu.
                 Log::debug('[Cron] AuditLogModel tidak punya method log(); audit dilewati.');
+
                 return;
             }
             $model->log('cron', $recordId ?? 0, $action, null, null, null, null, 'cron otomatis');
         } catch (\Throwable $e) {
-            Log::error('[Cron] gagal menulis audit log: ' . $e->getMessage());
+            Log::error('[Cron] gagal menulis audit log: '.$e->getMessage());
         }
     }
 
@@ -2372,7 +2424,7 @@ class CronControllerController extends BaseController
      */
     public function ucapanPagi()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
@@ -2390,19 +2442,19 @@ class CronControllerController extends BaseController
         // Penjaga idempotensi mencegah pengulangan yang tidak disengaja;
         // ?force=1 tetap tersedia untuk uji varian yang memang dimaksudkan.
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ucapan_pagi', $tanggal)) {
-            return $this->response->setBody('Ucapan pagi untuk ' . $tanggal
-                . ' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
+            return $this->response->setBody('Ucapan pagi untuk '.$tanggal
+                .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
         }
 
-        $svc  = new HariSekolahService();
+        $svc = new HariSekolahService;
         $info = $svc->status($tanggal);
 
         $info['tanggal_panjang'] = $svc->tanggalPanjang($tanggal);
-        $info['jam_masuk']       = $this->jamMasukHariIni($tanggal);
+        $info['jam_masuk'] = $this->jamMasukHariIni($tanggal);
 
         $peringatan = $svc->peringatanKalender($tanggal);
         if ($peringatan !== null) {
-            Log::warning('[UcapanPagi] ' . $peringatan);
+            Log::warning('[UcapanPagi] '.$peringatan);
         }
 
         try {
@@ -2411,7 +2463,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan pagi', $e->getMessage());
             $this->catatNotifikasiCron('ucapan_pagi', $tanggal, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2421,7 +2473,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan pagi', $reason);
             $this->catatNotifikasiCron('ucapan_pagi', $tanggal, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: ' . $reason);
+            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('ucapan_pagi', $tanggal, true);
@@ -2430,7 +2482,7 @@ class CronControllerController extends BaseController
             'Ucapan pagi terkirim — %s (%s) %s',
             $info['tanggal_panjang'],
             $info['status'],
-            $peringatan !== null ? '| PERINGATAN: ' . $peringatan : ''
+            $peringatan !== null ? '| PERINGATAN: '.$peringatan : ''
         ));
     }
 
@@ -2447,21 +2499,21 @@ class CronControllerController extends BaseController
      */
     public function ucapanSore()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
         $tanggal = date('Y-m-d');
-        $svc     = new HariSekolahService();
-        $info    = ['tanggal_panjang' => $svc->tanggalPanjang($tanggal)];
+        $svc = new HariSekolahService;
+        $info = ['tanggal_panjang' => $svc->tanggalPanjang($tanggal)];
 
         // Sumber status yang SAMA dengan ucapan pagi (mingguan → jadwal →
         // kalender). Bukan hari kerja = tidak ada yang perlu dipulangkan.
         $statusHari = $svc->status($tanggal);
         if (($statusHari['status'] ?? HariSekolahService::AKTIF) !== HariSekolahService::AKTIF) {
             return $this->response->setBody(
-                'Ucapan sore dilewati: ' . $info['tanggal_panjang']
-                . ' bukan hari kerja sekolah (' . ($statusHari['keterangan'] ?? $statusHari['status']) . ').'
+                'Ucapan sore dilewati: '.$info['tanggal_panjang']
+                .' bukan hari kerja sekolah ('.($statusHari['keterangan'] ?? $statusHari['status']).').'
             );
         }
 
@@ -2470,8 +2522,8 @@ class CronControllerController extends BaseController
         }
 
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ucapan_sore', $tanggal)) {
-            return $this->response->setBody('Ucapan sore untuk ' . $tanggal
-                . ' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
+            return $this->response->setBody('Ucapan sore untuk '.$tanggal
+                .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
         }
 
         try {
@@ -2480,7 +2532,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan sore', $e->getMessage());
             $this->catatNotifikasiCron('ucapan_sore', $tanggal, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2490,12 +2542,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan sore', $reason);
             $this->catatNotifikasiCron('ucapan_sore', $tanggal, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: ' . $reason);
+            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('ucapan_sore', $tanggal, true);
 
-        return $this->response->setBody('Ucapan sore terkirim — ' . $info['tanggal_panjang']);
+        return $this->response->setBody('Ucapan sore terkirim — '.$info['tanggal_panjang']);
     }
 
     /**
@@ -2506,7 +2558,7 @@ class CronControllerController extends BaseController
      */
     public function apelKesadaran()
     {
-        if (!$this->validateKey()) {
+        if (! $this->validateKey()) {
             return $this->response->setStatusCode(403)->setBody('Invalid key');
         }
 
@@ -2514,9 +2566,9 @@ class CronControllerController extends BaseController
         $tglHariIni = (int) date('j', strtotime($tanggal));
 
         // Hanya dikirim pada tanggal 16 (kecuali dengan ?force=1 untuk pengujian manual)
-        if ($tglHariIni !== 16 && !$this->dimintaForce()) {
+        if ($tglHariIni !== 16 && ! $this->dimintaForce()) {
             return $this->response->setBody(
-                'Pengingat Apel Kesadaran hanya dijalankan pada tanggal 16 setiap bulan (hari ini tanggal ' . $tglHariIni . '). Gunakan ?force=1 untuk pengujian.'
+                'Pengingat Apel Kesadaran hanya dijalankan pada tanggal 16 setiap bulan (hari ini tanggal '.$tglHariIni.'). Gunakan ?force=1 untuk pengujian.'
             );
         }
 
@@ -2527,25 +2579,25 @@ class CronControllerController extends BaseController
         }
 
         $bulanNum = (int) date('n', $tsBesok);
-        $tahun    = date('Y', $tsBesok);
+        $tahun = date('Y', $tsBesok);
         $namaBulan = $this->namaBulanIndonesia($bulanNum);
-        $tgl17Text = '17 ' . $namaBulan . ' ' . $tahun;
-        $kunciPeriode = 'apel_kesadaran_' . date('Y-m', $tsBesok);
+        $tgl17Text = '17 '.$namaBulan.' '.$tahun;
+        $kunciPeriode = 'apel_kesadaran_'.date('Y-m', $tsBesok);
 
         if ($skip = $this->grupDinonaktifkan('apel_kesadaran', 'Pengingat Apel Kesadaran')) {
             return $this->response->setBody($skip);
         }
 
-        if (!$this->dimintaForce() && $this->notifikasiCronTerkirim('apel_kesadaran', $kunciPeriode)) {
+        if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('apel_kesadaran', $kunciPeriode)) {
             return $this->response->setBody(
-                'Pengingat Apel Kesadaran KORPRI untuk ' . $tgl17Text
-                . ' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.'
+                'Pengingat Apel Kesadaran KORPRI untuk '.$tgl17Text
+                .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.'
             );
         }
 
         $info = [
             'tanggal_17' => $tgl17Text,
-            'jam'        => '07.15 WITA',
+            'jam' => '07.15 WITA',
         ];
 
         try {
@@ -2554,7 +2606,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Apel kesadaran', $e->getMessage());
             $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2564,12 +2616,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Apel kesadaran', $reason);
             $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: ' . $reason);
+            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, true);
 
-        return $this->response->setBody('Pengingat Apel Kesadaran KORPRI terkirim — ' . $tgl17Text);
+        return $this->response->setBody('Pengingat Apel Kesadaran KORPRI terkirim — '.$tgl17Text);
     }
 
     /**
@@ -2579,16 +2631,16 @@ class CronControllerController extends BaseController
     private function jamMasukHariIni(string $tanggal): string
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $iso = (int) date('N', strtotime($tanggal));
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
                 $row = $db->table('absensi_jadwal_kerja')->where('hari', $iso)->first();
                 if ($row !== null && ! empty($row->jam_masuk)) {
                     return substr((string) $row->jam_masuk, 0, 5);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[UcapanPagi] gagal membaca jam masuk: ' . $e->getMessage());
+            Log::error('[UcapanPagi] gagal membaca jam masuk: '.$e->getMessage());
         }
 
         $setting = $this->settingModel->first();
@@ -2602,17 +2654,17 @@ class CronControllerController extends BaseController
      * Rekap denda teks BULANAN (tgl 28) sudah dihapus: versi PDF-nya
      * (tgl 1 via monthlyPdf) yang dipakai. Method ini khusus mingguan.
      *
-     * @param string $startDate Format Y-m-d (Senin)
-     * @param string $endDate   Format Y-m-d (Sabtu)
-     * @param string $periode   Label periode untuk ditampilkan
+     * @param  string  $startDate  Format Y-m-d (Senin)
+     * @param  string  $endDate  Format Y-m-d (Sabtu)
+     * @param  string  $periode  Label periode untuk ditampilkan
      * @return string Log message
      */
     private function sendDendaRecap(string $startDate, string $endDate, string $periode, bool $force = false): string
     {
-        $db      = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $setting = $this->settingModel->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php spark migrate dan isi lewat Pengaturan.';
         }
 
@@ -2624,7 +2676,7 @@ class CronControllerController extends BaseController
         // pesan: label bisa berisi nama bulan bahasa Inggris untuk periode
         // yang tidak valid, sehingga tidak bisa dipakai sebagai kunci unik
         // yang stabil.
-        $kunciPeriode = 'denda_mingguan_' . $endDate;
+        $kunciPeriode = 'denda_mingguan_'.$endDate;
 
         if (! $force && $this->notifikasiCronTerkirim('rekap_denda', $kunciPeriode)) {
             return "Rekap denda mingguan untuk periode {$periode} sudah terkirim sebelumnya, dilewati.";
@@ -2632,9 +2684,9 @@ class CronControllerController extends BaseController
 
         // Ambil semua guru aktif beserta nama
         $guruList = $db->table('users as u')
-            ->select('u.id, g.nama_guru')
-            ->join('master_guru as g', 'g.id_user = u.id')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id', 'g.nama_guru')
+            ->join('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->get();
@@ -2648,12 +2700,12 @@ class CronControllerController extends BaseController
         //    konsisten dengan tabel admin/YTD). Tanpa ini, alpha yang belum
         //    dicatat cron tidak masuk rekap sehingga total selalu lebih kecil
         //    dari daftar denda.
-        $dendaHarianRaw = $db->select("
+        $dendaHarianRaw = $db->select('
             SELECT user_id, SUM(COALESCE(denda, 0)) as total
             FROM absensi_harian
             WHERE tgl >= ? AND tgl <= ?
             GROUP BY user_id
-        ", [$startDate, $endDate]);
+        ', [$startDate, $endDate]);
         $dendaHarianMap = [];
         foreach ($dendaHarianRaw as $r) {
             $dendaHarianMap[(int) $r->user_id] = (float) $r->total;
@@ -2661,14 +2713,14 @@ class CronControllerController extends BaseController
 
         $estimasiMingguMap = [];
         try {
-            $uidsEstimasi = array_map(static fn($g) => (int) $g->id, $guruList);
-            $estimasiBatch = (new \App\Services\AttendancePenaltyService())
+            $uidsEstimasi = array_map(static fn ($g) => (int) $g->id, $guruList);
+            $estimasiBatch = (new AttendancePenaltyService)
                 ->missingAlphaFinesBatch($uidsEstimasi, $startDate, $endDate, $setting, false);
             foreach ($estimasiBatch as $uidEstimasi => $ringkasEstimasi) {
                 $estimasiMingguMap[(int) $uidEstimasi] = (float) ($ringkasEstimasi['total'] ?? 0);
             }
         } catch (\Throwable $e) {
-            Log::error('[RekapDendaMingguan] estimasi alpha gagal: ' . $e->getMessage());
+            Log::error('[RekapDendaMingguan] estimasi alpha gagal: '.$e->getMessage());
         }
 
         // 2. Total pembayaran per guru dalam periode (kas: tanggal bayar).
@@ -2679,11 +2731,11 @@ class CronControllerController extends BaseController
         //    lebih besar dari kas sebenarnya.
         //    Split: TUNAI → saldo cash, POIN → potong dari poin.
         $dibayarMap = [];
-        $cashMap    = [];
-        $poinMap    = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('absensi_pembayaran_denda')) {
-            $hasTglBayar = \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'tanggal_bayar');
-            $hasNominalBayar = \Illuminate\Support\Facades\Schema::hasColumn('absensi_pembayaran_denda', 'nominal_bayar');
+        $cashMap = [];
+        $poinMap = [];
+        if (Schema::hasTable('absensi_pembayaran_denda')) {
+            $hasTglBayar = Schema::hasColumn('absensi_pembayaran_denda', 'tanggal_bayar');
+            $hasNominalBayar = Schema::hasColumn('absensi_pembayaran_denda', 'nominal_bayar');
 
             if ($hasTglBayar) {
                 $nominalCol = $hasNominalBayar
@@ -2712,9 +2764,9 @@ class CronControllerController extends BaseController
             }
 
             foreach ($bayarRaw as $r) {
-                $uid      = (int) $r->user_id;
-                $nominal  = (float) $r->total;
-                $kelasBayar = \App\Services\AttendancePenaltyService::kelasPembayaranDenda(
+                $uid = (int) $r->user_id;
+                $nominal = (float) $r->total;
+                $kelasBayar = AttendancePenaltyService::kelasPembayaranDenda(
                     $r->metode_bayar ?? null, null
                 );
                 $dibayarMap[$uid] = ($dibayarMap[$uid] ?? 0.0) + $nominal;
@@ -2732,56 +2784,56 @@ class CronControllerController extends BaseController
         //    semua guru, bukan N× pindai penuh.
         $sisaKanonikMap = [];
         try {
-            $uidsSisa = array_map(static fn($g) => (int) $g->id, $guruList);
-            $sisaKanonikMap = (new \App\Services\AttendancePenaltyService())->sisaDendaBatch($uidsSisa);
+            $uidsSisa = array_map(static fn ($g) => (int) $g->id, $guruList);
+            $sisaKanonikMap = (new AttendancePenaltyService)->sisaDendaBatch($uidsSisa);
         } catch (\Throwable $e) {
-            Log::error('[RekapDendaMingguan] sisa kanonik gagal: ' . $e->getMessage());
+            Log::error('[RekapDendaMingguan] sisa kanonik gagal: '.$e->getMessage());
         }
 
         // 4. Compile per guru (tanpa daftar sisa per guru di pesan — cukup
         //    agregat minggu ini + sisa akumulasi total).
-        $globalTotalDenda   = 0.0;
+        $globalTotalDenda = 0.0;
         $globalTotalDibayar = 0.0;
-        $globalCash         = 0.0;
-        $globalPoin         = 0.0;
-        $globalSisa         = 0.0;
+        $globalCash = 0.0;
+        $globalPoin = 0.0;
+        $globalSisa = 0.0;
         $details = [];
 
         foreach ($guruList as $guru) {
-            $uid          = (int) $guru->id;
+            $uid = (int) $guru->id;
             // Timbul minggu ini (kanonik) vs dibayar minggu ini (kas) vs
             // sisa akumulasi (kanonik lintas tahun, sama dengan tabel admin).
-            $totalDenda   = ($dendaHarianMap[$uid] ?? 0.0) + ($estimasiMingguMap[$uid] ?? 0.0);
+            $totalDenda = ($dendaHarianMap[$uid] ?? 0.0) + ($estimasiMingguMap[$uid] ?? 0.0);
             $totalDibayar = $dibayarMap[$uid] ?? 0.0;
-            $totalCash    = $cashMap[$uid] ?? 0.0;
-            $totalPoin    = $poinMap[$uid] ?? 0.0;
+            $totalCash = $cashMap[$uid] ?? 0.0;
+            $totalPoin = $poinMap[$uid] ?? 0.0;
             // Fallback minggu (basis lama) hanya bila hitung kanonik gagal.
-            $sisa         = array_key_exists($uid, $sisaKanonikMap)
+            $sisa = array_key_exists($uid, $sisaKanonikMap)
                 ? (float) $sisaKanonikMap[$uid]
                 : max(0.0, $totalDenda - $totalDibayar);
 
-            $globalTotalDenda   += $totalDenda;
+            $globalTotalDenda += $totalDenda;
             $globalTotalDibayar += $totalDibayar;
-            $globalCash         += $totalCash;
-            $globalPoin         += $totalPoin;
-            $globalSisa         += $sisa;
+            $globalCash += $totalCash;
+            $globalPoin += $totalPoin;
+            $globalSisa += $sisa;
 
             $details[] = [
-                'nama'          => $guru->nama_guru ?? 'Guru',
-                'total_denda'   => $totalDenda,
+                'nama' => $guru->nama_guru ?? 'Guru',
+                'total_denda' => $totalDenda,
                 'total_dibayar' => $totalDibayar,
-                'total_cash'    => $totalCash,
-                'total_poin'    => $totalPoin,
-                'sisa'          => $sisa,
+                'total_cash' => $totalCash,
+                'total_poin' => $totalPoin,
+                'sisa' => $sisa,
             ];
         }
 
         $summary = [
-            'total_denda'   => $globalTotalDenda,
+            'total_denda' => $globalTotalDenda,
             'total_dibayar' => $globalTotalDibayar,
-            'total_cash'    => $globalCash,
-            'total_poin'    => $globalPoin,
-            'sisa'          => $globalSisa,
+            'total_cash' => $globalCash,
+            'total_poin' => $globalPoin,
+            'sisa' => $globalSisa,
         ];
 
         // 5. Kirim notifikasi
@@ -2791,14 +2843,14 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Rekap denda mingguan', $e->getMessage());
             $this->catatNotifikasiCron('rekap_denda', $kunciPeriode, false, $e->getMessage());
 
-            return 'Notifikasi gagal: ' . $e->getMessage();
+            return 'Notifikasi gagal: '.$e->getMessage();
         }
 
-        $guruDenda = count(array_filter($details, static fn($d) => $d['total_denda'] > 0));
+        $guruDenda = count(array_filter($details, static fn ($d) => $d['total_denda'] > 0));
         $ringkasan = "rekap denda mingguan ({$guruDenda} guru kena denda, "
-            . 'timbul Rp ' . number_format($globalTotalDenda, 0, ',', '.') . ', '
-            . 'dibayar Rp ' . number_format($globalTotalDibayar, 0, ',', '.') . ', '
-            . 'sisa Rp ' . number_format($globalSisa, 0, ',', '.') . ')';
+            .'timbul Rp '.number_format($globalTotalDenda, 0, ',', '.').', '
+            .'dibayar Rp '.number_format($globalTotalDibayar, 0, ',', '.').', '
+            .'sisa Rp '.number_format($globalSisa, 0, ',', '.').')';
 
         if ($sent !== true) {
             $reason = $this->notification->lastError !== ''

@@ -389,10 +389,10 @@ $totalKelas = count($kelas ?? []);
 @section('scripts')
 <script>
     // Pass PHP data to JS
-    let settingKbm = {{ json_encode($setting_kbm) }};
-    let kelasList = {{ isset($kelas) ? json_encode($kelas) : '{}' }};
-    let mapelList = {{ isset($mapels) ? json_encode($mapels) : '{}' }};
-    let guruList = {{ isset($gurus) ? json_encode($gurus) : '[]' }};
+    let settingKbm = {!! json_encode($setting_kbm)!!};
+    let kelasList = {!! isset($kelas) ? json_encode($kelas) : '{}' !!};
+    let mapelList = {!! isset($mapels) ? json_encode($mapels) : '{}' !!};
+    let guruList = {!! isset($gurus) ? json_encode($gurus) : '[]' !!};
     let isAdmin = {{ ($is_admin ?? false) ? 'true' : 'false' }};
 
     function escapeHtml(value) {

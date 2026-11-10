@@ -1305,7 +1305,7 @@ $todayJamKeluar = ($today && !empty($today->jam_keluar)) ? substr($today->jam_ke
 
         if (!studentQrGenerated) {
             const qrEl = document.getElementById('modalStudentQr');
-            const qrText = {{ json_encode((string) $qrSiswaVal) }};
+            const qrText = {!! json_encode((string) $qrSiswaVal)!!};
             if (qrEl) {
                 if (window.QRCode) {
                     try {
@@ -1346,14 +1346,14 @@ $todayJamKeluar = ($today && !empty($today->jam_keluar)) ? substr($today->jam_ke
     };
 
     window.downloadKartuJpg = function() {
-        const nama   = {{ json_encode((string) ($siswa->nama ?? 'Siswa')) }};
-        const nis    = {{ json_encode((string) ($siswa->nis ?? '-')) }};
-        const nisn   = {{ json_encode((string) ($siswa->nisn ?? '-')) }};
-        const kelas  = {{ json_encode((string) ($siswa->nama_kelas ?? '-')) }};
-        const qrVal  = {{ json_encode((string) $qrSiswaVal) }};
-        const sekolah = {{ json_encode((string) ($setting->sekolah ?? 'Sekolah')) }};
-        const kota   = {{ json_encode((string) ($setting->kota ?? 'Kab. Kupang')) }};
-        const logoUrl = {{ json_encode($logo_url ?? '') }};
+        const nama   = {!! json_encode((string) ($siswa->nama ?? 'Siswa'))!!};
+        const nis    = {!! json_encode((string) ($siswa->nis ?? '-'))!!};
+        const nisn   = {!! json_encode((string) ($siswa->nisn ?? '-'))!!};
+        const kelas  = {!! json_encode((string) ($siswa->nama_kelas ?? '-'))!!};
+        const qrVal  = {!! json_encode((string) $qrSiswaVal)!!};
+        const sekolah = {!! json_encode((string) ($setting->sekolah ?? 'Sekolah'))!!};
+        const kota   = {!! json_encode((string) ($setting->kota ?? 'Kab. Kupang'))!!};
+        const logoUrl = {!! json_encode($logo_url ?? '')!!};
 
         window.openStudentQrModal();
 

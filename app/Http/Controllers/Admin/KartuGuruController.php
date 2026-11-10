@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\BaseController;
+use App\Models\DashboardModel;
+use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
 
 /**
  * KartuGuru Controller
@@ -23,7 +24,7 @@ class KartuGuruController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
+        $this->dashboardModel = new DashboardModel;
     }
 
     /** Maksimal kartu yang muat di satu permintaan cetak tanpa membuat browser macet. */
@@ -35,51 +36,53 @@ class KartuGuruController extends BaseController
     public function index()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
         // Kartu memuat NIP/NUPTK/QR seluruh guru — bukan untuk akun siswa.
-        if (!$this->isAdmin() && !$this->isPanitia() && !$this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
         $isStaffPenuh = $this->isAdmin() || $this->isPanitia();
         $idGuru = (int) ($this->request->query('id_guru') ?? 0);
-        if (!$isStaffPenuh) {
+        if (! $isStaffPenuh) {
             // Guru hanya boleh melihat/mencetak kartunya sendiri.
             $idGuru = $this->currentGuruId((int) $user->id);
             if ($idGuru <= 0) {
                 return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
             }
         }
-        $db     = \Illuminate\Support\Facades\DB::connection();
-        $hasRfidGuru = \Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'nomor_rfid');
+        $db = DB::connection();
+        $hasRfidGuru = Schema::hasColumn('master_guru', 'nomor_rfid');
 
         $guruOptions = [];
-        $guruList    = [];
-        $terpotong   = false;
-        $catatan     = '';
+        $guruList = [];
+        $terpotong = false;
+        $catatan = '';
 
         // Ambil daftar guru untuk dropdown filter
         try {
             $guruOptionsQ = $db->table('master_guru')
-                ->select('id_guru, nama_guru, nip, kode_guru, nuptk, jenis_ptk');
-            if (!$isStaffPenuh) {
+                ->select('id_guru', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk');
+            if (! $isStaffPenuh) {
                 $guruOptionsQ->where('id_guru', $idGuru);
             }
             $guruOptions = $guruOptionsQ
                 ->orderBy('nama_guru', 'ASC')
                 ->get();
         } catch (\Throwable $e) {
-            Log::error('[KartuGuru::index] daftar guru untuk filter gagal dibaca: ' . $e->getMessage());
+            Log::error('[KartuGuru::index] daftar guru untuk filter gagal dibaca: '.$e->getMessage());
             $guruOptions = [];
-            $catatan     = 'Daftar guru gagal dibaca dari basis data — periksa log aplikasi.';
+            $catatan = 'Daftar guru gagal dibaca dari basis data — periksa log aplikasi.';
         }
 
         // Query data guru yang akan ditampilkan
         if ($catatan === '') {
             try {
                 $builder = $db->table('master_guru')
-                    ->select('id_guru, id_user, nama_guru, nip, kode_guru, nuptk, jenis_ptk, tgs_tambahan, status_pegawai, jenis_kelamin, foto, username'
-                    . ($hasRfidGuru ? ', nomor_rfid' : ''));
+                    ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username')
+                    ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
 
                 if ($idGuru > 0) {
                     $builder->where('id_guru', $idGuru);
@@ -94,9 +97,9 @@ class KartuGuruController extends BaseController
                     $guruList = array_slice($guruList, 0, self::BATAS_CETAK);
                 }
             } catch (\Throwable $e) {
-                Log::error('[KartuGuru::index] daftar kartu guru gagal dibaca: ' . $e->getMessage());
+                Log::error('[KartuGuru::index] daftar kartu guru gagal dibaca: '.$e->getMessage());
                 $guruList = [];
-                $catatan  = 'Daftar kartu guru gagal dibaca dari basis data — periksa log aplikasi.';
+                $catatan = 'Daftar kartu guru gagal dibaca dari basis data — periksa log aplikasi.';
             }
         }
 
@@ -104,39 +107,41 @@ class KartuGuruController extends BaseController
         foreach ($guruList as $g) {
             $g->qr_value = self::nomorKartuGuru($g);
             $g->foto_url = self::resolveFotoUrl($g->foto, $g->nama_guru);
-            $g->jabatan  = !empty($g->tgs_tambahan) ? $g->tgs_tambahan : (!empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / Tenaga Pendidik');
+            $g->jabatan = ! empty($g->tgs_tambahan) ? $g->tgs_tambahan : (! empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / Tenaga Pendidik');
         }
 
         $setting = $this->getSettingRow();
-        $tpSmt   = $this->getTpSmt();
-        $tp      = $tpSmt->tp;
-        $smt     = $tpSmt->smt;
+        $tpSmt = $this->getTpSmt();
+        $tp = $tpSmt->tp;
+        $smt = $tpSmt->smt;
 
-        $isGuru   = $this->isGuru();
+        $isGuru = $this->isGuru();
         $basePath = 'admin/presensi/guru/kartu';
 
         // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (!in_array($desain, ['landscape', 'portrait'], true)) $desain = 'landscape';
+        if (! in_array($desain, ['landscape', 'portrait'], true)) {
+            $desain = 'landscape';
+        }
 
         $data = [
-            'title'        => 'Cetak Kartu Absen Guru QR',
-            'judul'        => 'Cetak Kartu Absen Guru / GTK',
-            'subjudul'     => 'Cetak Kartu Berisi QR Code Presensi Guru / Tenaga Pendidik',
-            'user'         => $user,
-            'setting'      => $setting,
-            'tp_active'    => $tp,
-            'smt_active'   => $smt,
-            'id_guru'      => $idGuru,
+            'title' => 'Cetak Kartu Absen Guru QR',
+            'judul' => 'Cetak Kartu Absen Guru / GTK',
+            'subjudul' => 'Cetak Kartu Berisi QR Code Presensi Guru / Tenaga Pendidik',
+            'user' => $user,
+            'setting' => $setting,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'id_guru' => $idGuru,
             'guru_options' => $guruOptions,
-            'guru_list'    => $guruList,
-            'terpotong'    => $terpotong,
-            'batas_cetak'  => self::BATAS_CETAK,
-            'catatan'      => $catatan,
-            'logo_url'     => self::resolveLogoUrl($setting),
-            'base_path'    => $basePath,
-            'is_guru'      => $isGuru,
-            'desain'       => $desain,
+            'guru_list' => $guruList,
+            'terpotong' => $terpotong,
+            'batas_cetak' => self::BATAS_CETAK,
+            'catatan' => $catatan,
+            'logo_url' => self::resolveLogoUrl($setting),
+            'base_path' => $basePath,
+            'is_guru' => $isGuru,
+            'desain' => $desain,
         ];
 
         return view('admin.presensi.kartu.guru_index', $data);
@@ -148,30 +153,32 @@ class KartuGuruController extends BaseController
     public function cetak()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->isAdmin() && !$this->isPanitia() && !$this->isGuru()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
         $isStaffPenuh = $this->isAdmin() || $this->isPanitia();
         $idGuru = (int) ($this->request->query('id_guru') ?? 0);
-        if (!$isStaffPenuh) {
+        if (! $isStaffPenuh) {
             $idGuru = $this->currentGuruId((int) $user->id);
             if ($idGuru <= 0) {
                 return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
             }
         }
-        $db     = \Illuminate\Support\Facades\DB::connection();
-        $hasRfidGuru = \Illuminate\Support\Facades\Schema::hasColumn('master_guru', 'nomor_rfid');
+        $db = DB::connection();
+        $hasRfidGuru = Schema::hasColumn('master_guru', 'nomor_rfid');
 
-        $guruList  = [];
+        $guruList = [];
         $terpotong = false;
-        $catatan   = '';
+        $catatan = '';
 
         try {
             $builder = $db->table('master_guru')
-                ->select('id_guru, id_user, nama_guru, nip, kode_guru, nuptk, jenis_ptk, tgs_tambahan, status_pegawai, jenis_kelamin, foto, username'
-                    . ($hasRfidGuru ? ', nomor_rfid' : ''));
+                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username')
+                ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
 
             if ($idGuru > 0) {
                 $builder->where('id_guru', $idGuru);
@@ -186,21 +193,21 @@ class KartuGuruController extends BaseController
                 $guruList = array_slice($guruList, 0, self::BATAS_CETAK);
             }
         } catch (\Throwable $e) {
-            Log::error('[KartuGuru::cetak] daftar kartu guru gagal dibaca: ' . $e->getMessage());
+            Log::error('[KartuGuru::cetak] daftar kartu guru gagal dibaca: '.$e->getMessage());
             $guruList = [];
-            $catatan  = 'Daftar kartu guru gagal dibaca dari basis data — periksa log aplikasi.';
+            $catatan = 'Daftar kartu guru gagal dibaca dari basis data — periksa log aplikasi.';
         }
 
         foreach ($guruList as $g) {
             $g->qr_value = self::nomorKartuGuru($g);
             $g->foto_url = self::resolveFotoUrl($g->foto, $g->nama_guru);
-            $g->jabatan  = !empty($g->tgs_tambahan) ? $g->tgs_tambahan : (!empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / GTK');
+            $g->jabatan = ! empty($g->tgs_tambahan) ? $g->tgs_tambahan : (! empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / GTK');
         }
 
         $setting = $this->getSettingRow();
-        $tpSmt   = $this->getTpSmt();
-        $tp      = $tpSmt->tp;
-        $smt     = $tpSmt->smt;
+        $tpSmt = $this->getTpSmt();
+        $tp = $tpSmt->tp;
+        $smt = $tpSmt->smt;
 
         $judulCetak = 'Semua Guru / GTK';
         if ($idGuru > 0 && count($guruList) === 1) {
@@ -208,23 +215,25 @@ class KartuGuruController extends BaseController
         }
 
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (!in_array($desain, ['landscape', 'portrait'], true)) $desain = 'landscape';
+        if (! in_array($desain, ['landscape', 'portrait'], true)) {
+            $desain = 'landscape';
+        }
 
         $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         $this->response->setHeader('Pragma', 'no-cache');
 
         $data = [
-            'setting'     => $setting,
-            'tp_active'   => $tp,
-            'smt_active'  => $smt,
-            'guru_list'   => $guruList,
+            'setting' => $setting,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'guru_list' => $guruList,
             'judul_cetak' => $judulCetak,
-            'is_single'   => ($idGuru > 0 && count($guruList) === 1),
-            'terpotong'   => $terpotong,
+            'is_single' => ($idGuru > 0 && count($guruList) === 1),
+            'terpotong' => $terpotong,
             'batas_cetak' => self::BATAS_CETAK,
-            'catatan'     => $catatan,
-            'logo_url'    => self::resolveLogoUrl($setting),
-            'desain'      => $desain,
+            'catatan' => $catatan,
+            'logo_url' => self::resolveLogoUrl($setting),
+            'desain' => $desain,
         ];
 
         return view('admin.presensi.kartu.guru_cetak', $data);
@@ -236,15 +245,17 @@ class KartuGuruController extends BaseController
     public function kartuSaya()
     {
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
-        if (!$this->isGuru()) {
+        if (! $user) {
+            return redirect()->to('auth');
+        }
+        if (! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
         $idGuru = $this->currentGuruId((int) $user->id);
 
         if ($idGuru > 0) {
-            return redirect()->to('admin/presensi/guru/kartu?id_guru=' . $idGuru);
+            return redirect()->to('admin/presensi/guru/kartu?id_guru='.$idGuru);
         }
 
         return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
@@ -256,7 +267,7 @@ class KartuGuruController extends BaseController
     private function currentGuruId(int $userId): int
     {
         try {
-            $row = \Illuminate\Support\Facades\DB::connection()->table('master_guru')
+            $row = DB::connection()->table('master_guru')
                 ->select('id_guru')->where('id_user', $userId)->first();
             if ($row && (int) ($row->id_guru ?? 0) > 0) {
                 return (int) $row->id_guru;
@@ -282,13 +293,13 @@ class KartuGuruController extends BaseController
         if ($rfid !== '') {
             return $rfid;
         }
-        if (!empty($row->nip)) {
+        if (! empty($row->nip)) {
             return trim((string) $row->nip);
         }
-        if (!empty($row->kode_guru)) {
+        if (! empty($row->kode_guru)) {
             return trim((string) $row->kode_guru);
         }
-        if (!empty($row->username)) {
+        if (! empty($row->username)) {
             return trim((string) $row->username);
         }
 
@@ -301,7 +312,7 @@ class KartuGuruController extends BaseController
      */
     public static function resolveFotoUrl(?string $foto, ?string $nama): string
     {
-        return \App\Services\AvatarService::tampilan($foto, $nama ?: 'Guru', '#7c3aed');
+        return AvatarService::tampilan($foto, $nama ?: 'Guru', '#7c3aed');
     }
 
     /**
@@ -310,17 +321,19 @@ class KartuGuruController extends BaseController
     public static function resolveLogoUrl(?object $setting): string
     {
         $defaultLogo = url('assets/img/logo.png');
-        if (!$setting) return $defaultLogo;
+        if (! $setting) {
+            return $defaultLogo;
+        }
 
-        if (!empty($setting->logo_kiri)) {
+        if (! empty($setting->logo_kiri)) {
             $cleanLogo = ltrim($setting->logo_kiri, '/');
-            if (file_exists(public_path() . '/' . $cleanLogo)) {
+            if (file_exists(public_path().'/'.$cleanLogo)) {
                 return url($cleanLogo);
             }
         }
-        if (!empty($setting->logo_kanan)) {
+        if (! empty($setting->logo_kanan)) {
             $cleanLogo = ltrim($setting->logo_kanan, '/');
-            if (file_exists(public_path() . '/' . $cleanLogo)) {
+            if (file_exists(public_path().'/'.$cleanLogo)) {
                 return url($cleanLogo);
             }
         }

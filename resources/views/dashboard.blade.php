@@ -118,7 +118,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                         </span>
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border backdrop-blur-sm {{ $isHariSekolah ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/30' : 'bg-amber-300/15 text-amber-100 border-amber-200/30' }}">
                             <span class="w-1.5 h-1.5 rounded-full {{ $isHariSekolah ? 'bg-emerald-300' : 'bg-amber-300' }}"></span>
-                            {{ $isHariSekolah ? 'Hari Sekolah' : esc($liburLabel) }}
+                            {{ $isHariSekolah ? 'Hari Sekolah' : $liburLabel }}
                         </span>
                     </div>
                     <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
@@ -311,7 +311,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                         <div>
                             <h2 class="text-sm font-bold text-slate-800 leading-none">Kehadiran Hari Ini</h2>
                             <p class="text-[11px] text-slate-400 mt-0.5">
-                                {{ $isHariSekolah ? 'Ringkasan seluruh guru per hari ini' : esc($todayLabel) . ' · ' . esc($liburLabel) }}
+                                {{ $isHariSekolah ? 'Ringkasan seluruh guru per hari ini' : $todayLabel . ' · ' . $liburLabel }}
                             </p>
                         </div>
                     </div>

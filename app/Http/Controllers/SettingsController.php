@@ -2,44 +2,51 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\PresensiAdminController;
+use App\Libraries\SuratNomor;
+use App\Libraries\Theme;
+use App\Models\AttendanceLocationModel;
+use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
+use App\Models\SettingsModel;
+use App\Services\OpenWAService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\SettingsModel;
-use App\Models\DashboardModel;
 
 class SettingsController extends BaseController
 {
     protected $settings;
+
     protected $dashboard;
 
     public function __construct()
     {
         parent::__construct();
-        $this->settings = new SettingsModel();
-        $this->dashboard = new DashboardModel();
+        $this->settings = new SettingsModel;
+        $this->dashboard = new DashboardModel;
     }
 
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             abort(404);
         }
 
         $user = $this->getUser();
-        $settingModel = new \App\Models\AttendanceSettingModel();
-        $locationModel = new \App\Models\AttendanceLocationModel();
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $settingModel = new AttendanceSettingModel;
+        $locationModel = new AttendanceLocationModel;
+        $db = DB::connection();
 
         $absenSetting = $settingModel->first();
-        if (!$absenSetting) {
+        if (! $absenSetting) {
             $settingModel->insert([
                 'jam_masuk' => '07:30:00',
                 'jam_pulang' => '15:00:00',
-                'radius_meter' => 100
+                'radius_meter' => 100,
             ]);
             $absenSetting = $settingModel->first();
         }
@@ -48,28 +55,28 @@ class SettingsController extends BaseController
         $jadwal = $db->table('absensi_jadwal_kerja')->orderBy('hari', 'ASC')->get();
 
         $this->ensureNomorSettingColumns();
-        \App\Libraries\SuratNomor::flushCache();
+        SuratNomor::flushCache();
 
         $appSetting = $this->getSettingRow();
-        if (!$appSetting) {
+        if (! $appSetting) {
             $appSetting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
         $data = [
-            'title'        => 'Pengaturan & Konfigurasi Sistem',
-            'judul'        => 'Pengaturan & Konfigurasi Sistem',
-            'subjudul'     => 'Profil Sekolah & Kebijakan Presensi',
-            'user'         => $user,
-            'setting'      => $appSetting,
-            'tp'           => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'tp_active'    => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt'          => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
-            'smt_active'   => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'title' => 'Pengaturan & Konfigurasi Sistem',
+            'judul' => 'Pengaturan & Konfigurasi Sistem',
+            'subjudul' => 'Profil Sekolah & Kebijakan Presensi',
+            'user' => $user,
+            'setting' => $appSetting,
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt' => DB::table('master_smt')->get(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
             'absenSetting' => $absenSetting,
-            'locations'    => $locations,
-            'jadwal'       => $jadwal,
-            'theme'        => \App\Libraries\Theme::current(),
-            'themePresets' => \App\Libraries\Theme::presetOptions(),
+            'locations' => $locations,
+            'jadwal' => $jadwal,
+            'theme' => Theme::current(),
+            'themePresets' => Theme::presetCards(),
         ];
 
         return view('admin.presensi.setting', $data);
@@ -77,7 +84,7 @@ class SettingsController extends BaseController
 
     public function dbManager()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return redirect()->to('auth');
         }
 
@@ -87,15 +94,15 @@ class SettingsController extends BaseController
             'subjudul' => 'Backup dan Restore',
         ];
 
-        $data['tp'] = \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get();
-        $data['tp_active'] = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $data['smt'] = \Illuminate\Support\Facades\DB::table('master_smt')->get();
-        $data['smt_active'] = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $data['tp'] = DB::table('master_tp')->orderBy('id_tp', 'DESC')->get();
+        $data['tp_active'] = DB::table('master_tp')->where('active', 1)->first();
+        $data['smt'] = DB::table('master_smt')->get();
+        $data['smt_active'] = DB::table('master_smt')->where('active', 1)->first();
         $data['setting'] = $this->getSettingRow();
         // Arsip backup disimpan di writable/backups (di luar webroot) dan
         // diunduh lewat downloadBackup(), bukan sebagai file publik.
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        if (!is_dir($backupPath)) {
+        $backupPath = storage_path('app').'/'.'backups/';
+        if (! is_dir($backupPath)) {
             mkdir($backupPath, 0755, true);
         }
         $list = [];
@@ -103,8 +110,8 @@ class SettingsController extends BaseController
         $dbCount = 0;
         $fileCount = 0;
         $lastBackup = null;
-        foreach (glob($backupPath . '*') ?: [] as $filepath) {
-            if (!is_file($filepath)) {
+        foreach (glob($backupPath.'*') ?: [] as $filepath) {
+            if (! is_file($filepath)) {
                 continue;
             }
             $filename = basename($filepath);
@@ -120,7 +127,7 @@ class SettingsController extends BaseController
             }
             $lower = strtolower($filename);
             $isDb = (str_ends_with($lower, '.sql') || str_contains($lower, '.sql.'))
-                && !str_starts_with($lower, 'files_backup_');
+                && ! str_starts_with($lower, 'files_backup_');
             if (str_starts_with($lower, 'db_backup_') || $isDb) {
                 $kind = 'database';
                 $dbCount++;
@@ -129,25 +136,25 @@ class SettingsController extends BaseController
                 $fileCount++;
             }
             $list[] = [
-                'nama'       => $info['filename'] ?? $filename,
-                'type'       => $info['extension'] ?? '',
-                'size'       => number_to_size($bytes, 2),
+                'nama' => $info['filename'] ?? $filename,
+                'type' => $info['extension'] ?? '',
+                'size' => number_to_size($bytes, 2),
                 'size_bytes' => $bytes,
-                'tgl'        => $mtime,
-                'src'        => $filename,
-                'kind'       => $kind,
-                'is_sql'     => str_ends_with($lower, '.sql'),
+                'tgl' => $mtime,
+                'src' => $filename,
+                'kind' => $kind,
+                'is_sql' => str_ends_with($lower, '.sql'),
             ];
         }
         usort($list, static fn ($a, $b) => $b['tgl'] <=> $a['tgl']);
         $data['list'] = $list;
         $data['stats'] = [
-            'total'       => count($list),
-            'db'          => $dbCount,
-            'file'        => $fileCount,
+            'total' => count($list),
+            'db' => $dbCount,
+            'file' => $fileCount,
             'total_bytes' => $totalBytes,
-            'total_size'  => count($list) > 0 ? number_to_size($totalBytes, 2) : '0 KB',
-            'last'        => $lastBackup,
+            'total_size' => count($list) > 0 ? number_to_size($totalBytes, 2) : '0 KB',
+            'last' => $lastBackup,
         ];
 
         return view('setting.db', $data);
@@ -166,7 +173,7 @@ class SettingsController extends BaseController
         'kopsekolah',
         'banner1',
         'banner2',
-        'banner3'
+        'banner3',
     ];
 
     /**
@@ -175,22 +182,31 @@ class SettingsController extends BaseController
      */
     private function resolveMediaPath(?string $src): ?string
     {
-        if ($src === null || $src === '') return null;
+        if ($src === null || $src === '') {
+            return null;
+        }
         $rel = ltrim(str_replace(url(), '', $src), '/');
         $rel = str_replace('\\', '/', $rel);
-        if (preg_match('#^https?://#i', $rel)) return null;
-        if (strpos($rel, '..') !== false) return null;
-        if (strpos($rel, 'uploads/settings/') !== 0) return null;
-        $abs = realpath(base_path() . '/' . 'public/' . $rel);
-        $root = realpath(base_path() . '/' . 'public/uploads/settings');
-        if ($abs === false || $root === false || strpos($abs, $root) !== 0 || !is_file($abs)) {
+        if (preg_match('#^https?://#i', $rel)) {
+            return null;
+        }
+        if (strpos($rel, '..') !== false) {
+            return null;
+        }
+        if (strpos($rel, 'uploads/settings/') !== 0) {
+            return null;
+        }
+        $abs = realpath(base_path().'/'.'public/'.$rel);
+        $root = realpath(base_path().'/'.'public/uploads/settings');
+        if ($abs === false || $root === false || strpos($abs, $root) !== 0 || ! is_file($abs)) {
             return null;
         }
         // base_path() . '/' bisa berakhir '/' (Linux) atau '\' (Windows): potong dari akar
         // yang sudah dibersihkan lalu paksa separator maju agar cocok dengan
         // nilai di kolom settings.
-        $out = substr($abs, strlen(rtrim(base_path() . '/' . 'public/', '/\\')) + 1);
+        $out = substr($abs, strlen(rtrim(base_path().'/'.'public/', '/\\')) + 1);
         $out = str_replace('\\', '/', $out);
+
         return strpos($out, 'uploads/settings/') === 0 ? $out : null;
     }
 
@@ -199,10 +215,10 @@ class SettingsController extends BaseController
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
-        if (!in_array($logo, self::MEDIA_FIELDS, true)) {
+        if (! in_array($logo, self::MEDIA_FIELDS, true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Field media tidak valid']);
         }
 
@@ -210,20 +226,20 @@ class SettingsController extends BaseController
         $validationRule = [
             'logo' => [
                 'label' => 'Image File',
-                'rules' => 'uploaded[logo]|is_image[logo]|mime_in[logo,image/jpg,image/jpeg,image/gif,image/png,image/webp]|max_size[logo,5120]'
+                'rules' => 'uploaded[logo]|is_image[logo]|mime_in[logo,image/jpg,image/jpeg,image/gif,image/png,image/webp]|max_size[logo,5120]',
             ],
         ];
 
-        if (!$this->validate($validationRule)) {
+        if (! $this->validate($validationRule)) {
             $data = [
                 'status' => false,
                 'src' => $this->validator->getErrors()['logo'] ?? 'Invalid file',
-                'message' => 'Upload failed'
+                'message' => 'Upload failed',
             ];
         } else {
-            if ($file->isValid() && !false /* was: $file->hasMoved() */) {
-                $uploadPath = base_path() . '/' . 'public/uploads/settings/';
-                if (!is_dir($uploadPath)) {
+            if ($file->isValid() && ! false /* was: $file->hasMoved() */) {
+                $uploadPath = base_path().'/'.'public/uploads/settings/';
+                if (! is_dir($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
@@ -237,7 +253,7 @@ class SettingsController extends BaseController
                     return $this->response->setJSON(['status' => false, 'message' => 'Tipe file tidak didukung']);
                 }
 
-                $fileName = $logo . '.' . $ext;
+                $fileName = $logo.'.'.$ext;
 
                 // Pindahkan file baru DULU, baru bersihkan varian lama.
                 // Urutan terbalik (hapus dulu, move tanpa diperiksa) membuat
@@ -246,12 +262,12 @@ class SettingsController extends BaseController
                 try {
                     $pindah = $file->move($uploadPath, $fileName, true);
                 } catch (\Throwable $e) {
-                    Log::error('[Settings::uploadFile] move ' . $fileName . ' gagal: ' . $e->getMessage());
+                    Log::error('[Settings::uploadFile] move '.$fileName.' gagal: '.$e->getMessage());
                     $pindah = false;
                 }
 
-                $tujuan = $uploadPath . $fileName;
-                if ($pindah !== true || !is_file($tujuan) || (int) @filesize($tujuan) === 0) {
+                $tujuan = $uploadPath.$fileName;
+                if ($pindah !== true || ! is_file($tujuan) || (int) @filesize($tujuan) === 0) {
                     return $this->response->setJSON([
                         'status' => false,
                         'message' => 'Gambar gagal disimpan ke server. Logo lama belum diganti — coba lagi, dan bila berulang periksa izin folder public/uploads/settings.',
@@ -261,18 +277,19 @@ class SettingsController extends BaseController
                 }
 
                 // Hapus file lama field ini dengan ekstensi apapun agar tidak menumpuk
-                $existen = str_replace('\\', '/', $uploadPath) . $fileName;
-                foreach ((glob($uploadPath . $logo . '.*') ?: []) as $ef) {
+                $existen = str_replace('\\', '/', $uploadPath).$fileName;
+                foreach ((glob($uploadPath.$logo.'.*') ?: []) as $ef) {
                     $efN = str_replace('\\', '/', $ef);
                     if (is_file($ef) && $efN !== $existen) {
                         @unlink($ef);
                     }
                 }
 
-                $relativePath = 'uploads/settings/' . $fileName;
+                $relativePath = 'uploads/settings/'.$fileName;
 
                 if ($this->updateSettingRow([$logo => $relativePath]) !== true) {
-                    Log::error('[Settings::uploadFile] simpan path ' . $relativePath . ' ke setting gagal');
+                    Log::error('[Settings::uploadFile] simpan path '.$relativePath.' ke setting gagal');
+
                     return $this->response->setJSON([
                         'status' => false,
                         'message' => 'Gambar sudah tersimpan tapi penamaan di pengaturan gagal diperbarui. Logo yang tampil bisa masih yang lama — simpan ulang.',
@@ -288,14 +305,14 @@ class SettingsController extends BaseController
                     'relative_path' => $relativePath,
                     'filename' => $fileName,
                     'type' => $file->getClientMimeType(),
-                    'size' => $file->getSize()
+                    'size' => $file->getSize(),
                 ];
 
             } else {
                 $data = [
                     'status' => false,
                     'src' => $file->getErrorString(),
-                    'message' => 'File move failed'
+                    'message' => 'File move failed',
                 ];
             }
         }
@@ -311,14 +328,14 @@ class SettingsController extends BaseController
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $src = $this->request->input('src');
         $field = $this->request->input('field');
 
-        if (empty($field) || !in_array($field, self::MEDIA_FIELDS, true)) {
+        if (empty($field) || ! in_array($field, self::MEDIA_FIELDS, true)) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Field media tidak valid',
@@ -328,18 +345,18 @@ class SettingsController extends BaseController
         }
 
         $deletedFile = false;
-        if (!empty($src)) {
+        if (! empty($src)) {
             $rel = $this->resolveMediaPath($src);
-            if ($rel !== null && is_file(base_path() . '/' . 'public/' . $rel)) {
-                @unlink(base_path() . '/' . 'public/' . $rel);
+            if ($rel !== null && is_file(base_path().'/'.'public/'.$rel)) {
+                @unlink(base_path().'/'.'public/'.$rel);
                 $deletedFile = true;
             }
         }
 
         // Hapus juga file fisik yang ada di direktori settings dengan prefix nama field
-        $uploadPath = base_path() . '/' . 'public/uploads/settings/';
-        $existing = glob($uploadPath . $field . '.*');
-        if (!empty($existing)) {
+        $uploadPath = base_path().'/'.'public/uploads/settings/';
+        $existing = glob($uploadPath.$field.'.*');
+        if (! empty($existing)) {
             foreach ($existing as $oldFile) {
                 if (is_file($oldFile)) {
                     @unlink($oldFile);
@@ -351,8 +368,8 @@ class SettingsController extends BaseController
         // Selalu sinkronkan DB agar kolom media dikosongkan
         $dbTersimpan = $this->updateSettingRow([$field => '']);
 
-        if (!$dbTersimpan) {
-            Log::error('[Settings::deleteFile] kosongkan kolom ' . $field . ' di setting gagal');
+        if (! $dbTersimpan) {
+            Log::error('[Settings::deleteFile] kosongkan kolom '.$field.' di setting gagal');
         }
 
         return $this->response->setJSON([
@@ -374,6 +391,7 @@ class SettingsController extends BaseController
     private function normalizeWaMode($mode): string
     {
         $mode = strtolower(trim((string) $mode));
+
         return in_array($mode, ['off', 'openwa', 'fonnte'], true) ? $mode : 'off';
     }
 
@@ -385,6 +403,7 @@ class SettingsController extends BaseController
         }
 
         $normalized = str_replace(url(), '', $path);
+
         return ltrim($normalized, '/');
     }
 
@@ -393,7 +412,7 @@ class SettingsController extends BaseController
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -401,7 +420,7 @@ class SettingsController extends BaseController
 
         // Handle ba_waktu transformation
         $ba_waktu = null;
-        if (!empty($input['ba_waktu'])) {
+        if (! empty($input['ba_waktu'])) {
             // Usually datetime-local input sends format like '2025-01-01T12:00'
             // We want to store as 'Y-m-d H:i:s'
             try {
@@ -438,7 +457,7 @@ class SettingsController extends BaseController
             'npsn' => $input['npsn'] ?? '',
             // Penomoran Surat Teguran
             'kode_sekolah' => trim((string) ($input['kode_sekolah'] ?? '')),
-            'surat_teguran_format' => \App\Libraries\SuratNomor::sanitizeTemplate($input['surat_teguran_format'] ?? null),
+            'surat_teguran_format' => SuratNomor::sanitizeTemplate($input['surat_teguran_format'] ?? null),
             'surat_teguran_padding' => $this->normalizeTeguranPadding($input['surat_teguran_padding'] ?? null),
             'alamat' => $input['alamat'] ?? '',
             'desa' => $input['desa'] ?? '',
@@ -474,10 +493,10 @@ class SettingsController extends BaseController
         $updateData = $this->filterExistingSettingFields($updateData);
 
         $status = $this->updateSettingRow($updateData);
-        \App\Libraries\SuratNomor::flushCache();
+        SuratNomor::flushCache();
         // Base URL / API Key / nama sesi bisa berubah; resolutionsesi OpenWA
         // di-cache 60 detik dan harus tidak menunjuk gateway lama.
-        (new \App\Services\OpenWAService())->flushCache();
+        (new OpenWAService)->flushCache();
 
         // Status sinkronisasi notifikasi ikut dilaporkan, supaya "Gagal" di
         // halaman profil tidak lagi menyembunyikan fakta bahwa kolom Telegram/WA
@@ -509,11 +528,11 @@ class SettingsController extends BaseController
         }
         if ($notifData !== []) {
             try {
-                $db = \Illuminate\Support\Facades\DB::connection();
-                if (\Illuminate\Support\Facades\Schema::hasTable('absensi_setting')) {
+                $db = DB::connection();
+                if (Schema::hasTable('absensi_setting')) {
                     $sync = [];
                     foreach ($notifData as $k => $v) {
-                        if (\Illuminate\Support\Facades\Schema::hasColumn('absensi_setting', $k)) {
+                        if (Schema::hasColumn('absensi_setting', $k)) {
                             $sync[$k] = $v;
                         }
                     }
@@ -533,7 +552,7 @@ class SettingsController extends BaseController
                 }
             } catch (\Throwable $e) {
                 $syncNotif = 'gagal';
-                Log::error('[Settings::saveSetting] sync notifikasi gagal: ' . $e->getMessage());
+                Log::error('[Settings::saveSetting] sync notifikasi gagal: '.$e->getMessage());
             }
         }
 
@@ -541,9 +560,9 @@ class SettingsController extends BaseController
         $graceTersimpan = null;
         $dendaTersimpan = null;
         if (isset($input['grace_period'])) {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $gp = (int) $input['grace_period'];
-            $mainId = \Illuminate\Support\Facades\Schema::hasTable('absensi_setting') ? $this->mainAbsensiSettingId($db) : 0;
+            $mainId = Schema::hasTable('absensi_setting') ? $this->mainAbsensiSettingId($db) : 0;
             if ($mainId > 0) {
                 $graceTersimpan = $db->table('absensi_setting')->where('id', $mainId)->update(['grace_period' => $gp]);
             } else {
@@ -552,18 +571,18 @@ class SettingsController extends BaseController
             }
 
             try {
-                (new \App\Http\Controllers\Admin\PresensiAdminController())->doRecalculateDate(date('Y-m-d'));
+                (new PresensiAdminController)->doRecalculateDate(date('Y-m-d'));
             } catch (\Throwable $e) {
-                Log::error('[Settings::saveSetting] doRecalculateDate error: ' . $e->getMessage());
+                Log::error('[Settings::saveSetting] doRecalculateDate error: '.$e->getMessage());
             }
         }
 
         if (isset($input['denda_alpha_per_hari'])) {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $alphaData = [
                 'denda_alpha_per_hari' => (int) $input['denda_alpha_per_hari'],
             ];
-            $mainId = \Illuminate\Support\Facades\Schema::hasTable('absensi_setting') ? $this->mainAbsensiSettingId($db) : 0;
+            $mainId = Schema::hasTable('absensi_setting') ? $this->mainAbsensiSettingId($db) : 0;
             if ($mainId > 0) {
                 $dendaTersimpan = $db->table('absensi_setting')->where('id', $mainId)->update($alphaData);
             } else {
@@ -572,7 +591,7 @@ class SettingsController extends BaseController
             }
         }
 
-        if (!$status) {
+        if (! $status) {
             Log::error('[Settings::saveSetting] updateSetting gagal');
         }
 
@@ -590,7 +609,7 @@ class SettingsController extends BaseController
             $catatan[] = 'pengaturan notifikasi Telegram/WhatsApp';
         }
         if ($catatan !== []) {
-            $pesan .= ' Bagian yang TIDAK tersimpan: ' . implode(', ', $catatan) . '.';
+            $pesan .= ' Bagian yang TIDAK tersimpan: '.implode(', ', $catatan).'.';
         }
 
         return $this->response->setJSON([
@@ -612,6 +631,7 @@ class SettingsController extends BaseController
         try {
             $row = $db->table('absensi_setting')->select('id')
                 ->orderBy('id', 'ASC')->limit(1)->first();
+
             return (int) ($row->id ?? 0);
         } catch (\Throwable $e) {
             return 0;
@@ -626,7 +646,7 @@ class SettingsController extends BaseController
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -638,16 +658,16 @@ class SettingsController extends BaseController
                 $input = null;
             }
         }
-        if (!is_array($input)) {
+        if (! is_array($input)) {
             $input = $this->request->input();
         }
 
-        $preset = strtolower(trim((string) ($input['preset'] ?? \App\Libraries\Theme::DEFAULT_PRESET)));
-        if (!in_array($preset, \App\Libraries\Theme::presetKeys(), true)) {
+        $preset = strtolower(trim((string) ($input['preset'] ?? Theme::DEFAULT_PRESET)));
+        if (! in_array($preset, Theme::presetKeys(), true)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Preset tema tidak dikenal']);
         }
 
-        $custom = \App\Libraries\Theme::normalizeHex($input['custom'] ?? null);
+        $custom = Theme::normalizeHex($input['custom'] ?? null);
         if ($preset === 'custom' && $custom === null) {
             return $this->response->setJSON(['status' => false, 'message' => 'Warna dasar custom tidak valid']);
         }
@@ -659,16 +679,16 @@ class SettingsController extends BaseController
             'theme_custom' => $custom,
         ]);
 
-        \App\Libraries\Theme::flushCache();
-        $theme = \App\Libraries\Theme::resolve($preset, $custom);
+        Theme::flushCache();
+        $theme = Theme::resolve($preset, $custom);
 
         return $this->response->setJSON([
-            'status'  => (bool) $status,
+            'status' => (bool) $status,
             'message' => $status ? 'Tema tampilan berhasil disimpan.' : 'Gagal menyimpan tema.',
-            'theme'   => [
+            'theme' => [
                 'preset' => $theme['preset'],
                 'custom' => $theme['custom'],
-                'label'  => $theme['label'],
+                'label' => $theme['label'],
             ],
         ]);
     }
@@ -679,23 +699,23 @@ class SettingsController extends BaseController
     private function ensureThemeColumns(): void
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('setting')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('setting')) {
                 return;
             }
 
             $add = [];
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('setting', 'theme_preset')) {
+            if (! Schema::hasColumn('setting', 'theme_preset')) {
                 $add['theme_preset'] = ['type' => 'VARCHAR', 'constraint' => 20, 'null' => false, 'default' => 'default'];
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('setting', 'theme_custom')) {
+            if (! Schema::hasColumn('setting', 'theme_custom')) {
                 $add['theme_custom'] = ['type' => 'VARCHAR', 'constraint' => 7, 'null' => true, 'default' => null];
             }
             if ($add !== []) {
-                (new \App\Http\Controllers\CiForge())->addColumn('setting', $add);
+                (new CiForge)->addColumn('setting', $add);
             }
         } catch (\Throwable $e) {
-            Log::error('[Settings::ensureThemeColumns] ' . $e->getMessage());
+            Log::error('[Settings::ensureThemeColumns] '.$e->getMessage());
         }
     }
 
@@ -707,28 +727,28 @@ class SettingsController extends BaseController
     private function ensureNomorSettingColumns(): void
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('setting')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('setting')) {
                 return;
             }
 
             $wanted = [
                 'kode_sekolah' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true, 'default' => 'SMAN2.AT'],
-                'surat_teguran_format' => ['type' => 'VARCHAR', 'constraint' => 120, 'null' => true, 'default' => \App\Libraries\SuratNomor::DEFAULT_FORMAT],
-                'surat_teguran_padding' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => true, 'default' => \App\Libraries\SuratNomor::DEFAULT_PADDING],
+                'surat_teguran_format' => ['type' => 'VARCHAR', 'constraint' => 120, 'null' => true, 'default' => SuratNomor::DEFAULT_FORMAT],
+                'surat_teguran_padding' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => true, 'default' => SuratNomor::DEFAULT_PADDING],
             ];
 
             $add = [];
             foreach ($wanted as $col => $def) {
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('setting', $col)) {
+                if (! Schema::hasColumn('setting', $col)) {
                     $add[$col] = $def;
                 }
             }
             if ($add !== []) {
-                (new \App\Http\Controllers\CiForge())->addColumn('setting', $add);
+                (new CiForge)->addColumn('setting', $add);
             }
         } catch (\Throwable $e) {
-            Log::error('[Settings::ensureNomorSettingColumns] ' . $e->getMessage());
+            Log::error('[Settings::ensureNomorSettingColumns] '.$e->getMessage());
         }
     }
 
@@ -738,17 +758,17 @@ class SettingsController extends BaseController
     private function filterExistingSettingFields(array $data): array
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('setting')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('setting')) {
                 return $data;
             }
             foreach (array_keys($data) as $key) {
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('setting', $key)) {
+                if (! Schema::hasColumn('setting', $key)) {
                     unset($data[$key]);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[Settings::filterExistingSettingFields] ' . $e->getMessage());
+            Log::error('[Settings::filterExistingSettingFields] '.$e->getMessage());
         }
 
         return $data;
@@ -761,7 +781,7 @@ class SettingsController extends BaseController
     {
         $pad = (int) $value;
         if ($pad < 1 || $pad > 6) {
-            return \App\Libraries\SuratNomor::DEFAULT_PADDING;
+            return SuratNomor::DEFAULT_PADDING;
         }
 
         return $pad;
@@ -772,39 +792,43 @@ class SettingsController extends BaseController
      */
     public function backupDb()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        if (!is_dir($backupPath)) {
+        $backupPath = storage_path('app').'/'.'backups/';
+        if (! is_dir($backupPath)) {
             mkdir($backupPath, 0755, true);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $tables = $db->listTables();
-        $filename = 'db_backup_' . date('Ymd_His') . '.sql';
-        $filepath = $backupPath . $filename;
+        $filename = 'db_backup_'.date('Ymd_His').'.sql';
+        $filepath = $backupPath.$filename;
 
         $sql = '';
         $dilewati = [];
         foreach ($tables as $table) {
-            if (strpos($table, 'migration') === 0) continue; // skip migration tables
+            if (strpos($table, 'migration') === 0) {
+                continue;
+            } // skip migration tables
             $result = $db->table($table)->get();
             if ($result === false) {
                 // get() mengembalikan false saat query gagal; melanjutkan berarti
                 // dump tanpa tabel ini tapi tetap dilaporkan "berhasil".
-                Log::error('[Settings::backupDb] gagal membaca ' . $table . ': ' . json_encode(['code' => 0, 'message' => '']));
+                Log::error('[Settings::backupDb] gagal membaca '.$table.': '.json_encode(['code' => 0, 'message' => '']));
                 $dilewati[] = $table;
+
                 continue;
             }
             $fields = $db->getFieldNames($table);
             if (empty($fields)) {
-                Log::error('[Settings::backupDb] tidak bisa membaca kolom ' . $table);
+                Log::error('[Settings::backupDb] tidak bisa membaca kolom '.$table);
                 $dilewati[] = $table;
+
                 continue;
             }
 
@@ -812,18 +836,19 @@ class SettingsController extends BaseController
             $create = $createQ ? ($createQ[0] ?? null) : null;
             $ddl = is_object($create) ? ($create->{'Create Table'} ?? $create->{'Create View'} ?? null) : null;
             if ($ddl === null) {
-                Log::error('[Settings::backupDb] tidak ada DDL untuk ' . $table);
+                Log::error('[Settings::backupDb] tidak ada DDL untuk '.$table);
                 $dilewati[] = $table;
+
                 continue;
             }
 
             $sql .= "DROP TABLE IF EXISTS `$table`;\n";
-            $sql .= $ddl . ";\n\n";
+            $sql .= $ddl.";\n\n";
 
             if ($result->count() > 0) {
                 $sql .= "INSERT INTO `$table` VALUES\n";
                 $rows = [];
-                foreach (array_map(fn($r) => (array) $r, $result) as $row) {
+                foreach (array_map(fn ($r) => (array) $r, $result) as $row) {
                     $values = [];
                     foreach ($fields as $field) {
                         $val = $row[$field] ?? null;
@@ -834,20 +859,20 @@ class SettingsController extends BaseController
                             // string seperti '0611450719200011' (NIP/ponsel/kodepos),
                             // dan tanpa kutip angka itu menjadi literal numerik saat
                             // restore, sehingga semua angka 0 di depan hilang.
-                            $values[] = "'" . $db->escapeString((string) $val) . "'";
+                            $values[] = "'".$db->escapeString((string) $val)."'";
                         }
                     }
-                    $rows[] = '(' . implode(',', $values) . ')';
+                    $rows[] = '('.implode(',', $values).')';
                 }
-                $sql .= implode(",\n", $rows) . ";\n\n";
+                $sql .= implode(",\n", $rows).";\n\n";
             }
         }
 
         if ($dilewati !== []) {
             // Penanda di dalam dump: restore menolak file bertanda ini, karena
             // "sebagian lengkap" jauh lebih berbahaya daripada tidak ada backup.
-            $sql = "# absen:backup-tidak-lengkap tabel=" . implode(',', $dilewati) . "\n"
-                . "# Dibuat " . date('Y-m-d H:i:s') . " — jangan dipakai untuk restore.\n\n" . $sql;
+            $sql = '# absen:backup-tidak-lengkap tabel='.implode(',', $dilewati)."\n"
+                .'# Dibuat '.date('Y-m-d H:i:s')." — jangan dipakai untuk restore.\n\n".$sql;
         }
 
         if (file_put_contents($filepath, $sql, LOCK_EX) === false) {
@@ -857,9 +882,9 @@ class SettingsController extends BaseController
         if ($dilewati !== []) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Backup TIDAK lengkap: ' . count($dilewati) . ' tabel tidak ikut tersimpan ('
-                    . implode(', ', array_slice($dilewati, 0, 10)) . ').'
-                    . ' File ' . $filename . ' tidak boleh dipakai untuk restore sebelum tabel-tabel itu berhasil dibaca.',
+                'message' => 'Backup TIDAK lengkap: '.count($dilewati).' tabel tidak ikut tersimpan ('
+                    .implode(', ', array_slice($dilewati, 0, 10)).').'
+                    .' File '.$filename.' tidak boleh dipakai untuk restore sebelum tabel-tabel itu berhasil dibaca.',
                 'file' => $filename,
                 'dilewati' => $dilewati,
                 'csrfName' => '_token',
@@ -869,7 +894,7 @@ class SettingsController extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Backup database berhasil: ' . $filename,
+            'message' => 'Backup database berhasil: '.$filename,
             'file' => $filename,
             'size' => filesize($filepath),
             'csrfName' => '_token',
@@ -882,31 +907,31 @@ class SettingsController extends BaseController
      */
     public function backupData()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
 
-        if (!class_exists('ZipArchive')) {
+        if (! class_exists('ZipArchive')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Ekstensi ZipArchive tidak tersedia']);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        if (!is_dir($backupPath)) {
+        $backupPath = storage_path('app').'/'.'backups/';
+        if (! is_dir($backupPath)) {
             mkdir($backupPath, 0755, true);
         }
 
-        $srcPath = base_path() . '/' . 'public/uploads/';
-        if (!is_dir($srcPath)) {
+        $srcPath = base_path().'/'.'public/uploads/';
+        if (! is_dir($srcPath)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Folder uploads tidak ditemukan']);
         }
 
-        $filename = 'files_backup_' . date('Ymd_His') . '.zip';
-        $filepath = $backupPath . $filename;
+        $filename = 'files_backup_'.date('Ymd_His').'.zip';
+        $filepath = $backupPath.$filename;
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($filepath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal membuat file zip']);
         }
@@ -918,7 +943,7 @@ class SettingsController extends BaseController
 
         $dimasukkan = 0;
         foreach ($files as $name => $file) {
-            if (!$file->isDir()) {
+            if (! $file->isDir()) {
                 $filePath = $file->getRealPath();
                 $relativePath = substr($filePath, strlen($srcPath));
                 $zip->addFile($filePath, $relativePath);
@@ -930,6 +955,7 @@ class SettingsController extends BaseController
         // sementara file .zip-nya rusak atau kosong.
         if ($zip->close() !== true) {
             @unlink($filepath);
+
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Backup file gagal ditutup/dirusak — arsip tidak disimpan. Periksa ruang disk folder writable.',
@@ -949,7 +975,7 @@ class SettingsController extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Backup file berhasil: ' . $filename,
+            'message' => 'Backup file berhasil: '.$filename,
             'file' => $filename,
             'jumlah_file' => $dimasukkan,
             'size' => filesize($filepath),
@@ -963,15 +989,15 @@ class SettingsController extends BaseController
      */
     public function delBackup()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
             return $this->response->setStatusCode(405);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        if (!is_dir($backupPath)) {
+        $backupPath = storage_path('app').'/'.'backups/';
+        if (! is_dir($backupPath)) {
             return $this->response->setJSON(['status' => true, 'message' => 'Folder backup tidak ada',
                 'csrfName' => '_token', 'csrfHash' => '_token']);
         }
@@ -984,8 +1010,8 @@ class SettingsController extends BaseController
         $dilindungi = [];
         $gagalHapus = [];
         $count = 0;
-        foreach (glob($backupPath . '*') ?: [] as $file) {
-            if (!is_file($file)) {
+        foreach (glob($backupPath.'*') ?: [] as $file) {
+            if (! is_file($file)) {
                 continue;
             }
             $nama = basename($file);
@@ -996,6 +1022,7 @@ class SettingsController extends BaseController
                     } else {
                         $gagalHapus[] = $nama;
                     }
+
                     continue 2;
                 }
             }
@@ -1006,7 +1033,7 @@ class SettingsController extends BaseController
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Tidak ada file backup manual yang bisa dihapus'
-                    . (empty($dilindungi) ? '' : '. ' . count($dilindungi) . ' file arsip otomatis dipertahankan.'),
+                    .(empty($dilindungi) ? '' : '. '.count($dilindungi).' file arsip otomatis dipertahankan.'),
                 'dilindungi' => $dilindungi,
                 'csrfName' => '_token',
                 'csrfHash' => '_token',
@@ -1015,10 +1042,10 @@ class SettingsController extends BaseController
 
         $pesan = "$count file backup dihapus";
         if ($gagalHapus !== []) {
-            $pesan .= ', ' . count($gagalHapus) . ' gagal dihapus: ' . implode(', ', array_slice($gagalHapus, 0, 5));
+            $pesan .= ', '.count($gagalHapus).' gagal dihapus: '.implode(', ', array_slice($gagalHapus, 0, 5));
         }
         if ($dilindungi !== []) {
-            $pesan .= '. ' . count($dilindungi) . ' file arsip otomatis dipertahankan';
+            $pesan .= '. '.count($dilindungi).' file arsip otomatis dipertahankan';
         }
 
         return $this->response->setJSON([
@@ -1037,7 +1064,7 @@ class SettingsController extends BaseController
      */
     public function hapusBackup()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
@@ -1050,14 +1077,14 @@ class SettingsController extends BaseController
         }
 
         // Security: only allow alphanumeric, underscore, dash, dot
-        if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
+        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak valid']);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        $filepath = $backupPath . $src;
+        $backupPath = storage_path('app').'/'.'backups/';
+        $filepath = $backupPath.$src;
 
-        if (!is_file($filepath)) {
+        if (! is_file($filepath)) {
             return $this->response->setJSON(['status' => false, 'message' => 'File tidak ditemukan']);
         }
 
@@ -1081,9 +1108,9 @@ class SettingsController extends BaseController
     private function pisahStatement(string $sql): array
     {
         $statements = [];
-        $current    = '';
-        $quote      = null;
-        $len        = strlen($sql);
+        $current = '';
+        $quote = null;
+        $len = strlen($sql);
 
         for ($i = 0; $i < $len; $i++) {
             $ch = $sql[$i];
@@ -1092,22 +1119,26 @@ class SettingsController extends BaseController
                 $current .= $ch;
                 if ($ch === '\\' && $quote !== '`' && $i + 1 < $len) {
                     $current .= $sql[++$i];
+
                     continue;
                 }
                 if ($ch === $quote) {
                     if ($quote !== '`' && $i + 1 < $len && $sql[$i + 1] === $quote) {
                         // kutip berganda ('' di dalam ') adalah literal, bukan penutup
                         $current .= $sql[++$i];
+
                         continue;
                     }
                     $quote = null;
                 }
+
                 continue;
             }
 
             if ($ch === "'" || $ch === '"' || $ch === '`') {
                 $quote = $ch;
                 $current .= $ch;
+
                 continue;
             }
 
@@ -1117,12 +1148,14 @@ class SettingsController extends BaseController
                     $i++;
                 }
                 $current .= "\n";
+
                 continue;
             }
 
             if ($ch === '/' && ($sql[$i + 1] ?? '') === '*') {
                 $tutup = strpos($sql, '*/', $i + 2);
                 $i = $tutup === false ? $len : $tutup + 1;
+
                 continue;
             }
 
@@ -1132,6 +1165,7 @@ class SettingsController extends BaseController
                     $statements[] = $trim;
                 }
                 $current = '';
+
                 continue;
             }
 
@@ -1151,7 +1185,7 @@ class SettingsController extends BaseController
      */
     public function restore()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
@@ -1163,21 +1197,21 @@ class SettingsController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak boleh kosong']);
         }
 
-        if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
+        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak valid']);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        $filepath = $backupPath . $src;
+        $backupPath = storage_path('app').'/'.'backups/';
+        $filepath = $backupPath.$src;
 
-        if (!is_file($filepath)) {
+        if (! is_file($filepath)) {
             return $this->response->setJSON(['status' => false, 'message' => 'File backup tidak ditemukan']);
         }
 
         // Hanya dump teks murni. Arsip cron .sql.gz dibaca sebagai teks menghasilkan
         // byte acak yang lolos "pisahStatement" lalu dieksekusi sebagai SQL rusak —
         // sebagian di antaranya bisa saja kebetulan valid dan merusak data.
-        if (!str_ends_with(strtolower($src), '.sql')) {
+        if (! str_ends_with(strtolower($src), '.sql')) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Hanya file .sql yang bisa direstore dari halaman ini. File terkompresi (.gz/.zip) harus di-ekstrak dulu di server.',
@@ -1203,8 +1237,8 @@ class SettingsController extends BaseController
             ]);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
 
         // Pisah per statement dengan parser yang mengenali string literal dan
         // komentar; explode(';') memotong alamat/catatan yang berisi ';'.
@@ -1223,12 +1257,12 @@ class SettingsController extends BaseController
                     // dan DDL MySQL di-implied-commit sehingga transComplete()
                     // tidak bisa membatalkannya.
                     $gagal++;
-                    Log::error('[Settings::restore] SQL error: ' . $e->getMessage());
+                    Log::error('[Settings::restore] SQL error: '.$e->getMessage());
                 }
             }
         }
 
-        \Illuminate\Support\Facades\DB::commit();
+        DB::commit();
 
         if (true === false) {
             return $this->response->setJSON(['status' => false, 'message' => 'Restore gagal (transaksi dibatalkan)']);
@@ -1237,8 +1271,8 @@ class SettingsController extends BaseController
         if ($gagal > 0) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Restore TIDAK lengkap: ' . $berhasil . ' statement berjalan, ' . $gagal
-                    . ' gagal. Periksa log server sebelum mengandalkan data ini.',
+                'message' => 'Restore TIDAK lengkap: '.$berhasil.' statement berjalan, '.$gagal
+                    .' gagal. Periksa log server sebelum mengandalkan data ini.',
                 'csrfName' => '_token',
                 'csrfHash' => '_token',
             ]);
@@ -1246,7 +1280,7 @@ class SettingsController extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Restore database berhasil (' . $berhasil . ' statement)',
+            'message' => 'Restore database berhasil ('.$berhasil.' statement)',
             'csrfName' => '_token',
             'csrfHash' => '_token',
         ]);
@@ -1257,28 +1291,28 @@ class SettingsController extends BaseController
      */
     public function downloadBackup()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return redirect()->to('auth');
         }
 
         $src = (string) ($this->request->query('src') ?? '');
 
-        if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
+        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
             abort(404);
         }
 
-        $backupPath = storage_path('app') . '/' . 'backups/';
-        $filepath = $backupPath . $src;
+        $backupPath = storage_path('app').'/'.'backups/';
+        $filepath = $backupPath.$src;
 
-        if (!is_file($filepath)) {
+        if (! is_file($filepath)) {
             abort(404);
         }
         // File backup sering dibuat cron yang berjalan sebagai user lain; kalau
         // ownership/umask-nya tidak bisa dibaca PHP, DownloadResponse akan
         // gagal di tengah stream tanpa pesan yang jelas di log.
-        if (!is_readable($filepath)) {
-            Log::error('[Settings::downloadBackup] tidak bisa membaca ' . $filepath
-                . ' — cek permission/owner file (dibuat cron sebagai user lain?).');
+        if (! is_readable($filepath)) {
+            Log::error('[Settings::downloadBackup] tidak bisa membaca '.$filepath
+                .' — cek permission/owner file (dibuat cron sebagai user lain?).');
             abort(404);
         }
 

@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\MasterModel;
 use App\Models\PoinSiswaModel;
+use App\Services\SiswaDendaService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Modul Poin Kedisiplinan Siswa (admin).
@@ -18,17 +19,20 @@ use App\Models\PoinSiswaModel;
 class PoinSiswaController extends BaseController
 {
     protected $db;
+
     protected MasterModel $masterModel;
+
     protected DashboardModel $dashboardModel;
+
     protected PoinSiswaModel $poinModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
-        $this->masterModel = new MasterModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->poinModel = new PoinSiswaModel();
+        $this->db = DB::connection();
+        $this->masterModel = new MasterModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->poinModel = new PoinSiswaModel;
         $this->poinModel->ensureTables();
     }
 
@@ -37,15 +41,15 @@ class PoinSiswaController extends BaseController
      */
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
 
         $idKelas = (int) ($this->request->query('kelas') ?? 0);
@@ -63,9 +67,9 @@ class PoinSiswaController extends BaseController
 
         // Statistik ringkas
         $totalSiswa = count($leaderboard);
-        $skorList = array_map(fn($r) => (int) ($r->skor ?? PoinSiswaModel::SKOR_AWAL), $leaderboard);
+        $skorList = array_map(fn ($r) => (int) ($r->skor ?? PoinSiswaModel::SKOR_AWAL), $leaderboard);
         $avg = $totalSiswa ? array_sum($skorList) / $totalSiswa : PoinSiswaModel::SKOR_AWAL;
-        $diBawah75 = count(array_filter($skorList, fn($s) => $s < 75));
+        $diBawah75 = count(array_filter($skorList, fn ($s) => $s < 75));
         try {
             $kasusBulanIni = (int) $this->db->table('poin_siswa_history')
                 ->whereRaw('MONTH(created_at) = ?', [date('n')])
@@ -82,8 +86,8 @@ class PoinSiswaController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'kelas_list' => $kelasList,
             'filter_kelas' => $idKelas,
             'leaderboard' => $leaderboard,
@@ -102,16 +106,16 @@ class PoinSiswaController extends BaseController
      */
     public function detail($idSiswa)
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (!$this->isAdmin() && !$this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
         $idSiswa = (int) $idSiswa;
         $siswa = $this->masterModel->getSiswaById($idSiswa);
-        if (!$siswa) {
+        if (! $siswa) {
             return redirect()->to('admin/poin-siswa')->with('error', 'Siswa tidak ditemukan');
         }
 
@@ -122,8 +126,8 @@ class PoinSiswaController extends BaseController
             'user' => $this->getUser(),
             'judul' => 'Detail Poin Siswa',
             'setting' => $this->getSettingRow(),
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
             'siswa' => $siswa,
             'skor' => $this->poinModel->getSkor($idSiswa),
             'tahun' => $tahun,
@@ -140,7 +144,7 @@ class PoinSiswaController extends BaseController
      */
     public function record()
     {
-        if (!$this->isLoggedIn() || (!$this->isAdmin() && !$this->isGuru())) {
+        if (! $this->isLoggedIn() || (! $this->isAdmin() && ! $this->isGuru())) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $res = $this->poinModel->recordManual(
@@ -149,6 +153,7 @@ class PoinSiswaController extends BaseController
             (string) ($this->request->input('keterangan') ?? ''),
             $this->getUserId()
         );
+
         return $this->respond($res['status'], $res['message'] ?? '', $res['skor'] ?? null);
     }
 
@@ -157,7 +162,7 @@ class PoinSiswaController extends BaseController
      */
     public function saveKategori()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $id = ($this->request->input('id') ?? '') !== '' ? (int) $this->request->input('id') : null;
@@ -167,15 +172,17 @@ class PoinSiswaController extends BaseController
             'bobot' => (int) ($this->request->input('bobot') ?? 0),
             'is_active' => (int) ($this->request->input('is_active') ?? 1),
         ], $id);
+
         return $this->respond($res['status'], $res['message'] ?? '');
     }
 
     public function deleteKategori()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $res = $this->poinModel->deleteKategori((int) $this->request->input('id'));
+
         return $this->respond($res['status'], $res['message'] ?? '');
     }
 
@@ -184,11 +191,12 @@ class PoinSiswaController extends BaseController
      */
     public function getHistory($idSiswa)
     {
-        if (!$this->isLoggedIn() || (!$this->isAdmin() && !$this->isGuru())) {
+        if (! $this->isLoggedIn() || (! $this->isAdmin() && ! $this->isGuru())) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $limit = (int) ($this->request->query('limit') ?? 50);
         $limit = max(10, min($limit, 100));
+
         return $this->respond(true, 'OK', [
             'skor' => $this->poinModel->getSkor((int) $idSiswa),
             'history' => $this->poinModel->getRiwayat((int) $idSiswa, $limit),
@@ -203,7 +211,7 @@ class PoinSiswaController extends BaseController
      */
     public function syncPresensi()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $bulan = (int) ($this->request->input('bulan') ?? date('n'));
@@ -215,7 +223,7 @@ class PoinSiswaController extends BaseController
 
         // Job yang sama dengan /cron/poin-siswa: dua recalc paralel pada baris
         // presensi yang sama saling menimpa (hapus-lama lalu tulis-baru).
-        if (!$this->cobaKunci('absen-cron-poin-siswa')) {
+        if (! $this->cobaKunci('absen-cron-poin-siswa')) {
             return $this->respond(false, 'Sinkron poin lain masih berjalan — coba lagi sebentar.');
         }
 
@@ -229,16 +237,19 @@ class PoinSiswaController extends BaseController
             // Sinkron hanya baris milik siswa AKTIF; baris non-AKTIF
             // dilewati (recalc juga membatalkan poin otomatisnya).
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
-                    $b->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                        ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+                if (Schema::hasTable('buku_induk')) {
+                    $b->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                        ->where(function ($q) {
+                            $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                        });
                 }
             } catch (\Throwable $e2) {
             }
             $rows = $b->get();
         } catch (\Throwable $e) {
             // Pesan exception berisi SQL + kolom — tidak boleh dikirim ke klien.
-            Log::error('[Admin/PoinSiswa::syncPresensi] baca presensi gagal: ' . $e->getMessage());
+            Log::error('[Admin/PoinSiswa::syncPresensi] baca presensi gagal: '.$e->getMessage());
+
             return $this->respond(false, 'Gagal membaca data presensi — periksa log aplikasi');
         }
         $berubah = 0;
@@ -247,12 +258,12 @@ class PoinSiswaController extends BaseController
         // Satu tombol sinkron memperbaiki dua hal yang diturunkan dari baris
         // presensi yang sama: poin dan denda. Membiarkan salah satunya tertinggal
         // membuat rekap menampilkan poin baru dengan tagihan lama.
-        $denda = new \App\Services\SiswaDendaService();
+        $denda = new SiswaDendaService;
         foreach ($rows as $r) {
             $res = $this->poinModel->syncPresensi($r);
-            if (!($res['status'] ?? false)) {
+            if (! ($res['status'] ?? false)) {
                 $gagal++;
-            } elseif (!empty($res['skipped'])) {
+            } elseif (! empty($res['skipped'])) {
                 $lewat++;
             } else {
                 $berubah++;
@@ -267,11 +278,11 @@ class PoinSiswaController extends BaseController
         $dendaHasil = $denda->recalcBulanBerjalan($bulan, $tahun);
 
         return $this->respond(true, "Sinkron selesai: {$berubah} poin berubah, {$lewat} dilewati/tidak berubah"
-            . ', ' . $dendaHasil['diubah'] . ' denda disesuaikan'
-            . ($dendaHasil['tanpa_baris'] > 0
-                ? ' (' . $dendaHasil['tanpa_baris'] . ' hari alpha tanpa baris presensi tetap tertagih di rekap)'
+            .', '.$dendaHasil['diubah'].' denda disesuaikan'
+            .($dendaHasil['tanpa_baris'] > 0
+                ? ' ('.$dendaHasil['tanpa_baris'].' hari alpha tanpa baris presensi tetap tertagih di rekap)'
                 : '')
-            . ($gagal ? ", {$gagal} gagal (lihat log)" : ''));
+            .($gagal ? ", {$gagal} gagal (lihat log)" : ''));
     }
 
     /**
@@ -285,7 +296,8 @@ class PoinSiswaController extends BaseController
         try {
             $row = $this->db->select('SELECT GET_LOCK(?, 0) AS l', [$nama])[0] ?? null;
         } catch (\Throwable $e) {
-            Log::error("[Admin/PoinSiswa] GET_LOCK({$nama}) gagal: " . $e->getMessage());
+            Log::error("[Admin/PoinSiswa] GET_LOCK({$nama}) gagal: ".$e->getMessage());
+
             return true;
         }
 

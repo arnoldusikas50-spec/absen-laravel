@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-
+use App\Models\AuditLogModel;
+use App\Models\DashboardModel;
+use App\Models\PoinHistoryModel;
+use App\Models\RewardModel;
+use App\Models\RewardRedemptionModel;
+use App\Models\RewardTierModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use App\Models\RewardModel;
-use App\Models\RewardTierModel;
-use App\Models\RewardRedemptionModel;
-use App\Models\PoinHistoryModel;
 
 class RewardController extends BaseController
 {
@@ -19,23 +19,23 @@ class RewardController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->db = DB::connection();
     }
 
     public function index()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
-        $rewardModel = new RewardModel();
-        $tierModel = new RewardTierModel();
-        $redemptionModel = new RewardRedemptionModel();
-        $poinHistoryModel = new PoinHistoryModel();
-        $dashboardModel = new \App\Models\DashboardModel();
+        $rewardModel = new RewardModel;
+        $tierModel = new RewardTierModel;
+        $redemptionModel = new RewardRedemptionModel;
+        $poinHistoryModel = new PoinHistoryModel;
+        $dashboardModel = new DashboardModel;
 
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
@@ -45,22 +45,22 @@ class RewardController extends BaseController
 
         // Get all redemptions history with teacher and admin names
         $allRedemptions = $this->db->table('reward_redemptions as rr')
-            ->select('rr.*, r.nama as reward_nama, r.nominal, r.poin_dibutuhkan as reward_poin, 
-                      u.first_name, u.last_name, g.nama_guru, g.nip,
-                      adm.first_name as admin_first, adm.last_name as admin_last')
-            ->join('rewards as r', 'r.id = rr.reward_id', 'left')
-            ->join('users as u', 'u.id = rr.user_id', 'left')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
-            ->join('users as adm', 'adm.id = rr.approved_by', 'left')
+            ->select('rr.*', 'r.nama as reward_nama', 'r.nominal', 'r.poin_dibutuhkan as reward_poin',
+                'u.first_name', 'u.last_name', 'g.nama_guru', 'g.nip',
+                'adm.first_name as admin_first', 'adm.last_name as admin_last')
+            ->leftJoin('rewards as r', 'r.id', '=', 'rr.reward_id')
+            ->leftJoin('users as u', 'u.id', '=', 'rr.user_id')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->leftJoin('users as adm', 'adm.id', '=', 'rr.approved_by')
             ->orderBy('rr.created_at', 'DESC')
             ->limit(100)
             ->get();
 
         // Get all active teachers and their points balance
         $teachersRaw = $this->db->table('users as u')
-            ->select('u.id as user_id, u.first_name, u.last_name, u.username, g.nama_guru, g.nip, g.foto')
-            ->join('master_guru as g', 'g.id_user = u.id', 'left')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->select('u.id as user_id', 'u.first_name', 'u.last_name', 'u.username', 'g.nama_guru', 'g.nip', 'g.foto')
+            ->leftJoin('master_guru as g', 'g.id_user', '=', 'u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->orderBy('g.nama_guru', 'ASC')
@@ -69,7 +69,8 @@ class RewardController extends BaseController
         // Poin tahun berjalan per user (live SUM, bukan cache)
         $year = (int) date('Y');
         $yearlyRows = $this->db->table('poin_history')
-            ->select('user_id, SUM(poin) as total')
+            ->select('user_id')
+            ->selectRaw('SUM(poin) as total')
             ->whereRaw('YEAR(created_at) = ?', [$year])
             ->groupBy('user_id')
             ->get();
@@ -85,8 +86,10 @@ class RewardController extends BaseController
         foreach ($teachersRaw as $t) {
             $saldo = $poinHistoryModel->getSaldo($t->user_id);
             $poinTahunan = (float) ($yearlyMap[$t->user_id] ?? 0);
-            $nama = !empty($t->nama_guru) ? $t->nama_guru : trim($t->first_name . ' ' . $t->last_name);
-            if (empty($nama)) $nama = $t->username;
+            $nama = ! empty($t->nama_guru) ? $t->nama_guru : trim($t->first_name.' '.$t->last_name);
+            if (empty($nama)) {
+                $nama = $t->username;
+            }
 
             // Tier via model (mendukung poin_max = 0 = tak terhingga + overlap-safe)
             $currentTier = $tierModel->getTierByPoin($saldo);
@@ -104,7 +107,7 @@ class RewardController extends BaseController
                 'foto' => $t->foto,
                 'saldo' => $saldo,
                 'poin_tahunan' => $poinTahunan,
-                'tier' => $currentTier
+                'tier' => $currentTier,
             ];
         }
 
@@ -123,13 +126,13 @@ class RewardController extends BaseController
 
         // Sort teachers by highest points for leaderboard ranking
         $leaderboard = $teachers;
-        usort($leaderboard, function($a, $b) {
+        usort($leaderboard, function ($a, $b) {
             return $b->saldo <=> $a->saldo;
         });
 
         // Summary Statistics
         $totalRewards = count($rewards);
-        $activeRewards = count(array_filter($rewards, fn($r) => (int) ($r->is_active ?? 0) === 1));
+        $activeRewards = $rewards->filter(fn ($r) => (int) ($r->is_active ?? 0) === 1)->count();
         $pendingCount = count($pending);
         $approvedCount = $this->db->table('reward_redemptions')->where('status', 'APPROVED')->count();
         $claimedCount = $this->db->table('reward_redemptions')->where('status', 'CLAIMED')->count();
@@ -145,7 +148,7 @@ class RewardController extends BaseController
             'total_poin_beredar' => $totalPoinBeredar,
             'poin_tahunan_total' => $annualTotal,
             'poin_tahunan_avg' => $teachers ? $annualTotal / count($teachers) : 0,
-            'top_guru' => array_slice($leaderboard, 0, 5)
+            'top_guru' => array_slice($leaderboard, 0, 5),
         ];
 
         return view('admin.reward.index', [
@@ -153,8 +156,8 @@ class RewardController extends BaseController
             'judul' => 'Kelola Reward & Poin Guru',
             'user' => $this->getUser(),
             'setting' => $setting,
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
             'rewards' => $rewards,
             'tiers' => $tiers,
             'pending' => $pending,
@@ -162,18 +165,18 @@ class RewardController extends BaseController
             'teachers' => $teachers,
             'leaderboard' => $leaderboard,
             'stats' => $stats,
-            'currentYear' => $year
+            'currentYear' => $year,
         ]);
     }
 
     // Rewards CRUD
     public function saveReward()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $rewardModel = new RewardModel();
+        $rewardModel = new RewardModel;
         $id = (int) ($this->request->input('id') ?? 0);
         $nama = trim((string) ($this->request->input('nama') ?? ''));
         $deskripsi = trim((string) ($this->request->input('deskripsi') ?? ''));
@@ -200,13 +203,17 @@ class RewardController extends BaseController
 
         // Cegah duplikat nama (case-insensitive)
         $dup = $rewardModel->where('LOWER(nama)', strtolower($nama));
-        if ($id > 0) $dup = $dup->where('id', '!=', $id);
+        if ($id > 0) {
+            $dup = $dup->where('id', '!=', $id);
+        }
         if ($dup->first()) {
             return $this->respond(false, 'Nama reward sudah digunakan. Gunakan nama lain.');
         }
 
         // Stok 0 tidak boleh aktif di katalog guru (hindari klaim gagal)
-        if ($stok <= 0) $isActive = 0;
+        if ($stok <= 0) {
+            $isActive = 0;
+        }
 
         $data = [
             'nama' => $nama,
@@ -218,39 +225,39 @@ class RewardController extends BaseController
         ];
 
         if ($id > 0) {
-            if (!$rewardModel->find($id)) {
+            if (! $rewardModel->find($id)) {
                 return $this->respond(false, 'Reward tidak ditemukan');
             }
             $tersimpan = $rewardModel->where('id', $id)->update($data);
             if ($tersimpan === false) {
-                Log::error('[Admin\Reward] update reward ' . $id . ' gagal: ' . json_encode($rewardModel[]));
+                Log::error('[Admin\Reward] update reward '.$id.' gagal: '.json_encode($rewardModel[]));
 
                 return $this->respond(false, 'Reward gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
             }
 
-            return $this->respond(true, 'Reward berhasil diperbarui' . ($stok <= 0 ? ' (otomatis dinonaktifkan karena stok 0)' : ''));
+            return $this->respond(true, 'Reward berhasil diperbarui'.($stok <= 0 ? ' (otomatis dinonaktifkan karena stok 0)' : ''));
         }
 
         $insertId = $rewardModel->insert($data);
         if (! $insertId) {
-            Log::error('[Admin\Reward] insert reward gagal: ' . json_encode($rewardModel[]));
+            Log::error('[Admin\Reward] insert reward gagal: '.json_encode($rewardModel[]));
 
             return $this->respond(false, 'Reward gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
 
-        return $this->respond(true, 'Reward baru berhasil ditambahkan' . ($stok <= 0 ? ' (nonaktif karena stok 0)' : ''));
+        return $this->respond(true, 'Reward baru berhasil ditambahkan'.($stok <= 0 ? ' (nonaktif karena stok 0)' : ''));
     }
 
     public function deleteReward($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $id = (int) $id;
-        $rewardModel = new RewardModel();
+        $rewardModel = new RewardModel;
         $reward = $rewardModel->find($id);
-        if (!$reward) {
+        if (! $reward) {
             return $this->respond(false, 'Reward tidak ditemukan');
         }
 
@@ -262,7 +269,7 @@ class RewardController extends BaseController
 
         $terhapus = $rewardModel->where('id', $id)->delete();
         if ($terhapus === false) {
-            Log::error('[Admin\Reward] delete reward ' . $id . ' ditolak DB');
+            Log::error('[Admin\Reward] delete reward '.$id.' ditolak DB');
 
             return $this->respond(false, 'Reward gagal dihapus. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -273,11 +280,11 @@ class RewardController extends BaseController
     // Tiers CRUD
     public function saveTier()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $tierModel = new RewardTierModel();
+        $tierModel = new RewardTierModel;
         $id = (int) ($this->request->input('id') ?? 0);
         $nama = trim((string) ($this->request->input('nama_tier') ?? ''));
         $poinMin = (int) $this->request->input('poin_min');
@@ -297,10 +304,10 @@ class RewardController extends BaseController
         if ($poinMax !== 0 && $poinMax <= $poinMin) {
             return $this->respond(false, 'Poin maksimal harus lebih besar dari poin minimal (atau 0 = tak terhingga)');
         }
-        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $warna)) {
+        if (! preg_match('/^#[0-9a-fA-F]{6}$/', $warna)) {
             return $this->respond(false, 'Kode warna harus format hex, contoh #eab308');
         }
-        if (!preg_match('/^bi-[a-z0-9-]+$/', $badge)) {
+        if (! preg_match('/^bi-[a-z0-9-]+$/', $badge)) {
             return $this->respond(false, 'Icon badge harus format Bootstrap Icons, contoh bi-trophy-fill');
         }
 
@@ -308,11 +315,13 @@ class RewardController extends BaseController
         $others = $tierModel->get();
         $newMax = $poinMax === 0 ? PHP_INT_MAX : $poinMax;
         foreach ($others as $o) {
-            if ($id > 0 && (int) $o->id === $id) continue;
+            if ($id > 0 && (int) $o->id === $id) {
+                continue;
+            }
             $oMax = ((int) $o->poin_max === 0) ? PHP_INT_MAX : (int) $o->poin_max;
             $oMin = (int) $o->poin_min;
             if ($poinMin <= $oMax && $oMin <= $newMax) {
-                return $this->respond(false, "Rentang {$poinMin}–" . ($poinMax === 0 ? '∞' : $poinMax) . " tumpang tindih dengan tier \"{$o->nama_tier}\" ({$oMin}–" . ((int) $o->poin_max === 0 ? '∞' : $o->poin_max) . ")");
+                return $this->respond(false, "Rentang {$poinMin}–".($poinMax === 0 ? '∞' : $poinMax)." tumpang tindih dengan tier \"{$o->nama_tier}\" ({$oMin}–".((int) $o->poin_max === 0 ? '∞' : $o->poin_max).')');
             }
         }
 
@@ -325,12 +334,12 @@ class RewardController extends BaseController
         ];
 
         if ($id > 0) {
-            if (!$tierModel->find($id)) {
+            if (! $tierModel->find($id)) {
                 return $this->respond(false, 'Tier tidak ditemukan');
             }
             $tersimpan = $tierModel->where('id', $id)->update($data);
             if ($tersimpan === false) {
-                Log::error('[Admin\Reward] update tier ' . $id . ' gagal: ' . json_encode($tierModel[]));
+                Log::error('[Admin\Reward] update tier '.$id.' gagal: '.json_encode($tierModel[]));
 
                 return $this->respond(false, 'Tier gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
             }
@@ -340,7 +349,7 @@ class RewardController extends BaseController
 
         $insertId = $tierModel->insert($data);
         if (! $insertId) {
-            Log::error('[Admin\Reward] insert tier gagal: ' . json_encode($tierModel[]));
+            Log::error('[Admin\Reward] insert tier gagal: '.json_encode($tierModel[]));
 
             return $this->respond(false, 'Tier gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -350,13 +359,13 @@ class RewardController extends BaseController
 
     public function deleteTier($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
         $id = (int) $id;
-        $tierModel = new RewardTierModel();
-        if (!$tierModel->find($id)) {
+        $tierModel = new RewardTierModel;
+        if (! $tierModel->find($id)) {
             return $this->respond(false, 'Tier tidak ditemukan');
         }
         if (count($tierModel->get()) <= 1) {
@@ -365,7 +374,7 @@ class RewardController extends BaseController
 
         $terhapus = $tierModel->where('id', $id)->delete();
         if ($terhapus === false) {
-            Log::error('[Admin\Reward] delete tier ' . $id . ' ditolak DB');
+            Log::error('[Admin\Reward] delete tier '.$id.' ditolak DB');
 
             return $this->respond(false, 'Tier gagal dihapus. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -376,7 +385,7 @@ class RewardController extends BaseController
     // Redemptions Approval
     public function approveRedemption($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -385,25 +394,27 @@ class RewardController extends BaseController
             return $this->respond(false, 'ID klaim tidak valid');
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             // Kunci baris: hanya PENDING yang bisa diproses (cegah double-approve antar admin)
             $r = $this->db->table('reward_redemptions')->where('id', $id)->where('status', 'PENDING')->first();
-            if (!$r) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $r) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Permintaan klaim tidak valid atau sudah diproses admin lain');
             }
 
             if ($this->adalahPemilikKlaim($r)) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, 'Anda tidak dapat memproses klaim reward milik sendiri. Mintakan admin lain.', null, null, 403);
             }
 
             $this->db->table('reward_redemptions')->where('id', $id)->where('status', 'PENDING')->update([
                 'status' => 'APPROVED',
                 'approved_by' => $this->getUserId(),
-                'updated_at' => date('Y-m-d H:i:s')
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
 
             if (1 !== 1) {
@@ -420,21 +431,23 @@ class RewardController extends BaseController
 
             // Stok sudah dicadangkan (stok-1) saat guru melakukan redeem,
             // jadi di sini tidak perlu dikurangi lagi agar tidak dobel.
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             return $this->respond(true, 'Penukaran reward berhasil disetujui, voucher siap dipakai guru');
         } catch (\DomainException $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, $e->getMessage());
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            return $this->gagalKlaim('approveRedemption#' . $id, $e);
+            DB::rollBack();
+
+            return $this->gagalKlaim('approveRedemption#'.$id, $e);
         }
     }
 
     public function rejectRedemption($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -448,17 +461,19 @@ class RewardController extends BaseController
             return $this->respond(false, 'Alasan penolakan wajib diisi (5–500 karakter)');
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         try {
             $r = $this->db->table('reward_redemptions')->where('id', $id)->where('status', 'PENDING')->first();
-            if (!$r) {
-                \Illuminate\Support\Facades\DB::rollBack();
+            if (! $r) {
+                DB::rollBack();
+
                 return $this->respond(false, 'Permintaan klaim tidak valid atau sudah diproses admin lain');
             }
 
             if ($this->adalahPemilikKlaim($r)) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, 'Anda tidak dapat memproses klaim reward milik sendiri. Mintakan admin lain.', null, null, 403);
             }
 
@@ -466,7 +481,7 @@ class RewardController extends BaseController
                 'status' => 'REJECTED',
                 'keterangan' => $alasan,
                 'approved_by' => $this->getUserId(),
-                'updated_at' => date('Y-m-d H:i:s')
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
 
             if (1 !== 1) {
@@ -474,21 +489,20 @@ class RewardController extends BaseController
             }
 
             // Refund poin ke guru (tipe REFUND agar mudah diaudit, bukan BONUS)
-            $poinHistory = new PoinHistoryModel();
+            $poinHistory = new PoinHistoryModel;
             $refundOk = (bool) $poinHistory->insert([
                 'user_id' => $r->user_id,
                 'poin' => abs((int) $r->poin_digunakan),
                 'tipe' => 'REFUND',
-                'keterangan' => 'Refund penukaran ditolak: ' . $alasan,
-                'ref_id' => 'refund-' . $r->id . '-' . time(),
+                'keterangan' => 'Refund penukaran ditolak: '.$alasan,
+                'ref_id' => 'refund-'.$r->id.'-'.time(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
 
             // Kembalikan stok yang dicadangkan saat guru redeem (hanya jika reward masih ada)
             $this->db->table('rewards')
                 ->where('id', $r->reward_id)
-                ->set('stok', 'stok+1', false)
-                ->update();
+                ->update(['stok' => DB::raw('stok+1')]);
             $stokOk = 1 === 1;
 
             // Update total points cache in master_guru
@@ -503,34 +517,36 @@ class RewardController extends BaseController
                 $alasan
             );
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Pesan harus menggambarkan hasil tulis sebenarnya: klaim boleh
             // tertolak sementara refund/stok tidak sempat tersimpan.
-            if (!$refundOk && !$stokOk) {
+            if (! $refundOk && ! $stokOk) {
                 return $this->respond(true, 'Penukaran ditolak, tetapi poin refund dan stok TIDAK berhasil dipulihkan. Periksa saldo guru dan stok reward secara manual.');
             }
-            if (!$refundOk) {
+            if (! $refundOk) {
                 return $this->respond(true, 'Penukaran ditolak dan stok dipulihkan, tetapi poin refund TIDAK berhasil dicatat. Kembalikan poin guru lewat Penyesuaian Poin.');
             }
-            if (!$stokOk) {
+            if (! $stokOk) {
                 return $this->respond(true, 'Penukaran ditolak dan poin dikembalikan, tetapi stok reward tidak dipulihkan (reward mungkin sudah dihapus).');
             }
 
             return $this->respond(true, 'Penukaran ditolak, poin dikembalikan, dan stok dipulihkan');
         } catch (\DomainException $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return $this->respond(false, $e->getMessage());
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            return $this->gagalKlaim('rejectRedemption#' . $id, $e);
+            DB::rollBack();
+
+            return $this->gagalKlaim('rejectRedemption#'.$id, $e);
         }
     }
 
     // Manual Point Adjustment (Bonus / Penalty)
     public function adjustPoin()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -539,7 +555,7 @@ class RewardController extends BaseController
         $tipe = strtoupper(trim((string) ($this->request->input('tipe') ?? 'BONUS')));
         $keterangan = trim((string) ($this->request->input('keterangan') ?? ''));
 
-        if (!in_array($tipe, ['BONUS', 'PENALTY'], true)) {
+        if (! in_array($tipe, ['BONUS', 'PENALTY'], true)) {
             return $this->respond(false, 'Tipe penyesuaian harus BONUS atau PENALTY');
         }
         if ($userId <= 0) {
@@ -554,32 +570,32 @@ class RewardController extends BaseController
 
         // Pastikan guru aktif
         $target = $this->db->table('users as u')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('u.id', $userId)->where('ug.group_id', 2)->where('u.active', 1)
             ->first();
-        if (!$target) {
+        if (! $target) {
             return $this->respond(false, 'Guru tidak ditemukan atau tidak aktif');
         }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $saldoLama = $poinHistory->getSaldo($userId);
         $finalPoin = $tipe === 'PENALTY' ? -abs($poin) : abs($poin);
         $saldoBaru = $saldoLama + $finalPoin;
 
         // Cegah saldo minus ekstrem (indikasi kesalahan input)
         if ($saldoBaru < -1000) {
-            return $this->respond(false, 'Penyesuaian ditolak: saldo akan menjadi ' . number_format($saldoBaru) . ' pts (batas minus -1.000). Periksa kembali.');
+            return $this->respond(false, 'Penyesuaian ditolak: saldo akan menjadi '.number_format($saldoBaru).' pts (batas minus -1.000). Periksa kembali.');
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         $catat = false;
         try {
             $catat = (bool) $poinHistory->insert([
                 'user_id' => $userId,
                 'poin' => $finalPoin,
                 'tipe' => $tipe === 'PENALTY' ? 'PENALTI' : 'BONUS',
-                'keterangan' => $keterangan . ' (oleh admin #' . $this->getUserId() . ')',
-                'ref_id' => 'manual-adj-' . $userId . '-' . uniqid(),
+                'keterangan' => $keterangan.' (oleh admin #'.$this->getUserId().')',
+                'ref_id' => 'manual-adj-'.$userId.'-'.uniqid(),
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
 
@@ -589,25 +605,26 @@ class RewardController extends BaseController
                 $userId,
                 ['saldo' => $saldoLama],
                 ['poin' => $finalPoin, 'tipe' => $tipe, 'keterangan' => $keterangan, 'tersimpan' => $catat],
-                'admin#' . ((int) ($this->getUserId() ?? 0))
+                'admin#'.((int) ($this->getUserId() ?? 0))
             );
 
             $poinHistory->updateTotalPoin($userId);
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            return $this->gagalKlaim('adjustPoin user#' . $userId, $e);
+            DB::rollBack();
+
+            return $this->gagalKlaim('adjustPoin user#'.$userId, $e);
         }
 
-        if (!$catat) {
+        if (! $catat) {
             return $this->respond(false, 'Penyesuaian poin gagal disimpan — mutasi tidak masuk ke riwayat poin. Silakan coba lagi.');
         }
 
         $newSaldo = $poinHistory->getSaldo($userId);
 
-        return $this->respond(true, 'Poin berhasil disesuaikan. Saldo baru: ' . number_format($newSaldo) . ' pts', [
+        return $this->respond(true, 'Poin berhasil disesuaikan. Saldo baru: '.number_format($newSaldo).' pts', [
             'user_id' => $userId,
-            'new_saldo' => $newSaldo
+            'new_saldo' => $newSaldo,
         ]);
     }
 
@@ -619,7 +636,7 @@ class RewardController extends BaseController
      */
     private function gagalKlaim(string $konteks, \Throwable $e)
     {
-        Log::error('[Admin\Reward] ' . $konteks . ': ' . $e->getMessage());
+        Log::error('[Admin\Reward] '.$konteks.': '.$e->getMessage());
 
         return $this->respond(false, 'Terjadi kesalahan pada sistem saat memproses klaim. Data belum berubah — coba lagi, dan bila tetap gagal lapor ke pengembang.');
     }
@@ -638,7 +655,7 @@ class RewardController extends BaseController
     private function catatAudit(string $aksi, int $klaimId, int $targetUserId, $lama, $baru, ?string $alasan = null): void
     {
         try {
-            (new \App\Models\AuditLogModel())->log(
+            (new AuditLogModel)->log(
                 $klaimId > 0 ? 'reward_redemptions' : 'poin_history',
                 $klaimId > 0 ? $klaimId : null,
                 $aksi,
@@ -649,14 +666,14 @@ class RewardController extends BaseController
                 $alasan
             );
         } catch (\Throwable $e) {
-            Log::error('[Admin\Reward] gagal tulis audit (' . $aksi . '): ' . $e->getMessage());
+            Log::error('[Admin\Reward] gagal tulis audit ('.$aksi.'): '.$e->getMessage());
         }
     }
 
     // Get Point Transaction History for a Teacher
     public function getTeacherHistory($userId)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -673,19 +690,19 @@ class RewardController extends BaseController
             ->limit($limit)
             ->get();
 
-        $poinModel = new PoinHistoryModel();
+        $poinModel = new PoinHistoryModel;
         $saldo = $poinModel->getSaldo($userId);
 
         return $this->respond(true, 'Data riwayat poin berhasil dimuat', [
             'saldo' => $saldo,
-            'history' => $history
+            'history' => $history,
         ]);
     }
 
     // Rincian kinerja tahunan per guru (pengganti halaman /admin/poinguru/detail)
     public function getTeacherAnnual($userId)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -712,14 +729,14 @@ class RewardController extends BaseController
             ->get();
 
         $aggRows = $this->db->table('poin_history')
-            ->select('MONTH(created_at) AS bulan, tipe, SUM(poin) AS total_poin, COUNT(*) AS jumlah', false)
+            ->selectRaw('MONTH(created_at) AS bulan, tipe, SUM(poin) AS total_poin, COUNT(*) AS jumlah')
             ->where('user_id', $userId)
             ->whereRaw('YEAR(created_at) = ?', [$year])
-            ->groupBy(['MONTH(created_at)', 'tipe'], false)
+            ->groupByRaw('MONTH(created_at), tipe')
             ->get();
 
         $saldoTahunan = 0.0;
-        $monthly     = array_fill(0, 12, 0);
+        $monthly = array_fill(0, 12, 0);
         $typeSummary = [];
         $totalMutasi = 0;
 
@@ -734,7 +751,7 @@ class RewardController extends BaseController
             }
 
             $t = (string) ($a->tipe ?? '(kosong)');
-            if (!isset($typeSummary[$t])) {
+            if (! isset($typeSummary[$t])) {
                 $typeSummary[$t] = ['poin' => 0, 'count' => 0];
             }
             $typeSummary[$t]['poin'] += $poin;
@@ -757,7 +774,7 @@ class RewardController extends BaseController
     // Seed Point History from Existing Attendance
     public function seedPoin()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -772,7 +789,7 @@ class RewardController extends BaseController
             return $this->respond(false, 'Periode sinkronisasi tidak valid');
         }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $count = $poinHistory->seedFromAttendance($userId, $bulan, $tahun);
         $poinHistory->updateTotalPoin($userId);
 
@@ -781,7 +798,7 @@ class RewardController extends BaseController
 
     public function seedPoinAll()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -795,9 +812,9 @@ class RewardController extends BaseController
             @set_time_limit(300);
         }
 
-        $poinHistory = new PoinHistoryModel();
+        $poinHistory = new PoinHistoryModel;
         $users = $this->db->table('users as u')
-            ->join('users_groups as ug', 'ug.user_id = u.id')
+            ->join('users_groups as ug', 'ug.user_id', '=', 'u.id')
             ->where('ug.group_id', 2)
             ->where('u.active', 1)
             ->select('u.id')
@@ -814,12 +831,15 @@ class RewardController extends BaseController
                 $poinHistory->updateTotalPoin($u->id);
             } catch (\Throwable $e) {
                 $failed++;
-                Log::error('seedPoinAll user ' . $u->id . ': ' . $e->getMessage());
+                Log::error('seedPoinAll user '.$u->id.': '.$e->getMessage());
             }
         }
 
         $msg = "Total {$totalGenerated} mutasi poin berhasil disinkronkan untuk seluruh guru pada tahun {$tahun}.";
-        if ($failed > 0) $msg .= " ({$failed} guru gagal, cek log)";
+        if ($failed > 0) {
+            $msg .= " ({$failed} guru gagal, cek log)";
+        }
+
         return $this->respond(true, $msg);
     }
 }

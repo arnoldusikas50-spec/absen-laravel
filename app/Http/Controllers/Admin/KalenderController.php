@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Http;
 use App\Models\DashboardModel;
 use App\Models\KalenderModel;
 use App\Services\HariSekolahService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Kalender Akademik & Hari Libur.
@@ -29,11 +28,11 @@ class KalenderController extends BaseController
     private const TIPE_EVENT = ['EVENT', 'UJIAN', 'LIBUR', 'RAPAT', 'DINAS', 'LAINNYA'];
 
     private const TIPE_WARNA = [
-        'EVENT'   => '#3b82f6',
-        'UJIAN'   => '#8b5cf6',
-        'LIBUR'   => '#ef4444',
-        'RAPAT'   => '#f59e0b',
-        'DINAS'   => '#06b6d4',
+        'EVENT' => '#3b82f6',
+        'UJIAN' => '#8b5cf6',
+        'LIBUR' => '#ef4444',
+        'RAPAT' => '#f59e0b',
+        'DINAS' => '#06b6d4',
         'LAINNYA' => '#64748b',
     ];
 
@@ -44,13 +43,14 @@ class KalenderController extends BaseController
     ];
 
     protected KalenderModel $kalenderModel;
+
     protected $db;
 
     public function __construct()
     {
         parent::__construct();
-        $this->kalenderModel = new KalenderModel();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->kalenderModel = new KalenderModel;
+        $this->db = DB::connection();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -64,24 +64,24 @@ class KalenderController extends BaseController
         }
 
         [$bulan, $tahun] = $this->bulanTahunDariRequest();
-        $tglAwal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $tglAwal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $tglAkhir = date('Y-m-t', strtotime($tglAwal));
 
-        $events        = $this->kalenderModel->getEventsByRange($tglAwal, $tglAkhir);
-        $holidays      = $this->daftarHariLibur();
+        $events = $this->kalenderModel->getEventsByRange($tglAwal, $tglAkhir);
+        $holidays = $this->daftarHariLibur();
         $holidaysBulan = $this->kalenderModel->getHolidaysByRange($tglAwal, $tglAkhir);
 
-        $dashboardModel = new DashboardModel();
-        $setting        = $this->getSettingRow();
-        $hariService    = new HariSekolahService();
+        $dashboardModel = new DashboardModel;
+        $setting = $this->getSettingRow();
+        $hariService = new HariSekolahService;
 
-        $weeklyOff    = $hariService->hariLiburMingguan();
+        $weeklyOff = $hariService->hariLiburMingguan();
         $weeklyOffIso = array_column($weeklyOff, 'iso');
-        $jadwalLibur  = $this->jadwalKerjaLiburIso();
-        $liburIso     = array_values(array_unique(array_merge($weeklyOffIso, $jadwalLibur)));
+        $jadwalLibur = $this->jadwalKerjaLiburIso();
+        $liburIso = array_values(array_unique(array_merge($weeklyOffIso, $jadwalLibur)));
 
-        $liburTahun  = 0;
-        $cutiTahun   = 0;
+        $liburTahun = 0;
+        $cutiTahun = 0;
         $tanggalLibur = [];
         foreach ($holidays as $h) {
             if (substr((string) $h->tanggal, 0, 4) !== (string) $tahun) {
@@ -94,39 +94,39 @@ class KalenderController extends BaseController
             }
         }
 
-        $totalHari   = (int) date('t', strtotime($tglAwal));
+        $totalHari = (int) date('t', strtotime($tglAwal));
         $hariSekolah = $this->hitungHariSekolah($tahun, $bulan, $weeklyOffIso, $jadwalLibur, $tanggalLibur);
 
         $peringatan = null;
         if ($liburTahun === 0) {
-            $peringatan = 'Belum ada hari libur terdaftar untuk tahun ' . $tahun
-                . '. Sinkronkan libur nasional agar absensi dan dashboard mengenali tanggal merah.';
+            $peringatan = 'Belum ada hari libur terdaftar untuk tahun '.$tahun
+                .'. Sinkronkan libur nasional agar absensi dan dashboard mengenali tanggal merah.';
         }
 
         return view('admin.kalender.index', [
-            'events'         => $events,
-            'holidays'       => $holidays,
+            'events' => $events,
+            'holidays' => $holidays,
             'holidays_bulan' => $holidaysBulan,
-            'bulan'          => $bulan,
-            'tahun'          => $tahun,
-            'nama_bulan'     => self::NAMA_BULAN[$bulan],
-            'today_status'   => $hariService->status(),
-            'weekly_off'     => $weeklyOff,
-            'libur_iso'      => $liburIso,
-            'stats'          => [
-                'event_bulan'  => count($events),
-                'libur_bulan'  => count($holidaysBulan),
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'nama_bulan' => self::NAMA_BULAN[$bulan],
+            'today_status' => $hariService->status(),
+            'weekly_off' => $weeklyOff,
+            'libur_iso' => $liburIso,
+            'stats' => [
+                'event_bulan' => count($events),
+                'libur_bulan' => count($holidaysBulan),
                 'hari_sekolah' => $hariSekolah,
-                'total_hari'   => $totalHari,
-                'libur_tahun'  => $liburTahun,
-                'cuti_tahun'   => $cutiTahun,
+                'total_hari' => $totalHari,
+                'libur_tahun' => $liburTahun,
+                'cuti_tahun' => $cutiTahun,
             ],
-            'peringatan'     => $peringatan,
-            'setting'        => $setting ?? (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'],
-            'tp_active'      => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active'     => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
-            'user'           => $this->getUser(),
-            'judul'          => 'Kalender & Hari Libur',
+            'peringatan' => $peringatan,
+            'setting' => $setting ?? (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'],
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
+            'user' => $this->getUser(),
+            'judul' => 'Kalender & Hari Libur',
         ]);
     }
 
@@ -137,7 +137,7 @@ class KalenderController extends BaseController
     private function sanitizeEventInput(): array
     {
         $judul = mb_substr(trim((string) ($this->request->input('judul') ?? '')), 0, 255);
-        $tipe  = strtoupper(trim((string) ($this->request->input('tipe') ?? 'EVENT')));
+        $tipe = strtoupper(trim((string) ($this->request->input('tipe') ?? 'EVENT')));
         if (! in_array($tipe, self::TIPE_EVENT, true)) {
             $tipe = 'EVENT';
         }
@@ -169,13 +169,13 @@ class KalenderController extends BaseController
         }
 
         $id = $this->kalenderModel->insert([
-            'tgl_mulai'   => $tglMulai,
+            'tgl_mulai' => $tglMulai,
             'tgl_selesai' => $tglSelesai,
-            'judul'       => $judul,
-            'deskripsi'   => $deskripsi,
-            'tipe'        => $tipe,
-            'warna'       => $warna,
-            'created_by'  => (int) (session()->get('user_id') ?? 0),
+            'judul' => $judul,
+            'deskripsi' => $deskripsi,
+            'tipe' => $tipe,
+            'warna' => $warna,
+            'created_by' => (int) (session()->get('user_id') ?? 0),
         ]);
 
         return $this->respond(true, 'Event berhasil ditambahkan', ['id' => (int) $id]);
@@ -203,12 +203,12 @@ class KalenderController extends BaseController
         }
 
         $this->kalenderModel->where('id', (int) $id)->update([
-            'tgl_mulai'   => $tglMulai,
+            'tgl_mulai' => $tglMulai,
             'tgl_selesai' => $tglSelesai,
-            'judul'       => $judul,
-            'deskripsi'   => $deskripsi,
-            'tipe'        => $tipe,
-            'warna'       => $warna,
+            'judul' => $judul,
+            'deskripsi' => $deskripsi,
+            'tipe' => $tipe,
+            'warna' => $warna,
         ]);
 
         return $this->respond(true, 'Event berhasil diperbarui', ['id' => (int) $id]);
@@ -226,6 +226,7 @@ class KalenderController extends BaseController
         }
 
         $this->kalenderModel->where('id', (int) $id)->delete();
+
         return $this->respond(true, 'Event berhasil dihapus');
     }
 
@@ -254,33 +255,33 @@ class KalenderController extends BaseController
         }
 
         $start = (string) ($this->request->query('start') ?? '');
-        $end   = (string) ($this->request->query('end') ?? '');
+        $end = (string) ($this->request->query('end') ?? '');
 
         if ($this->validDate($start) && $this->validDate($end)) {
-            $tglAwal  = $start;
+            $tglAwal = $start;
             // end FullCalendar bersifat eksklusif
-            $tglAkhir = date('Y-m-d', strtotime($end . ' -1 day'));
+            $tglAkhir = date('Y-m-d', strtotime($end.' -1 day'));
             if ($tglAkhir < $tglAwal) {
                 $tglAkhir = $tglAwal;
             }
         } else {
             [$bulan, $tahun] = $this->bulanTahunDariRequest();
-            $tglAwal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $tglAwal = sprintf('%04d-%02d-01', $tahun, $bulan);
             $tglAkhir = date('Y-m-t', strtotime($tglAwal));
         }
 
-        $events   = $this->kalenderModel->getEventsByRange($tglAwal, $tglAkhir);
+        $events = $this->kalenderModel->getEventsByRange($tglAwal, $tglAkhir);
         $holidays = $this->kalenderModel->getHolidaysByRange($tglAwal, $tglAkhir);
 
         $result = [];
         $sudahAda = [];
         foreach ($events as $e) {
             $result[] = $this->payloadEvent($e);
-            $sudahAda[$e->tgl_mulai . '|' . mb_strtolower(trim((string) $e->judul))] = true;
+            $sudahAda[$e->tgl_mulai.'|'.mb_strtolower(trim((string) $e->judul))] = true;
         }
 
         foreach ($holidays as $h) {
-            $kunci = $h->tanggal . '|' . mb_strtolower(trim((string) $h->keterangan));
+            $kunci = $h->tanggal.'|'.mb_strtolower(trim((string) $h->keterangan));
             if (isset($sudahAda[$kunci])) {
                 continue;
             }
@@ -297,27 +298,27 @@ class KalenderController extends BaseController
         $warna = (string) ($e->warna ?: (self::TIPE_WARNA[$e->tipe] ?? '#3b82f6'));
 
         $payload = [
-            'id'              => 'ev_' . $e->id,
-            'title'           => $e->judul,
-            'start'           => $e->tgl_mulai,
-            'allDay'          => true,
+            'id' => 'ev_'.$e->id,
+            'title' => $e->judul,
+            'start' => $e->tgl_mulai,
+            'allDay' => true,
             'backgroundColor' => $warna,
-            'borderColor'     => $warna,
-            'textColor'       => $this->warnaTeksKontras($warna),
-            'classNames'      => ['kalender-event'],
-            'extendedProps'   => [
-                'sumber'      => 'kalender',
-                'event_id'    => (int) $e->id,
-                'tipe'        => $e->tipe,
+            'borderColor' => $warna,
+            'textColor' => $this->warnaTeksKontras($warna),
+            'classNames' => ['kalender-event'],
+            'extendedProps' => [
+                'sumber' => 'kalender',
+                'event_id' => (int) $e->id,
+                'tipe' => $e->tipe,
                 'description' => (string) ($e->deskripsi ?? ''),
-                'tgl_mulai'   => $e->tgl_mulai,
+                'tgl_mulai' => $e->tgl_mulai,
                 'tgl_selesai' => $e->tgl_selesai,
             ],
         ];
 
         if (! empty($e->tgl_selesai)) {
             // FullCalendar all-day: end eksklusif
-            $payload['end'] = date('Y-m-d', strtotime($e->tgl_selesai . ' +1 day'));
+            $payload['end'] = date('Y-m-d', strtotime($e->tgl_selesai.' +1 day'));
         }
 
         return $payload;
@@ -326,20 +327,20 @@ class KalenderController extends BaseController
     private function payloadHariLibur(object $h): array
     {
         return [
-            'id'              => 'libur_' . $h->tanggal,
-            'title'           => $h->keterangan,
-            'start'           => $h->tanggal,
-            'allDay'          => true,
+            'id' => 'libur_'.$h->tanggal,
+            'title' => $h->keterangan,
+            'start' => $h->tanggal,
+            'allDay' => true,
             'backgroundColor' => '#fee2e2',
-            'borderColor'     => '#fca5a5',
-            'textColor'       => '#b91c1c',
-            'classNames'      => ['kalender-libur'],
-            'extendedProps'   => [
-                'sumber'      => 'absensi_libur',
-                'holiday_id'  => (int) $h->id,
-                'tipe'        => 'LIBUR',
-                'description' => 'Hari libur: ' . $h->keterangan,
-                'tgl_mulai'   => $h->tanggal,
+            'borderColor' => '#fca5a5',
+            'textColor' => '#b91c1c',
+            'classNames' => ['kalender-libur'],
+            'extendedProps' => [
+                'sumber' => 'absensi_libur',
+                'holiday_id' => (int) $h->id,
+                'tipe' => 'LIBUR',
+                'description' => 'Hari libur: '.$h->keterangan,
+                'tgl_mulai' => $h->tanggal,
             ],
         ];
     }
@@ -354,8 +355,8 @@ class KalenderController extends BaseController
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $id         = (int) ($this->request->input('id') ?? 0);
-        $isRange    = $this->request->input('is_range') === '1';
+        $id = (int) ($this->request->input('id') ?? 0);
+        $isRange = $this->request->input('is_range') === '1';
         $keterangan = trim((string) ($this->request->input('keterangan') ?? ''));
 
         if ($keterangan === '') {
@@ -380,11 +381,11 @@ class KalenderController extends BaseController
                 ->where('id', '!=', $id)
                 ->count();
             if ($conflict > 0) {
-                return $this->respond(false, 'Tanggal ' . date('d/m/Y', strtotime($tanggal)) . ' sudah terdaftar sebagai hari libur lain');
+                return $this->respond(false, 'Tanggal '.date('d/m/Y', strtotime($tanggal)).' sudah terdaftar sebagai hari libur lain');
             }
 
             $this->db->table('absensi_hari_libur')->where('id', $id)->update([
-                'tanggal'    => $tanggal,
+                'tanggal' => $tanggal,
                 'keterangan' => $keterangan,
             ]);
 
@@ -393,7 +394,7 @@ class KalenderController extends BaseController
 
         // ── Mode TAMBAH RENTANG ───────────────────────────────────────────
         if ($isRange) {
-            $tglMulai   = trim((string) $this->request->input('tanggal_mulai'));
+            $tglMulai = trim((string) $this->request->input('tanggal_mulai'));
             $tglSelesai = trim((string) $this->request->input('tanggal_selesai'));
 
             if (! $this->validDate($tglMulai) || ! $this->validDate($tglSelesai)) {
@@ -418,11 +419,11 @@ class KalenderController extends BaseController
             }
 
             $inserted = 0;
-            $updated  = 0;
-            $current  = strtotime($tglMulai);
-            $endTs    = strtotime($tglSelesai);
+            $updated = 0;
+            $current = strtotime($tglMulai);
+            $endTs = strtotime($tglSelesai);
 
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 while ($current <= $endTs) {
                     $curDate = date('Y-m-d', $current);
@@ -435,25 +436,27 @@ class KalenderController extends BaseController
                         }
                     } else {
                         $this->db->table('absensi_hari_libur')->insert([
-                            'tanggal'    => $curDate,
+                            'tanggal' => $curDate,
                             'keterangan' => $keterangan,
                         ]);
                         $inserted++;
                     }
                     $current = strtotime('+1 day', $current);
                 }
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                Log::error('Kalender::saveHoliday range: ' . $e->getMessage());
+                DB::rollBack();
+                Log::error('Kalender::saveHoliday range: '.$e->getMessage());
+
                 return $this->respond(false, 'Gagal menyimpan rentang libur. Silakan coba lagi.');
             }
 
-            $msg = "Rentang " . date('d/m/Y', strtotime($tglMulai)) . ' – ' . date('d/m/Y', strtotime($tglSelesai))
-                . " diproses: {$inserted} hari baru";
+            $msg = 'Rentang '.date('d/m/Y', strtotime($tglMulai)).' – '.date('d/m/Y', strtotime($tglSelesai))
+                ." diproses: {$inserted} hari baru";
             if ($updated > 0) {
                 $msg .= ", {$updated} keterangan diperbarui";
             }
+
             return $this->respond(true, $msg);
         }
 
@@ -466,11 +469,13 @@ class KalenderController extends BaseController
         $row = $this->db->table('absensi_hari_libur')->where('tanggal', $tanggal)->first();
         if ($row) {
             $this->db->table('absensi_hari_libur')->where('id', $row->id)->update(['keterangan' => $keterangan]);
-            return $this->respond(true, 'Hari libur ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil diperbarui');
+
+            return $this->respond(true, 'Hari libur '.date('d/m/Y', strtotime($tanggal)).' berhasil diperbarui');
         }
 
         $this->db->table('absensi_hari_libur')->insert(['tanggal' => $tanggal, 'keterangan' => $keterangan]);
-        return $this->respond(true, 'Hari libur ' . date('d/m/Y', strtotime($tanggal)) . ' berhasil disimpan');
+
+        return $this->respond(true, 'Hari libur '.date('d/m/Y', strtotime($tanggal)).' berhasil disimpan');
     }
 
     public function deleteHoliday()
@@ -490,7 +495,8 @@ class KalenderController extends BaseController
         }
 
         $this->db->table('absensi_hari_libur')->where('id', $id)->delete();
-        return $this->respond(true, 'Hari libur ' . date('d/m/Y', strtotime($row->tanggal)) . ' berhasil dihapus');
+
+        return $this->respond(true, 'Hari libur '.date('d/m/Y', strtotime($row->tanggal)).' berhasil dihapus');
     }
 
     public function syncHolidays()
@@ -504,7 +510,7 @@ class KalenderController extends BaseController
             return $this->respond(false, 'Tahun tidak valid');
         }
 
-        $json   = null;
+        $json = null;
 
         $apis = [
             "https://dayoffapi.vercel.app/api?year={$year}",
@@ -522,7 +528,7 @@ class KalenderController extends BaseController
                     }
                 }
             } catch (\Throwable $e) {
-                Log::warning("Kalender::syncHolidays failed [{$apiUrl}]: " . $e->getMessage());
+                Log::warning("Kalender::syncHolidays failed [{$apiUrl}]: ".$e->getMessage());
             }
         }
 
@@ -533,35 +539,38 @@ class KalenderController extends BaseController
             );
         }
 
-        $addedCount   = 0;
+        $addedCount = 0;
         $updatedCount = 0;
         $skippedCount = 0;
-        $diproses     = [];
+        $diproses = [];
 
         try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
 
             foreach ($json as $holiday) {
-                $tanggal    = $holiday->tanggal    ?? $holiday->holiday_date ?? null;
+                $tanggal = $holiday->tanggal ?? $holiday->holiday_date ?? null;
                 $keterangan = $holiday->keterangan ?? $holiday->holiday_name ?? null;
-                $isCuti     = ! empty($holiday->is_cuti);
+                $isCuti = ! empty($holiday->is_cuti);
 
                 $tglFormatted = $this->normalisasiTanggalApi($tanggal);
                 if ($tglFormatted === null || ! $keterangan) {
                     $skippedCount++;
+
                     continue;
                 }
                 if (substr($tglFormatted, 0, 4) !== (string) $year) {
                     $skippedCount++;
+
                     continue;
                 }
                 if (isset($diproses[$tglFormatted])) {
                     $skippedCount++;
+
                     continue;
                 }
                 $diproses[$tglFormatted] = true;
 
-                $label = $isCuti ? '[Cuti Bersama] ' . $keterangan : $keterangan;
+                $label = $isCuti ? '[Cuti Bersama] '.$keterangan : $keterangan;
                 $label = mb_substr(trim((string) $label), 0, 255);
 
                 $existing = $this->db->table('absensi_hari_libur')
@@ -577,17 +586,18 @@ class KalenderController extends BaseController
                     }
                 } else {
                     $this->db->table('absensi_hari_libur')->insert([
-                        'tanggal'    => $tglFormatted,
+                        'tanggal' => $tglFormatted,
                         'keterangan' => $label,
                     ]);
                     $addedCount++;
                 }
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Kalender::syncHolidays DB error: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Kalender::syncHolidays DB error: '.$e->getMessage());
+
             return $this->respond(false, 'Terjadi kesalahan saat menyimpan ke database. Silakan coba lagi.');
         }
 
@@ -663,7 +673,7 @@ class KalenderController extends BaseController
         }
 
         foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d'] as $format) {
-            $dt = \DateTime::createFromFormat('!' . $format, substr($value, 0, 10));
+            $dt = \DateTime::createFromFormat('!'.$format, substr($value, 0, 10));
             if ($dt instanceof \DateTime) {
                 $hasil = $dt->format('Y-m-d');
                 if ($this->validDate($hasil)) {
@@ -699,9 +709,11 @@ class KalenderController extends BaseController
         try {
             return $this->db->table('absensi_hari_libur')
                 ->orderBy('tanggal', 'ASC')
-                ->get();
+                ->get()
+                ->all();
         } catch (\Throwable $e) {
-            Log::error('Kalender::daftarHariLibur: ' . $e->getMessage());
+            Log::error('Kalender::daftarHariLibur: '.$e->getMessage());
+
             return [];
         }
     }
@@ -714,7 +726,7 @@ class KalenderController extends BaseController
     private function jadwalKerjaLiburIso(): array
     {
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
+            if (! Schema::hasTable('absensi_jadwal_kerja')) {
                 return [];
             }
             $rows = $this->db->table('absensi_jadwal_kerja')
@@ -722,7 +734,7 @@ class KalenderController extends BaseController
                 ->where('is_libur', 1)
                 ->get();
 
-            return array_map(static fn($r) => (int) $r->hari, $rows);
+            return array_map(static fn ($r) => (int) $r->hari, $rows);
         } catch (\Throwable $e) {
             return [];
         }
@@ -732,14 +744,14 @@ class KalenderController extends BaseController
      * Jumlah hari sekolah dalam satu bulan: bukan akhir pekan, bukan libur
      * jadwal kerja, dan bukan tanggal merah.
      *
-     * @param array<int,int>    $weeklyOffIso
-     * @param array<int,int>    $jadwalLiburIso
-     * @param array<string,bool> $tanggalLibur
+     * @param  array<int,int>  $weeklyOffIso
+     * @param  array<int,int>  $jadwalLiburIso
+     * @param  array<string,bool>  $tanggalLibur
      */
     private function hitungHariSekolah(int $tahun, int $bulan, array $weeklyOffIso, array $jadwalLiburIso, array $tanggalLibur): int
     {
         $totalHari = (int) date('t', strtotime(sprintf('%04d-%02d-01', $tahun, $bulan)));
-        $jumlah    = 0;
+        $jumlah = 0;
 
         for ($d = 1; $d <= $totalHari; $d++) {
             $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);

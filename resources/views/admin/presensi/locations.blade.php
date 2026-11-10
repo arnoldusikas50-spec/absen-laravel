@@ -736,7 +736,7 @@
 <script>
     let map, tempMarker, tempCircle;
     let locationLayers = {};
-    let locations = {{ json_encode($locations ?? []) }};
+    let locations = {!! json_encode($locations ?? [])!!};
     let activeLayerKey = localStorage.getItem('presensi_admin_map_layer') || 'google_street';
     let baseLayers = {};
     let currentActiveLayer = null;

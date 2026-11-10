@@ -39,6 +39,19 @@
             --field-hover: #ebedf0;
             --font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
             --font-display: 'Outfit', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+            /* Fallback palet brand (preset "default"). Nilai ini ditimpa
+               oleh Theme::loginStyleTag() sesuai tema sekolah yang aktif. */
+            --brand-200: #fecdd3;
+            --brand-200-rgb: 254 205 211;
+            --brand-500: #f43f5e;
+            --brand-500-rgb: 244 63 94;
+            --brand-600: #e11d48;
+            --brand-600-rgb: 225 29 72;
+            --brand-700: #be123c;
+            --brand-700-rgb: 190 18 60;
+            --brand-tertiary: #be123c;
+            --brand-tertiary-rgb: 190 18 60;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -52,7 +65,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 90px 20px 44px;
+            padding: 104px 20px 44px;
             font-family: var(--font);
             color: var(--text);
             background:
@@ -99,7 +112,7 @@
 
         .login-shell {
             width: 100%;
-            max-width: 376px;
+            max-width: 384px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -109,10 +122,11 @@
         .login-card {
             position: relative;
             width: 100%;
-            padding: 62px 30px 30px;
-            border-radius: 40px;
+            padding: 60px 30px 28px;
+            border-radius: 32px;
             background: var(--surface);
             box-shadow:
+                0 0 0 1px rgb(var(--brand-600-rgb) / .06),
                 0 34px 70px -34px rgba(76, 26, 40, .38),
                 0 14px 30px -20px rgba(76, 26, 40, .18);
             animation: cardIn .55s cubic-bezier(.16, 1, .3, 1) both;
@@ -120,38 +134,39 @@
 
         .avatar {
             position: absolute;
-            top: -48px;
+            top: -44px;
             left: 50%;
             transform: translateX(-50%);
             display: grid;
             place-items: center;
-            width: 96px;
-            height: 96px;
+            width: 88px;
+            height: 88px;
             border-radius: 50%;
             background: #fff;
             overflow: hidden;
             box-shadow:
                 0 0 0 1px rgb(var(--brand-600-rgb) / .1),
+                0 0 0 6px #fff,
                 0 16px 30px -14px rgba(76, 26, 40, .35);
         }
         .avatar img {
             width: 100%;
             height: 100%;
-            padding: 15px;
+            padding: 14px;
             object-fit: contain;
         }
 
         .brand-head {
-            margin: 2px 0 20px;
+            margin: 0 0 22px;
             text-align: center;
         }
         .brand-title {
             margin: 0;
             font-family: var(--font-display);
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 700;
-            line-height: 1.3;
-            letter-spacing: .06em;
+            line-height: 1.35;
+            letter-spacing: .01em;
             color: var(--text);
             overflow-wrap: anywhere;
         }
@@ -339,30 +354,34 @@
             justify-content: center;
             gap: 8px;
             width: 100%;
-            height: 46px;
-            margin-top: 20px;
+            min-height: 48px;
+            margin-top: 22px;
+            padding: 0 18px;
             border: 0;
             border-radius: 999px;
-            background: var(--brand-600);
+            background-color: var(--brand-600, #e11d48);
+            background-image: linear-gradient(135deg, var(--brand-600, #e11d48) 0%, var(--brand-500, #f43f5e) 100%);
             color: #fff;
             font-family: var(--font);
-            font-size: 13.5px;
+            font-size: 14px;
             font-weight: 700;
-            letter-spacing: .22em;
-            text-transform: uppercase;
+            letter-spacing: .04em;
             cursor: pointer;
             box-shadow: 0 14px 26px -14px rgb(var(--brand-600-rgb) / .75);
-            transition: background .18s, transform .18s, box-shadow .18s;
+            transition: filter .18s, transform .18s, box-shadow .18s;
         }
+        .btn-login #btn-icon { display: inline-flex; transition: transform .18s; }
         .btn-login:not(:disabled):hover {
-            background: var(--brand-700);
+            filter: brightness(.93);
             transform: translateY(-1px);
             box-shadow: 0 18px 30px -14px rgb(var(--brand-600-rgb) / .8);
         }
+        .btn-login:not(:disabled):hover #btn-icon { transform: translateX(2px); }
         .btn-login:active { transform: translateY(0) scale(.997); }
         .btn-login:disabled { opacity: .72; cursor: progress; transform: none; }
         .btn-login.is-success {
-            background: #047857;
+            background-color: #047857;
+            background-image: none;
             box-shadow: 0 14px 26px -14px rgba(4, 120, 87, .6);
         }
 
@@ -418,15 +437,21 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 560px) {
-            body { padding: 82px 16px 34px; }
+            body { padding: 92px 16px 32px; }
             .login-card {
-                padding: 58px 24px 26px;
-                border-radius: 34px;
+                padding: 58px 22px 24px;
+                border-radius: 28px;
             }
-            .avatar { top: -44px; width: 88px; height: 88px; }
-            .avatar img { padding: 13px; }
+            .avatar { top: -42px; width: 82px; height: 82px; }
+            .avatar img { padding: 12px; }
+            .brand-title { font-size: 16px; }
             .input { height: 48px; font-size: 16px; }
-            .btn-login { height: 48px; }
+            .btn-login { min-height: 50px; font-size: 14.5px; }
+        }
+
+        @media (max-height: 640px) {
+            body { padding-top: 76px; }
+            .brand-head { margin-bottom: 16px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -613,7 +638,7 @@
                     else localStorage.removeItem(REMEMBER_KEY);
                 } catch (e) {}
                 succeed();
-                var go = (res.data && res.data.redirect) ? res.data.redirect : {{ json_encode(url('dashboard')) }};
+                var go = (res.data && res.data.redirect) ? res.data.redirect : @json(url('dashboard'));
                 setTimeout(function () { window.location.href = go; }, 600);
                 return;
             }

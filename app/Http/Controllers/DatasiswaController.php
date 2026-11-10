@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use App\Models\MasterModel;
 use App\Models\DashboardModel;
 use App\Models\DropdownModel;
-use App\Models\LogModel;
 use App\Models\KelasModel;
+use App\Models\LogModel;
+use App\Models\MasterModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Datasiswa Controller - Migrated from CI3
@@ -83,7 +82,7 @@ class DatasiswaController extends BaseController
      * saat penyebabnya tanggal diterima atau nama yang salah format. Admin
      * lalu mengejar duplikat yang tidak ada.
      *
-     * @param array<string,string> $errors
+     * @param  array<string,string>  $errors
      */
     private function pesanValidasiSiswa(array $errors): string
     {
@@ -102,26 +101,30 @@ class DatasiswaController extends BaseController
 
         $pesan = ['Periksa kembali isian berikut:'];
         foreach ($errors as $field => $err) {
-            $pesan[] = ucfirst(str_replace('_', ' ', (string) $field)) . ': ' . $err;
+            $pesan[] = ucfirst(str_replace('_', ' ', (string) $field)).': '.$err;
         }
 
         return implode('<br>', $pesan);
     }
 
     protected MasterModel $masterModel;
+
     protected DashboardModel $dashboardModel;
+
     protected DropdownModel $dropdownModel;
+
     protected LogModel $logModel;
+
     protected KelasModel $kelasModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->masterModel = new MasterModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->dropdownModel = new DropdownModel();
-        $this->logModel = new LogModel();
-        $this->kelasModel = new KelasModel();
+        $this->masterModel = new MasterModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->dropdownModel = new DropdownModel;
+        $this->logModel = new LogModel;
+        $this->kelasModel = new KelasModel;
     }
 
     /**
@@ -129,7 +132,7 @@ class DatasiswaController extends BaseController
      */
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
         // Data siswa memuat PII: siswa tidak boleh dump data siswa lain.
@@ -138,8 +141,8 @@ class DatasiswaController extends BaseController
         }
 
         $setting = $this->getSettingRow();
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $stats = $this->masterModel->getSiswaStats(
             $tp ? (int) $tp->id_tp : 0,
@@ -167,7 +170,7 @@ class DatasiswaController extends BaseController
      */
     public function list()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Login required']);
         }
         if ($this->isSiswa()) {
@@ -176,7 +179,7 @@ class DatasiswaController extends BaseController
 
         $page = max(1, (int) ($this->request->input('page') ?? 1));
         $limit = (int) ($this->request->input('limit') ?? 10);
-        if (!in_array($limit, [10, 25, 50, 100], true)) {
+        if (! in_array($limit, [10, 25, 50, 100], true)) {
             $limit = 10;
         }
 
@@ -184,33 +187,33 @@ class DatasiswaController extends BaseController
         $search = $search !== '' ? mb_substr($search, 0, 100) : null;
 
         $status = (string) ($this->request->input('status') ?? '0');
-        if (!in_array($status, ['0', '1', '2', '3', '4', '5'], true)) {
+        if (! in_array($status, ['0', '1', '2', '3', '4', '5'], true)) {
             $status = '0';
         }
 
         $kelasRaw = trim((string) ($this->request->input('kelas') ?? ''));
         // 'tanpa' = filter siswa yang belum ditempatkan di kelas TP/SMT aktif.
         $tanpaKelas = ($kelasRaw === 'tanpa');
-        $kelas      = (!$tanpaKelas && ctype_digit($kelasRaw) && (int) $kelasRaw > 0)
+        $kelas = (! $tanpaKelas && ctype_digit($kelasRaw) && (int) $kelasRaw > 0)
             ? (int) $kelasRaw
             : null;
         if ($tanpaKelas) {
             $kelas = null;
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return $this->response->setJSON([
-                'status'  => true,
-                'lists'   => [],
-                'total'   => 0,
-                'pages'   => 0,
-                'page'    => 1,
+                'status' => true,
+                'lists' => [],
+                'total' => 0,
+                'pages' => 0,
+                'page' => 1,
                 'perpage' => $limit,
                 'status_filter' => $status,
-                'kelas'   => $kelas,
+                'kelas' => $kelas,
                 'message' => 'Tahun Pelajaran / Semester aktif belum diset.',
             ]);
         }
@@ -220,21 +223,21 @@ class DatasiswaController extends BaseController
         $lists = $this->masterModel->getSiswaPage((int) $tp->id_tp, (int) $smt->id_smt, $offset, $limit, $status, $kelas, $search, $tanpaKelas);
 
         foreach ($lists as $list) {
-            $list->foto = $list->foto != null && $list->foto != "" && file_exists(public_path() . '/' . $list->foto)
+            $list->foto = $list->foto != null && $list->foto != '' && file_exists(public_path().'/'.$list->foto)
                 ? url($list->foto)
                 : url('assets/img/siswa_sm.png');
         }
 
         $data = [
-            'lists'   => $lists,
-            'total'   => $count_siswa,
-            'pages'   => (int) ceil($count_siswa / $limit),
-            'page'    => $page,
+            'lists' => $lists,
+            'total' => $count_siswa,
+            'pages' => (int) ceil($count_siswa / $limit),
+            'page' => $page,
             'perpage' => $limit,
             'status_filter' => $status,
-            'kelas'   => $kelas,
+            'kelas' => $kelas,
             'tanpa_kelas' => $tanpaKelas,
-            'stats'   => $this->masterModel->getSiswaStats((int) $tp->id_tp, (int) $smt->id_smt),
+            'stats' => $this->masterModel->getSiswaStats((int) $tp->id_tp, (int) $smt->id_smt),
         ];
 
         return $this->response->setJSON($data);
@@ -245,18 +248,20 @@ class DatasiswaController extends BaseController
      */
     public function add($id_kelas = null)
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
-        if (!$this->isAdmin())
+        }
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
+        }
 
         $data = [
             'user' => $this->getUser(),
             'judul' => 'Siswa',
             'subjudul' => 'Import Siswa',
             'setting' => $this->getSettingRow(),
-            'tp_active' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt_active' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first(),
+            'tp_active' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
         ];
 
         if ($id_kelas) {
@@ -271,8 +276,9 @@ class DatasiswaController extends BaseController
      */
     public function create()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin())
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['insert' => false, 'text' => 'Akses ditolak']);
+        }
 
         // Tanggal diterima sudah dinormalisasi lebih dulu supaya yang
         // divalidasi bentuknya konsisten. Validasi Y-m-d murni akan menolak
@@ -280,7 +286,7 @@ class DatasiswaController extends BaseController
         // lama, jadi keduanya dikembalikan null dulu lalu dibaca dari hasil
         // normalisasi.
         $tanggalMasukRaw = trim((string) ($this->request->input('tahun_masuk') ?? ''));
-        $tanggalMasuk    = self::normalisasiTanggalTerima($tanggalMasukRaw);
+        $tanggalMasuk = self::normalisasiTanggalTerima($tanggalMasukRaw);
 
         $validation = $this->validation();
         $validation->setRules([
@@ -301,7 +307,7 @@ class DatasiswaController extends BaseController
             ? 'Tanggal diterima tidak valid. Gunakan format YYYY-MM-DD.'
             : null;
 
-        if (!$this->validate($validation->getRules()) || $errorTanggal !== null) {
+        if (! $this->validate($validation->getRules()) || $errorTanggal !== null) {
             $errors = $validation->getErrors();
             if ($errorTanggal !== null) {
                 $errors['tahun_masuk'] = $errorTanggal;
@@ -313,7 +319,7 @@ class DatasiswaController extends BaseController
             return $this->response->setJSON([
                 'insert' => false,
                 'error' => $errors,
-                'text' => $this->pesanValidasiSiswa($errors)
+                'text' => $this->pesanValidasiSiswa($errors),
             ]);
         }
 
@@ -325,33 +331,33 @@ class DatasiswaController extends BaseController
         $nis = trim((string) $this->request->input('nis'));
         $jk = strtoupper(trim((string) $this->request->input('jenis_kelamin')));
         $insert = [
-            "nama" => strtoupper($nama_siswa),
-            "nis" => $nis,
-            "nisn" => trim((string) $this->request->input('nisn')),
-            "jenis_kelamin" => in_array($jk, ['L', 'P'], true) ? $jk : null,
-            "agama" => mb_substr(trim((string) $this->request->input('agama')), 0, 30),
-            "kelas_awal" => mb_substr(trim((string) $this->request->input('kelas_awal')), 0, 50),
-            "tahun_masuk" => $tanggalMasuk,
-            "username" => trim((string) $this->request->input('username')),
-            "password" => (string) $this->request->input('password'),
-            "foto" => null,
+            'nama' => strtoupper($nama_siswa),
+            'nis' => $nis,
+            'nisn' => trim((string) $this->request->input('nisn')),
+            'jenis_kelamin' => in_array($jk, ['L', 'P'], true) ? $jk : null,
+            'agama' => mb_substr(trim((string) $this->request->input('agama')), 0, 30),
+            'kelas_awal' => mb_substr(trim((string) $this->request->input('kelas_awal')), 0, 50),
+            'tahun_masuk' => $tanggalMasuk,
+            'username' => trim((string) $this->request->input('username')),
+            'password' => (string) $this->request->input('password'),
+            'foto' => null,
         ];
 
         $insert['uid'] = bin2hex(random_bytes(16));
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        $db = DB::connection();
+        DB::beginTransaction();
         try {
             $this->masterModel->create('master_siswa', $insert);
-            $id = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-            if (!$id) {
+            $id = DB::getPdo()->lastInsertId();
+            if (! $id) {
                 throw new \RuntimeException('Gagal menyimpan master siswa');
             }
 
             $induk = [
-                "id_siswa" => $id,
-                "uid" => $insert['uid'],
-                "status" => 1
+                'id_siswa' => $id,
+                'uid' => $insert['uid'],
+                'status' => 1,
             ];
 
             $this->masterModel->create('buku_induk', $induk);
@@ -362,25 +368,26 @@ class DatasiswaController extends BaseController
                 'password' => password_hash($insert['password'], PASSWORD_BCRYPT),
                 'first_name' => $first_name,
                 'last_name' => $last_name,
-                'active' => 1
+                'active' => 1,
             ];
 
             $db->table('users')->insert($userData);
-            $userId = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+            $userId = DB::getPdo()->lastInsertId();
             $db->table('users_groups')->insert(['user_id' => $userId, 'group_id' => 3]);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datasiswa::create] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datasiswa::create] '.$e->getMessage());
+
             return $this->response->setJSON(['insert' => false, 'text' => 'Gagal menyimpan siswa']);
         }
 
-        $this->saveAuditLog(1, 'Menambahkan Siswa: ' . $nama_siswa);
+        $this->saveAuditLog(1, 'Menambahkan Siswa: '.$nama_siswa);
 
         return $this->response->setJSON([
             'insert' => true,
-            'text' => 'Siswa berhasil ditambahkan'
+            'text' => 'Siswa berhasil ditambahkan',
         ]);
     }
 
@@ -389,17 +396,20 @@ class DatasiswaController extends BaseController
      */
     public function edit($id)
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
-        if (!$this->isAdmin())
+        }
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
+        }
 
         $siswa = $this->masterModel->getSiswaById($id);
-        if (!$siswa)
+        if (! $siswa) {
             return redirect()->to('datasiswa');
+        }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
 
         // Kelas aktif siswa (TP/SMT aktif) + daftar kelas untuk dropdown edit
@@ -408,11 +418,11 @@ class DatasiswaController extends BaseController
         $kelasList = [];
         if ($tp && $smt) {
             $kelasList = $this->masterModel->getAllKelas((int) $tp->id_tp, (int) $smt->id_smt);
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             try {
                 $row = $db->table('kelas_siswa as ks')
-                    ->select('ks.id_kelas, c.nama_kelas')
-                    ->join('master_kelas as c', 'c.id_kelas = ks.id_kelas', 'left')
+                    ->select('ks.id_kelas', 'c.nama_kelas')
+                    ->leftJoin('master_kelas as c', 'c.id_kelas', '=', 'ks.id_kelas')
                     ->where('ks.id_siswa', (int) $id)
                     ->where('ks.id_tp', (int) $tp->id_tp)
                     ->where('ks.id_smt', (int) $smt->id_smt)
@@ -422,7 +432,7 @@ class DatasiswaController extends BaseController
                     $kelasSiswaNama = $row->nama_kelas ?? null;
                 }
             } catch (\Throwable $e) {
-                Log::error('[Datasiswa::edit] kelas_siswa: ' . $e->getMessage());
+                Log::error('[Datasiswa::edit] kelas_siswa: '.$e->getMessage());
             }
         }
 
@@ -434,7 +444,7 @@ class DatasiswaController extends BaseController
             (object) ['name' => 'kelas_awal', 'label' => 'Diterima di kelas', 'value' => $siswa->kelas_awal, 'icon' => 'bi bi-mortarboard', 'class' => '', 'type' => 'text'],
             (object) ['name' => 'tahun_masuk', 'label' => 'Tgl diterima', 'value' => $siswa->tahun_masuk, 'icon' => 'tahun bi bi-calendar-date', 'class' => 'tahun', 'type' => 'text'],
             (object) ['name' => 'sekolah_asal', 'label' => 'Sekolah Asal', 'value' => $siswa->sekolah_asal, 'icon' => 'bi bi-mortarboard', 'class' => '', 'type' => 'text'],
-            (object) ['name' => 'status', 'label' => 'Status', 'value' => $siswa->status, 'icon' => 'bi bi-person-check', 'class' => 'status', 'type' => 'text']
+            (object) ['name' => 'status', 'label' => 'Status', 'value' => $siswa->status, 'icon' => 'bi bi-person-check', 'class' => 'status', 'type' => 'text'],
         ];
 
         $input_bio = [
@@ -448,7 +458,7 @@ class DatasiswaController extends BaseController
             (object) ['class' => '', 'name' => 'kecamatan', 'label' => 'Kecamatan', 'value' => $siswa->kecamatan, 'icon' => 'bi bi-geo-alt', 'type' => 'text'],
             (object) ['class' => '', 'name' => 'kabupaten', 'label' => 'Kabupaten/Kota', 'value' => $siswa->kabupaten, 'icon' => 'bi bi-geo-alt', 'type' => 'text'],
             (object) ['class' => '', 'name' => 'kode_pos', 'label' => 'Kode Pos', 'value' => $siswa->kode_pos, 'icon' => 'bi bi-envelope', 'type' => 'text'],
-            (object) ['class' => '', 'name' => 'hp', 'label' => 'Hp', 'value' => $siswa->hp, 'icon' => 'bi bi-telephone', 'type' => 'text']
+            (object) ['class' => '', 'name' => 'hp', 'label' => 'Hp', 'value' => $siswa->hp, 'icon' => 'bi bi-telephone', 'type' => 'text'],
         ];
 
         $input_ortu = [
@@ -479,8 +489,8 @@ class DatasiswaController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'input_data' => $input_data,
             'input_bio' => $input_bio,
             'input_ortu' => $input_ortu,
@@ -513,15 +523,16 @@ class DatasiswaController extends BaseController
         'pekerjaan_wali' => 50, 'alamat_wali' => 255,
         'tahun_masuk' => 10, 'kelas_awal' => 50, 'sekolah_asal' => 100,
         // UID kartu RFID (dicetak pada kartu fisik, diisi manual admin).
-        'nomor_rfid'  => 64,
+        'nomor_rfid' => 64,
         // UserID mesin sidik jari (GEISA GX330), diisi manual admin.
         'fingerprint_uid' => 64,
     ];
 
     public function updateData()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin())
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['insert' => false, 'text' => 'Akses ditolak']);
+        }
 
         $id_siswa = (int) $this->request->input('id_siswa');
         $nis = trim((string) $this->request->input('nis'));
@@ -532,25 +543,25 @@ class DatasiswaController extends BaseController
         }
 
         $siswa = $this->masterModel->getSiswaById($id_siswa);
-        if (!$siswa) {
+        if (! $siswa) {
             return $this->response->setJSON(['insert' => false, 'text' => 'Siswa tidak ditemukan']);
         }
-        $u_nis = $siswa->nis == $nis ? "" : "|is_unique[master_siswa.nis]";
-        $u_nisn = $siswa->nisn == $nisn ? "" : "|is_unique[master_siswa.nisn]";
+        $u_nis = $siswa->nis == $nis ? '' : '|is_unique[master_siswa.nis]';
+        $u_nisn = $siswa->nisn == $nisn ? '' : '|is_unique[master_siswa.nisn]';
 
         $validation = $this->validation();
         $validation->setRules([
             'nama' => 'required|min_length[3]|max_length[100]',
-            'nis' => 'required|numeric|min_length[4]|max_length[20]' . $u_nis,
-            'nisn' => 'required|numeric|min_length[9]|max_length[20]' . $u_nisn,
+            'nis' => 'required|numeric|min_length[4]|max_length[20]'.$u_nis,
+            'nisn' => 'required|numeric|min_length[9]|max_length[20]'.$u_nisn,
             'tanggal_lahir' => 'permit_empty|valid_date[Y-m-d]',
             'tahun_masuk' => 'permit_empty|max_length[10]',
         ]);
 
-        if (!$this->validate($validation->getRules())) {
+        if (! $this->validate($validation->getRules())) {
             return $this->response->setJSON([
                 'insert' => false,
-                'text' => implode('<br>', $validation->getErrors())
+                'text' => implode('<br>', $validation->getErrors()),
             ]);
         }
 
@@ -570,7 +581,7 @@ class DatasiswaController extends BaseController
             }
         }
         $jk = strtoupper((string) ($input['jenis_kelamin'] ?? ''));
-        if (isset($input['jenis_kelamin']) && !in_array($jk, ['L', 'P', ''], true)) {
+        if (isset($input['jenis_kelamin']) && ! in_array($jk, ['L', 'P', ''], true)) {
             return $this->response->setJSON(['insert' => false, 'text' => 'Jenis kelamin tidak valid']);
         }
 
@@ -579,7 +590,7 @@ class DatasiswaController extends BaseController
         // adanya, dan kolomnya jadi tidak seragam.
         if (array_key_exists('tahun_masuk', $input)) {
             $rawTanggal = (string) ($input['tahun_masuk'] ?? '');
-            $tanggal    = self::normalisasiTanggalTerima($rawTanggal);
+            $tanggal = self::normalisasiTanggalTerima($rawTanggal);
 
             // Kalau isiannya tidak kosong tapi tidak terbaca sebagai tanggal,
             // jangan diam-diam jadi NULL: admin mengira tanggalnya tersimpan
@@ -587,7 +598,7 @@ class DatasiswaController extends BaseController
             if ($rawTanggal !== '' && $tanggal === null) {
                 return $this->response->setJSON([
                     'insert' => false,
-                    'text'   => 'Tanggal diterima tidak valid',
+                    'text' => 'Tanggal diterima tidak valid',
                 ]);
             }
 
@@ -599,7 +610,7 @@ class DatasiswaController extends BaseController
         // Update status di buku_induk (1=AKTIF, 2=LULUS, 3=PINDAH, 4=KELUAR — sesuai opsi form)
         $status = $this->request->input('status');
         if ($status !== null && $status !== '' && in_array((string) $status, ['1', '2', '3', '4'], true)) {
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
             $exists = $db->table('buku_induk')->where('id_siswa', $id_siswa)->count() > 0;
             if ($exists) {
                 $this->updateMasterData('buku_induk', ['status' => (string) $status], 'id_siswa', $id_siswa);
@@ -616,14 +627,14 @@ class DatasiswaController extends BaseController
         // AND Update presensi_siswa.id_kelas to keep rekap accurate after class change
         $rawKelas = $this->request->input('id_kelas');
         if ($rawKelas !== null) {
-            $tpAktif = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smtAktif = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-            if (!$tpAktif || !$smtAktif) {
+            $tpAktif = DB::table('master_tp')->where('active', 1)->first();
+            $smtAktif = DB::table('master_smt')->where('active', 1)->first();
+            if (! $tpAktif || ! $smtAktif) {
                 return $this->response->setJSON(['insert' => false, 'text' => 'TP/SMT aktif belum diset, kelas tidak dapat diubah']);
             }
             $idTp = (int) $tpAktif->id_tp;
             $idSmt = (int) $smtAktif->id_smt;
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             $kelasStr = trim((string) $rawKelas);
             if ($kelasStr === '' || $kelasStr === '0') {
@@ -637,7 +648,7 @@ class DatasiswaController extends BaseController
                     ->where('id_smt', $idSmt)
                     ->delete();
             } else {
-                if (!ctype_digit($kelasStr)) {
+                if (! ctype_digit($kelasStr)) {
                     return $this->response->setJSON(['insert' => false, 'text' => 'ID kelas tidak valid']);
                 }
                 $idKelas = (int) $kelasStr;
@@ -646,7 +657,7 @@ class DatasiswaController extends BaseController
                     ->where('id_tp', $idTp)
                     ->where('id_smt', $idSmt)
                     ->count() > 0;
-                if (!$kelasOk) {
+                if (! $kelasOk) {
                     return $this->response->setJSON(['insert' => false, 'text' => 'Kelas tidak valid untuk TP/Semester aktif']);
                 }
                 // Upsert eksplisit per kunci logis (tp,smt,siswa). replace()
@@ -679,7 +690,7 @@ class DatasiswaController extends BaseController
 
         return $this->response->setJSON([
             'insert' => true,
-            'text' => 'Siswa berhasil diperbaharui'
+            'text' => 'Siswa berhasil diperbaharui',
         ]);
     }
 
@@ -688,14 +699,16 @@ class DatasiswaController extends BaseController
      */
     public function delete()
     {
-        if (!$this->isAdmin())
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Authorized Access');
+        }
 
         $chk = $this->request->input('checked');
         $aksi = $this->request->input('aksi');
 
-        if (!$chk)
+        if (! $chk) {
             return $this->respond(false, 'No students selected');
+        }
 
         $status = true;
         $messages = [];
@@ -705,20 +718,20 @@ class DatasiswaController extends BaseController
             foreach ($chk as $id) {
                 // Get current class name for record
                 $siswa = $this->masterModel->getSiswaById($id);
-                // Here we might need a more complex query to get current class, 
+                // Here we might need a more complex query to get current class,
                 // but let's simplify for now.
 
                 $this->updateMasterData('buku_induk', [
                     'tgl_pindah' => date('Y-m-d'),
-                    'status' => $valStatus
+                    'status' => $valStatus,
                 ], 'id_siswa', $id);
 
                 // Update presensi_siswa.id_kelas when student transfers to keep rekap accurate
-                $db = \Illuminate\Support\Facades\DB::connection();
+                $db = DB::connection();
                 $ps = $db->table('presensi_siswa')->where('id_siswa', $id)->first();
                 if ($ps) {
-                    $tpAktif = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-                    $smtAktif = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+                    $tpAktif = DB::table('master_tp')->where('active', 1)->first();
+                    $smtAktif = DB::table('master_smt')->where('active', 1)->first();
                     if ($tpAktif && $smtAktif) {
                         // Ambil kelas baru dari kelas_siswa (sudah diupdate)
                         $ks = $db->table('kelas_siswa')
@@ -738,7 +751,7 @@ class DatasiswaController extends BaseController
                 return $this->respond(false, 'Siswa yang dipilih tidak valid — tidak ada yang dihapus.');
             }
 
-            $db = \Illuminate\Support\Facades\DB::connection();
+            $db = DB::connection();
 
             // Presensi siswa menempel ke identitas lewat id_siswa. master_siswa +
             // buku_induk + kelas_siswa yang dihapus keras meninggalkan baris
@@ -747,63 +760,67 @@ class DatasiswaController extends BaseController
             // bisa dipulihkan. Siswa yang berhenti sekolah punya jalur sendiri di
             // atas (PINDAH/KELUAR) yang menyimpan seluruh riwayat absensinya.
             $q = $db->table('presensi_siswa as ps')
-                ->select('ps.id_siswa, ms.nama, ms.nis, COUNT(ps.id) AS jml')
-                ->join('master_siswa as ms', 'ms.id_siswa = ps.id_siswa')
+                ->select('ps.id_siswa', 'ms.nama', 'ms.nis')
+                ->selectRaw('COUNT(ps.id) AS jml')
+                ->join('master_siswa as ms', 'ms.id_siswa', '=', 'ps.id_siswa')
                 ->whereIn('ps.id_siswa', $idSiswa)
                 // nama & nis ikut di GROUP BY: tanpa itu query gagal di server
                 // dengan ONLY_FULL_GROUP_BY aktif (default MySQL 5.7/8.0).
-                ->groupBy('ps.id_siswa, ms.nama, ms.nis')
+                ->groupBy('ps.id_siswa', 'ms.nama', 'ms.nis')
                 ->get();
             if ($q === false) {
-                Log::error('[Datasiswa::delete] riwayat presensi tidak dapat diperiksa: ' . json_encode(['code' => 0, 'message' => '']));
+                Log::error('[Datasiswa::delete] riwayat presensi tidak dapat diperiksa: '.json_encode(['code' => 0, 'message' => '']));
+
                 return $this->respond(false, 'Riwayat presensi siswa tidak dapat diperiksa, jadi penghapusan ditolak. Coba lagi nanti.');
             }
 
-            $berpresensi = array_map(fn($r) => (array) $r, $q);
+            $berpresensi = array_map(fn ($r) => (array) $r, $q);
             if ($berpresensi !== []) {
                 $contoh = array_slice(array_map(
-                    static fn ($b) => trim(($b['nama'] ?? '') . ' (' . ($b['nis'] ?? '-') . '): ' . $b['jml'] . ' absen'),
+                    static fn ($b) => trim(($b['nama'] ?? '').' ('.($b['nis'] ?? '-').'): '.$b['jml'].' absen'),
                     $berpresensi
                 ), 0, 3);
                 if (count($berpresensi) > 3) {
-                    $contoh[] = '+' . (count($berpresensi) - 3) . ' siswa lain';
+                    $contoh[] = '+'.(count($berpresensi) - 3).' siswa lain';
                 }
-                Log::warning('[Datasiswa::delete] hapus ' . count($berpresensi) . ' siswa dengan riwayat presensi ditolak: ' . implode(', ', $contoh));
+                Log::warning('[Datasiswa::delete] hapus '.count($berpresensi).' siswa dengan riwayat presensi ditolak: '.implode(', ', $contoh));
 
-                return $this->respond(false, count($berpresensi) . ' dari ' . count($idSiswa)
-                    . ' siswa yang dipilih sudah punya riwayat presensi (' . implode('; ', $contoh)
-                    . '). Menghapusnya membuat riwayat absensi tahun-tahun sebelumnya tidak lagi muncul di rekap. '
-                    . 'Gunakan aksi Pindah/Keluar untuk menyimpan riwayatnya, atau hapus riwayat presensinya lebih dulu bila memang data salah input.');
+                return $this->respond(false, count($berpresensi).' dari '.count($idSiswa)
+                    .' siswa yang dipilih sudah punya riwayat presensi ('.implode('; ', $contoh)
+                    .'). Menghapusnya membuat riwayat absensi tahun-tahun sebelumnya tidak lagi muncul di rekap. '
+                    .'Gunakan aksi Pindah/Keluar untuk menyimpan riwayatnya, atau hapus riwayat presensinya lebih dulu bila memang data salah input.');
             }
 
             // Tiga tabel harus hilang bersamaan: sebagian terhapus = baris kelas
             // yatim untuk siswa yang identitasnya sudah tidak ada.
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             try {
                 $this->masterModel->hapus('master_siswa', $idSiswa, 'id_siswa');
                 $this->masterModel->hapus('buku_induk', $idSiswa, 'id_siswa');
                 $this->masterModel->hapus('kelas_siswa', $idSiswa, 'id_siswa');
 
-                if (!true) {
-                    \Illuminate\Support\Facades\DB::rollBack();
-                    Log::error('[Datasiswa::delete] penghapusan siswa ditolak DB: ' . json_encode(['code' => 0, 'message' => '']));
+                if (! true) {
+                    DB::rollBack();
+                    Log::error('[Datasiswa::delete] penghapusan siswa ditolak DB: '.json_encode(['code' => 0, 'message' => '']));
+
                     return $this->respond(false, 'Gagal menghapus siswa. Data belum berubah.');
                 }
-                \Illuminate\Support\Facades\DB::commit();
+                DB::commit();
             } catch (\Throwable $e) {
                 if (true === false) {
-                    \Illuminate\Support\Facades\DB::rollBack();
+                    DB::rollBack();
                 }
-                Log::error('[Datasiswa::delete] ' . $e->getMessage());
+                Log::error('[Datasiswa::delete] '.$e->getMessage());
+
                 return $this->respond(false, 'Gagal menghapus siswa. Data belum berubah.');
             }
 
-            $this->saveAuditLog(5, 'menghapus ' . count($idSiswa) . ' siswa tanpa riwayat presensi');
+            $this->saveAuditLog(5, 'menghapus '.count($idSiswa).' siswa tanpa riwayat presensi');
         }
 
         return $this->response->setJSON([
             'status' => $status,
-            'message' => 'Siswa berhasil ' . ($aksi == 'hapus' ? 'dihapus' : 'diupdate')
+            'message' => 'Siswa berhasil '.($aksi == 'hapus' ? 'dihapus' : 'diupdate'),
         ]);
     }
 
@@ -812,7 +829,7 @@ class DatasiswaController extends BaseController
      */
     public function do_import()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -827,23 +844,24 @@ class DatasiswaController extends BaseController
             $input = $this->request->input('siswa'); // Expecting array of student data
         }
 
-        if (empty($input) || !is_array($input))
+        if (empty($input) || ! is_array($input)) {
             return $this->respond(false, 'No data to import');
+        }
         if (count($input) > 2000) {
             return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 2.000 baris per import']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Validasi kelas tujuan bila dikirim
         if ($id_kelas > 0) {
             $kelasOk = $tp && $smt && $db->table('master_kelas')
                 ->where('id_kelas', $id_kelas)->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt)
                 ->count() > 0;
-            if (!$kelasOk) {
+            if (! $kelasOk) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Kelas tujuan tidak valid']);
             }
         }
@@ -852,17 +870,17 @@ class DatasiswaController extends BaseController
         $kelasMapping = [];
         if ($tp && $smt) {
             $allKelas = $this->kelasModel->getNamaKelasByNama($tp->id_tp, $smt->id_smt);
-            
+
             // Ambil juga kode_kelas untuk mapping lebih akurat
             $kelasWithKode = $db->table('master_kelas')
-                ->select('id_kelas, kode_kelas, nama_kelas')
+                ->select('id_kelas', 'kode_kelas', 'nama_kelas')
                 ->where('id_tp', $tp->id_tp)
                 ->where('id_smt', $smt->id_smt)
                 ->get();
-            
+
             foreach ($kelasWithKode as $k) {
                 // Mapping berdasarkan kode_kelas dan juga nama_kelas untuk fleksibilitas
-                if (!empty($k->kode_kelas)) {
+                if (! empty($k->kode_kelas)) {
                     $kelasMapping[strtoupper(trim($k->kode_kelas))] = $k->id_kelas;
                 }
                 // Juga mapping nama_kelas sebagai fallback
@@ -873,16 +891,24 @@ class DatasiswaController extends BaseController
         // Ambil NIS/NISN/username yang sudah ada (1 query, bukan per baris)
         $existNis = $existNisn = $existUser = [];
         try {
-            foreach ($db->table('master_siswa')->select('nis, nisn, username')->get() as $r) {
-                if ($r->nis !== null && $r->nis !== '') $existNis[trim((string) $r->nis)] = true;
-                if ($r->nisn !== null && $r->nisn !== '') $existNisn[trim((string) $r->nisn)] = true;
-                if ($r->username !== null && $r->username !== '') $existUser[trim((string) $r->username)] = true;
+            foreach ($db->table('master_siswa')->select('nis', 'nisn', 'username')->get() as $r) {
+                if ($r->nis !== null && $r->nis !== '') {
+                    $existNis[trim((string) $r->nis)] = true;
+                }
+                if ($r->nisn !== null && $r->nisn !== '') {
+                    $existNisn[trim((string) $r->nisn)] = true;
+                }
+                if ($r->username !== null && $r->username !== '') {
+                    $existUser[trim((string) $r->username)] = true;
+                }
             }
             foreach ($db->table('users')->select('username')->get() as $r) {
-                if ($r->username !== null && $r->username !== '') $existUser[trim((string) $r->username)] = true;
+                if ($r->username !== null && $r->username !== '') {
+                    $existUser[trim((string) $r->username)] = true;
+                }
             }
         } catch (\Throwable $e) {
-            Log::error('[do_import] preload: ' . $e->getMessage());
+            Log::error('[do_import] preload: '.$e->getMessage());
         }
 
         $clean = [];
@@ -893,8 +919,9 @@ class DatasiswaController extends BaseController
 
         foreach ($input as $value) {
             $rowNo++;
-            if (!is_array($value)) {
+            if (! is_array($value)) {
                 $skipped++;
+
                 continue;
             }
             $nama = mb_substr(trim((string) ($value['nama'] ?? '')), 0, 100);
@@ -911,36 +938,53 @@ class DatasiswaController extends BaseController
             }
             if ($nama === '' || mb_strlen($nama) < 3) {
                 $skipped++;
-                if (count($errorRows) < 50) $errorRows[] = "{$label}: nama minimal 3 karakter";
+                if (count($errorRows) < 50) {
+                    $errorRows[] = "{$label}: nama minimal 3 karakter";
+                }
+
                 continue;
             }
-            if ($nis === '' || !ctype_digit($nis)) {
+            if ($nis === '' || ! ctype_digit($nis)) {
                 $skipped++;
-                if (count($errorRows) < 50) $errorRows[] = "{$label}: NIS wajib angka";
+                if (count($errorRows) < 50) {
+                    $errorRows[] = "{$label}: NIS wajib angka";
+                }
+
                 continue;
             }
             if (isset($existNis[$nis]) || isset($batchNis[$nis])) {
                 $skipped++;
-                if (count($errorRows) < 50) $errorRows[] = "{$label}: NIS sudah terdaftar";
+                if (count($errorRows) < 50) {
+                    $errorRows[] = "{$label}: NIS sudah terdaftar";
+                }
+
                 continue;
             }
             if ($nisn !== '' && (isset($existNisn[$nisn]) || isset($batchNisn[$nisn]))) {
                 $skipped++;
-                if (count($errorRows) < 50) $errorRows[] = "{$label}: NISN sudah terdaftar";
+                if (count($errorRows) < 50) {
+                    $errorRows[] = "{$label}: NISN sudah terdaftar";
+                }
+
                 continue;
             }
             if ($username === '' || isset($existUser[$username]) || isset($batchUser[$username])) {
                 $skipped++;
-                if (count($errorRows) < 50) $errorRows[] = "{$label}: username kosong / sudah dipakai";
+                if (count($errorRows) < 50) {
+                    $errorRows[] = "{$label}: username kosong / sudah dipakai";
+                }
+
                 continue;
             }
 
             $batchNis[$nis] = true;
-            if ($nisn !== '') $batchNisn[$nisn] = true;
+            if ($nisn !== '') {
+                $batchNisn[$nisn] = true;
+            }
             $batchUser[$username] = true;
 
             $kelas_awal = mb_substr(trim((string) ($value['kelas_awal'] ?? '')), 0, 50);
-            
+
             $clean[] = [
                 'uid' => bin2hex(random_bytes(16)),
                 'nama' => strtoupper($nama),
@@ -966,7 +1010,7 @@ class DatasiswaController extends BaseController
             ]);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             // Hapus field target_kelas dari data yang akan diinsert ke master_siswa
             $cleanForInsert = [];
@@ -975,7 +1019,7 @@ class DatasiswaController extends BaseController
                 unset($insertData['target_kelas']);
                 $cleanForInsert[] = $insertData;
             }
-            
+
             $this->masterModel->insertBatchData('master_siswa', $cleanForInsert);
 
             $usernames = array_column($clean, 'username');
@@ -985,7 +1029,9 @@ class DatasiswaController extends BaseController
             $kelasSiswa = [];
             $usersBatch = [];
             $mapByUsername = [];
-            foreach ($clean as $c) $mapByUsername[$c['username']] = $c; // Tetap gunakan $clean untuk mapping karena target_kelas ada di sini
+            foreach ($clean as $c) {
+                $mapByUsername[$c['username']] = $c;
+            } // Tetap gunakan $clean untuk mapping karena target_kelas ada di sini
 
             $pkDasarKelasSiswa = $this->masterModel->generateKelasSiswaId();
 
@@ -993,21 +1039,21 @@ class DatasiswaController extends BaseController
                 $induk[] = [
                     'id_siswa' => $s->id_siswa,
                     'uid' => bin2hex(random_bytes(16)),
-                    'status' => 1
+                    'status' => 1,
                 ];
 
                 // Logika mapping kelas: prioritaskan kelas_awal dari Excel, fallback ke id_kelas yang dipilih
                 $targetKelasId = null;
                 $src = $mapByUsername[$s->username] ?? null;
-                
-                if ($src && !empty($src['target_kelas']) && $tp && $smt) {
+
+                if ($src && ! empty($src['target_kelas']) && $tp && $smt) {
                     // Cek apakah kelas_awal cocok dengan kelas yang ada di database
                     $kelasKey = strtoupper(trim($src['target_kelas']));
                     if (isset($kelasMapping[$kelasKey])) {
                         $targetKelasId = $kelasMapping[$kelasKey];
                     }
                 }
-                
+
                 // Jika tidak ada mapping dari kelas_awal, gunakan id_kelas yang dipilih secara manual
                 if ($targetKelasId === null && $id_kelas > 0 && $tp && $smt) {
                     $targetKelasId = $id_kelas;
@@ -1023,7 +1069,7 @@ class DatasiswaController extends BaseController
                         'id_tp' => $tp->id_tp,
                         'id_smt' => $smt->id_smt,
                         'id_kelas' => $targetKelasId,
-                        'id_siswa' => $s->id_siswa
+                        'id_siswa' => $s->id_siswa,
                     ];
                 }
 
@@ -1034,39 +1080,46 @@ class DatasiswaController extends BaseController
                         'password' => password_hash($src['password'], PASSWORD_BCRYPT),
                         'first_name' => $parts[0] ?? $src['nama'],
                         'last_name' => count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '',
-                        'active' => 1
+                        'active' => 1,
                     ];
                 }
             }
 
-            if (!empty($induk))
+            if (! empty($induk)) {
                 $this->masterModel->insertBatchData('buku_induk', $induk);
-            if (!empty($kelasSiswa))
+            }
+            if (! empty($kelasSiswa)) {
                 $this->masterModel->insertBatchData('kelas_siswa', $kelasSiswa);
-            if (!empty($usersBatch)) {
-                $db->table('users')->insertBatch($usersBatch);
+            }
+            if (! empty($usersBatch)) {
+                $db->table('users')->insert($usersBatch);
                 // Ambil ulang ID berdasarkan username (aman dari asumsi auto-increment berurutan)
                 $createdUsers = $db->table('users')
                     ->select('id')
                     ->whereIn('username', array_column($usersBatch, 'username'))
                     ->get();
                 $ugBatch = [];
-                foreach ($createdUsers as $cu) $ugBatch[] = ['user_id' => $cu->id, 'group_id' => 3];
-                if ($ugBatch) $db->table('users_groups')->insertBatch($ugBatch);
+                foreach ($createdUsers as $cu) {
+                    $ugBatch[] = ['user_id' => $cu->id, 'group_id' => 3];
+                }
+                if ($ugBatch) {
+                    $db->table('users_groups')->insert($ugBatch);
+                }
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[do_import] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[do_import] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal import (duplikat / kesalahan database)']);
         }
 
-        $this->saveAuditLog(1, 'Import siswa: ' . count($clean) . ' berhasil, ' . $skipped . ' dilewati');
+        $this->saveAuditLog(1, 'Import siswa: '.count($clean).' berhasil, '.$skipped.' dilewati');
 
         // Hitung jumlah siswa yang berhasil dimasukkan ke kelas
         $assignedToKelas = count($kelasSiswa);
-        $kelasInfo = $assignedToKelas > 0 ? " ({$assignedToKelas} siswa dimasukkan ke kelas)" : "";
+        $kelasInfo = $assignedToKelas > 0 ? " ({$assignedToKelas} siswa dimasukkan ke kelas)" : '';
 
         return $this->response->setJSON([
             'status' => true,
@@ -1075,7 +1128,7 @@ class DatasiswaController extends BaseController
             'assigned_to_kelas' => $assignedToKelas,
             'skipped' => $skipped,
             'errors' => $errorRows,
-            'message' => 'Import berhasil: ' . count($clean) . ' siswa' . $kelasInfo . ($skipped > 0 ? " ({$skipped} baris dilewati: duplikat/tak lengkap)" : '')
+            'message' => 'Import berhasil: '.count($clean).' siswa'.$kelasInfo.($skipped > 0 ? " ({$skipped} baris dilewati: duplikat/tak lengkap)" : ''),
         ]);
     }
 
@@ -1084,14 +1137,16 @@ class DatasiswaController extends BaseController
      */
     public function update()
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
-        if (!$this->isAdmin())
+        }
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
+        }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return redirect()->to('datasiswa')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
 
@@ -1102,8 +1157,8 @@ class DatasiswaController extends BaseController
             'setting' => $this->getSettingRow(),
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'tipe' => 'update',
             'kelas' => $this->dropdownModel->getAllKelas($tp->id_tp, $smt->id_smt),
         ];
@@ -1116,14 +1171,14 @@ class DatasiswaController extends BaseController
      */
     public function uploadFile($id_siswa)
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $file = $this->request->file('foto');
-        if ($file && $file->isValid() && !false /* was: $file->hasMoved() */) {
+        if ($file && $file->isValid() && ! false /* was: $file->hasMoved() */) {
             $siswa = $this->masterModel->getSiswaById($id_siswa);
-            if (!$siswa) {
+            if (! $siswa) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
             }
             // Hanya gambar JPG/PNG ≤ 2MB (cegah upload skrip .php = RCE)
@@ -1131,21 +1186,21 @@ class DatasiswaController extends BaseController
             if ($file->getSize() > 2 * 1024 * 1024) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Ukuran foto maksimal 2MB']);
             }
-            if (!$file->isValid() || !in_array($file->getMimeType(), ['image/jpeg', 'image/png'], true)) {
+            if (! $file->isValid() || ! in_array($file->getMimeType(), ['image/jpeg', 'image/png'], true)) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
-            if (!in_array(strtolower($file->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true)) {
+            if (! in_array(strtolower($file->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true)) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
-            $safeNis = preg_replace('/[^0-9A-Za-z\-_]/', '', (string) ($siswa->nis ?? 'siswa' . $id_siswa));
-            $newName = $safeNis . '.jpg';
-            $file->move(public_path() . '/' . 'uploads/foto_siswa/', $newName, true);
+            $safeNis = preg_replace('/[^0-9A-Za-z\-_]/', '', (string) ($siswa->nis ?? 'siswa'.$id_siswa));
+            $newName = $safeNis.'.jpg';
+            $file->move(public_path().'/'.'uploads/foto_siswa/', $newName, true);
 
-            $this->updateMasterData('master_siswa', ['foto' => 'uploads/foto_siswa/' . $newName], 'id_siswa', $id_siswa);
+            $this->updateMasterData('master_siswa', ['foto' => 'uploads/foto_siswa/'.$newName], 'id_siswa', $id_siswa);
 
             return $this->response->setJSON([
                 'status' => true,
-                'src' => url('uploads/foto_siswa/' . $newName)
+                'src' => url('uploads/foto_siswa/'.$newName),
             ]);
         }
 
@@ -1154,22 +1209,22 @@ class DatasiswaController extends BaseController
 
     public function downloadData($id_kelas)
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Kolom eksplisit TANPA password/uid (dulu s.* membocorkan password plaintext)
         $siswas = $db->table('master_siswa as s')
-            ->select('s.id_siswa, s.nis, s.nisn, s.nama, s.jenis_kelamin, s.tempat_lahir, s.tanggal_lahir, s.agama, s.alamat, s.hp, s.foto, s.username, ks.id_kelas, c.nama_kelas')
-            ->join('kelas_siswa as ks', 's.id_siswa = ks.id_siswa')
-            ->join('master_kelas as c', 'ks.id_kelas = c.id_kelas')
+            ->select('s.id_siswa', 's.nis', 's.nisn', 's.nama', 's.jenis_kelamin', 's.tempat_lahir', 's.tanggal_lahir', 's.agama', 's.alamat', 's.hp', 's.foto', 's.username', 'ks.id_kelas', 'c.nama_kelas')
+            ->join('kelas_siswa as ks', 's.id_siswa', '=', 'ks.id_siswa')
+            ->join('master_kelas as c', 'ks.id_kelas', '=', 'c.id_kelas')
             ->where('ks.id_tp', $tp->id_tp)
             ->where('ks.id_smt', $smt->id_smt)
             ->where('ks.id_kelas', (int) $id_kelas)
@@ -1177,7 +1232,7 @@ class DatasiswaController extends BaseController
 
         foreach ($siswas as $ind => $siswa) {
             $siswa->no = ($ind + 1);
-            $siswa->foto = !empty($siswa->foto) && file_exists(public_path() . '/' . $siswa->foto) ? url($siswa->foto) : url('assets/img/siswa_sm.png');
+            $siswa->foto = ! empty($siswa->foto) && file_exists(public_path().'/'.$siswa->foto) ? url($siswa->foto) : url('assets/img/siswa_sm.png');
         }
 
         return $this->response->setJSON(['status' => true, 'siswa' => $siswas]);
@@ -1185,13 +1240,13 @@ class DatasiswaController extends BaseController
 
     public function updateAll()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = $this->request->input('siswa'); // Array of student data
 
-        if (empty($input) || !is_array($input)) {
+        if (empty($input) || ! is_array($input)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data untuk diupdate']);
         }
         if (count($input) > 2000) {
@@ -1200,28 +1255,30 @@ class DatasiswaController extends BaseController
 
         // Whitelist field bulk (blokir timpa username/password/foto/uid)
         $allowed = ['nis' => 20, 'nisn' => 20, 'nama' => 100];
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $clean = [];
         $skipped = 0;
 
         // Peta nis/nisn milik baris lain untuk cek duplikat
         $allRows = [];
         try {
-            foreach ($db->table('master_siswa')->select('id_siswa, nis, nisn')->get() as $r) {
+            foreach ($db->table('master_siswa')->select('id_siswa', 'nis', 'nisn')->get() as $r) {
                 $allRows[(int) $r->id_siswa] = ['nis' => trim((string) $r->nis), 'nisn' => trim((string) $r->nisn)];
             }
         } catch (\Throwable $e) {
-            Log::error('[updateAll] preload: ' . $e->getMessage());
+            Log::error('[updateAll] preload: '.$e->getMessage());
         }
 
         foreach ($input as $row) {
-            if (!is_array($row) || empty($row['id_siswa'])) {
+            if (! is_array($row) || empty($row['id_siswa'])) {
                 $skipped++;
+
                 continue;
             }
             $idSiswa = (int) $row['id_siswa'];
-            if (!isset($allRows[$idSiswa])) {
+            if (! isset($allRows[$idSiswa])) {
                 $skipped++;
+
                 continue;
             }
             $entry = ['id_siswa' => $idSiswa];
@@ -1233,7 +1290,7 @@ class DatasiswaController extends BaseController
                         $valid = false;
                         break;
                     }
-                    if (in_array($field, ['nis', 'nisn'], true) && ($val === '' || !ctype_digit($val))) {
+                    if (in_array($field, ['nis', 'nisn'], true) && ($val === '' || ! ctype_digit($val))) {
                         $valid = false;
                         break;
                     }
@@ -1258,8 +1315,9 @@ class DatasiswaController extends BaseController
                     $allRows[$idSiswa][$field] = $val; // update peta untuk baris berikutnya
                 }
             }
-            if (!$valid) {
+            if (! $valid) {
                 $skipped++;
+
                 continue;
             }
             $clean[] = $entry;
@@ -1271,7 +1329,7 @@ class DatasiswaController extends BaseController
 
         $tertulis = $this->masterModel->updateBatchData('master_siswa', $clean, 'id_siswa');
         if ($tertulis === false) {
-            Log::error('[Datasiswa::updateAll] updateBatch master_siswa ditolak DB (' . count($clean) . ' baris)');
+            Log::error('[Datasiswa::updateAll] updateBatch master_siswa ditolak DB ('.count($clean).' baris)');
 
             return $this->response->setJSON([
                 'status' => false,
@@ -1281,88 +1339,95 @@ class DatasiswaController extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Berhasil memperbarui ' . count($clean) . ' siswa' . ($skipped > 0 ? " ({$skipped} dilewati)" : ''),
-            'siswa' => count($clean)
+            'message' => 'Berhasil memperbarui '.count($clean).' siswa'.($skipped > 0 ? " ({$skipped} dilewati)" : ''),
+            'siswa' => count($clean),
         ]);
     }
 
     public function update_foto()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = $this->request->input('siswa');
-        if (empty($input) || !is_array($input)) {
+        if (empty($input) || ! is_array($input)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada foto untuk diupdate']);
         }
         if (count($input) > 500) {
             return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 500 foto per batch']);
         }
 
-        if (!is_dir(public_path() . '/' . 'uploads/foto_siswa/')) {
-            mkdir(public_path() . '/' . 'uploads/foto_siswa/', 0755, true);
+        if (! is_dir(public_path().'/'.'uploads/foto_siswa/')) {
+            mkdir(public_path().'/'.'uploads/foto_siswa/', 0755, true);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $validIds = [];
         try {
             foreach ($db->table('master_siswa')->select('id_siswa')->get() as $r) {
                 $validIds[(int) $r->id_siswa] = true;
             }
         } catch (\Throwable $e) {
-            Log::error('[update_foto] preload: ' . $e->getMessage());
+            Log::error('[update_foto] preload: '.$e->getMessage());
         }
 
         $siswas = [];
         $skipped = 0;
         foreach ($input as $value) {
-            if (!is_array($value) || empty($value['id_siswa']) || !isset($validIds[(int) $value['id_siswa']])) {
+            if (! is_array($value) || empty($value['id_siswa']) || ! isset($validIds[(int) $value['id_siswa']])) {
                 $skipped++;
+
                 continue;
             }
             $idSiswa = (int) $value['id_siswa'];
-            $safeNis = preg_replace('/[^0-9A-Za-z\-_]/', '', trim((string) ($value['nis'] ?? 'siswa' . $idSiswa)));
-            if ($safeNis === '') $safeNis = 'siswa' . $idSiswa;
-            $fotoPath = 'uploads/foto_siswa/' . $safeNis . '.jpg';
+            $safeNis = preg_replace('/[^0-9A-Za-z\-_]/', '', trim((string) ($value['nis'] ?? 'siswa'.$idSiswa)));
+            if ($safeNis === '') {
+                $safeNis = 'siswa'.$idSiswa;
+            }
+            $fotoPath = 'uploads/foto_siswa/'.$safeNis.'.jpg';
 
-            if (!empty($value['foto'])) {
+            if (! empty($value['foto'])) {
                 $ext = strtolower(trim((string) ($value['ext'] ?? 'jpg')));
                 // Hanya jpg/png — ekstensi lain (mis. php) ditolak mentah-mentah
-                if (!in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                if (! in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
                     $skipped++;
+
                     continue;
                 }
                 $raw = base64_decode((string) $value['foto'], true);
                 if ($raw === false || strlen($raw) > 2 * 1024 * 1024) {
                     $skipped++;
+
                     continue;
                 }
                 // Pastikan benar file gambar (bukan skrip berekstensi gambar)
                 $info = @getimagesizefromstring($raw);
-                if ($info === false || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
+                if ($info === false || ! in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
                     $skipped++;
+
                     continue;
                 }
-                $output_file = $safeNis . '.jpg';
-                if (file_put_contents(public_path() . '/' . 'uploads/foto_siswa/' . $output_file, $raw) === false) {
+                $output_file = $safeNis.'.jpg';
+                if (file_put_contents(public_path().'/'.'uploads/foto_siswa/'.$output_file, $raw) === false) {
                     $skipped++;
+
                     continue;
                 }
-                $fotoPath = 'uploads/foto_siswa/' . $output_file;
+                $fotoPath = 'uploads/foto_siswa/'.$output_file;
             }
 
             $siswas[] = [
-                "id_siswa" => $idSiswa,
-                "foto" => $fotoPath
+                'id_siswa' => $idSiswa,
+                'foto' => $fotoPath,
             ];
         }
 
         $tersimpan = 0;
-        if (!empty($siswas)) {
+        if (! empty($siswas)) {
             $tertulis = $this->masterModel->updateBatchData('master_siswa', $siswas, 'id_siswa');
             if ($tertulis === false) {
-                Log::error('[Datasiswa::update_foto] updateBatch ditolak DB (' . count($siswas) . ' baris)');
+                Log::error('[Datasiswa::update_foto] updateBatch ditolak DB ('.count($siswas).' baris)');
 
                 return $this->response->setJSON([
                     'status' => false,
@@ -1375,9 +1440,9 @@ class DatasiswaController extends BaseController
         return $this->response->setJSON([
             'status' => $tersimpan > 0,
             'message' => $tersimpan > 0
-                ? 'Berhasil memperbarui ' . $tersimpan . ' foto siswa' . ($skipped > 0 ? " ({$skipped} dilewati)" : '')
-                : 'Tidak ada foto yang tersimpan — semua baris dilewati (' . $skipped . ' baris tidak valid).',
-            'total' => $tersimpan
+                ? 'Berhasil memperbarui '.$tersimpan.' foto siswa'.($skipped > 0 ? " ({$skipped} dilewati)" : '')
+                : 'Tidak ada foto yang tersimpan — semua baris dilewati ('.$skipped.' baris tidak valid).',
+            'total' => $tersimpan,
         ]);
     }
 
@@ -1386,20 +1451,20 @@ class DatasiswaController extends BaseController
      */
     public function delete_foto($id_siswa)
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $siswa = $this->masterModel->getSiswaById((int) $id_siswa);
-        if (!$siswa) {
+        if (! $siswa) {
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
         }
 
-        if (!empty($siswa->foto)) {
+        if (! empty($siswa->foto)) {
             $rel = ltrim((string) $siswa->foto, '/');
             // Hanya hapus file di dalam uploads/foto_siswa (jangan sentuh assets)
-            if (strpos($rel, 'uploads/foto_siswa/') === 0 && strpos($rel, '..') === false && file_exists(public_path() . '/' . $rel)) {
-                @unlink(public_path() . '/' . $rel);
+            if (strpos($rel, 'uploads/foto_siswa/') === 0 && strpos($rel, '..') === false && file_exists(public_path().'/'.$rel)) {
+                @unlink(public_path().'/'.$rel);
             }
         }
 
@@ -1410,7 +1475,7 @@ class DatasiswaController extends BaseController
 
     public function editLogin()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -1422,7 +1487,7 @@ class DatasiswaController extends BaseController
         }
 
         $siswa = $this->masterModel->getSiswaById($id_siswa);
-        if (!$siswa) {
+        if (! $siswa) {
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
         }
 
@@ -1430,14 +1495,14 @@ class DatasiswaController extends BaseController
         $this->updateMasterData('master_siswa', ['password' => $password], 'id_siswa', $id_siswa);
 
         // Update in users table
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $db->table('users')
             ->where('username', $siswa->username)
             ->update(['password' => password_hash($password, PASSWORD_BCRYPT)]);
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Password berhasil diperbarui'
+            'message' => 'Password berhasil diperbarui',
         ]);
     }
 

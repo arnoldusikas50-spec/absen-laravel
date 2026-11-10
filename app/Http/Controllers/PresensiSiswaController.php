@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
+use App\Models\DropdownModel;
+use App\Models\SiswaPresensiModel;
+use App\Services\AttendancePolicy;
+use App\Services\PresensiBdrService;
+use App\Services\SiswaDendaService;
+use App\Services\SiswaPoinService;
+use Dompdf\Dompdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\SiswaPresensiModel;
-use App\Models\DashboardModel;
-use App\Models\DropdownModel;
-use App\Models\AttendanceSettingModel;
-use Dompdf\Dompdf;
 
 /**
  * PresensiSiswa Controller
@@ -26,8 +30,11 @@ use Dompdf\Dompdf;
 class PresensiSiswaController extends BaseController
 {
     protected SiswaPresensiModel $presensiModel;
-    protected DashboardModel     $dashboardModel;
-    protected DropdownModel      $dropdownModel;
+
+    protected DashboardModel $dashboardModel;
+
+    protected DropdownModel $dropdownModel;
+
     protected AttendanceSettingModel $absenSettingModel;
 
     private const VALID_STATUS = ['HADIR', 'SAKIT', 'IZIN', 'ALPA', 'TANPA_KETERANGAN', 'BDR'];
@@ -38,10 +45,10 @@ class PresensiSiswaController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->presensiModel  = new SiswaPresensiModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->dropdownModel  = new DropdownModel();
-        $this->absenSettingModel = new AttendanceSettingModel();
+        $this->presensiModel = new SiswaPresensiModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->dropdownModel = new DropdownModel;
+        $this->absenSettingModel = new AttendanceSettingModel;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -50,8 +57,11 @@ class PresensiSiswaController extends BaseController
 
     private function validTgl(?string $tgl): bool
     {
-        if (!is_string($tgl) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl)) return false;
+        if (! is_string($tgl) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl)) {
+            return false;
+        }
         [$y, $m, $d] = array_map('intval', explode('-', $tgl));
+
         return checkdate($m, $d, $y);
     }
 
@@ -63,13 +73,15 @@ class PresensiSiswaController extends BaseController
     private function normJam(string $jam): string
     {
         $jam = trim($jam);
-        return strlen($jam) === 5 ? $jam . ':00' : $jam;
+
+        return strlen($jam) === 5 ? $jam.':00' : $jam;
     }
 
     /** Normalisasi "HH:MM:SS"/"HH:MM" → "HH:MM", fallback bila kosong/tak valid. */
     private static function jamPendek($jam, string $fallback): string
     {
         $s = substr(trim((string) ($jam ?? '')), 0, 5);
+
         return (bool) preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $s) ? $s : $fallback;
     }
 
@@ -78,9 +90,12 @@ class PresensiSiswaController extends BaseController
     {
         try {
             $uid = $this->getUserId();
-            if (!$uid) return null;
-            $row = \Illuminate\Support\Facades\DB::connection()->table('master_guru')
+            if (! $uid) {
+                return null;
+            }
+            $row = DB::connection()->table('master_guru')
                 ->select('id_guru')->where('id_user', $uid)->first();
+
             return $row ? (int) $row->id_guru : null;
         } catch (\Throwable $e) {
             return null;
@@ -91,16 +106,21 @@ class PresensiSiswaController extends BaseController
     private function isSiswaKelas(int $idSiswa, int $idKelas): bool
     {
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+            $db = DB::connection();
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
             $b = $db->table('kelas_siswa')
                 ->where('id_siswa', $idSiswa)->where('id_kelas', $idKelas);
-            if ($tp) $b->where('id_tp', $tp->id_tp);
-            if ($smt) $b->where('id_smt', $smt->id_smt);
+            if ($tp) {
+                $b->where('id_tp', $tp->id_tp);
+            }
+            if ($smt) {
+                $b->where('id_smt', $smt->id_smt);
+            }
             if ($b->count() === 0) {
                 return false;
             }
+
             // Hanya siswa AKTIF (buku_induk.status = '1') boleh diabsen.
             // LULUS (2) / PINDAH (3) / KELUAR (4) ditolak di semua jalur tulis.
             return self::isSiswaAktif($idSiswa);
@@ -120,15 +140,16 @@ class PresensiSiswaController extends BaseController
             return false;
         }
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
+            $db = DB::connection();
+            if (! Schema::hasTable('buku_induk')) {
                 return true;
             }
             $row = $db->table('buku_induk')->select('status')
                 ->where('id_siswa', $idSiswa)->first();
-            if (!$row) {
+            if (! $row) {
                 return true;
             }
+
             return (string) ($row->status ?? '1') === '1';
         } catch (\Throwable $e) {
             return true;
@@ -154,50 +175,77 @@ class PresensiSiswaController extends BaseController
      */
     private function allowedKelasIds(): ?array
     {
-        if ($this->isAdmin() || $this->isPanitia()) return null;
+        if ($this->isAdmin() || $this->isPanitia()) {
+            return null;
+        }
         $guruId = $this->resolveGuruId();
-        if (!$guruId) return [];
+        if (! $guruId) {
+            return [];
+        }
         try {
-            $db = \Illuminate\Support\Facades\DB::connection();
-            $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-            $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+            $db = DB::connection();
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
 
             // Piket hari ini bebas lintas kelas
-            if ($tp && $smt && \Illuminate\Support\Facades\Schema::hasTable('piket_jadwal')) {
+            if ($tp && $smt && Schema::hasTable('piket_jadwal')) {
                 $onDuty = $db->table('piket_jadwal')
                     ->where('hari', $this->hariIndo(date('l')))
                     ->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt)
                     ->where('id_guru', $guruId)->count() > 0;
-                if ($onDuty) return null;
+                if ($onDuty) {
+                    return null;
+                }
             }
 
             $ids = [];
             $adaPenugasan = false;
-            if (\Illuminate\Support\Facades\Schema::hasTable('jabatan_guru')) {
-                $jb = $db->table('jabatan_guru')->select('id_kelas, mapel_kelas')->where('id_guru', $guruId);
-                if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_tp')) $jb->where('id_tp', $tp->id_tp);
-                if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('jabatan_guru', 'id_smt')) $jb->where('id_smt', $smt->id_smt);
+            if (Schema::hasTable('jabatan_guru')) {
+                $jb = $db->table('jabatan_guru')->select('id_kelas', 'mapel_kelas')->where('id_guru', $guruId);
+                if ($tp && Schema::hasColumn('jabatan_guru', 'id_tp')) {
+                    $jb->where('id_tp', $tp->id_tp);
+                }
+                if ($smt && Schema::hasColumn('jabatan_guru', 'id_smt')) {
+                    $jb->where('id_smt', $smt->id_smt);
+                }
                 $rows = $jb->get();
-                if (!empty($rows)) $adaPenugasan = true;
+                if (! empty($rows)) {
+                    $adaPenugasan = true;
+                }
                 foreach ($rows as $r) {
-                    if ((int) ($r->id_kelas ?? 0) > 0) $ids[] = (int) $r->id_kelas;
-                    foreach (self::parseKelasMapel($r->mapel_kelas ?? null) as $kid) $ids[] = $kid;
+                    if ((int) ($r->id_kelas ?? 0) > 0) {
+                        $ids[] = (int) $r->id_kelas;
+                    }
+                    foreach (self::parseKelasMapel($r->mapel_kelas ?? null) as $kid) {
+                        $ids[] = $kid;
+                    }
                 }
             }
             // Fallback wali: master_kelas.guru_id
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('master_kelas') && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'guru_id')) {
+                if (Schema::hasTable('master_kelas') && Schema::hasColumn('master_kelas', 'guru_id')) {
                     $mk = $db->table('master_kelas')->select('id_kelas')->where('guru_id', $guruId);
-                    if ($tp && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_tp')) $mk->where('id_tp', $tp->id_tp);
-                    if ($smt && \Illuminate\Support\Facades\Schema::hasColumn('master_kelas', 'id_smt')) $mk->where('id_smt', $smt->id_smt);
+                    if ($tp && Schema::hasColumn('master_kelas', 'id_tp')) {
+                        $mk->where('id_tp', $tp->id_tp);
+                    }
+                    if ($smt && Schema::hasColumn('master_kelas', 'id_smt')) {
+                        $mk->where('id_smt', $smt->id_smt);
+                    }
                     $walis = $mk->get();
-                    if (!empty($walis)) $adaPenugasan = true;
-                    foreach ($walis as $r) $ids[] = (int) $r->id_kelas;
+                    if (! empty($walis)) {
+                        $adaPenugasan = true;
+                    }
+                    foreach ($walis as $r) {
+                        $ids[] = (int) $r->id_kelas;
+                    }
                 }
             } catch (\Throwable $e) {
             }
-            if (!$adaPenugasan) return null; // data admin belum lengkap → jangan kunci
+            if (! $adaPenugasan) {
+                return null;
+            } // data admin belum lengkap → jangan kunci
             $ids = array_values(array_unique(array_filter($ids)));
+
             return $ids !== [] ? $ids : null;
         } catch (\Throwable $e) {
             return []; // fail-closed
@@ -207,6 +255,7 @@ class PresensiSiswaController extends BaseController
     private function kelasAllowed(int $idKelas): bool
     {
         $allowed = $this->allowedKelasIds();
+
         return $allowed === null || in_array($idKelas, $allowed, true);
     }
 
@@ -222,14 +271,18 @@ class PresensiSiswaController extends BaseController
     /** Ambil id_kelas numerik dari kolom mapel_kelas (JSON baru / serialize lama). */
     private static function parseKelasMapel($raw): array
     {
-        if ($raw === null || $raw === '' || $raw === 'b:0;') return [];
+        if ($raw === null || $raw === '' || $raw === 'b:0;') {
+            return [];
+        }
         $decoded = null;
         if (is_string($raw)) {
             $decoded = json_decode($raw, true);
-            if (!is_array($decoded)) {
+            if (! is_array($decoded)) {
                 try {
                     $tmp = unserialize($raw, ['allowed_classes' => false]);
-                    if (is_array($tmp)) $decoded = $tmp;
+                    if (is_array($tmp)) {
+                        $decoded = $tmp;
+                    }
                 } catch (\Throwable $e) {
                     return [];
                 }
@@ -237,22 +290,30 @@ class PresensiSiswaController extends BaseController
         } elseif (is_array($raw)) {
             $decoded = $raw;
         }
-        if (!is_array($decoded)) return [];
+        if (! is_array($decoded)) {
+            return [];
+        }
         $ids = [];
         foreach ($decoded as $m) {
-            if (!is_array($m) || empty($m['kelas_mapel']) || !is_array($m['kelas_mapel'])) continue;
+            if (! is_array($m) || empty($m['kelas_mapel']) || ! is_array($m['kelas_mapel'])) {
+                continue;
+            }
             foreach ($m['kelas_mapel'] as $km) {
                 $kid = (int) ($km['kelas'] ?? 0);
-                if ($kid > 0) $ids[] = $kid;
+                if ($kid > 0) {
+                    $ids[] = $kid;
+                }
             }
         }
+
         return $ids;
     }
 
     /** Deteksi error unique-key (untuk retry upsert anti-balapan). */
     private static function isDuplicateKey(\Throwable $e): bool
     {
-        $m = strtolower($e->getMessage() . ' ' . $e->getCode());
+        $m = strtolower($e->getMessage().' '.$e->getCode());
+
         return str_contains($m, 'duplicate') || str_contains($m, '1062')
             || str_contains($m, 'uq_ps') || str_contains($m, 'unique constraint');
     }
@@ -268,10 +329,11 @@ class PresensiSiswaController extends BaseController
         $totalSiswa = count($data);
         $hadir = (int) ($stat->hadir ?? 0);
         $sakit = (int) ($stat->sakit ?? 0);
-        $izin  = (int) ($stat->izin ?? 0);
-        $alpa  = (int) ($stat->alpa ?? 0);
-        $bdr   = (int) ($stat->bdr ?? 0);
+        $izin = (int) ($stat->izin ?? 0);
+        $alpa = (int) ($stat->alpa ?? 0);
+        $bdr = (int) ($stat->bdr ?? 0);
         $belum = max(0, $totalSiswa - $hadir - $sakit - $izin - $alpa - $bdr);
+
         return [
             'hadir' => $hadir, 'sakit' => $sakit, 'izin' => $izin,
             'alpa' => $alpa, 'bdr' => $bdr, 'tanpa' => $belum, 'belum' => $belum, 'total' => $totalSiswa,
@@ -286,10 +348,11 @@ class PresensiSiswaController extends BaseController
     private function isHariLibur(string $tgl): ?string
     {
         try {
-            return \App\Services\AttendancePolicy::alasanLibur($tgl);
+            return AttendancePolicy::alasanLibur($tgl);
         } catch (\Throwable $e) {
             // Biarkan null (tidak memblok)
         }
+
         return null;
     }
 
@@ -299,17 +362,17 @@ class PresensiSiswaController extends BaseController
 
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
         // Halaman input — batasi untuk pengelola & panitia (siswa tak boleh mengisi sendiri)
-        if (!$this->canManageSiswa() && !$this->isPanitia()) {
+        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
         $user = $this->getUser();
-        $tp   = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt  = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $kelass = ($tp && $smt)
             ? $this->dropdownModel->getAllKelas($tp->id_tp, $smt->id_smt)
@@ -328,15 +391,15 @@ class PresensiSiswaController extends BaseController
         $jamPulangDef = self::jamPendek($absenSet->jam_pulang ?? null, '14:00');
         $jadwalMap = [];
         try {
-            $dbSet = \Illuminate\Support\Facades\DB::connection();
-            if (\Illuminate\Support\Facades\Schema::hasTable('absensi_jadwal_kerja')) {
-                foreach ($dbSet->table('absensi_jadwal_kerja')->select('hari, jam_masuk, jam_pulang')->get() as $j) {
+            $dbSet = DB::connection();
+            if (Schema::hasTable('absensi_jadwal_kerja')) {
+                foreach ($dbSet->table('absensi_jadwal_kerja')->select('hari', 'jam_masuk', 'jam_pulang')->get() as $j) {
                     $h = (int) ($j->hari ?? 0);
                     if ($h < 1 || $h > 7) {
                         continue;
                     }
                     $jadwalMap[$h] = [
-                        'masuk'  => self::jamPendek($j->jam_masuk ?? null, $jamMasukDef),
+                        'masuk' => self::jamPendek($j->jam_masuk ?? null, $jamMasukDef),
                         'pulang' => self::jamPendek($j->jam_pulang ?? null, $jamPulangDef),
                     ];
                 }
@@ -345,16 +408,16 @@ class PresensiSiswaController extends BaseController
         }
 
         return view('presensi_siswa.index', [
-            'user'       => $user,
-            'judul'      => 'Presensi Siswa',
-            'subjudul'   => 'Kelola Absensi Harian Siswa',
-            'setting'    => $this->getSettingRow(),
-            'tp_active'  => $tp,
+            'user' => $user,
+            'judul' => 'Presensi Siswa',
+            'subjudul' => 'Kelola Absensi Harian Siswa',
+            'setting' => $this->getSettingRow(),
+            'tp_active' => $tp,
             'smt_active' => $smt,
-            'kelass'     => $kelass,
-            'jam_masuk_default'  => $jamMasukDef,
+            'kelass' => $kelass,
+            'jam_masuk_default' => $jamMasukDef,
             'jam_pulang_default' => $jamPulangDef,
-            'jadwal_kerja_map'   => $jadwalMap,
+            'jadwal_kerja_map' => $jadwalMap,
         ]);
     }
 
@@ -364,28 +427,28 @@ class PresensiSiswaController extends BaseController
 
     public function getSiswa()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
 
-        if (!$idKelas) {
+        if (! $idKelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
 
         // TP/SMT diambil dari server (aktif), bukan dari POST client
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        if (!$db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
+        $db = DB::connection();
+        if (! $db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
 
@@ -403,17 +466,17 @@ class PresensiSiswaController extends BaseController
 
     public function getPresensi()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
-        $tgl     = $this->request->input('tgl');
+        $tgl = $this->request->input('tgl');
 
-        if (!$idKelas || !$this->validTgl($tgl)) {
+        if (! $idKelas || ! $this->validTgl($tgl)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
 
@@ -431,22 +494,22 @@ class PresensiSiswaController extends BaseController
 
     public function getBdr()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tgl = (string) $this->request->input('tgl');
-        if (!$this->validTgl($tgl)) {
+        if (! $this->validTgl($tgl)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
 
         $peta = [];
         try {
-            foreach ((new \App\Services\PresensiBdrService())->kelasTerdampak($tgl) as $idKelas => $evt) {
+            foreach ((new PresensiBdrService)->kelasTerdampak($tgl) as $idKelas => $evt) {
                 $peta[(string) $idKelas] = trim((string) ($evt->judul ?? '')) ?: 'Belajar dari rumah';
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswa::getBdr] ' . $e->getMessage());
+            Log::error('[PresensiSiswa::getBdr] '.$e->getMessage());
         }
 
         return $this->response->setJSON(['status' => true, 'data' => (object) $peta]);
@@ -460,29 +523,31 @@ class PresensiSiswaController extends BaseController
     public function save()
     {
         // Panitia boleh input seperti di halaman index (hapus tetap admin/guru)
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
-        $idKelas  = (int) $this->request->input('id_kelas');
-        $tgl      = $this->request->input('tgl');
+        $idKelas = (int) $this->request->input('id_kelas');
+        $tgl = $this->request->input('tgl');
         $jamMasuk = $this->request->input('jam_masuk') ?: date('H:i:s');
         $presensi = $this->request->input('presensi');
 
-        if (!$idKelas || !$this->validTgl($tgl) || empty($presensi) || !is_array($presensi)) {
+        if (! $idKelas || ! $this->validTgl($tgl) || empty($presensi) || ! is_array($presensi)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap (kelas/tanggal tidak valid)']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($tgl > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
-        if (!$this->validJam($jamMasuk)) $jamMasuk = date('H:i:s');
+        if (! $this->validJam($jamMasuk)) {
+            $jamMasuk = date('H:i:s');
+        }
         $jamMasuk = $this->normJam($jamMasuk);
         $idGuru = $this->resolveGuruId();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Hari libur: validasi di server. Scan QR sudah diblokir oleh
         // isHariLibur(), tapi POST langsung ke endpoint ini sebelumnya tetap
@@ -490,9 +555,9 @@ class PresensiSiswaController extends BaseController
         // kehadiran, hitungan keterlambatan, serta poin disiplin siswa.
         // SAKIT / IZIN / ALPA tetap boleh: itu keterangan keadaan, bukan kehadiran.
         $isHariLibur = $this->isHariLibur($tgl);
-        $liburLabel  = $isHariLibur ? $isHariLibur : null;
+        $liburLabel = $isHariLibur ? $isHariLibur : null;
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
 
         $saved = 0;
         $skipped = 0;
@@ -501,29 +566,39 @@ class PresensiSiswaController extends BaseController
 
         try {
             foreach ($presensi as $item) {
-                $idSiswa    = (int) ($item['id_siswa'] ?? 0);
-                $status     = strtoupper(trim($item['status'] ?? 'TANPA_KETERANGAN'));
+                $idSiswa = (int) ($item['id_siswa'] ?? 0);
+                $status = strtoupper(trim($item['status'] ?? 'TANPA_KETERANGAN'));
                 $keterangan = mb_substr(trim((string) ($item['keterangan'] ?? '')), 0, 500);
-                $jamMasukItem  = trim((string) ($item['jam_masuk'] ?? ''));
+                $jamMasukItem = trim((string) ($item['jam_masuk'] ?? ''));
                 $jamKeluarItem = trim((string) ($item['jam_keluar'] ?? ''));
 
-                if (!$idSiswa || !$this->isSiswaKelas($idSiswa, $idKelas)) {
+                if (! $idSiswa || ! $this->isSiswaKelas($idSiswa, $idKelas)) {
                     $skipped++;
+
                     continue;
                 }
-                if (!in_array($status, self::VALID_STATUS, true)) {
+                if (! in_array($status, self::VALID_STATUS, true)) {
                     $status = 'TANPA_KETERANGAN';
                 }
                 // Hari libur: HADIR dihitung sebagai hari kerja sehingga harus
                 // ditolak. SAKIT/IZIN/ALPA tetap dicatat sebagai keterangan.
                 if ($liburLabel !== null && in_array($status, ['HADIR', 'TANPA_KETERANGAN'], true)) {
                     $ditolakLibur++;
+
                     continue;
                 }
-                if ($jamMasukItem !== '' && !$this->validJam($jamMasukItem)) $jamMasukItem = '';
-                if ($jamKeluarItem !== '' && !$this->validJam($jamKeluarItem)) $jamKeluarItem = '';
-                if ($jamMasukItem !== '') $jamMasukItem = $this->normJam($jamMasukItem);
-                if ($jamKeluarItem !== '') $jamKeluarItem = $this->normJam($jamKeluarItem);
+                if ($jamMasukItem !== '' && ! $this->validJam($jamMasukItem)) {
+                    $jamMasukItem = '';
+                }
+                if ($jamKeluarItem !== '' && ! $this->validJam($jamKeluarItem)) {
+                    $jamKeluarItem = '';
+                }
+                if ($jamMasukItem !== '') {
+                    $jamMasukItem = $this->normJam($jamMasukItem);
+                }
+                if ($jamKeluarItem !== '') {
+                    $jamKeluarItem = $this->normJam($jamKeluarItem);
+                }
                 // Keluar tak boleh lebih awal dari masuk
                 if ($jamMasukItem !== '' && $jamKeluarItem !== '' && $jamKeluarItem < $jamMasukItem) {
                     $jamKeluarItem = '';
@@ -533,24 +608,24 @@ class PresensiSiswaController extends BaseController
                 // Maks 2x percobaan: bila insert tabrakan unique key karena
                 // submit ganda bersamaan, baca ulang lalu update — bukan rollback.
                 $done = false;
-                for ($attempt = 0; $attempt < 2 && !$done; $attempt++) {
+                for ($attempt = 0; $attempt < 2 && ! $done; $attempt++) {
                     $existing = $db->table('presensi_siswa')
                         ->where('id_siswa', $idSiswa)
                         ->where('tgl', $tgl)
                         ->first();
 
                     $rowData = [
-                        'id_kelas'   => $idKelas,
-                        'id_siswa'   => $idSiswa,
-                        'id_mapel'   => null,
-                        'id_guru'    => $idGuru,
-                        'tgl'        => $tgl,
-                        'status'     => $status,
+                        'id_kelas' => $idKelas,
+                        'id_siswa' => $idSiswa,
+                        'id_mapel' => null,
+                        'id_guru' => $idGuru,
+                        'tgl' => $tgl,
+                        'status' => $status,
                         'keterangan' => $keterangan !== '' ? $keterangan : null,
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
                     try {
-                        if ($status === 'HADIR' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
+                        if ($status === 'HADIR' && Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
                             $rowData['sumber_masuk'] = 'manual';
                         }
                     } catch (\Throwable $e) {
@@ -580,46 +655,54 @@ class PresensiSiswaController extends BaseController
                             ? ($jamMasukItem !== '' ? $jamMasukItem : $jamMasuk)
                             : null;
                         $rowData['jam_keluar'] = ($status === 'HADIR' && $jamKeluarItem !== '') ? $jamKeluarItem : null;
-                        $rowData['created_at']  = date('Y-m-d H:i:s');
+                        $rowData['created_at'] = date('Y-m-d H:i:s');
                         try {
                             $db->table('presensi_siswa')->insert($rowData);
-                            $savedIds[] = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
+                            $savedIds[] = (int) DB::getPdo()->lastInsertId();
                             $done = true;
                         } catch (\Throwable $ie) {
-                            if (!self::isDuplicateKey($ie)) throw $ie;
+                            if (! self::isDuplicateKey($ie)) {
+                                throw $ie;
+                            }
                             // Balapan insert: iterasi berikut menemukan barisnya lalu update
                         }
                     }
                 }
-                if (!$done) {
-                    throw new \RuntimeException('Gagal menyimpan presensi siswa ' . $idSiswa . ' (konflik tulis)');
+                if (! $done) {
+                    throw new \RuntimeException('Gagal menyimpan presensi siswa '.$idSiswa.' (konflik tulis)');
                 }
                 $saved++;
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             // Poin dan denda dihitung setelah commit supaya keduanya tidak
             // berdiri di atas data yang belum benar-benar tersimpan.
             foreach ($savedIds as $sid) {
-                \App\Services\SiswaPoinService::sinkron($sid);
-                \App\Services\SiswaDendaService::sinkron($sid);
+                SiswaPoinService::sinkron($sid);
+                SiswaDendaService::sinkron($sid);
             }
 
             $msg = "Presensi {$saved} siswa berhasil disimpan";
-            if ($skipped > 0) $msg .= " ({$skipped} dilewati: bukan anggota kelas aktif)";
-            if ($ditolakLibur > 0) $msg .= " ({$ditolakLibur} ditolak: {$liburLabel})";
+            if ($skipped > 0) {
+                $msg .= " ({$skipped} dilewati: bukan anggota kelas aktif)";
+            }
+            if ($ditolakLibur > 0) {
+                $msg .= " ({$ditolakLibur} ditolak: {$liburLabel})";
+            }
+
             return $this->response->setJSON([
-                'status'   => true,
-                'message'  => $msg,
-                'saved'    => $saved,
-                'skipped'  => $skipped,
+                'status' => true,
+                'message' => $msg,
+                'saved' => $saved,
+                'skipped' => $skipped,
                 'ditolak_libur' => $ditolakLibur,
             ]);
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[PresensiSiswa::save] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[PresensiSiswa::save] '.$e->getMessage());
+
             // Detail exception hanya ke log — pesan mentah bisa memuat SQL/struktur data.
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan presensi — tidak ada yang tersimpan, coba lagi atau periksa log aplikasi.']);
         }
@@ -632,29 +715,29 @@ class PresensiSiswaController extends BaseController
 
     public function checkIn()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
-        $idSiswa  = (int) $this->request->input('id_siswa');
-        $idKelas  = (int) $this->request->input('id_kelas');
-        $tgl      = $this->request->input('tgl')       ?: date('Y-m-d');
+        $idSiswa = (int) $this->request->input('id_siswa');
+        $idKelas = (int) $this->request->input('id_kelas');
+        $tgl = $this->request->input('tgl') ?: date('Y-m-d');
         $jamMasuk = $this->request->input('jam_masuk') ?: date('H:i:s');
 
-        if (!$idSiswa || !$idKelas) {
+        if (! $idSiswa || ! $idKelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
-        if (!$this->validTgl($tgl) || $tgl > date('Y-m-d')) {
+        if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
-        if (!$this->validJam($jamMasuk)) {
+        if (! $this->validJam($jamMasuk)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid']);
         }
         $jamMasuk = $this->normJam($jamMasuk);
-        if (!$this->isSiswaKelas($idSiswa, $idKelas)) {
+        if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
         $idGuru = $this->resolveGuruId();
@@ -665,7 +748,7 @@ class PresensiSiswaController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
         }
 
-        $db       = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Grain unik = (id_siswa, tgl): cari tanpa filter kelas agar baris yang
         // tercipta di kelas lain (siswa pindah kelas) tetap ketemu lalu
         // dikembalikan ke kelas aktif — selaras checkOut()/scanQr().
@@ -676,83 +759,97 @@ class PresensiSiswaController extends BaseController
 
         try {
             if ($existing) {
-                if (!empty($existing->jam_masuk)) {
+                if (! empty($existing->jam_masuk)) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'message' => 'Siswa sudah check-in pada ' . substr($existing->jam_masuk, 0, 5),
+                        'status' => false,
+                        'message' => 'Siswa sudah check-in pada '.substr($existing->jam_masuk, 0, 5),
                     ]);
                 }
                 if (in_array($existing->status, ['SAKIT', 'IZIN', 'ALPA'], true)) {
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'message' => 'Siswa berstatus ' . $existing->status . '. Ubah status dulu via Simpan Absensi.',
+                        'status' => false,
+                        'message' => 'Siswa berstatus '.$existing->status.'. Ubah status dulu via Simpan Absensi.',
                     ]);
                 }
                 $manualIn = ['jam_masuk' => $jamMasuk, 'status' => 'HADIR', 'updated_at' => date('Y-m-d H:i:s')];
-                if ($idGuru) $manualIn['id_guru'] = $idGuru;
+                if ($idGuru) {
+                    $manualIn['id_guru'] = $idGuru;
+                }
                 // Pindah kelas: kembalikan baris ke kelas aktif yang diminta.
-                if ((int) ($existing->id_kelas ?? 0) !== $idKelas) $manualIn['id_kelas'] = $idKelas;
+                if ((int) ($existing->id_kelas ?? 0) !== $idKelas) {
+                    $manualIn['id_kelas'] = $idKelas;
+                }
                 try {
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_masuk')) $manualIn['sumber_masuk'] = 'manual';
+                    if (Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
+                        $manualIn['sumber_masuk'] = 'manual';
+                    }
                     $ipM = (string) $this->request->ip();
-                    if ($ipM !== '' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'ip_masuk')) $manualIn['ip_masuk'] = substr($ipM, 0, 45);
+                    if ($ipM !== '' && Schema::hasColumn('presensi_siswa', 'ip_masuk')) {
+                        $manualIn['ip_masuk'] = substr($ipM, 0, 45);
+                    }
                 } catch (\Throwable $e) {
                 }
                 // Guard idempoten: update hanya bila jam_masuk masih kosong,
                 // agar submit paralel tidak menulis ganda lalu sinkron poin ganda.
                 $db->table('presensi_siswa')
                     ->where('id', $existing->id)
-                    ->where('jam_masuk IS NULL', null, false)
+                    ->whereNull('jam_masuk')
                     ->update($manualIn);
                 if (1 === 0) {
                     $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
+
                     return $this->response->setJSON([
-                        'status'  => false,
-                        'message' => 'Siswa sudah check-in pada ' . substr((string) ($finalIn->jam_masuk ?? $jamMasuk), 0, 5),
+                        'status' => false,
+                        'message' => 'Siswa sudah check-in pada '.substr((string) ($finalIn->jam_masuk ?? $jamMasuk), 0, 5),
                     ]);
                 }
-                \App\Services\SiswaPoinService::sinkron((int) $existing->id);
-                \App\Services\SiswaDendaService::sinkron((int) $existing->id);
+                SiswaPoinService::sinkron((int) $existing->id);
+                SiswaDendaService::sinkron((int) $existing->id);
             } else {
                 try {
                     $rowIn = [
-                        'id_kelas'   => $idKelas,
-                        'id_siswa'   => $idSiswa,
-                        'id_mapel'   => null,
-                        'id_guru'    => $idGuru,
-                        'tgl'        => $tgl,
-                        'jam_masuk'  => $jamMasuk,
-                        'status'     => 'HADIR',
+                        'id_kelas' => $idKelas,
+                        'id_siswa' => $idSiswa,
+                        'id_mapel' => null,
+                        'id_guru' => $idGuru,
+                        'tgl' => $tgl,
+                        'jam_masuk' => $jamMasuk,
+                        'status' => 'HADIR',
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
                     try {
-                        if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_masuk')) $rowIn['sumber_masuk'] = 'manual';
+                        if (Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
+                            $rowIn['sumber_masuk'] = 'manual';
+                        }
                         $ipM2 = (string) $this->request->ip();
-                        if ($ipM2 !== '' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'ip_masuk')) $rowIn['ip_masuk'] = substr($ipM2, 0, 45);
+                        if ($ipM2 !== '' && Schema::hasColumn('presensi_siswa', 'ip_masuk')) {
+                            $rowIn['ip_masuk'] = substr($ipM2, 0, 45);
+                        }
                     } catch (\Throwable $e) {
                     }
                     $db->table('presensi_siswa')->insert($rowIn);
                 } catch (\Exception $e) {
                     // Balapan insert ganda (unique key) → anggap sudah ada
-                    $m = strtolower($e->getMessage() . ' ' . $e->getCode());
+                    $m = strtolower($e->getMessage().' '.$e->getCode());
                     if (str_contains($m, 'duplicate') || str_contains($m, 'uq_ps') || str_contains($m, '1062')) {
                         return $this->response->setJSON(['status' => false, 'message' => 'Data sudah dicatat (duplikat dicegah)']);
                     }
                     throw $e;
                 }
-                \App\Services\SiswaPoinService::sinkron((int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId());
-                \App\Services\SiswaDendaService::sinkron((int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId());
+                SiswaPoinService::sinkron((int) DB::getPdo()->lastInsertId());
+                SiswaDendaService::sinkron((int) DB::getPdo()->lastInsertId());
             }
 
             return $this->response->setJSON([
-                'status'    => true,
-                'message'   => 'Check-in berhasil pukul ' . substr($jamMasuk, 0, 5),
+                'status' => true,
+                'message' => 'Check-in berhasil pukul '.substr($jamMasuk, 0, 5),
                 'jam_masuk' => substr($jamMasuk, 0, 5),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('[PresensiSiswa::checkIn] ' . $e->getMessage());
+            Log::error('[PresensiSiswa::checkIn] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
@@ -764,25 +861,25 @@ class PresensiSiswaController extends BaseController
 
     public function checkOut()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
-        $idSiswa   = (int) $this->request->input('id_siswa');
-        $idKelas   = (int) $this->request->input('id_kelas');
-        $tgl       = $this->request->input('tgl')        ?: date('Y-m-d');
+        $idSiswa = (int) $this->request->input('id_siswa');
+        $idKelas = (int) $this->request->input('id_kelas');
+        $tgl = $this->request->input('tgl') ?: date('Y-m-d');
         $jamKeluar = $this->request->input('jam_keluar') ?: date('H:i:s');
 
-        if (!$idSiswa || !$idKelas) {
+        if (! $idSiswa || ! $idKelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
-        if (!$this->validTgl($tgl) || $tgl > date('Y-m-d')) {
+        if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
-        if (!$this->validJam($jamKeluar)) {
+        if (! $this->validJam($jamKeluar)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam keluar tidak valid']);
         }
         $jamKeluar = $this->normJam($jamKeluar);
@@ -795,7 +892,7 @@ class PresensiSiswaController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
         }
 
-        $db       = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Grain unik = (id_siswa, tgl): cari tanpa filter kelas agar baris
         // yang tercatat di kelas lain tetap ketemu, lalu selaraskan kelasnya.
         $existing = $db->table('presensi_siswa')
@@ -803,80 +900,89 @@ class PresensiSiswaController extends BaseController
             ->where('tgl', $tgl)
             ->first();
 
-        if (!$this->isSiswaKelas($idSiswa, $idKelas)) {
+        if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
 
-        if (!$existing) {
+        if (! $existing) {
             return $this->response->setJSON([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Siswa belum check-in hari ini',
             ]);
         }
 
         if ($existing->status !== 'HADIR') {
             return $this->response->setJSON([
-                'status'  => false,
-                'message' => 'Absen Pulang hanya untuk siswa berstatus HADIR (saat ini: ' . $existing->status . ')',
+                'status' => false,
+                'message' => 'Absen Pulang hanya untuk siswa berstatus HADIR (saat ini: '.$existing->status.')',
             ]);
         }
 
         if (empty($existing->jam_masuk)) {
             return $this->response->setJSON([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Jam masuk belum tercatat',
             ]);
         }
 
-        if (!empty($existing->jam_keluar)) {
+        if (! empty($existing->jam_keluar)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'message' => 'Siswa sudah check-out pada ' . substr($existing->jam_keluar, 0, 5),
+                'status' => false,
+                'message' => 'Siswa sudah check-out pada '.substr($existing->jam_keluar, 0, 5),
             ]);
         }
 
         if ($jamKeluar < substr($existing->jam_masuk, 0, 8)) {
             return $this->response->setJSON([
-                'status'  => false,
-                'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk (' . substr($existing->jam_masuk, 0, 5) . ')',
+                'status' => false,
+                'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk ('.substr($existing->jam_masuk, 0, 5).')',
             ]);
         }
 
         try {
             $manualOut = ['jam_keluar' => $jamKeluar, 'updated_at' => date('Y-m-d H:i:s')];
             // Pindah kelas: kembalikan baris ke kelas aktif yang diminta.
-            if ((int) ($existing->id_kelas ?? 0) !== $idKelas) $manualOut['id_kelas'] = $idKelas;
+            if ((int) ($existing->id_kelas ?? 0) !== $idKelas) {
+                $manualOut['id_kelas'] = $idKelas;
+            }
             try {
-                if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'sumber_keluar')) $manualOut['sumber_keluar'] = 'manual';
+                if (Schema::hasColumn('presensi_siswa', 'sumber_keluar')) {
+                    $manualOut['sumber_keluar'] = 'manual';
+                }
                 $ipO = (string) $this->request->ip();
-                if ($ipO !== '' && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'ip_keluar')) $manualOut['ip_keluar'] = substr($ipO, 0, 45);
+                if ($ipO !== '' && Schema::hasColumn('presensi_siswa', 'ip_keluar')) {
+                    $manualOut['ip_keluar'] = substr($ipO, 0, 45);
+                }
                 // Koreksi manual melengkapi pulang yang tadi ditandai cron.
-                if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) $manualOut['pulang_tidak_tercatat'] = 0;
+                if (Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) {
+                    $manualOut['pulang_tidak_tercatat'] = 0;
+                }
             } catch (\Throwable $e) {
             }
             // Guard idempoten: jangan timpa jam_keluar yang sudah terisi
             // (double-submit/check-out paralel) — update hanya bila masih kosong.
             $db->table('presensi_siswa')
                 ->where('id', $existing->id)
-                ->where('jam_keluar IS NULL', null, false)
+                ->whereNull('jam_keluar')
                 ->update($manualOut);
             if (1 === 0) {
                 return $this->response->setJSON([
-                    'status'  => false,
+                    'status' => false,
                     'message' => 'Siswa sudah check-out (dicegah saat menyimpan)',
                 ]);
             }
-            \App\Services\SiswaPoinService::sinkron((int) $existing->id);
-            \App\Services\SiswaDendaService::sinkron((int) $existing->id);
+            SiswaPoinService::sinkron((int) $existing->id);
+            SiswaDendaService::sinkron((int) $existing->id);
 
             return $this->response->setJSON([
-                'status'     => true,
-                'message'    => 'Absen Pulang berhasil pukul ' . substr($jamKeluar, 0, 5),
+                'status' => true,
+                'message' => 'Absen Pulang berhasil pukul '.substr($jamKeluar, 0, 5),
                 'jam_keluar' => substr($jamKeluar, 0, 5),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('[PresensiSiswa::checkOut] ' . $e->getMessage());
+            Log::error('[PresensiSiswa::checkOut] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
@@ -888,20 +994,20 @@ class PresensiSiswaController extends BaseController
 
     public function updateJam()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
-        $idSiswa   = (int) $this->request->input('id_siswa');
-        $idKelas   = (int) $this->request->input('id_kelas');
-        $tgl       = $this->request->input('tgl');
-        $jamMasuk  = $this->request->input('jam_masuk');
+        $idSiswa = (int) $this->request->input('id_siswa');
+        $idKelas = (int) $this->request->input('id_kelas');
+        $tgl = $this->request->input('tgl');
+        $jamMasuk = $this->request->input('jam_masuk');
         $jamKeluar = $this->request->input('jam_keluar');
 
-        if (!$idSiswa || !$idKelas || !$this->validTgl($tgl)) {
+        if (! $idSiswa || ! $idKelas || ! $this->validTgl($tgl)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($tgl > date('Y-m-d')) {
@@ -910,10 +1016,10 @@ class PresensiSiswaController extends BaseController
         if (($jamMasuk === null || $jamMasuk === '') && ($jamKeluar === null || $jamKeluar === '')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jam yang diubah']);
         }
-        if ($jamMasuk !== null && $jamMasuk !== '' && !$this->validJam($jamMasuk)) {
+        if ($jamMasuk !== null && $jamMasuk !== '' && ! $this->validJam($jamMasuk)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid']);
         }
-        if ($jamKeluar !== null && $jamKeluar !== '' && !$this->validJam($jamKeluar)) {
+        if ($jamKeluar !== null && $jamKeluar !== '' && ! $this->validJam($jamKeluar)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam keluar tidak valid']);
         }
 
@@ -928,7 +1034,7 @@ class PresensiSiswaController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
         }
 
-        $db       = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Grain unik = (id_siswa, tgl): cari tanpa filter kelas agar baris
         // yang tercatat di kelas lain tetap ketemu, lalu selaraskan kelasnya.
         $existing = $db->table('presensi_siswa')
@@ -936,19 +1042,19 @@ class PresensiSiswaController extends BaseController
             ->where('tgl', $tgl)
             ->first();
 
-        if (!$this->isSiswaKelas($idSiswa, $idKelas)) {
+        if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
 
-        if (!$existing) {
+        if (! $existing) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
         }
 
         if (in_array($existing->status, ['SAKIT', 'IZIN', 'ALPA'], true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengatur jam untuk status ' . $existing->status]);
+            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengatur jam untuk status '.$existing->status]);
         }
 
-        $effMasuk  = ($jamMasuk !== null && $jamMasuk !== '') ? $this->normJam($jamMasuk) : substr((string) ($existing->jam_masuk ?? ''), 0, 8);
+        $effMasuk = ($jamMasuk !== null && $jamMasuk !== '') ? $this->normJam($jamMasuk) : substr((string) ($existing->jam_masuk ?? ''), 0, 8);
         $effKeluar = ($jamKeluar !== null && $jamKeluar !== '') ? $this->normJam($jamKeluar) : substr((string) ($existing->jam_keluar ?? ''), 0, 8);
         if ($effMasuk !== '' && $effKeluar !== '' && $effKeluar < $effMasuk) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk']);
@@ -961,7 +1067,9 @@ class PresensiSiswaController extends BaseController
         $updateData = ['updated_at' => date('Y-m-d H:i:s')];
 
         // Pindah kelas: kembalikan baris ke kelas aktif yang diminta.
-        if ((int) ($existing->id_kelas ?? 0) !== $idKelas) $updateData['id_kelas'] = $idKelas;
+        if ((int) ($existing->id_kelas ?? 0) !== $idKelas) {
+            $updateData['id_kelas'] = $idKelas;
+        }
 
         if ($jamMasuk !== null && $jamMasuk !== '') {
             $updateData['jam_masuk'] = $this->normJam($jamMasuk);
@@ -979,12 +1087,13 @@ class PresensiSiswaController extends BaseController
             $db->table('presensi_siswa')->where('id', $existing->id)->update($updateData);
 
             // Koreksi jam bisa mengubah status keterlambatan → poin dihitung ulang.
-            \App\Services\SiswaPoinService::sinkron((int) $existing->id);
-            \App\Services\SiswaDendaService::sinkron((int) $existing->id);
+            SiswaPoinService::sinkron((int) $existing->id);
+            SiswaDendaService::sinkron((int) $existing->id);
 
             return $this->response->setJSON(['status' => true, 'message' => 'Jam berhasil diperbarui', 'promoted' => ($updateData['status'] ?? null) === 'HADIR']);
         } catch (\Exception $e) {
-            Log::error('[PresensiSiswa::updateJam] ' . $e->getMessage());
+            Log::error('[PresensiSiswa::updateJam] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
@@ -995,19 +1104,19 @@ class PresensiSiswaController extends BaseController
 
     public function rekapBulanan()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
-        $bulan   = (int) $this->request->input('bulan');
-        $tahun   = (int) $this->request->input('tahun');
+        $bulan = (int) $this->request->input('bulan');
+        $tahun = (int) $this->request->input('tahun');
         $curYear = (int) date('Y');
 
-        if (!$idKelas) {
+        if (! $idKelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas wajib dipilih']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($bulan < 1 || $bulan > 12 || $tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
@@ -1025,36 +1134,36 @@ class PresensiSiswaController extends BaseController
 
     public function delete()
     {
-        if (!$this->isLoggedIn() || !$this->canManageSiswa()) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $id = (int) $this->request->input('id');
-        if (!$id) {
+        if (! $id) {
             return $this->response->setJSON(['status' => false, 'message' => 'ID tidak ditemukan']);
         }
 
-        $db  = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $row = $db->table('presensi_siswa')->where('id', $id)->first();
-        if (!$row) {
+        if (! $row) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan']);
         }
         // Sanity: baris harus menunjuk ke kelas yang benar-benar ada
-        if (!$db->table('master_kelas')->where('id_kelas', $row->id_kelas)->count()) {
+        if (! $db->table('master_kelas')->where('id_kelas', $row->id_kelas)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas pada data tidak valid']);
         }
-        if (!$this->kelasAllowed((int) $row->id_kelas)) {
+        if (! $this->kelasAllowed((int) $row->id_kelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         $deleted = $db->table('presensi_siswa')->where('id', ['id' => $id])->delete();
 
         if ($deleted) {
             // Pengurangan poin otomatis ikut dicabut agar tidak ada poin yatim.
-            \App\Services\SiswaPoinService::batalkan($id);
+            SiswaPoinService::batalkan($id);
         }
 
         return $this->response->setJSON([
-            'status'  => (bool) $deleted,
+            'status' => (bool) $deleted,
             'message' => $deleted ? 'Data berhasil dihapus' : 'Gagal menghapus data',
         ]);
     }
@@ -1065,18 +1174,18 @@ class PresensiSiswaController extends BaseController
 
     public function monitoringHarian()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
         // Monitoring memuat NIS/foto seluruh siswa — batasi untuk pengelola & panitia
-        if (!$this->canManageSiswa() && !$this->isPanitia()) {
+        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $tgl = $this->request->query('tgl');
-        if (!$this->validTgl($tgl) || $tgl > date('Y-m-d')) {
+        if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
             $tgl = date('Y-m-d');
         }
 
@@ -1090,14 +1199,14 @@ class PresensiSiswaController extends BaseController
         }
 
         return view('presensi_siswa.monitoring', [
-            'user'       => $this->getUser(),
-            'judul'      => 'Monitoring Presensi Siswa',
-            'subjudul'   => 'Pantau kehadiran siswa harian',
-            'setting'    => $this->getSettingRow(),
-            'tp_active'  => $tp,
+            'user' => $this->getUser(),
+            'judul' => 'Monitoring Presensi Siswa',
+            'subjudul' => 'Pantau kehadiran siswa harian',
+            'setting' => $this->getSettingRow(),
+            'tp_active' => $tp,
             'smt_active' => $smt,
-            'kelass'     => $kelass,
-            'tgl'        => $tgl,
+            'kelass' => $kelass,
+            'tgl' => $tgl,
         ]);
     }
 
@@ -1107,32 +1216,32 @@ class PresensiSiswaController extends BaseController
 
     public function getMonitoringHarian()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
-        $tgl     = $this->request->input('tgl') ?: date('Y-m-d');
+        $tgl = $this->request->input('tgl') ?: date('Y-m-d');
 
-        if (!$idKelas) {
+        if (! $idKelas) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas wajib dipilih']);
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
-        if (!$this->validTgl($tgl) || $tgl > date('Y-m-d')) {
+        if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
 
         // TP/SMT diambil dari server (aktif), bukan dari POST client
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        $idTp  = $tp?->id_tp;
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        $idTp = $tp?->id_tp;
         $idSmt = $smt?->id_smt;
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         // Pastikan kelas benar-benar ada (cegah id ngawur)
-        if (!$db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
+        if (! $db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
@@ -1145,8 +1254,8 @@ class PresensiSiswaController extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'data'   => $data,
-            'stat'   => self::hitungStatHarian($data, $stat),
+            'data' => $data,
+            'stat' => self::hitungStatHarian($data, $stat),
         ]);
     }
 
@@ -1157,25 +1266,25 @@ class PresensiSiswaController extends BaseController
 
     public function monitoringHarianPdf()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $idKelas = (int) ($this->request->query('id_kelas') ?? 0);
         $tgl = $this->request->query('tgl') ?: date('Y-m-d');
-        if (!$idKelas || !$this->validTgl($tgl) || $tgl > date('Y-m-d')) {
+        if (! $idKelas || ! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
             return redirect()->to('admin/presensi/siswa/harian')->with('error', 'Pilih kelas dan tanggal yang valid terlebih dahulu');
         }
-        if (!$this->kelasAllowed($idKelas)) {
+        if (! $this->kelasAllowed($idKelas)) {
             return redirect()->to('admin/presensi/siswa/harian')->with('error', 'Anda tidak memiliki akses ke kelas ini');
         }
 
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
         $kelasRow = $db->table('master_kelas')->where('id_kelas', $idKelas)->first();
-        if (!$kelasRow) {
+        if (! $kelasRow) {
             return redirect()->to('admin/presensi/siswa/harian')->with('error', 'Kelas tidak ditemukan');
         }
 
@@ -1183,61 +1292,61 @@ class PresensiSiswaController extends BaseController
         $stat = $this->presensiModel->getStatHarian($idKelas, $tgl);
 
         $html = view('presensi_siswa.monitoring_pdf', [
-            'setting'   => $this->getSettingRow() ?: (object) ['nama_sekolah' => 'Sekolah'],
-            'tgl'       => $tgl,
-            'kelasNama' => $kelasRow->nama_kelas ?? ('Kelas ' . $idKelas),
-            'data'      => $data,
-            'stat'      => self::hitungStatHarian($data, $stat),
+            'setting' => $this->getSettingRow() ?: (object) ['nama_sekolah' => 'Sekolah'],
+            'tgl' => $tgl,
+            'kelasNama' => $kelasRow->nama_kelas ?? ('Kelas '.$idKelas),
+            'data' => $data,
+            'stat' => self::hitungStatHarian($data, $stat),
         ]);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $kelasClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $kelasRow->nama_kelas ?? ('Kelas_' . $idKelas));
+        $kelasClean = preg_replace('/[^a-zA-Z0-9_-]/', '_', $kelasRow->nama_kelas ?? ('Kelas_'.$idKelas));
         $filename = "Monitoring_Siswa_{$kelasClean}_{$tgl}.pdf";
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($dompdf->output());
     }
 
     public static function resolveFotoSiswa(?string $foto, ?string $nis): ?string
     {
         $foto = trim((string) $foto);
-        $nis  = trim((string) $nis);
+        $nis = trim((string) $nis);
 
-        if ($foto !== '' && !in_array(strtolower($foto), ['siswa.png', 'default.png', 'null'], true)) {
+        if ($foto !== '' && ! in_array(strtolower($foto), ['siswa.png', 'default.png', 'null'], true)) {
             $cleanFoto = ltrim($foto, '/');
-            if (file_exists(public_path() . '/' . $cleanFoto) && is_file(public_path() . '/' . $cleanFoto)) {
+            if (file_exists(public_path().'/'.$cleanFoto) && is_file(public_path().'/'.$cleanFoto)) {
                 return url($cleanFoto);
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto) && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto)) {
-                return url('uploads/foto_siswa/' . $cleanFoto);
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto) && is_file(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto)) {
+                return url('uploads/foto_siswa/'.$cleanFoto);
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.png') && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.png')) {
-                return url('uploads/foto_siswa/' . $cleanFoto . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.png') && is_file(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.png')) {
+                return url('uploads/foto_siswa/'.$cleanFoto.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.jpg') && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $cleanFoto . '.jpg')) {
-                return url('uploads/foto_siswa/' . $cleanFoto . '.jpg');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.jpg') && is_file(public_path().'/'.'uploads/foto_siswa/'.$cleanFoto.'.jpg')) {
+                return url('uploads/foto_siswa/'.$cleanFoto.'.jpg');
             }
         }
 
         if ($nis !== '') {
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/_' . $nis . '.png') && is_file(public_path() . '/' . 'uploads/foto_siswa/_' . $nis . '.png')) {
-                return url('uploads/foto_siswa/_' . $nis . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/_'.$nis.'.png') && is_file(public_path().'/'.'uploads/foto_siswa/_'.$nis.'.png')) {
+                return url('uploads/foto_siswa/_'.$nis.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.png') && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.png')) {
-                return url('uploads/foto_siswa/' . $nis . '.png');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$nis.'.png') && is_file(public_path().'/'.'uploads/foto_siswa/'.$nis.'.png')) {
+                return url('uploads/foto_siswa/'.$nis.'.png');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.jpg') && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.jpg')) {
-                return url('uploads/foto_siswa/' . $nis . '.jpg');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$nis.'.jpg') && is_file(public_path().'/'.'uploads/foto_siswa/'.$nis.'.jpg')) {
+                return url('uploads/foto_siswa/'.$nis.'.jpg');
             }
-            if (file_exists(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.jpeg') && is_file(public_path() . '/' . 'uploads/foto_siswa/' . $nis . '.jpeg')) {
-                return url('uploads/foto_siswa/' . $nis . '.jpeg');
+            if (file_exists(public_path().'/'.'uploads/foto_siswa/'.$nis.'.jpeg') && is_file(public_path().'/'.'uploads/foto_siswa/'.$nis.'.jpeg')) {
+                return url('uploads/foto_siswa/'.$nis.'.jpeg');
             }
         }
 
@@ -1251,10 +1360,10 @@ class PresensiSiswaController extends BaseController
 
     public function rekapBulananView()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (!$this->canManageSiswa() && !$this->isPanitia()) {
+        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -1266,10 +1375,10 @@ class PresensiSiswaController extends BaseController
             return redirect()->to('dashboard')->with('error', 'Akun ini belum memiliki penugasan kelas.');
         }
 
-        $data['user']     = $this->getUser();
-        $data['judul']    = 'Rekap Presensi Siswa';
+        $data['user'] = $this->getUser();
+        $data['judul'] = 'Rekap Presensi Siswa';
         $data['subjudul'] = 'Rekapitulasi Kehadiran Siswa Bulanan';
-        $data['title']    = 'Rekap Presensi Bulanan Siswa';
+        $data['title'] = 'Rekap Presensi Bulanan Siswa';
 
         return view('admin.presensi.rekap_siswa', $data);
     }
@@ -1284,6 +1393,7 @@ class PresensiSiswaController extends BaseController
         if ($raw === null || $raw === '') {
             return null;
         }
+
         return max(0, (int) $raw);
     }
 
@@ -1292,7 +1402,7 @@ class PresensiSiswaController extends BaseController
      */
     public function exportRekapExcel()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1312,7 +1422,7 @@ class PresensiSiswaController extends BaseController
 
         return $this->response
             ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
             ->setBody($body);
     }
 
@@ -1321,7 +1431,7 @@ class PresensiSiswaController extends BaseController
      */
     public function exportRekapPdf()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1336,13 +1446,13 @@ class PresensiSiswaController extends BaseController
             return redirect()->to('dashboard')->with('error', 'Akun ini belum memiliki penugasan kelas.');
         }
 
-        $data['user']  = $this->getUser();
-        $data['title'] = 'Rekap Presensi Siswa ' . ($data['kelasInfo']->nama_kelas ?? 'Semua Kelas')
-            . ' - ' . $data['bulan'] . '/' . $data['tahun'];
+        $data['user'] = $this->getUser();
+        $data['title'] = 'Rekap Presensi Siswa '.($data['kelasInfo']->nama_kelas ?? 'Semua Kelas')
+            .' - '.$data['bulan'].'/'.$data['tahun'];
 
         $html = view('admin.presensi.rekap_siswa_pdf', $data);
 
-        $dompdf = new Dompdf();
+        $dompdf = new Dompdf;
         $dompdf->set_option('isRemoteEnabled', true);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'landscape');
@@ -1354,7 +1464,7 @@ class PresensiSiswaController extends BaseController
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', $disposition . '; filename="' . $filename . '"')
+            ->setHeader('Content-Disposition', $disposition.'; filename="'.$filename.'"')
             ->setBody($dompdf->output());
     }
 
@@ -1364,22 +1474,22 @@ class PresensiSiswaController extends BaseController
      */
     public function kelasRekapOptions()
     {
-        if (!$this->isLoggedIn() || (!$this->canManageSiswa() && !$this->isPanitia())) {
+        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
             return $this->response->setStatusCode(403)->setJSON([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Akses ditolak',
             ]);
         }
 
         $hasBukuInduk = false;
         try {
-            $hasBukuInduk = \Illuminate\Support\Facades\DB::connection()->tableExists('buku_induk');
+            $hasBukuInduk = Schema::hasTable('buku_induk');
         } catch (\Throwable $e) {
             $hasBukuInduk = false;
         }
 
-        $tp   = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt  = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idTp = $tp->id_tp ?? 1;
         $idSmt = $smt->id_smt ?? 1;
 
@@ -1388,8 +1498,8 @@ class PresensiSiswaController extends BaseController
         $items = [];
         foreach ($kelases as $k) {
             $items[] = [
-                'id'     => (int) $k->id_kelas,
-                'nama'   => (string) $k->nama_kelas,
+                'id' => (int) $k->id_kelas,
+                'nama' => (string) $k->nama_kelas,
                 'jumlah' => (int) ($k->jumlah_siswa ?? 0),
             ];
         }
@@ -1404,28 +1514,40 @@ class PresensiSiswaController extends BaseController
      */
     private function daftarKelasRekap(bool $hasBukuInduk, int $idTp, int $idSmt): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         if ($hasBukuInduk) {
             $kelases = $db->table('master_kelas as mk')
-                ->select('mk.id_kelas, mk.nama_kelas, mk.kode_kelas, COUNT(DISTINCT CASE WHEN bi.id_siswa IS NULL OR bi.status = \'1\' THEN ks.id_siswa END) as jumlah_siswa', false)
-                ->join("kelas_siswa as ks", "ks.id_kelas = mk.id_kelas AND ks.id_tp = {$idTp} AND ks.id_smt = {$idSmt}", 'left')
-                ->join('buku_induk as bi', 'bi.id_siswa = ks.id_siswa', 'left')
-                ->groupBy('mk.id_kelas, mk.nama_kelas, mk.kode_kelas')
+                ->select('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
+                ->selectRaw("COUNT(DISTINCT CASE WHEN bi.id_siswa IS NULL OR bi.status = '1' THEN ks.id_siswa END) as jumlah_siswa")
+                ->leftJoin('kelas_siswa as ks', function ($join) use ($idTp, $idSmt) {
+                    $join->on('ks.id_kelas', '=', 'mk.id_kelas')
+                        ->where('ks.id_tp', '=', $idTp)
+                        ->where('ks.id_smt', '=', $idSmt);
+                })
+                ->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ks.id_siswa')
+                ->groupBy('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
                 ->orderBy('mk.nama_kelas', 'ASC')
-                ->get();
+                ->get()
+                ->all();
         } else {
             $kelases = $db->table('master_kelas as mk')
-                ->select('mk.id_kelas, mk.nama_kelas, mk.kode_kelas, COUNT(ks.id_siswa) as jumlah_siswa')
-                ->join("kelas_siswa as ks", "ks.id_kelas = mk.id_kelas AND ks.id_tp = {$idTp} AND ks.id_smt = {$idSmt}", 'left')
-                ->groupBy('mk.id_kelas, mk.nama_kelas, mk.kode_kelas')
+                ->select('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
+                ->selectRaw('COUNT(ks.id_siswa) as jumlah_siswa')
+                ->leftJoin('kelas_siswa as ks', function ($join) use ($idTp, $idSmt) {
+                    $join->on('ks.id_kelas', '=', 'mk.id_kelas')
+                        ->where('ks.id_tp', '=', $idTp)
+                        ->where('ks.id_smt', '=', $idSmt);
+                })
+                ->groupBy('mk.id_kelas', 'mk.nama_kelas', 'mk.kode_kelas')
                 ->orderBy('mk.nama_kelas', 'ASC')
-                ->get();
+                ->get()
+                ->all();
         }
 
         $allowed = $this->allowedKelasIds();
         if ($allowed !== null) {
-            $kelases = array_values(array_filter($kelases, fn($k) => in_array((int) $k->id_kelas, $allowed, true)));
+            $kelases = array_values(array_filter($kelases, fn ($k) => in_array((int) $k->id_kelas, $allowed, true)));
         }
 
         return [$kelases, $allowed];
@@ -1436,7 +1558,7 @@ class PresensiSiswaController extends BaseController
      */
     private function getRekapBulananData(?string $bulan, ?string $tahun, ?int $idKelas = null): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Validasi periode: nilai cacat (mis. bulan=abc) tidak boleh menghasilkan
         // rentang tanggal "0000-00" yang membuat semua sel tampak alpha.
@@ -1451,8 +1573,8 @@ class PresensiSiswaController extends BaseController
         $bulan = sprintf('%02d', $bulanInt);
         $tahun = (string) $tahunInt;
 
-        $tp   = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt  = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idTp = $tp->id_tp ?? 1;
         $idSmt = $smt->id_smt ?? 1;
 
@@ -1460,7 +1582,7 @@ class PresensiSiswaController extends BaseController
         // (buku_induk.status = '1'; LULUS/PINDAH/KELUAR tidak dihitung).
         $hasBukuInduk = false;
         try {
-            $hasBukuInduk = \Illuminate\Support\Facades\Schema::hasTable('buku_induk');
+            $hasBukuInduk = Schema::hasTable('buku_induk');
         } catch (\Throwable $e) {
             $hasBukuInduk = false;
         }
@@ -1469,7 +1591,7 @@ class PresensiSiswaController extends BaseController
         // Scoping guru: hanya kelas sendiri yang terdaftar. Permintaan kelas
         // milik guru lain jatuh ke "semua kelas yang diizinkan", bukan ke
         // seluruh sekolah.
-        if ($allowed !== null && $idKelas !== null && $idKelas > 0 && !in_array($idKelas, $allowed, true)) {
+        if ($allowed !== null && $idKelas !== null && $idKelas > 0 && ! in_array($idKelas, $allowed, true)) {
             $idKelas = 0;
         }
 
@@ -1477,8 +1599,8 @@ class PresensiSiswaController extends BaseController
         // "belum memilih" agar tidak menampilkan tabel kosong dengan label
         // "Semua Kelas".
         if ($allowed === null && $idKelas !== null && $idKelas > 0) {
-            $validKelasIds = array_map(static fn($k) => (int) $k->id_kelas, $kelases);
-            if (!in_array($idKelas, $validKelasIds, true)) {
+            $validKelasIds = array_map(static fn ($k) => (int) $k->id_kelas, $kelases);
+            if (! in_array($idKelas, $validKelasIds, true)) {
                 $idKelas = null;
             }
         }
@@ -1488,7 +1610,7 @@ class PresensiSiswaController extends BaseController
         // memuat seluruh sekolah. id_kelas=0 yang eksplisit tetap "Semua Kelas".
         if ($idKelas === null) {
             $idKelas = 0;
-            if (!empty($kelases)) {
+            if (! empty($kelases)) {
                 foreach ($kelases as $k) {
                     if ((int) ($k->jumlah_siswa ?? 0) > 0) {
                         $idKelas = (int) $k->id_kelas;
@@ -1508,7 +1630,7 @@ class PresensiSiswaController extends BaseController
         } elseif ($allowed !== null) {
             $scopeKelasIds = $allowed;
         } else {
-            $scopeKelasIds = array_map(static fn($k) => (int) $k->id_kelas, $kelases);
+            $scopeKelasIds = array_map(static fn ($k) => (int) $k->id_kelas, $kelases);
         }
         $scopeKelasIds = array_values(array_unique(array_filter($scopeKelasIds)));
 
@@ -1516,12 +1638,12 @@ class PresensiSiswaController extends BaseController
         $kelasInfo = null;
         if ($idKelas > 0) {
             foreach ($kelases as $k) {
-                if ((int)$k->id_kelas === $idKelas) {
+                if ((int) $k->id_kelas === $idKelas) {
                     $kelasInfo = $k;
                     break;
                 }
             }
-            if (!$kelasInfo) {
+            if (! $kelasInfo) {
                 $kelasInfo = $db->table('master_kelas')->where('id_kelas', $idKelas)->first();
             }
         }
@@ -1530,18 +1652,18 @@ class PresensiSiswaController extends BaseController
         $waliKelas = null;
         if ($idKelas > 0) {
             $waliRow = $db->table('jabatan_guru as jg')
-                ->select('mg.nama_guru, mg.nip')
-                ->join('master_guru as mg', 'mg.id_guru = jg.id_guru')
+                ->select('mg.nama_guru', 'mg.nip')
+                ->join('master_guru as mg', 'mg.id_guru', '=', 'jg.id_guru')
                 ->where('jg.id_kelas', $idKelas)
                 ->where('jg.id_jabatan', '4') // 4 = Wali Kelas
                 ->where('jg.id_tp', $idTp)
                 ->where('jg.id_smt', $idSmt)
                 ->first();
-            if (!$waliRow) {
+            if (! $waliRow) {
                 // Cek guru_id di master_kelas
                 $waliRow = $db->table('master_kelas as mk')
-                    ->select('mg.nama_guru, mg.nip')
-                    ->join('master_guru as mg', 'mg.id_guru = mk.guru_id', 'left')
+                    ->select('mg.nama_guru', 'mg.nip')
+                    ->leftJoin('master_guru as mg', 'mg.id_guru', '=', 'mk.guru_id')
                     ->where('mk.id_kelas', $idKelas)
                     ->first();
             }
@@ -1550,66 +1672,71 @@ class PresensiSiswaController extends BaseController
 
         // Ambil daftar siswa
         $siswaBuilder = $db->table('master_siswa as ms')
-            ->select('ms.id_siswa, ms.nama, ms.nis, ms.nisn, ms.foto, ms.jenis_kelamin, mk.id_kelas, mk.nama_kelas')
-            ->join('kelas_siswa as ks', 'ks.id_siswa = ms.id_siswa')
-            ->join('master_kelas as mk', 'mk.id_kelas = ks.id_kelas')
+            ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'mk.id_kelas', 'mk.nama_kelas')
+            ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
+            ->join('master_kelas as mk', 'mk.id_kelas', '=', 'ks.id_kelas')
             ->where('ks.id_tp', $idTp)
             ->where('ks.id_smt', $idSmt);
         if ($idKelas > 0) {
             $siswaBuilder->where('ks.id_kelas', $idKelas);
         } elseif ($allowed !== null) {
             if ($allowed === []) {
-                $siswaBuilder->where('1 = 0', null, false);
+                $siswaBuilder->whereRaw('1 = 0');
             } else {
                 $siswaBuilder->whereIn('ks.id_kelas', $allowed);
             }
         }
-        if (\Illuminate\Support\Facades\Schema::hasTable('buku_induk')) {
+        if (Schema::hasTable('buku_induk')) {
             // Hanya AKTIF: filter di WHERE (bukan sekadar kondisi JOIN),
             // baris tanpa buku_induk (data lama) tetap lolos sebagai AKTIF.
-            $siswaBuilder->join('buku_induk as bi', 'bi.id_siswa = ms.id_siswa', 'left')
-                ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+            $siswaBuilder->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ms.id_siswa')
+                ->where(function ($q) {
+                    $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                });
         }
         $students = $siswaBuilder->orderBy('mk.nama_kelas', 'ASC')->orderBy('ms.nama', 'ASC')->get();
 
         // Ambil presensi siswa selama 1 bulan
-        $daysInMonth = (int) date('t', mktime(0, 0, 0, (int)$bulan, 1, (int)$tahun));
+        $daysInMonth = (int) date('t', mktime(0, 0, 0, (int) $bulan, 1, (int) $tahun));
         $tglAwal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $tglAkhir = sprintf('%04d-%02d-%02d', $tahun, $bulan, $daysInMonth);
 
         // Kolom denda (migrasi 20261106000000) dibaca bila ada: instalasi yang
         // belum bermigrasi tetap bisa membuka rekap, hanya tanpa angka denda.
-        $kolomDenda = '';
+        $kolomDenda = [];
         try {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'denda')
-                && \Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'denda_jenis')) {
-                $kolomDenda = ', ps.denda, ps.denda_jenis';
+            if (Schema::hasColumn('presensi_siswa', 'denda')
+                && Schema::hasColumn('presensi_siswa', 'denda_jenis')) {
+                $kolomDenda = ['ps.denda', 'ps.denda_jenis'];
                 // Bolos hari berjalan baru tertagih setelah cron penutup hari
                 // menandai barisnya, jadi penanda itu ikut dibaca ke sel.
-                if (\Illuminate\Support\Facades\Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) {
-                    $kolomDenda .= ', ps.pulang_tidak_tercatat';
+                if (Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) {
+                    $kolomDenda[] = 'ps.pulang_tidak_tercatat';
                 }
             }
         } catch (\Throwable $e) {
         }
 
         $attBuilder = $db->table('presensi_siswa as ps')
-            ->select('ps.id, ps.id_siswa, ps.id_kelas, ps.tgl, ps.jam_masuk, ps.jam_keluar, ps.status, ps.keterangan' . $kolomDenda)
+            ->select('ps.id', 'ps.id_siswa', 'ps.id_kelas', 'ps.tgl', 'ps.jam_masuk', 'ps.jam_keluar', 'ps.status', 'ps.keterangan')
+            ->addSelect($kolomDenda)
             ->where('ps.tgl', '>=', $tglAwal)
             ->where('ps.tgl', '<=', $tglAkhir);
         if ($idKelas > 0) {
             $attBuilder->where('ps.id_kelas', $idKelas);
         } elseif ($allowed !== null) {
             if ($allowed === []) {
-                $attBuilder->where('1 = 0', null, false);
+                $attBuilder->whereRaw('1 = 0');
             } else {
                 $attBuilder->whereIn('ps.id_kelas', $allowed);
             }
         }
         if ($hasBukuInduk) {
             // Baris presensi milik siswa non-AKTIF tidak ikut rekap.
-            $attBuilder->join('buku_induk as bi', 'bi.id_siswa = ps.id_siswa', 'left')
-                ->where(function ($q) { $q->where('bi.status', '1')->$q->orWhere('bi.id_siswa IS NULL', null, false); });
+            $attBuilder->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                ->where(function ($q) {
+                    $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                });
         }
         $attendances = $attBuilder->get();
 
@@ -1630,35 +1757,35 @@ class PresensiSiswaController extends BaseController
 
         // Hari libur nasional + jadwal kerja: peta milik AttendancePolicy,
         // supaya tampilan rekap dan hitungan server tidak pernah beda sumber.
-        $holidays = \App\Services\AttendancePolicy::liburNasional();
-        $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        $holidays = AttendancePolicy::liburNasional();
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
         // Setting sekolah & absensi
         $setting = $this->getSettingRow();
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) ['nama_sekolah' => 'absensi by ikasmedia'];
         }
         $absenSetting = $this->absenSettingModel->first();
-        $hariLiburMingguan = \App\Services\AttendancePolicy::hariLiburMingguan();
+        $hariLiburMingguan = AttendancePolicy::hariLiburMingguan();
 
         // Hari BDR per kelas. Hari yang dijadwalkan BDR tidak dihitung sebagai
         // hari efektif dan tidak boleh memunculkan alpha; BDR di luar jadwal
         // tetap tercatat tapi dikeluarkan dari pembagi persen.
         $bdrByKelas = [];
         try {
-            $bdrService = new \App\Services\PresensiBdrService();
+            $bdrService = new PresensiBdrService;
             foreach ($scopeKelasIds as $kid) {
                 $bdrByKelas[$kid] = $bdrService->tanggalUntukKelas($tglAwal, $tglAkhir, $kid);
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswa::getRekapBulananData] BDR: ' . $e->getMessage());
+            Log::error('[PresensiSiswa::getRekapBulananData] BDR: '.$e->getMessage());
         }
         $bdrTanggal = $idKelas > 0 ? ($bdrByKelas[$idKelas] ?? []) : [];
 
         // Hari efektif dihitung sampai hari ini saja (sama seperti rekap guru),
         // supaya tanggal yang belum terjadi tidak menekan persentase. Periode
         // yang sudah lewat tetap dihitung penuh.
-        $today     = date('Y-m-d');
+        $today = date('Y-m-d');
         $endHitung = $tglAkhir > $today ? $today : $tglAkhir;
 
         $hariEfektifBase = 0;
@@ -1667,7 +1794,7 @@ class PresensiSiswaController extends BaseController
             if ($tglStr > $endHitung) {
                 break;
             }
-            if (\App\Services\AttendancePolicy::isLibur($tglStr)) {
+            if (AttendancePolicy::isLibur($tglStr)) {
                 continue;
             }
             $hariEfektifBase++;
@@ -1682,7 +1809,7 @@ class PresensiSiswaController extends BaseController
                 }
                 // BDR di akhir pekan/libur nasional sudah tidak masuk hitungan
                 // dasar, jadi jangan dipotong dua kali.
-                if (\App\Services\AttendancePolicy::isLibur((string) $bdrDate)) {
+                if (AttendancePolicy::isLibur((string) $bdrDate)) {
                     continue;
                 }
                 $cut++;
@@ -1697,20 +1824,20 @@ class PresensiSiswaController extends BaseController
         $hariEfektifMin = $hariEfektifValues ? min($hariEfektifValues) : $hariEfektifBase;
         $hariEfektifMax = $hariEfektifValues ? max($hariEfektifValues) : $hariEfektifBase;
         $hariEfektifLabel = $hariEfektifMin === $hariEfektifMax
-            ? $hariEfektifMin . ' hari efektif'
-            : $hariEfektifMin . '–' . $hariEfektifMax . ' hari efektif per kelas';
+            ? $hariEfektifMin.' hari efektif'
+            : $hariEfektifMin.'–'.$hariEfektifMax.' hari efektif per kelas';
 
         // Jam batas masuk per hari dari AttendancePolicy: jadwal kerja per hari
         // → absensi_setting, lalu + grace dan inklusif sampai detik ke-59.
         // Angka yang sama dipakai scan, poin, dan arsip piket.
         $batasUntuk = static function (string $tglStr): string {
-            return date('H:i:s', \App\Services\AttendancePolicy::batasAkhirMasukTs(
+            return date('H:i:s', AttendancePolicy::batasAkhirMasukTs(
                 $tglStr,
-                \App\Services\AttendancePolicy::jadwalSiswa($tglStr)
+                AttendancePolicy::jadwalSiswa($tglStr)
             ));
         };
-        $jamBatasMasuk           = $batasUntuk($today);
-        $jamBatasMasukPerHari    = [];
+        $jamBatasMasuk = $batasUntuk($today);
+        $jamBatasMasukPerHari = [];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $jamBatasMasukPerHari[$d] = $batasUntuk(sprintf('%04d-%02d-%02d', $tahun, $bulan, $d));
         }
@@ -1722,48 +1849,48 @@ class PresensiSiswaController extends BaseController
         // yang tidak punya baris presensi sama sekali.
         $dendaSiswa = [];
         try {
-            $dendaSvc = new \App\Services\SiswaDendaService();
+            $dendaSvc = new SiswaDendaService;
             $dendaSiswa = $dendaSvc->ringkasBulan([
-                'bulan'      => (int) $bulan,
-                'tahun'      => (int) $tahun,
-                'students'   => $students,
+                'bulan' => (int) $bulan,
+                'tahun' => (int) $tahun,
+                'students' => $students,
                 'mapBySiswa' => $mapBySiswa,
                 'bdrByKelas' => $bdrByKelas,
                 'tercatatByKelas' => $tercatatByKelas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('[PresensiSiswa::getRekapBulananData] denda siswa: ' . $e->getMessage());
+            Log::error('[PresensiSiswa::getRekapBulananData] denda siswa: '.$e->getMessage());
         }
 
         return [
-            'bulan'              => (int) $bulan,
-            'tahun'              => (int) $tahun,
-            'idKelas'            => $idKelas,
-            'kelasInfo'          => $kelasInfo,
-            'kelases'            => $kelases,
-            'students'           => $students,
-            'mapBySiswa'         => $mapBySiswa,
-            'dendaSiswa'         => $dendaSiswa,
-            'holidays'           => $holidays,
-            'bdrTanggal'         => $bdrTanggal,
-            'bdrByKelas'         => $bdrByKelas,
-            'tercatatByKelas'    => $tercatatByKelas,
-            'setting'            => $setting,
-            'absenSetting'       => $absenSetting,
-            'hariLiburMingguan'  => $hariLiburMingguan,
-            'jadwalKerja'        => $jadwalKerja,
-            'daysInMonth'        => $daysInMonth,
-            'hariEfektif'        => $hariEfektif,
+            'bulan' => (int) $bulan,
+            'tahun' => (int) $tahun,
+            'idKelas' => $idKelas,
+            'kelasInfo' => $kelasInfo,
+            'kelases' => $kelases,
+            'students' => $students,
+            'mapBySiswa' => $mapBySiswa,
+            'dendaSiswa' => $dendaSiswa,
+            'holidays' => $holidays,
+            'bdrTanggal' => $bdrTanggal,
+            'bdrByKelas' => $bdrByKelas,
+            'tercatatByKelas' => $tercatatByKelas,
+            'setting' => $setting,
+            'absenSetting' => $absenSetting,
+            'hariLiburMingguan' => $hariLiburMingguan,
+            'jadwalKerja' => $jadwalKerja,
+            'daysInMonth' => $daysInMonth,
+            'hariEfektif' => $hariEfektif,
             'hariEfektifByKelas' => $hariEfektifByKelas,
-            'hariEfektifLabel'   => $hariEfektifLabel,
-            'hariEfektifMin'     => $hariEfektifMin,
-            'hariEfektifMax'     => $hariEfektifMax,
-            'jamBatasMasuk'      => $jamBatasMasuk,
+            'hariEfektifLabel' => $hariEfektifLabel,
+            'hariEfektifMin' => $hariEfektifMin,
+            'hariEfektifMax' => $hariEfektifMax,
+            'jamBatasMasuk' => $jamBatasMasuk,
             'jamBatasMasukPerHari' => $jamBatasMasukPerHari,
-            'tp_active'          => $tp,
-            'smt_active'         => $smt,
-            'waliKelas'          => $waliKelas,
-            'allowedKelas'       => $allowed,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'waliKelas' => $waliKelas,
+            'allowedKelas' => $allowed,
         ];
     }
 }

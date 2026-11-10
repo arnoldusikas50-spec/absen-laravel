@@ -357,10 +357,10 @@ const STATUS_LABELS = {
 // Jam default "Semua Hadir" mengikuti /settings (absensi_setting),
 // dengan override jadwal per hari bila ada (1=Senin … 7=Minggu).
 const JAM_SETTING = {
-    masuk:  {{ json_encode($jam_masuk_default ?? '07:15') }},
-    pulang: {{ json_encode($jam_pulang_default ?? '14:00') }},
+    masuk:  {!! json_encode($jam_masuk_default ?? '07:15')!!},
+    pulang: {!! json_encode($jam_pulang_default ?? '14:00')!!},
 };
-const JADWAL_MAP = {{ json_encode($jadwal_kerja_map ?? [], JSON_FORCE_OBJECT) }};
+const JADWAL_MAP = {!! json_encode($jadwal_kerja_map ?? [], JSON_FORCE_OBJECT)!!};
 function jamValid(v) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')); }
 // Default jam untuk tanggal terpilih (jadwal hari itu → /settings).
 function defaultJam(tipe) {
