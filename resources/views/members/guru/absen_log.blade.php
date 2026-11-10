@@ -245,18 +245,12 @@
         let html = '';
         data.forEach(item => {
             // ── Ambil tanggal secara aman ─────────────────────
-            // item.tgl bisa berupa string "YYYY-MM-DD", objek Carbon serialized,
-            // atau null — normalisasi ke string "YYYY-MM-DD" lebih dulu.
+            // item.tgl sekarang selalu string "YYYY-MM-DD" (raw dari DB)
             const tglRaw = (() => {
                 const v = item.tgl;
                 if (!v) return '';
-                // Jika sudah string dengan format YYYY-MM-DD (atau lebih panjang)
                 const s = String(v);
                 if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substr(0, 10);
-                // Jika objek Carbon serialized sebagai { date: "YYYY-MM-DD ..." }
-                if (typeof v === 'object' && v !== null && v.date) {
-                    return String(v.date).substr(0, 10);
-                }
                 return '';
             })();
             const d   = tglRaw ? new Date(tglRaw + 'T00:00:00') : null;
@@ -266,22 +260,14 @@
             // ── Jam (abaikan NULL / '0000-00-00 00:00:00') ──
             const cleanTime = (v) => {
                 if (!v) return null;
-                // Jika objek Carbon serialized: { date: "2026-11-08 07:30:00", ... }
-                if (typeof v === 'object' && v !== null && v.date) {
-                    const parts = String(v.date).split(' ');
-                    return parts.length > 1 ? parts[1].substr(0, 5) : null;
-                }
                 const s = String(v);
                 if (!s || s === 'null' || s === 'undefined') return null;
                 if (s.startsWith('0000-00-00')) return null;
-                // Format ISO: "2026-11-08T07:30:00.000000Z" atau "2026-11-08T07:30:00+07:00"
-                if (s.includes('T')) {
-                    const timePart = s.split('T')[1];
-                    return timePart ? timePart.substr(0, 5) : null;
-                }
-                // Format dengan spasi: "2026-11-08 07:30:00"
+                // Format spasi: "2026-11-08 07:30:00"
                 if (s.includes(' ')) return s.split(' ')[1].substr(0, 5);
-                // Sudah berupa "HH:MM" atau "HH:MM:SS"
+                // Format ISO dengan T: "2026-11-08T07:30:00..."
+                if (s.includes('T')) return s.split('T')[1].substr(0, 5);
+                // Sudah "HH:MM" atau "HH:MM:SS"
                 if (s.match(/^\d{2}:\d{2}/)) return s.substr(0, 5);
                 return null;
             };

@@ -441,7 +441,7 @@ class PresensiSiswaQrController extends BaseController
                 ->where('id_guru', $idGuru)
                 ->where('hari', $hariIni);
             if ($tp && $smt) {
-                $builder->where(function ($q) {
+                $builder->where(function ($q) use ($tp, $smt) {
                     $q->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt)->orWhere('id_tp', 0);
                 });
             }

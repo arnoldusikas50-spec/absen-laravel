@@ -589,7 +589,7 @@ class PiketController extends BaseController
                 }
             } catch (\Throwable $e) {
             }
-            $students = $qb->orderBy('s.nama', 'ASC')->get();
+            $students = $qb->orderBy('s.nama', 'ASC')->get()->all();
 
             // Backfill best-effort: siswa yang scan telat otomatis tercatat
             // 'T' bila piket belum mengisinya. Kegagalan tak menggagalkan halaman.

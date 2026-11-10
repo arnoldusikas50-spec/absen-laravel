@@ -5895,9 +5895,22 @@ class AttendanceController extends BaseController
             $currentDate = strtotime('+1 day', $currentDate);
         }
 
+        // Serialisasi Carbon ke string lokal agar JS tidak perlu konversi timezone UTC
+        $serializeRecord = function ($r) {
+            $arr = $r->toArray();
+            $arr['tgl'] = $r->getRawOriginal('tgl');
+            $arr['jam_masuk'] = $r->getRawOriginal('jam_masuk');
+            $arr['jam_pulang'] = $r->getRawOriginal('jam_pulang');
+
+            return $arr;
+        };
+
+        $weekSerialized = collect($recordsWeek)->map($serializeRecord)->values();
+        $monthSerialized = collect($recordsMonth)->map($serializeRecord)->values();
+
         return $this->respond(true, 'Data history', [
-            'week' => $recordsWeek,
-            'month' => $recordsMonth,
+            'week' => $weekSerialized,
+            'month' => $monthSerialized,
             'stats' => $stats,
             'discipline_rank' => $disciplineRank,
             'calendar' => $calendarData,

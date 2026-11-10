@@ -168,7 +168,7 @@ class PoinHistoryModel extends Model
                 'tipe' => $tipe,
                 'keterangan' => $ket,
                 'ref_id' => $refId,
-                'created_at' => substr($attendance->tgl, 0, 10).' '.($attendance->jam_masuk ?? '00:00:00'),
+                'created_at' => $this->buildCreatedAt($attendance),
             ]);
 
             // Auto update master_guru
@@ -202,6 +202,38 @@ class PoinHistoryModel extends Model
                 ->orderBy('created_at', 'DESC')
                 ->get()->all();
         }, []);
+    }
+
+    /**
+     * Bangun nilai created_at untuk insert poin_history.
+     *
+     * Field jam_masuk dari DB bisa berupa:
+     * - string "YYYY-MM-DD HH:MM:SS" (nilai mentah)
+     * - string "HH:MM:SS" (jam saja)
+     * - null
+     *
+     * tgl dari DB selalu "YYYY-MM-DD".
+     * Pastikan hasilnya selalu "YYYY-MM-DD HH:MM:SS" tanpa duplikasi tanggal.
+     */
+    private function buildCreatedAt(object $attendance): string
+    {
+        $tgl = substr((string) ($attendance->tgl ?? ''), 0, 10);
+        $jamRaw = (string) ($attendance->jam_masuk ?? '');
+
+        // Jika jam_masuk sudah berformat datetime "YYYY-MM-DD HH:MM:SS", ambil bagian waktu saja
+        if (str_contains($jamRaw, ' ')) {
+            $jam = substr($jamRaw, strpos($jamRaw, ' ') + 1, 8);
+        } elseif (str_contains($jamRaw, 'T')) {
+            // Format ISO "YYYY-MM-DDTHH:MM:SS..."
+            $jam = substr($jamRaw, strpos($jamRaw, 'T') + 1, 8);
+        } elseif (preg_match('/^\d{2}:\d{2}/', $jamRaw)) {
+            // Sudah format "HH:MM:SS"
+            $jam = substr($jamRaw, 0, 8);
+        } else {
+            $jam = '00:00:00';
+        }
+
+        return $tgl.' '.$jam;
     }
 
     // TODO: tabel master_guru, users, users_groups belum ada migrasinya
