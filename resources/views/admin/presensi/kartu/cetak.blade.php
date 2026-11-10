@@ -86,8 +86,8 @@
         /* Grid Cards: 2 kolom, kartu ATM 85.6×54mm — 8 kartu per A4 */
         .card-grid {
             display: grid;
-            grid-template-columns: repeat(2, 85.6mm);
-            gap: 4mm 6mm;
+            grid-template-columns: repeat(2, 323px);
+            gap: 15px 23px;
             justify-content: center;
         }
         .card-grid-portrait {
@@ -106,13 +106,17 @@
 
         /* ═══════════════════════════════════════════════════════════
            Kartu ATM ISO/IEC 7810 ID-1: 85.60 × 53.98 mm
-           Grid cetak A4: 2 kolom × 4 baris = 8 kartu per halaman
+           Screen: px (96 dpi)  |  Print: mm
+           Formula: mm × (96 / 25.4) = px
+             85.6mm → 323px  |  53.98mm → 204px
+             30mm   → 113px  |  16mm   →  60px
+             20mm   →  76px  |  6mm    →  23px
         ═══════════════════════════════════════════════════════════ */
         .id-card {
-            width: 85.6mm;
-            height: 53.98mm;
-            border: 0.5px dashed #94a3b8;
-            border-radius: 3mm;
+            width: 323px;
+            height: 204px;
+            border: 1px dashed #94a3b8;
+            border-radius: 11px;
             background: #ffffff;
             overflow: hidden;
             display: flex;
@@ -120,11 +124,12 @@
             position: relative;
             page-break-inside: avoid;
             break-inside: avoid;
+            box-shadow: 0 2px 10px rgba(0,0,0,.1);
         }
 
-        /* Strip kiri: lebar 30mm dari total 85.6mm */
+        /* Strip kiri: 113px (≈30mm) */
         .id-left-strip {
-            width: 30mm;
+            width: 113px;
             flex-shrink: 0;
             background: linear-gradient(175deg, var(--primary-700, #4338ca) 0%, var(--primary-900, #1e1b4b) 100%);
             display: flex;
@@ -134,11 +139,11 @@
             display: flex;
             align-items: center;
             gap: 3px;
-            padding: 1.8mm 2mm;
+            padding: 6px 7px;
             border-bottom: 1px solid rgba(255,255,255,.15);
         }
         .id-strip-logo {
-            width: 6mm; height: 6mm;
+            width: 23px; height: 23px;
             background: #fff; border-radius: 3px; padding: 1px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
@@ -146,33 +151,33 @@
         .id-strip-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .id-strip-kop { min-width: 0; }
         .id-strip-kop p { margin: 0; line-height: 1.1; }
-        .id-strip-kop .kop-label { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.65); }
-        .id-strip-kop .kop-sekolah { font-size: 5pt; font-weight: 800; color: #fff; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .id-strip-kop .kop-label { font-size: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.65); }
+        .id-strip-kop .kop-sekolah { font-size: 7px; font-weight: 800; color: #fff; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .id-strip-photo-area {
             flex: 1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 1.5mm 2mm; gap: 1mm;
+            padding: 5px 7px; gap: 4px;
         }
         .id-strip-photo {
-            width: 16mm; height: 20mm;
-            border-radius: 1.5mm; overflow: hidden;
-            border: 1px solid rgba(255,255,255,.35);
+            width: 60px; height: 76px;
+            border-radius: 5px; overflow: hidden;
+            border: 1.5px solid rgba(255,255,255,.35);
             background: #e2e8f0; flex-shrink: 0;
         }
         .id-strip-photo img { width: 100%; height: 100%; object-fit: cover; }
         .id-strip-jk {
-            font-size: 4.5pt; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
-            padding: 0.5px 4px; border-radius: 8px;
+            font-size: 7px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+            padding: 1px 5px; border-radius: 8px;
         }
         .id-strip-jk.L { background: rgba(96,165,250,.25); color: #bfdbfe; border: 0.5px solid rgba(147,197,253,.3); }
         .id-strip-jk.P { background: rgba(244,114,182,.25); color: #fbcfe8; border: 0.5px solid rgba(249,168,212,.3); }
         .id-strip-tp {
-            padding: 1mm 2mm; text-align: center;
+            padding: 3px 7px; text-align: center;
             border-top: 0.5px solid rgba(255,255,255,.12);
         }
-        .id-strip-tp span { font-size: 4.5pt; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .05em; }
+        .id-strip-tp span { font-size: 6px; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .05em; }
 
-        /* Panel kanan: identitas + QR + footer */
+        /* Panel kanan */
         .id-right-panel {
             flex: 1; min-width: 0;
             display: flex; flex-direction: column;
@@ -192,49 +197,49 @@
         }
         .id-panel-top {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 1.8mm 2.5mm 0 2.5mm;
+            padding: 7px 9px 0 9px;
         }
-        .id-panel-label { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--primary-500, #6366f1); }
+        .id-panel-label { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--primary-500, #6366f1); }
         .id-panel-badge {
-            font-size: 5.5pt; font-weight: 900; padding: 0.5px 4px; border-radius: 2px;
+            font-size: 8px; font-weight: 900; padding: 1px 5px; border-radius: 2px;
             background: var(--primary-50, #eef2ff); color: var(--primary-700, #4338ca);
             border: 0.5px solid var(--primary-100, #e0e7ff); text-transform: uppercase;
         }
         .id-panel-name {
-            padding: 0.8mm 2.5mm 0 2.5mm;
-            font-size: 7.5pt; font-weight: 900; color: #0f172a; margin: 0;
+            padding: 3px 9px 0 9px;
+            font-size: 11px; font-weight: 900; color: #0f172a; margin: 0;
             line-height: 1.15; text-transform: uppercase;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .id-panel-body {
-            display: flex; gap: 1.5mm; padding: 1mm 2.5mm 0 2.5mm; flex: 1; align-items: flex-start;
+            display: flex; gap: 5px; padding: 4px 9px 0 9px; flex: 1; align-items: flex-start;
         }
-        .id-panel-data { flex: 1; min-width: 0; font-size: 5.5pt; line-height: 1.4; color: #334155; }
-        .id-panel-data .row { display: flex; gap: 1.5px; }
-        .id-panel-data .row .lbl { width: 8.5mm; font-weight: 700; color: #94a3b8; font-size: 4.8pt; text-transform: uppercase; flex-shrink: 0; }
-        .id-panel-data .row .val { font-weight: 700; color: #0f172a; font-family: monospace; font-size: 5.5pt; }
+        .id-panel-data { flex: 1; min-width: 0; font-size: 8px; line-height: 1.45; color: #334155; }
+        .id-panel-data .row { display: flex; gap: 2px; }
+        .id-panel-data .row .lbl { width: 32px; font-weight: 700; color: #94a3b8; font-size: 7px; text-transform: uppercase; flex-shrink: 0; }
+        .id-panel-data .row .val { font-weight: 700; color: #0f172a; font-family: monospace; font-size: 8px; }
         .id-panel-qr {
-            flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 0.8mm;
+            flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
         }
         .id-panel-qr .qr-print-box {
-            width: 16mm; height: 16mm; padding: 0.8mm;
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 1.5mm;
+            width: 60px; height: 60px; padding: 3px;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 5px;
             display: flex; align-items: center; justify-content: center;
         }
         .id-panel-qr .qr-print-box canvas, .id-panel-qr .qr-print-box img, .id-panel-qr .qr-print-box table {
             max-width: 100% !important; max-height: 100% !important; display: block;
         }
-        .id-panel-qr .qr-code-text { font-size: 4.5pt; font-weight: 800; color: #1e293b; font-family: monospace; }
-        .id-panel-qr .qr-scan-text { font-size: 3.8pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+        .id-panel-qr .qr-code-text { font-size: 7px; font-weight: 800; color: #1e293b; font-family: monospace; }
+        .id-panel-qr .qr-scan-text { font-size: 6px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; }
         .id-panel-footer {
             display: flex; align-items: flex-end; justify-content: space-between;
-            padding: 0.8mm 2.5mm 1.5mm 2.5mm; margin-top: auto;
+            padding: 3px 9px 5px 9px; margin-top: auto;
             border-top: 0.5px solid #f1f5f9;
         }
-        .id-panel-sign { font-size: 4.8pt; color: #94a3b8; }
-        .id-panel-sign .sign-line { width: 18mm; border-bottom: 0.5px solid #cbd5e1; margin-bottom: 1px; }
+        .id-panel-sign { font-size: 7px; color: #94a3b8; }
+        .id-panel-sign .sign-line { width: 68px; border-bottom: 0.5px solid #cbd5e1; margin-bottom: 1px; }
         .id-panel-sign .sign-label { font-weight: 600; }
-        .id-panel-kota { font-size: 4.5pt; color: #64748b; }
+        .id-panel-kota { font-size: 6.5px; color: #64748b; }
 
         /* Portrait Card Box: vertikal 58 x 92mm, tanpa foto */
         .id-card-portrait {
@@ -502,13 +507,46 @@
                 margin: 0 !important;
                 max-width: none !important;
             }
+            /* Override px → mm saat cetak agar presisi fisik kartu ATM */
             .card-grid {
-                gap: 3mm 5mm !important;
+                grid-template-columns: repeat(2, 85.6mm) !important;
+                gap: 4mm 6mm !important;
             }
+            .id-card {
+                width: 85.6mm !important;
+                height: 53.98mm !important;
+                border-radius: 3.18mm !important;
+                box-shadow: none !important;
+                border: 0.5px dashed #94a3b8 !important;
+            }
+            .id-left-strip  { width: 30mm !important; }
+            .id-strip-logo  { width: 6mm !important; height: 6mm !important; }
+            .id-strip-photo { width: 16mm !important; height: 20mm !important; }
+            .id-strip-header { padding: 1.8mm 2mm !important; }
+            .id-strip-photo-area { padding: 1.5mm 2mm !important; }
+            .id-strip-tp    { padding: 1mm 2mm !important; }
+            .id-panel-top   { padding: 1.8mm 2.5mm 0 2.5mm !important; }
+            .id-panel-name  { padding: 0.8mm 2.5mm 0 2.5mm !important; font-size: 7.5pt !important; }
+            .id-panel-body  { padding: 1mm 2.5mm 0 2.5mm !important; gap: 1.5mm !important; }
+            .id-panel-footer{ padding: 0.8mm 2.5mm 1.5mm 2.5mm !important; }
+            .id-panel-data  { font-size: 4.8pt !important; }
+            .id-panel-data .row .lbl { width: 8.5mm !important; font-size: 4pt !important; }
+            .id-panel-data .row .val { font-size: 4.8pt !important; }
+            .id-panel-qr .qr-print-box { width: 16mm !important; height: 16mm !important; }
+            .id-panel-sign .sign-line { width: 18mm !important; }
+            .id-panel-label { font-size: 4pt !important; }
+            .id-panel-badge { font-size: 5pt !important; }
+            .id-strip-kop .kop-label   { font-size: 4pt !important; }
+            .id-strip-kop .kop-sekolah { font-size: 4.5pt !important; }
+            .id-strip-tp span { font-size: 4pt !important; }
+            .id-panel-qr .qr-code-text { font-size: 4pt !important; }
+            .id-panel-qr .qr-scan-text { font-size: 3.5pt !important; }
+            .id-panel-sign  { font-size: 4pt !important; }
+            .id-panel-kota  { font-size: 3.8pt !important; }
             .card-grid-portrait {
                 gap: 3.5mm !important;
             }
-            .id-card, .id-card-portrait {
+            .id-card-portrait {
                 border: 1px dashed #94a3b8 !important;
                 box-shadow: none !important;
             }

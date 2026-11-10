@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Libraries\DapodikClient;
 use App\Models\JabatanGuruModel;
-use Exception;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +33,7 @@ class DapodikSyncService
     {
         try {
             // 1. Tabel dapodik_settings
-            if (!Schema::hasTable('dapodik_settings')) {
+            if (! Schema::hasTable('dapodik_settings')) {
                 Schema::create('dapodik_settings', function (Blueprint $table) {
                     $table->increments('id');
                     $table->string('server_url', 255)->default('http://localhost:5774');
@@ -50,7 +49,7 @@ class DapodikSyncService
             }
 
             // 2. Tabel dapodik_log
-            if (!Schema::hasTable('dapodik_log')) {
+            if (! Schema::hasTable('dapodik_log')) {
                 Schema::create('dapodik_log', function (Blueprint $table) {
                     $table->bigIncrements('id');
                     $table->string('entitas', 50);
@@ -68,38 +67,38 @@ class DapodikSyncService
             }
 
             // 3. Kolom dapo_id & ptk_id pada tabel master
-            if (Schema::hasTable('master_siswa') && !Schema::hasColumn('master_siswa', 'dapo_id')) {
+            if (Schema::hasTable('master_siswa') && ! Schema::hasColumn('master_siswa', 'dapo_id')) {
                 Schema::table('master_siswa', function (Blueprint $table) {
                     $table->string('dapo_id', 50)->nullable()->after('id_siswa');
                 });
             }
 
             if (Schema::hasTable('master_guru')) {
-                if (!Schema::hasColumn('master_guru', 'dapo_id')) {
+                if (! Schema::hasColumn('master_guru', 'dapo_id')) {
                     Schema::table('master_guru', function (Blueprint $table) {
                         $table->string('dapo_id', 50)->nullable()->after('id_guru');
                     });
                 }
-                if (!Schema::hasColumn('master_guru', 'ptk_id')) {
+                if (! Schema::hasColumn('master_guru', 'ptk_id')) {
                     Schema::table('master_guru', function (Blueprint $table) {
                         $table->string('ptk_id', 50)->nullable();
                     });
                 }
             }
 
-            if (Schema::hasTable('master_kelas') && !Schema::hasColumn('master_kelas', 'dapo_id')) {
+            if (Schema::hasTable('master_kelas') && ! Schema::hasColumn('master_kelas', 'dapo_id')) {
                 Schema::table('master_kelas', function (Blueprint $table) {
                     $table->string('dapo_id', 50)->nullable()->after('id_kelas');
                 });
             }
 
-            if (Schema::hasTable('master_mapel') && !Schema::hasColumn('master_mapel', 'dapo_id')) {
+            if (Schema::hasTable('master_mapel') && ! Schema::hasColumn('master_mapel', 'dapo_id')) {
                 Schema::table('master_mapel', function (Blueprint $table) {
                     $table->string('dapo_id', 50)->nullable()->after('id_mapel');
                 });
             }
         } catch (\Throwable $e) {
-            Log::error('ensureDapodikSchema error: ' . $e->getMessage());
+            Log::error('ensureDapodikSchema error: '.$e->getMessage());
         }
     }
 
@@ -110,22 +109,22 @@ class DapodikSyncService
      */
     public function syncAllFromApi(DapodikClient $client, ?int $userId = null): array
     {
-        $resSekolah      = ['status' => false, 'message' => 'Belum dijalankan'];
-        $resGtk          = ['status' => false, 'message' => 'Belum dijalankan'];
-        $resSiswa        = ['status' => false, 'message' => 'Belum dijalankan'];
-        $resRombel       = ['status' => false, 'message' => 'Belum dijalankan'];
-        $resMapel        = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resSekolah = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resGtk = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resSiswa = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resRombel = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resMapel = ['status' => false, 'message' => 'Belum dijalankan'];
         $resPembelajaran = ['status' => false, 'message' => 'Belum dijalankan'];
-        $resRuang        = ['status' => false, 'message' => 'Belum dijalankan'];
+        $resRuang = ['status' => false, 'message' => 'Belum dijalankan'];
 
         $peta = [
-            'sekolah'      => 'syncSekolahFromApi',
-            'gtk'          => 'syncGtkFromApi',
-            'siswa'        => 'syncSiswaFromApi',
-            'rombel'       => 'syncRombelFromApi',
-            'mapel'        => 'syncMapelFromApi',
+            'sekolah' => 'syncSekolahFromApi',
+            'gtk' => 'syncGtkFromApi',
+            'siswa' => 'syncSiswaFromApi',
+            'rombel' => 'syncRombelFromApi',
+            'mapel' => 'syncMapelFromApi',
             'pembelajaran' => 'syncPembelajaranFromApi',
-            'ruang'        => 'syncRuangFromApi',
+            'ruang' => 'syncRuangFromApi',
         ];
 
         // Stempel per-entitas ditahan: sync-all yang sebagian gagal tidak boleh
@@ -137,16 +136,16 @@ class DapodikSyncService
                 try {
                     $res[$nama] = $this->{$method}($client, $userId);
                 } catch (\Throwable $e) {
-                    Log::error('syncAll ' . $nama . ': ' . $e->getMessage());
+                    Log::error('syncAll '.$nama.': '.$e->getMessage());
                     $res[$nama] = [
-                        'status'    => false,
-                        'message'   => 'Bagian ' . $nama . ' berhenti karena galat sistem; detail ada di log aplikasi.',
+                        'status' => false,
+                        'message' => 'Bagian '.$nama.' berhenti karena galat sistem; detail ada di log aplikasi.',
                         'processed' => 0,
-                        'added'     => 0,
-                        'updated'   => 0,
+                        'added' => 0,
+                        'updated' => 0,
                     ];
                 }
-                if (!isset($res[$nama]['status'])) {
+                if (! isset($res[$nama]['status'])) {
                     $res[$nama]['status'] = false;
                 }
             }
@@ -155,13 +154,13 @@ class DapodikSyncService
         }
 
         $totalProcessed = 0;
-        $totalAdded     = 0;
-        $totalUpdated   = 0;
-        $failed         = [];
+        $totalAdded = 0;
+        $totalUpdated = 0;
+        $failed = [];
         foreach ($res as $nama => $r) {
             $totalProcessed += (int) ($r['processed'] ?? 0);
-            $totalAdded     += (int) ($r['added'] ?? 0);
-            $totalUpdated   += (int) ($r['updated'] ?? 0);
+            $totalAdded += (int) ($r['added'] ?? 0);
+            $totalUpdated += (int) ($r['updated'] ?? 0);
             if (empty($r['status'])) {
                 $failed[] = $nama;
             }
@@ -172,29 +171,29 @@ class DapodikSyncService
         if ($allSuccess && Schema::hasTable('dapodik_settings')) {
             DB::table('dapodik_settings')->where('id', '>', 0)->update([
                 'last_sync_at' => date('Y-m-d H:i:s'),
-                'updated_at'   => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
         }
 
         $msg = ($allSuccess ? 'Sinkronisasi lengkap berhasil.' : 'Sinkronisasi lengkap TIDAK tuntas.')
-            . " {$totalProcessed} total data diproses ({$totalAdded} baru, {$totalUpdated} diperbarui).";
-        if (!empty($failed)) {
-            $msg .= ' Gagal pada: ' . implode(', ', array_map('ucfirst', $failed)) . '.';
+            ." {$totalProcessed} total data diproses ({$totalAdded} baru, {$totalUpdated} diperbarui).";
+        if (! empty($failed)) {
+            $msg .= ' Gagal pada: '.implode(', ', array_map('ucfirst', $failed)).'.';
         }
 
         $this->writeLog('all', 'api', $allSuccess ? 'sukses' : 'parsial', $totalProcessed, $totalAdded, $totalUpdated, $msg, $userId);
 
         return array_merge(
             [
-                'status'  => $allSuccess,
+                'status' => $allSuccess,
                 'message' => $msg,
             ],
             $res,
             [
                 'summary' => [
                     'total_processed' => $totalProcessed,
-                    'total_added'     => $totalAdded,
-                    'total_updated'   => $totalUpdated,
+                    'total_added' => $totalAdded,
+                    'total_updated' => $totalUpdated,
                 ],
             ]
         );
@@ -205,9 +204,10 @@ class DapodikSyncService
     public function syncSekolahFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getSekolah();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = $response['message'] ?? 'Tidak ada data sekolah dari API Dapodik.';
             $this->writeLog('sekolah', 'api', 'gagal', 0, 0, 0, $msg, $userId);
+
             return ['status' => false, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
@@ -221,24 +221,25 @@ class DapodikSyncService
         // mapping selalu kosong, tabel setting tidak pernah berubah, tapi sync
         // tetap melaporkan "berhasil".
         $sekolah = array_is_list($data) ? ($data[0] ?? null) : $data;
-        if (!is_array($sekolah) || $sekolah === []) {
+        if (! is_array($sekolah) || $sekolah === []) {
             $pesan = 'Data sekolah dari Dapodik tidak dikenali bentuknya, jadi tidak ada yang diperbarui.';
             $this->writeLog('sekolah', 'api', 'gagal', 0, 0, 0, $pesan, $userId);
+
             return ['status' => false, 'message' => $pesan, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
         $mapping = [
-            'sekolah'    => $sekolah['nama'] ?? '',
-            'npsn'       => $sekolah['npsn'] ?? '',
-            'alamat'     => $sekolah['alamat_jalan'] ?? '',
-            'desa'       => $sekolah['desa_kelurahan'] ?? '',
-            'kecamatan'  => str_replace('Kec. ', '', (string) ($sekolah['kecamatan'] ?? '')),
-            'kota'       => str_replace('Kab. ', '', (string) ($sekolah['kabupaten_kota'] ?? '')),
-            'provinsi'   => str_replace('Prov. ', '', (string) ($sekolah['provinsi'] ?? '')),
-            'kode_pos'   => $sekolah['kode_pos'] ?? '',
-            'telp'       => $sekolah['nomor_telepon'] ?? '',
-            'email'      => $sekolah['email'] ?? '',
-            'web'        => $sekolah['website'] ?? '',
+            'sekolah' => $sekolah['nama'] ?? '',
+            'npsn' => $sekolah['npsn'] ?? '',
+            'alamat' => $sekolah['alamat_jalan'] ?? '',
+            'desa' => $sekolah['desa_kelurahan'] ?? '',
+            'kecamatan' => str_replace('Kec. ', '', (string) ($sekolah['kecamatan'] ?? '')),
+            'kota' => str_replace('Kab. ', '', (string) ($sekolah['kabupaten_kota'] ?? '')),
+            'provinsi' => str_replace('Prov. ', '', (string) ($sekolah['provinsi'] ?? '')),
+            'kode_pos' => $sekolah['kode_pos'] ?? '',
+            'telp' => $sekolah['nomor_telepon'] ?? '',
+            'email' => $sekolah['email'] ?? '',
+            'web' => $sekolah['website'] ?? '',
         ];
 
         // Tabel `setting` memakai kolom biasa (sekolah, npsn, dst.), bukan store key/value.
@@ -246,13 +247,16 @@ class DapodikSyncService
         if (Schema::hasTable('setting')) {
             $clean = [];
             foreach ($mapping as $column => $value) {
-                if (empty($value) || !Schema::hasColumn($column, 'setting')) continue;
+                if (empty($value) || ! Schema::hasColumn($column, 'setting')) {
+                    continue;
+                }
                 $clean[$column] = $value;
             }
 
             if ($clean === []) {
                 $pesan = 'Data sekolah diterima dari Dapodik tetapi tidak ada kolom yang cocok untuk diperbarui (payload kosong atau nama kolom tidak dikenali).';
                 $this->writeLog('sekolah', 'api', 'gagal', count($mapping), 0, 0, $pesan, $userId);
+
                 return ['status' => false, 'message' => $pesan, 'processed' => count($mapping), 'added' => 0, 'updated' => 0];
             }
 
@@ -264,12 +268,13 @@ class DapodikSyncService
                 $pesan = 'Data sekolah diterima dari Dapodik tetapi gagal disimpan ke tabel pengaturan.';
                 Log::error('[DapodikSync] simpan setting gagal.');
                 $this->writeLog('sekolah', 'api', 'gagal', count($mapping), 0, 0, $pesan, $userId);
+
                 return ['status' => false, 'message' => $pesan, 'processed' => count($mapping), 'added' => 0, 'updated' => 0];
             }
             $updated = count($clean);
         }
 
-        $msg = "Data sekolah berhasil disinkronkan dari Dapodik. NPSN: " . ($mapping['npsn'] !== '' ? $mapping['npsn'] : 'tidak terisi');
+        $msg = 'Data sekolah berhasil disinkronkan dari Dapodik. NPSN: '.($mapping['npsn'] !== '' ? $mapping['npsn'] : 'tidak terisi');
         $this->writeLog('sekolah', 'api', 'sukses', count($mapping), 0, $updated, $msg, $userId);
         $this->markLastSync();
 
@@ -281,24 +286,26 @@ class DapodikSyncService
     public function syncGtkFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getGtk();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = $response['message'] ?? 'Tidak ada data GTK dari API Dapodik.';
             $this->writeLog('gtk', 'api', 'gagal', 0, 0, 0, $msg, $userId);
+
             return ['status' => false, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
         $result = $this->processGtkItems($response['data'], 'api', $userId);
-        if (!empty($result['status'])) {
+        if (! empty($result['status'])) {
             $this->markLastSync();
         }
+
         return $result;
     }
 
     public function processGtkItems(array $items, string $metode = 'api', ?int $userId = null): array
     {
         $processed = 0;
-        $added     = 0;
-        $updated   = 0;
-        $gagal     = 0;
+        $added = 0;
+        $updated = 0;
+        $gagal = 0;
         $pesanGagal = [];
 
         $indeksNama = $this->indeksNamaUnlinked('master_guru', 'id_guru', 'nama_guru', ['dapo_id', 'ptk_id', 'nuptk', 'nip'], ['username']);
@@ -307,22 +314,24 @@ class DapodikSyncService
             $processed++;
             try {
                 $dapoId = trim($item['ptk_terdaftar_id'] ?? $item['ptk_id'] ?? '');
-                $ptkId  = trim($item['ptk_id'] ?? '');
-                $nama   = trim($item['nama'] ?? $item['nama_lengkap'] ?? '');
-                $nuptk  = trim($item['nuptk'] ?? '');
-                $nik    = trim($item['nik'] ?? '');
-                $nip    = trim($item['nip'] ?? '');
+                $ptkId = trim($item['ptk_id'] ?? '');
+                $nama = strtoupper(trim($item['nama'] ?? $item['nama_lengkap'] ?? ''));
+                $nuptk = trim($item['nuptk'] ?? '');
+                $nik = trim($item['nik'] ?? '');
+                $nip = trim($item['nip'] ?? '');
 
-                if (empty($nama)) continue;
+                if (empty($nama)) {
+                    continue;
+                }
 
                 $existing = null;
-                if (!empty($dapoId)) {
+                if (! empty($dapoId)) {
                     $existing = (array) DB::table('master_guru')->where('dapo_id', $dapoId)->first();
                 }
-                if (!$existing && !empty($ptkId)) {
+                if (! $existing && ! empty($ptkId)) {
                     $existing = (array) DB::table('master_guru')->where('ptk_id', $ptkId)->first();
                 }
-                if (!$existing && !empty($nuptk)) {
+                if (! $existing && ! empty($nuptk)) {
                     $existing = (array) DB::table('master_guru')
                         ->where(function ($q) use ($nuptk) {
                             $q->where('nuptk', $nuptk)
@@ -331,7 +340,7 @@ class DapodikSyncService
                         })
                         ->first();
                 }
-                if (!$existing && !empty($nip)) {
+                if (! $existing && ! empty($nip)) {
                     $existing = (array) DB::table('master_guru')
                         ->where(function ($q) use ($nip) {
                             $q->where('nip', $nip)
@@ -340,7 +349,7 @@ class DapodikSyncService
                         })
                         ->first();
                 }
-                if (!$existing && !empty($nik)) {
+                if (! $existing && ! empty($nik)) {
                     $existing = (array) DB::table('master_guru')
                         ->where(function ($q) use ($nik) {
                             $q->where('no_ktp', $nik)
@@ -349,8 +358,8 @@ class DapodikSyncService
                         })
                         ->first();
                 }
-                if (!$existing) {
-                    $ketemu = $this->cariLewatNama($indeksNama, $nama, 'GTK ' . $nama, $gagal, $pesanGagal);
+                if (! $existing) {
+                    $ketemu = $this->cariLewatNama($indeksNama, $nama, 'GTK '.$nama, $gagal, $pesanGagal);
                     if ($ketemu === false) {
                         continue; // nama ambigu, sudah dicatat sebagai gagal
                     }
@@ -358,96 +367,144 @@ class DapodikSyncService
                 }
 
                 $gender = strtoupper(trim($item['jenis_kelamin'] ?? 'L'));
-                if (!in_array($gender, ['L', 'P'])) $gender = 'L';
+                if (! in_array($gender, ['L', 'P'])) {
+                    $gender = 'L';
+                }
 
                 // Map all available GTK fields from Dapodik payload
-                $tempatLahir     = trim($item['tempat_lahir'] ?? '');
-                $tanggalLahir    = trim($item['tanggal_lahir'] ?? $item['tgl_lahir'] ?? '');
-                $agama           = $this->parseAgama($item);
-                $email           = trim($item['email'] ?? '');
-                $noHp            = trim($item['nomor_telepon_seluler'] ?? $item['no_hp'] ?? $item['telepon'] ?? $item['hp'] ?? '');
-                $alamatJalan     = trim($item['alamat_jalan'] ?? $item['alamat'] ?? '');
-                $rt              = trim($item['rt'] ?? '');
-                $rw              = trim($item['rw'] ?? '');
-                $rtRw            = (!empty($rt) || !empty($rw)) ? trim($rt . '/' . $rw, '/') : trim($item['rt_rw'] ?? '');
-                $dusun           = trim($item['dusun'] ?? '');
-                $kelurahan       = trim($item['desa_kelurahan'] ?? $item['kelurahan'] ?? '');
-                $kecamatan       = trim($item['kecamatan'] ?? '');
-                $kabupaten       = trim($item['kabupaten_kota'] ?? $item['kabupaten'] ?? '');
-                $provinsi        = trim($item['provinsi'] ?? '');
-                $kodePos         = trim($item['kode_pos'] ?? '');
-                $kewarganegaraan  = trim($item['kewarganegaraan'] ?? $item['warga_negara'] ?? '');
+                $tempatLahir = trim($item['tempat_lahir'] ?? '');
+                $tanggalLahir = trim($item['tanggal_lahir'] ?? $item['tgl_lahir'] ?? '');
+                $agama = $this->parseAgama($item);
+                $email = trim($item['email'] ?? '');
+                $noHp = trim($item['nomor_telepon_seluler'] ?? $item['no_hp'] ?? $item['telepon'] ?? $item['hp'] ?? '');
+                $alamatJalan = trim($item['alamat_jalan'] ?? $item['alamat'] ?? '');
+                $rt = trim($item['rt'] ?? '');
+                $rw = trim($item['rw'] ?? '');
+                $rtRw = (! empty($rt) || ! empty($rw)) ? trim($rt.'/'.$rw, '/') : trim($item['rt_rw'] ?? '');
+                $dusun = trim($item['dusun'] ?? '');
+                $kelurahan = trim($item['desa_kelurahan'] ?? $item['kelurahan'] ?? '');
+                $kecamatan = trim($item['kecamatan'] ?? '');
+                $kabupaten = trim($item['kabupaten_kota'] ?? $item['kabupaten'] ?? '');
+                $provinsi = trim($item['provinsi'] ?? '');
+                $kodePos = trim($item['kode_pos'] ?? '');
+                $kewarganegaraan = trim($item['kewarganegaraan'] ?? $item['warga_negara'] ?? '');
 
-                $jenisPtk        = trim($item['jenis_ptk_id_str'] ?? $item['jenis_ptk'] ?? '');
-                $tgsTambahan     = trim($item['tugas_tambahan_id_str'] ?? $item['tgs_tambahan'] ?? '');
-                $statusPegawai   = trim($item['status_kepegawaian_id_str'] ?? $item['status_pegawai'] ?? '');
-                $statusAktif     = trim($item['status_aktif'] ?? $item['status_keaktifan_id_str'] ?? '');
-                $statusNikah     = trim($item['status_perkawinan'] ?? $item['status_nikah'] ?? '');
-                $tmt             = trim($item['tmt_pengangkatan'] ?? $item['tmt'] ?? '');
-                $npwp            = trim($item['npwp'] ?? '');
+                $jenisPtk = trim($item['jenis_ptk_id_str'] ?? $item['jenis_ptk'] ?? '');
+                $tgsTambahan = trim($item['tugas_tambahan_id_str'] ?? $item['tgs_tambahan'] ?? '');
+                $statusPegawai = trim($item['status_kepegawaian_id_str'] ?? $item['status_pegawai'] ?? '');
+                $statusAktif = trim($item['status_aktif'] ?? $item['status_keaktifan_id_str'] ?? '');
+                $statusNikah = trim($item['status_perkawinan'] ?? $item['status_nikah'] ?? '');
+                $tmt = trim($item['tmt_pengangkatan'] ?? $item['tmt'] ?? '');
+                $npwp = trim($item['npwp'] ?? '');
 
-                $baseUsername = !empty($nip) ? $nip : (!empty($nuptk) ? $nuptk : strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nama)));
-                if (empty($baseUsername)) $baseUsername = 'guru' . rand(100, 999);
+                $baseUsername = ! empty($nip) ? $nip : (! empty($nuptk) ? $nuptk : strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nama)));
+                if (empty($baseUsername)) {
+                    $baseUsername = 'guru'.rand(100, 999);
+                }
 
                 $existingId = $existing['id_guru'] ?? 0;
-                $username   = $baseUsername;
-                $counter    = 1;
+                $username = $baseUsername;
+                $counter = 1;
                 while (DB::table('master_guru')->where('username', $username)->where('id_guru', '!=', $existingId)->count() > 0) {
-                    $username = $baseUsername . $counter;
+                    $username = $baseUsername.$counter;
                     $counter++;
                 }
 
-                $gelarDepan    = trim($item['gelar_depan'] ?? '');
+                $gelarDepan = trim($item['gelar_depan'] ?? '');
                 $gelarBelakang = trim($item['gelar_belakang'] ?? '');
 
                 $namaWithGelar = $nama;
-                if (!empty($gelarDepan) && !str_starts_with($namaWithGelar, $gelarDepan)) {
-                    $namaWithGelar = $gelarDepan . ' ' . $namaWithGelar;
+                if (! empty($gelarDepan) && ! str_starts_with($namaWithGelar, $gelarDepan)) {
+                    $namaWithGelar = $gelarDepan.' '.$namaWithGelar;
                 }
-                if (!empty($gelarBelakang) && !str_contains($namaWithGelar, $gelarBelakang)) {
-                    $namaWithGelar = $namaWithGelar . ', ' . $gelarBelakang;
+                if (! empty($gelarBelakang) && ! str_contains($namaWithGelar, $gelarBelakang)) {
+                    $namaWithGelar = $namaWithGelar.', '.$gelarBelakang;
                 }
 
                 // Preserve existing academic degrees if incoming name from Dapodik payload lacks titles
-                if ($existing && !empty($existing['nama_guru'])) {
+                if ($existing && ! empty($existing['nama_guru'])) {
                     if (strpos($existing['nama_guru'], ',') !== false && strpos($namaWithGelar, ',') === false) {
                         $degreePart = trim(substr($existing['nama_guru'], strpos($existing['nama_guru'], ',')));
-                        $namaWithGelar = $namaWithGelar . ', ' . ltrim($degreePart, ', ');
+                        $namaWithGelar = $namaWithGelar.', '.ltrim($degreePart, ', ');
                     }
                 }
 
                 $data = [
-                    'dapo_id'       => !empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
-                    'ptk_id'        => !empty($ptkId) ? $ptkId : ($existing['ptk_id'] ?? null),
-                    'nama_guru'     => $namaWithGelar,
-                    'nuptk'         => !empty($nuptk) ? $nuptk : ($existing['nuptk'] ?? ''),
-                    'nip'           => !empty($nip) ? $nip : ($existing['nip'] ?? ''),
+                    'dapo_id' => ! empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
+                    'ptk_id' => ! empty($ptkId) ? $ptkId : ($existing['ptk_id'] ?? null),
+                    'nama_guru' => $namaWithGelar,
+                    'nuptk' => ! empty($nuptk) ? $nuptk : ($existing['nuptk'] ?? ''),
+                    'nip' => ! empty($nip) ? $nip : ($existing['nip'] ?? ''),
                     'jenis_kelamin' => $gender,
                 ];
 
-                if (!empty($nik))             $data['no_ktp']          = $nik;
-                if (!empty($tempatLahir))     $data['tempat_lahir']    = $tempatLahir;
-                if (!empty($tanggalLahir))    $data['tgl_lahir']       = $tanggalLahir;
-                if (!empty($agama))           $data['agama']           = $agama;
-                if (!empty($email))           $data['email']           = $email;
-                if (!empty($noHp))            $data['no_hp']           = $noHp;
-                if (!empty($alamatJalan))     $data['alamat_jalan']    = $alamatJalan;
-                if (!empty($rtRw))            $data['rt_rw']           = $rtRw;
-                if (!empty($dusun))           $data['dusun']           = $dusun;
-                if (!empty($kelurahan))       $data['kelurahan']       = $kelurahan;
-                if (!empty($kecamatan))       $data['kecamatan']       = $kecamatan;
-                if (!empty($kabupaten))       $data['kabupaten']       = $kabupaten;
-                if (!empty($provinsi))        $data['provinsi']        = $provinsi;
-                if (!empty($kodePos))         $data['kode_pos']        = $kodePos;
-                if (!empty($kewarganegaraan)) $data['kewarganegaraan'] = $kewarganegaraan;
+                if (! empty($nik)) {
+                    $data['no_ktp'] = $nik;
+                }
+                if (! empty($tempatLahir)) {
+                    $data['tempat_lahir'] = $tempatLahir;
+                }
+                if (! empty($tanggalLahir)) {
+                    $data['tgl_lahir'] = $tanggalLahir;
+                }
+                if (! empty($agama)) {
+                    $data['agama'] = $agama;
+                }
+                if (! empty($email)) {
+                    $data['email'] = $email;
+                }
+                if (! empty($noHp)) {
+                    $data['no_hp'] = $noHp;
+                }
+                if (! empty($alamatJalan)) {
+                    $data['alamat_jalan'] = $alamatJalan;
+                }
+                if (! empty($rtRw)) {
+                    $data['rt_rw'] = $rtRw;
+                }
+                if (! empty($dusun)) {
+                    $data['dusun'] = $dusun;
+                }
+                if (! empty($kelurahan)) {
+                    $data['kelurahan'] = $kelurahan;
+                }
+                if (! empty($kecamatan)) {
+                    $data['kecamatan'] = $kecamatan;
+                }
+                if (! empty($kabupaten)) {
+                    $data['kabupaten'] = $kabupaten;
+                }
+                if (! empty($provinsi)) {
+                    $data['provinsi'] = $provinsi;
+                }
+                if (! empty($kodePos)) {
+                    $data['kode_pos'] = $kodePos;
+                }
+                if (! empty($kewarganegaraan)) {
+                    $data['kewarganegaraan'] = $kewarganegaraan;
+                }
 
-                if (!empty($jenisPtk))        $data['jenis_ptk']       = $jenisPtk;
-                if (!empty($tgsTambahan))     $data['tgs_tambahan']    = $tgsTambahan;
-                if (!empty($statusPegawai))   $data['status_pegawai']  = $statusPegawai;
-                if (!empty($statusAktif))     $data['status_aktif']    = $statusAktif;
-                if (!empty($statusNikah))     $data['status_nikah']    = $statusNikah;
-                if (!empty($tmt))             $data['tmt']             = $tmt;
-                if (!empty($npwp))            $data['npwp']            = $npwp;
+                if (! empty($jenisPtk)) {
+                    $data['jenis_ptk'] = $jenisPtk;
+                }
+                if (! empty($tgsTambahan)) {
+                    $data['tgs_tambahan'] = $tgsTambahan;
+                }
+                if (! empty($statusPegawai)) {
+                    $data['status_pegawai'] = $statusPegawai;
+                }
+                if (! empty($statusAktif)) {
+                    $data['status_aktif'] = $statusAktif;
+                }
+                if (! empty($statusNikah)) {
+                    $data['status_nikah'] = $statusNikah;
+                }
+                if (! empty($tmt)) {
+                    $data['tmt'] = $tmt;
+                }
+                if (! empty($npwp)) {
+                    $data['npwp'] = $npwp;
+                }
 
                 if ($existing) {
                     // Sync tidak boleh menyentuh sandi baris lama; lihat
@@ -455,34 +512,36 @@ class DapodikSyncService
                     $tersimpan = DB::table('master_guru')->where('id_guru', $existing['id_guru'])->update($data);
                     if ($tersimpan === false) {
                         $gagal++;
-                        $pesanGagal[] = 'GTK ' . $nama . ': pembaruan gagal';
+                        $pesanGagal[] = 'GTK '.$nama.': pembaruan gagal';
+
                         continue;
                     }
                     $updated++;
                 } else {
                     $data['username'] = $username;
                     $data['password'] = $username;
-                    $tersimpan        = DB::table('master_guru')->insert($data);
+                    $tersimpan = DB::table('master_guru')->insert($data);
                     if ($tersimpan === false) {
                         $gagal++;
-                        $pesanGagal[] = 'GTK ' . $nama . ': penyimpanan gagal';
+                        $pesanGagal[] = 'GTK '.$nama.': penyimpanan gagal';
+
                         continue;
                     }
                     $added++;
                 }
             } catch (\Throwable $e) {
                 $gagal++;
-                $pesanGagal[] = 'GTK: ' . substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
-                Log::error('DapodikSync GTK Error: ' . $e->getMessage());
+                $pesanGagal[] = 'GTK: '.substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
+                Log::error('DapodikSync GTK Error: '.$e->getMessage());
             }
         }
 
-        $status  = $gagal === 0;
+        $status = $gagal === 0;
         $msg = "Memproses {$processed} data GTK ({$added} ditambah, {$updated} diperbarui"
-            . ($gagal > 0 ? ", {$gagal} gagal/tidak ditautkan" : '') . ').';
+            .($gagal > 0 ? ", {$gagal} gagal/tidak ditautkan" : '').').';
         if ($gagal > 0) {
-            $msg .= ' Rincian: ' . implode('; ', array_slice($pesanGagal, 0, 5))
-                . (count($pesanGagal) > 5 ? ' +' . (count($pesanGagal) - 5) . ' lainnya' : '');
+            $msg .= ' Rincian: '.implode('; ', array_slice($pesanGagal, 0, 5))
+                .(count($pesanGagal) > 5 ? ' +'.(count($pesanGagal) - 5).' lainnya' : '');
         }
         $this->writeLog('gtk', $metode, $status ? 'sukses' : 'parsial', $processed, $added, $updated, $msg, $userId);
 
@@ -494,24 +553,26 @@ class DapodikSyncService
     public function syncSiswaFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getPesertaDidik();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = $response['message'] ?? 'Tidak ada data Peserta Didik dari API Dapodik.';
             $this->writeLog('siswa', 'api', 'gagal', 0, 0, 0, $msg, $userId);
+
             return ['status' => false, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
         $result = $this->processSiswaItems($response['data'], 'api', $userId);
-        if (!empty($result['status'])) {
+        if (! empty($result['status'])) {
             $this->markLastSync();
         }
+
         return $result;
     }
 
     public function processSiswaItems(array $items, string $metode = 'api', ?int $userId = null): array
     {
         $processed = 0;
-        $added     = 0;
-        $updated   = 0;
-        $gagal     = 0;
+        $added = 0;
+        $updated = 0;
+        $gagal = 0;
         $pesanGagal = [];
 
         // Nama saja bukan identitas: satu sekolah bisa punya beberapa siswa
@@ -523,24 +584,26 @@ class DapodikSyncService
             $processed++;
             try {
                 $dapoId = trim($item['peserta_didik_id'] ?? '');
-                $nama   = trim($item['nama'] ?? $item['nama_lengkap'] ?? '');
-                $nisn   = trim($item['nisn'] ?? '');
-                $nis    = trim($item['nipd'] ?? $item['nis'] ?? '');
+                $nama = strtoupper(trim($item['nama'] ?? $item['nama_lengkap'] ?? ''));
+                $nisn = trim($item['nisn'] ?? '');
+                $nis = trim($item['nipd'] ?? $item['nis'] ?? '');
 
-                if (empty($nama)) continue;
+                if (empty($nama)) {
+                    continue;
+                }
 
                 $existing = null;
-                if (!empty($dapoId)) {
+                if (! empty($dapoId)) {
                     $existing = (array) DB::table('master_siswa')->where('dapo_id', $dapoId)->first();
                 }
-                if (!$existing && !empty($nisn)) {
+                if (! $existing && ! empty($nisn)) {
                     $existing = (array) DB::table('master_siswa')->where('nisn', $nisn)->first();
                 }
-                if (!$existing && !empty($nis)) {
+                if (! $existing && ! empty($nis)) {
                     $existing = (array) DB::table('master_siswa')->where('nis', $nis)->first();
                 }
-                if (!$existing) {
-                    $ketemu = $this->cariLewatNama($indeksNama, $nama, 'Siswa ' . $nama, $gagal, $pesanGagal);
+                if (! $existing) {
+                    $ketemu = $this->cariLewatNama($indeksNama, $nama, 'Siswa '.$nama, $gagal, $pesanGagal);
                     if ($ketemu === false) {
                         continue; // nama ambigu, sudah dicatat sebagai gagal
                     }
@@ -548,98 +611,162 @@ class DapodikSyncService
                 }
 
                 $gender = strtoupper(trim($item['jenis_kelamin'] ?? 'L'));
-                if (!in_array($gender, ['L', 'P'])) $gender = 'L';
+                if (! in_array($gender, ['L', 'P'])) {
+                    $gender = 'L';
+                }
 
                 // Map all available student fields from Dapodik payload
-                $tempatLahir    = trim($item['tempat_lahir'] ?? '');
-                $tanggalLahir   = trim($item['tanggal_lahir'] ?? $item['tgl_lahir'] ?? '');
-                $nik            = trim($item['nik'] ?? '');
-                $agama          = $this->parseAgama($item);
-                $alamat         = trim($item['alamat_jalan'] ?? $item['alamat'] ?? '');
-                $rt             = trim($item['rt'] ?? '');
-                $rw             = trim($item['rw'] ?? '');
-                $dusun          = trim($item['dusun'] ?? '');
-                $kelurahan      = trim($item['desa_kelurahan'] ?? $item['kelurahan'] ?? '');
-                $kecamatan      = trim($item['kecamatan'] ?? '');
-                $kabupaten      = trim($item['kabupaten_kota'] ?? $item['kabupaten'] ?? '');
-                $provinsi       = trim($item['provinsi'] ?? '');
-                $kodePos        = trim($item['kode_pos'] ?? '');
+                $tempatLahir = trim($item['tempat_lahir'] ?? '');
+                $tanggalLahir = trim($item['tanggal_lahir'] ?? $item['tgl_lahir'] ?? '');
+                $nik = trim($item['nik'] ?? '');
+                $agama = $this->parseAgama($item);
+                $alamat = trim($item['alamat_jalan'] ?? $item['alamat'] ?? '');
+                $rt = trim($item['rt'] ?? '');
+                $rw = trim($item['rw'] ?? '');
+                $dusun = trim($item['dusun'] ?? '');
+                $kelurahan = trim($item['desa_kelurahan'] ?? $item['kelurahan'] ?? '');
+                $kecamatan = trim($item['kecamatan'] ?? '');
+                $kabupaten = trim($item['kabupaten_kota'] ?? $item['kabupaten'] ?? '');
+                $provinsi = trim($item['provinsi'] ?? '');
+                $kodePos = trim($item['kode_pos'] ?? '');
 
                 // Parents & Guardian Data
-                $namaAyah       = trim($item['nama_ayah'] ?? '');
-                $tglLahirAyah   = trim($item['tgl_lahir_ayah'] ?? '');
+                $namaAyah = trim($item['nama_ayah'] ?? '');
+                $tglLahirAyah = trim($item['tgl_lahir_ayah'] ?? '');
                 $pendidikanAyah = trim($item['pendidikan_ayah_id_str'] ?? $item['pendidikan_ayah'] ?? '');
-                $pekerjaanAyah  = trim($item['pekerjaan_ayah_id_str'] ?? $item['pekerjaan_ayah'] ?? '');
-                $nohpAyah       = trim($item['nohp_ayah'] ?? $item['no_telepon_ayah'] ?? '');
+                $pekerjaanAyah = trim($item['pekerjaan_ayah_id_str'] ?? $item['pekerjaan_ayah'] ?? '');
+                $nohpAyah = trim($item['nohp_ayah'] ?? $item['no_telepon_ayah'] ?? '');
 
-                $namaIbu        = trim($item['nama_ibu_kandung'] ?? $item['nama_ibu'] ?? '');
-                $tglLahirIbu    = trim($item['tgl_lahir_ibu'] ?? '');
-                $pendidikanIbu  = trim($item['pendidikan_ibu_id_str'] ?? $item['pendidikan_ibu'] ?? '');
-                $pekerjaanIbu   = trim($item['pekerjaan_ibu_id_str'] ?? $item['pekerjaan_ibu'] ?? '');
-                $nohpIbu        = trim($item['nohp_ibu'] ?? $item['no_telepon_ibu'] ?? '');
+                $namaIbu = trim($item['nama_ibu_kandung'] ?? $item['nama_ibu'] ?? '');
+                $tglLahirIbu = trim($item['tgl_lahir_ibu'] ?? '');
+                $pendidikanIbu = trim($item['pendidikan_ibu_id_str'] ?? $item['pendidikan_ibu'] ?? '');
+                $pekerjaanIbu = trim($item['pekerjaan_ibu_id_str'] ?? $item['pekerjaan_ibu'] ?? '');
+                $nohpIbu = trim($item['nohp_ibu'] ?? $item['no_telepon_ibu'] ?? '');
 
-                $namaWali       = trim($item['nama_wali'] ?? '');
-                $tglLahirWali   = trim($item['tgl_lahir_wali'] ?? '');
+                $namaWali = trim($item['nama_wali'] ?? '');
+                $tglLahirWali = trim($item['tgl_lahir_wali'] ?? '');
                 $pendidikanWali = trim($item['pendidikan_wali_id_str'] ?? $item['pendidikan_wali'] ?? '');
-                $pekerjaanWali  = trim($item['pekerjaan_wali_id_str'] ?? $item['pekerjaan_wali'] ?? '');
-                $nohpWali       = trim($item['nohp_wali'] ?? $item['no_telepon_wali'] ?? '');
+                $pekerjaanWali = trim($item['pekerjaan_wali_id_str'] ?? $item['pekerjaan_wali'] ?? '');
+                $nohpWali = trim($item['nohp_wali'] ?? $item['no_telepon_wali'] ?? '');
 
-                $hp             = trim($item['nomor_telepon_seluler'] ?? $item['hp'] ?? $item['no_hp'] ?? '');
-                $email          = trim($item['email'] ?? '');
+                $hp = trim($item['nomor_telepon_seluler'] ?? $item['hp'] ?? $item['no_hp'] ?? '');
+                $email = trim($item['email'] ?? '');
 
-                $baseUsername = !empty($nisn) ? $nisn : (!empty($nis) ? $nis : strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nama)));
-                if (empty($baseUsername)) $baseUsername = 'siswa' . rand(100, 999);
+                $baseUsername = ! empty($nisn) ? $nisn : (! empty($nis) ? $nis : strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nama)));
+                if (empty($baseUsername)) {
+                    $baseUsername = 'siswa'.rand(100, 999);
+                }
 
                 $existingId = $existing['id_siswa'] ?? 0;
-                $username   = $baseUsername;
-                $counter    = 1;
+                $username = $baseUsername;
+                $counter = 1;
                 while (DB::table('master_siswa')->where('username', $username)->where('id_siswa', '!=', $existingId)->count() > 0) {
-                    $username = $baseUsername . $counter;
+                    $username = $baseUsername.$counter;
                     $counter++;
                 }
 
                 $data = [
-                    'dapo_id'       => !empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
-                    'nama'          => $nama,
-                    'nisn'          => !empty($nisn) ? $nisn : ($existing['nisn'] ?? ''),
-                    'nis'           => !empty($nis) ? $nis : ($existing['nis'] ?? ''),
+                    'dapo_id' => ! empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
+                    'nama' => $nama,
+                    'nisn' => ! empty($nisn) ? $nisn : ($existing['nisn'] ?? ''),
+                    'nis' => ! empty($nis) ? $nis : ($existing['nis'] ?? ''),
                     'jenis_kelamin' => $gender,
                 ];
 
-                if (!empty($tempatLahir))    $data['tempat_lahir']    = $tempatLahir;
-                if (!empty($tanggalLahir))   $data['tanggal_lahir']   = $tanggalLahir;
-                if (!empty($nik))            $data['nik']             = $nik;
-                if (!empty($agama))          $data['agama']           = $agama;
-                if (!empty($alamat))         $data['alamat']          = $alamat;
-                if (!empty($rt))             $data['rt']              = $rt;
-                if (!empty($rw))             $data['rw']              = $rw;
-                if (!empty($dusun))          $data['dusun']           = $dusun;
-                if (!empty($kelurahan))      $data['kelurahan']       = $kelurahan;
-                if (!empty($kecamatan))      $data['kecamatan']       = $kecamatan;
-                if (!empty($kabupaten))      $data['kabupaten']       = $kabupaten;
-                if (!empty($provinsi))       $data['provinsi']        = $provinsi;
-                if (!empty($kodePos))        $data['kode_pos']        = $kodePos;
+                if (! empty($tempatLahir)) {
+                    $data['tempat_lahir'] = $tempatLahir;
+                }
+                if (! empty($tanggalLahir)) {
+                    $data['tanggal_lahir'] = $tanggalLahir;
+                }
+                if (! empty($nik)) {
+                    $data['nik'] = $nik;
+                }
+                if (! empty($agama)) {
+                    $data['agama'] = $agama;
+                }
+                if (! empty($alamat)) {
+                    $data['alamat'] = $alamat;
+                }
+                if (! empty($rt)) {
+                    $data['rt'] = $rt;
+                }
+                if (! empty($rw)) {
+                    $data['rw'] = $rw;
+                }
+                if (! empty($dusun)) {
+                    $data['dusun'] = $dusun;
+                }
+                if (! empty($kelurahan)) {
+                    $data['kelurahan'] = $kelurahan;
+                }
+                if (! empty($kecamatan)) {
+                    $data['kecamatan'] = $kecamatan;
+                }
+                if (! empty($kabupaten)) {
+                    $data['kabupaten'] = $kabupaten;
+                }
+                if (! empty($provinsi)) {
+                    $data['provinsi'] = $provinsi;
+                }
+                if (! empty($kodePos)) {
+                    $data['kode_pos'] = $kodePos;
+                }
 
-                if (!empty($namaAyah))       $data['nama_ayah']       = $namaAyah;
-                if (!empty($tglLahirAyah))   $data['tgl_lahir_ayah']   = $tglLahirAyah;
-                if (!empty($pendidikanAyah)) $data['pendidikan_ayah'] = $pendidikanAyah;
-                if (!empty($pekerjaanAyah))  $data['pekerjaan_ayah']  = $pekerjaanAyah;
-                if (!empty($nohpAyah))       $data['nohp_ayah']       = $nohpAyah;
+                if (! empty($namaAyah)) {
+                    $data['nama_ayah'] = $namaAyah;
+                }
+                if (! empty($tglLahirAyah)) {
+                    $data['tgl_lahir_ayah'] = $tglLahirAyah;
+                }
+                if (! empty($pendidikanAyah)) {
+                    $data['pendidikan_ayah'] = $pendidikanAyah;
+                }
+                if (! empty($pekerjaanAyah)) {
+                    $data['pekerjaan_ayah'] = $pekerjaanAyah;
+                }
+                if (! empty($nohpAyah)) {
+                    $data['nohp_ayah'] = $nohpAyah;
+                }
 
-                if (!empty($namaIbu))        $data['nama_ibu']        = $namaIbu;
-                if (!empty($tglLahirIbu))    $data['tgl_lahir_ibu']    = $tglLahirIbu;
-                if (!empty($pendidikanIbu))  $data['pendidikan_ibu']  = $pendidikanIbu;
-                if (!empty($pekerjaanIbu))   $data['pekerjaan_ibu']   = $pekerjaanIbu;
-                if (!empty($nohpIbu))        $data['nohp_ibu']        = $nohpIbu;
+                if (! empty($namaIbu)) {
+                    $data['nama_ibu'] = $namaIbu;
+                }
+                if (! empty($tglLahirIbu)) {
+                    $data['tgl_lahir_ibu'] = $tglLahirIbu;
+                }
+                if (! empty($pendidikanIbu)) {
+                    $data['pendidikan_ibu'] = $pendidikanIbu;
+                }
+                if (! empty($pekerjaanIbu)) {
+                    $data['pekerjaan_ibu'] = $pekerjaanIbu;
+                }
+                if (! empty($nohpIbu)) {
+                    $data['nohp_ibu'] = $nohpIbu;
+                }
 
-                if (!empty($namaWali))       $data['nama_wali']       = $namaWali;
-                if (!empty($tglLahirWali))   $data['tgl_lahir_wali']   = $tglLahirWali;
-                if (!empty($pendidikanWali)) $data['pendidikan_wali'] = $pendidikanWali;
-                if (!empty($pekerjaanWali))  $data['pekerjaan_wali']  = $pekerjaanWali;
-                if (!empty($nohpWali))       $data['nohp_wali']       = $nohpWali;
+                if (! empty($namaWali)) {
+                    $data['nama_wali'] = $namaWali;
+                }
+                if (! empty($tglLahirWali)) {
+                    $data['tgl_lahir_wali'] = $tglLahirWali;
+                }
+                if (! empty($pendidikanWali)) {
+                    $data['pendidikan_wali'] = $pendidikanWali;
+                }
+                if (! empty($pekerjaanWali)) {
+                    $data['pekerjaan_wali'] = $pekerjaanWali;
+                }
+                if (! empty($nohpWali)) {
+                    $data['nohp_wali'] = $nohpWali;
+                }
 
-                if (!empty($hp))            $data['hp']              = $hp;
-                if (!empty($email))         $data['email']           = $email;
+                if (! empty($hp)) {
+                    $data['hp'] = $hp;
+                }
+                if (! empty($email)) {
+                    $data['email'] = $email;
+                }
 
                 if ($existing) {
                     // Password baris lama TIDAK boleh disentuh sync. Dulu kode ini
@@ -649,23 +776,24 @@ class DapodikSyncService
                     $tersimpan = DB::table('master_siswa')->where('id_siswa', $existing['id_siswa'])->update($data);
                     if ($tersimpan === false) {
                         $gagal++;
-                        $pesanGagal[] = 'Siswa ' . $nama . ': pembaruan gagal';
+                        $pesanGagal[] = 'Siswa '.$nama.': pembaruan gagal';
+
                         continue;
                     }
                     $siswaId = $existing['id_siswa'];
                     $updated++;
                 } else {
                     // Kolom NOT NULL tanpa default (nik, warga_negara, uid, kelas_awal) wajib diisi pada insert
-                    $data['username']     = $username;
-                    $data['nik']          = !empty($nik) ? $nik : '0';
+                    $data['username'] = $username;
+                    $data['nik'] = ! empty($nik) ? $nik : '0';
                     $data['warga_negara'] = 'Indonesia';
-                    $data['uid']          = $this->generateUid();
+                    $data['uid'] = $this->generateUid();
                     if (Schema::hasColumn('kelas_awal', 'master_siswa')) {
                         $data['kelas_awal'] = 1;
                     }
                     // Akun dibuat terpisah (Usersiswa) dan men-hash nilai ini,
                     // jadi sandi awal default tetap plaintext di master.
-                    $data['password']     = $username;
+                    $data['password'] = $username;
                     try {
                         DB::table('master_siswa')->insert($data);
                     } catch (QueryException $e) {
@@ -673,11 +801,12 @@ class DapodikSyncService
                         // Laravel: QueryException errorInfo[1] berisi kode MySQL.
                         $gagal++;
                         $code = (int) ($e->errorInfo[1] ?? 0);
-                        $pesanGagal[] = 'Siswa ' . $nama . ': '
-                            . ($nisn === '' && $code === 1062
+                        $pesanGagal[] = 'Siswa '.$nama.': '
+                            .($nisn === '' && $code === 1062
                                 ? 'kolom nisn unik dan siswa ini tidak punya NISN — lengkapi NISN-nya lebih dulu'
                                 : 'penyimpanan gagal');
-                        Log::error('[DapodikSync] insert siswa ' . $nama . ' gagal: ' . $e->getMessage());
+                        Log::error('[DapodikSync] insert siswa '.$nama.' gagal: '.$e->getMessage());
+
                         continue;
                     }
                     $siswaId = (int) DB::getPdo()->lastInsertId();
@@ -687,24 +816,25 @@ class DapodikSyncService
                 // Daftarkan ke buku_induk jika belum
                 if ($siswaId && Schema::hasTable('buku_induk')) {
                     $checkBuku = (array) DB::table('buku_induk')->where('id_siswa', $siswaId)->first();
-                    if (!$checkBuku) {
+                    if (! $checkBuku) {
                         DB::table('buku_induk')->insert([
                             'id_siswa' => $siswaId,
-                            'status'   => '1',
+                            'status' => '1',
                         ]);
                     }
                 }
 
                 // Map kelas ke kelas_siswa jika ada nama_rombel / rombel
                 $rombelNama = $item['nama_rombel'] ?? $item['rombel'] ?? '';
-                if (!empty($rombelNama) && $siswaId && Schema::hasTable('master_kelas')) {
+                if (! empty($rombelNama) && $siswaId && Schema::hasTable('master_kelas')) {
                     [$tpAktif, $smtAktif] = $this->getActiveTpSmt();
 
                     if ($tpAktif <= 0 || $smtAktif <= 0) {
                         // Tanpa periode aktif, lookup kelas tidak punya jangkar:
                         // catat sebagai gagal daripada diam-diam tidak memapping.
                         $gagal++;
-                        $pesanGagal[] = 'Siswa ' . $nama . ': tahun/semester aktif belum ditetapkan';
+                        $pesanGagal[] = 'Siswa '.$nama.': tahun/semester aktif belum ditetapkan';
+
                         continue;
                     }
 
@@ -720,17 +850,17 @@ class DapodikSyncService
                 }
             } catch (\Throwable $e) {
                 $gagal++;
-                $pesanGagal[] = 'Siswa: ' . substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
-                Log::error('DapodikSync Siswa Error: ' . $e->getMessage());
+                $pesanGagal[] = 'Siswa: '.substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
+                Log::error('DapodikSync Siswa Error: '.$e->getMessage());
             }
         }
 
-        $status  = $gagal === 0;
+        $status = $gagal === 0;
         $ringkas = "Memproses {$processed} data Peserta Didik ({$added} ditambah, {$updated} diperbarui"
-            . ($gagal > 0 ? ", {$gagal} gagal/tidak ditautkan" : '') . ').';
+            .($gagal > 0 ? ", {$gagal} gagal/tidak ditautkan" : '').').';
         if ($gagal > 0) {
-            $ringkas .= ' Rincian: ' . implode('; ', array_slice($pesanGagal, 0, 5))
-                . (count($pesanGagal) > 5 ? ' +' . (count($pesanGagal) - 5) . ' lainnya' : '');
+            $ringkas .= ' Rincian: '.implode('; ', array_slice($pesanGagal, 0, 5))
+                .(count($pesanGagal) > 5 ? ' +'.(count($pesanGagal) - 5).' lainnya' : '');
         }
         $this->writeLog('siswa', $metode, $status ? 'sukses' : 'parsial', $processed, $added, $updated, $ringkas, $userId);
 
@@ -742,41 +872,44 @@ class DapodikSyncService
     public function syncRombelFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getRombonganBelajar();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = $response['message'] ?? 'Tidak ada data Rombel dari API Dapodik.';
             $this->writeLog('rombel', 'api', 'gagal', 0, 0, 0, $msg, $userId);
+
             return ['status' => false, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
         $this->syncJurusanFromRombel($response['data'], $userId);
         $result = $this->processRombelItems($response['data'], 'api', $userId);
-        if (!empty($result['status'])) {
+        if (! empty($result['status'])) {
             $this->markLastSync();
         }
+
         return $result;
     }
 
     public function processRombelItems(array $items, string $metode = 'api', ?int $userId = null): array
     {
-        $processed   = 0;
-        $added       = 0;
-        $updated     = 0;
-        $skipped     = 0;
+        $processed = 0;
+        $added = 0;
+        $updated = 0;
+        $skipped = 0;
         $mappedSiswa = 0;
-        $gagal       = 0;
-        $pesanGagal  = [];
+        $gagal = 0;
+        $pesanGagal = [];
 
         [$idTp, $idSmt] = $this->getActiveTpSmt();
 
         if ($idTp <= 0 || $idSmt <= 0) {
             $pesan = 'Sinkronisasi Rombongan Belajar ditolak: tahun pelajaran atau semester aktif belum ditetapkan. '
-                . 'Aktifkan lebih dulu di menu Tahun & Semester, lalu jalankan sync lagi.';
+                .'Aktifkan lebih dulu di menu Tahun & Semester, lalu jalankan sync lagi.';
             $this->writeLog('rombel', $metode, 'gagal', 0, 0, 0, $pesan, $userId);
+
             return ['status' => false, 'message' => $pesan, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
         // Cache jurusan & level agar tidak berulang query per rombel
         $jurusanCache = [];
-        $levelCache   = [];
+        $levelCache = [];
 
         // Set pemetaan valid (siswa,kelas,tp,smt) hasil sync, dipakai untuk rekon
         $validMappings = [];
@@ -786,23 +919,26 @@ class DapodikSyncService
             try {
                 // Hanya rombel kelas reguler (jenis_rombel=1 "Kelas") yang dijadikan master_kelas.
                 // Rombel mapel pilihan (jenis=16, dst.) dilewati agar tidak membuat kelas fiktif.
-                if (!empty($item['jenis_rombel']) && (int) $item['jenis_rombel'] !== 1) {
+                if (! empty($item['jenis_rombel']) && (int) $item['jenis_rombel'] !== 1) {
                     $skipped++;
+
                     continue;
                 }
 
                 $dapoId = trim($item['rombongan_belajar_id'] ?? '');
-                $nama   = trim($item['nama'] ?? $item['nama_rombel'] ?? '');
+                $nama = trim($item['nama'] ?? $item['nama_rombel'] ?? '');
 
-                if (empty($nama)) continue;
+                if (empty($nama)) {
+                    continue;
+                }
 
                 $namaNormal = $this->normalizeKelasName($nama);
 
                 $existing = null;
-                if (!empty($dapoId)) {
+                if (! empty($dapoId)) {
                     $existing = (array) DB::table('master_kelas')->where('dapo_id', $dapoId)->first();
                 }
-                if (!$existing) {
+                if (! $existing) {
                     $existing = (array) DB::table('master_kelas')
                         ->whereRaw('LOWER(nama_kelas) = ?', [strtolower($namaNormal)])
                         ->where('id_tp', $idTp)
@@ -815,9 +951,9 @@ class DapodikSyncService
 
                 // Jurusan dari rombel (jurusan_id/jurusan_id_str), resolusi + cache
                 $jurusanDapoId = trim($item['jurusan_id'] ?? '');
-                $jurusanNama   = trim($item['jurusan_id_str'] ?? '');
-                $jurusanKey    = $jurusanNama !== '' ? $jurusanNama : $jurusanDapoId;
-                if ($jurusanKey === '' || !isset($jurusanCache[$jurusanKey])) {
+                $jurusanNama = trim($item['jurusan_id_str'] ?? '');
+                $jurusanKey = $jurusanNama !== '' ? $jurusanNama : $jurusanDapoId;
+                if ($jurusanKey === '' || ! isset($jurusanCache[$jurusanKey])) {
                     $jurusanCache[$jurusanKey] = (int) ($this->resolveJurusanId($jurusanDapoId, $jurusanNama)['id'] ?? 0);
                 }
                 $jurusanId = $jurusanCache[$jurusanKey];
@@ -829,12 +965,12 @@ class DapodikSyncService
                     $wali = (array) DB::table('master_guru')
                         ->where('ptk_id', $waliPtkId)
                         ->first();
-                    if (!$wali) {
+                    if (! $wali) {
                         $wali = (array) DB::table('master_guru')
                             ->where('dapo_id', $waliPtkId)
                             ->first();
                     }
-                    if ($wali && !empty($wali['id_guru'])) {
+                    if ($wali && ! empty($wali['id_guru'])) {
                         $guruId = (int) $wali['id_guru'];
                     }
                 }
@@ -843,28 +979,29 @@ class DapodikSyncService
                 if (is_string($anggotaRombel)) {
                     $anggotaRombel = json_decode($anggotaRombel, true);
                 }
-                if (!is_array($anggotaRombel)) {
+                if (! is_array($anggotaRombel)) {
                     $anggotaRombel = [];
                 }
 
                 $jmlSiswa = count($anggotaRombel);
 
                 $data = [
-                    'dapo_id'      => !empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
-                    'nama_kelas'   => $namaNormal,
-                    'kode_kelas'   => strtoupper(str_replace(' ', '', $namaNormal)),
-                    'id_tp'        => $idTp,
-                    'id_smt'       => $idSmt,
-                    'level_id'     => $levelId,
-                    'jurusan_id'   => $jurusanId,
-                    'guru_id'      => $guruId,
+                    'dapo_id' => ! empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
+                    'nama_kelas' => $namaNormal,
+                    'kode_kelas' => strtoupper(str_replace(' ', '', $namaNormal)),
+                    'id_tp' => $idTp,
+                    'id_smt' => $idSmt,
+                    'level_id' => $levelId,
+                    'jurusan_id' => $jurusanId,
+                    'guru_id' => $guruId,
                 ];
 
                 if ($existing) {
                     $tersimpan = DB::table('master_kelas')->where('id_kelas', $existing['id_kelas'])->update($data);
                     if ($tersimpan === false) {
                         $gagal++;
-                        $pesanGagal[] = 'Rombel ' . $namaNormal . ': pembaruan gagal';
+                        $pesanGagal[] = 'Rombel '.$namaNormal.': pembaruan gagal';
+
                         continue;
                     }
                     $updated++;
@@ -873,7 +1010,8 @@ class DapodikSyncService
                     $tersimpan = DB::table('master_kelas')->insert($data);
                     if ($tersimpan === false) {
                         $gagal++;
-                        $pesanGagal[] = 'Rombel ' . $namaNormal . ': penyimpanan gagal';
+                        $pesanGagal[] = 'Rombel '.$namaNormal.': penyimpanan gagal';
+
                         continue;
                     }
                     $kelasId = (int) (int) DB::getPdo()->lastInsertId();
@@ -887,45 +1025,47 @@ class DapodikSyncService
 
                 // Mapping anggota rombel (peserta_didik_id) → kelas_siswa pada TP/SMT aktif
                 $anggotaIds = [];
-                if (!empty($kelasId) && !empty($anggotaRombel)) {
-                        foreach ($anggotaRombel as $anggota) {
+                if (! empty($kelasId) && ! empty($anggotaRombel)) {
+                    foreach ($anggotaRombel as $anggota) {
                         $pdId = trim($anggota['peserta_didik_id'] ?? '');
                         $nisn = trim($anggota['nisn'] ?? '');
-                        if (empty($pdId) && empty($nisn)) continue;
+                        if (empty($pdId) && empty($nisn)) {
+                            continue;
+                        }
 
                         $siswa = null;
-                        if (!empty($pdId)) {
+                        if (! empty($pdId)) {
                             $siswa = (array) DB::table('master_siswa')->where('dapo_id', $pdId)->first();
                         }
-                        if (!$siswa && !empty($nisn)) {
+                        if (! $siswa && ! empty($nisn)) {
                             $siswa = (array) DB::table('master_siswa')->where('nisn', $nisn)->first();
                         }
 
                         if ($siswa) {
                             $this->upsertKelasSiswa((int) $siswa['id_siswa'], $kelasId, $idTp, $idSmt);
                             $anggotaIds[] = (int) $siswa['id_siswa'];
-                            $validMappings[(int) $siswa['id_siswa'] . '-' . $kelasId] = true;
+                            $validMappings[(int) $siswa['id_siswa'].'-'.$kelasId] = true;
                             $mappedSiswa++;
                         }
                     }
                 }
 
                 // jumlah_siswa disimpan sebagai JSON daftar id siswa, format sama seperti Datakelas::save
-                if (!empty($anggotaIds)) {
+                if (! empty($anggotaIds)) {
                     $jsonSiswa = json_encode(array_map(fn ($id) => ['id' => (string) $id], $anggotaIds));
                     DB::table('master_kelas')->where('id_kelas', $kelasId)->update(['jumlah_siswa' => $jsonSiswa]);
                 }
             } catch (\Throwable $e) {
                 $gagal++;
-                $pesanGagal[] = 'Rombel: ' . substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
-                Log::error('DapodikSync Rombel Error: ' . $e->getMessage());
+                $pesanGagal[] = 'Rombel: '.substr(trim((string) ($item['nama'] ?? '?')), 0, 40);
+                Log::error('DapodikSync Rombel Error: '.$e->getMessage());
             }
         }
 
         // Rekon kelas_siswa untuk TP/SMT aktif: hapus anggota yang tidak ada di rombel aktif,
         // agar tidak ada anggota "hantu" dari sync sebelumnya yang sudah keluar/pindah kelas.
         $removed = 0;
-        if (!empty($validMappings) && Schema::hasTable('kelas_siswa')) {
+        if (! empty($validMappings) && Schema::hasTable('kelas_siswa')) {
             try {
                 $validKelasIds = [];
                 foreach ($validMappings as $key => $v) {
@@ -933,21 +1073,22 @@ class DapodikSyncService
                     $validKelasIds[(int) ($parts[1] ?? 0)] = true;
                 }
                 $kelasIds = array_keys($validKelasIds);
-                if (!empty($kelasIds)) {
+                if (! empty($kelasIds)) {
                     $rows = DB::table('kelas_siswa')
                         ->where('id_tp', $idTp)
                         ->where('id_smt', $idSmt)
                         ->whereIn('id_kelas', $kelasIds)
-                        ->get()->map(fn($r) => (array) $r)->all();
+                        ->get()->map(fn ($r) => (array) $r)->all();
 
                     foreach ($rows as $r) {
-                        $k = (int) $r['id_siswa'] . '-' . (int) $r['id_kelas'];
-                        if (!isset($validMappings[$k])) {
+                        $k = (int) $r['id_siswa'].'-'.(int) $r['id_kelas'];
+                        if (! isset($validMappings[$k])) {
                             $terhapus = DB::table('kelas_siswa')
                                 ->where('id_kelas_siswa', $r['id_kelas_siswa'])->delete();
                             if ($terhapus === false) {
                                 $gagal++;
-                                $pesanGagal[] = 'Anggota kelas id ' . (int) $r['id_kelas_siswa'] . ': gagal dilepas';
+                                $pesanGagal[] = 'Anggota kelas id '.(int) $r['id_kelas_siswa'].': gagal dilepas';
+
                                 continue;
                             }
                             $removed++;
@@ -957,18 +1098,18 @@ class DapodikSyncService
             } catch (\Throwable $e) {
                 $gagal++;
                 $pesanGagal[] = 'Rekon anggota kelas gagal — periksa log aplikasi';
-                Log::error('DapodikSync Rombel Reconcile Error: ' . $e->getMessage());
+                Log::error('DapodikSync Rombel Reconcile Error: '.$e->getMessage());
             }
         }
 
         $status = $gagal === 0;
         $msg = "Memproses {$processed} data Rombongan Belajar ({$added} ditambah, {$updated} diperbarui, {$skipped} dilewati, "
-            . "{$mappedSiswa} siswa dimapping ke kelas"
-            . ($removed > 0 ? ", {$removed} anggota usang dilepas dari kelas" : '')
-            . ($gagal > 0 ? ", {$gagal} gagal" : '') . ').';
+            ."{$mappedSiswa} siswa dimapping ke kelas"
+            .($removed > 0 ? ", {$removed} anggota usang dilepas dari kelas" : '')
+            .($gagal > 0 ? ", {$gagal} gagal" : '').').';
         if ($gagal > 0) {
-            $msg .= ' Rincian: ' . implode('; ', array_slice($pesanGagal, 0, 5))
-                . (count($pesanGagal) > 5 ? ' +' . (count($pesanGagal) - 5) . ' lainnya' : '');
+            $msg .= ' Rincian: '.implode('; ', array_slice($pesanGagal, 0, 5))
+                .(count($pesanGagal) > 5 ? ' +'.(count($pesanGagal) - 5).' lainnya' : '');
         }
         $this->writeLog('rombel', $metode, $status ? 'sukses' : 'parsial', $processed, $added, $updated, $msg, $userId);
 
@@ -984,16 +1125,20 @@ class DapodikSyncService
 
         $addMapel = function (array $pembelajaran) use (&$mapelItems, &$mapelIndex) {
             $mapelNama = trim($pembelajaran['nama_mata_pelajaran'] ?? $pembelajaran['mata_pelajaran_nama'] ?? '');
-            $mapelId   = trim($pembelajaran['mata_pelajaran_id'] ?? '');
-            if (empty($mapelNama)) return;
+            $mapelId = trim($pembelajaran['mata_pelajaran_id'] ?? '');
+            if (empty($mapelNama)) {
+                return;
+            }
 
             $key = $mapelId ?: $mapelNama;
-            if (isset($mapelIndex[$key])) return;
+            if (isset($mapelIndex[$key])) {
+                return;
+            }
             $mapelIndex[$key] = true;
 
             // Kelompok mapel: "Matpel Pilihan" → C (Peminatan), selainnya default A
-            $statusKur   = trim($pembelajaran['status_di_kurikulum_str'] ?? '');
-            $kelompok    = 'A';
+            $statusKur = trim($pembelajaran['status_di_kurikulum_str'] ?? '');
+            $kelompok = 'A';
             if (mb_stripos($statusKur, 'Pilih') !== false) {
                 $kelompok = 'C';
             } elseif (mb_stripos($statusKur, 'Lintas Minat') !== false) {
@@ -1003,15 +1148,15 @@ class DapodikSyncService
             }
 
             $mapelItems[] = [
-                'dapo_id'  => $mapelId,
-                'nama'     => $mapelNama,
+                'dapo_id' => $mapelId,
+                'nama' => $mapelNama,
                 'kelompok' => $kelompok,
             ];
         };
 
         // 1) Coba endpoint getPembelajaran (jika tersedia di server web service)
         $resPem = $client->getPembelajaran();
-        if ($resPem['status'] && !empty($resPem['data'])) {
+        if ($resPem['status'] && ! empty($resPem['data'])) {
             $pemRows = $resPem['data']['rows'] ?? $resPem['data'];
             if (is_array($pemRows)) {
                 foreach ($pemRows as $pembelajaran) {
@@ -1023,7 +1168,7 @@ class DapodikSyncService
         // 2) Fallback: data mapel tersarang di field "pembelajaran" pada respons getRombonganBelajar
         if (empty($mapelItems)) {
             $resRombel = $client->getRombonganBelajar();
-            if ($resRombel['status'] && !empty($resRombel['data'])) {
+            if ($resRombel['status'] && ! empty($resRombel['data'])) {
                 $rombelRows = $resRombel['data']['rows'] ?? $resRombel['data'];
                 if (is_array($rombelRows)) {
                     foreach ($rombelRows as $rombel) {
@@ -1040,11 +1185,12 @@ class DapodikSyncService
         if (empty($mapelItems)) {
             $msg = 'Tidak ada data Mata Pelajaran dari API Dapodik.';
             $this->writeLog('mapel', 'api', 'gagal', 0, 0, 0, $msg, $userId);
+
             return ['status' => false, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
         $result = $this->processMapelItems($mapelItems, 'api', $userId);
-        if (!empty($result['status'])) {
+        if (! empty($result['status'])) {
             $this->markLastSync();
         }
 
@@ -1054,30 +1200,32 @@ class DapodikSyncService
     public function processMapelItems(array $items, string $metode = 'api', ?int $userId = null): array
     {
         $processed = 0;
-        $added     = 0;
-        $updated   = 0;
+        $added = 0;
+        $updated = 0;
 
         foreach ($items as $item) {
             $processed++;
             try {
-                $dapoId   = trim($item['dapo_id'] ?? $item['mata_pelajaran_id'] ?? '');
-                $nama     = trim($item['nama'] ?? $item['nama_mata_pelajaran'] ?? '');
+                $dapoId = trim($item['dapo_id'] ?? $item['mata_pelajaran_id'] ?? '');
+                $nama = trim($item['nama'] ?? $item['nama_mata_pelajaran'] ?? '');
                 $kelompok = trim($item['kelompok'] ?? '');
 
-                if (empty($nama)) continue;
+                if (empty($nama)) {
+                    continue;
+                }
 
                 $existing = null;
-                if (!empty($dapoId)) {
+                if (! empty($dapoId)) {
                     $existing = (array) DB::table('master_mapel')->where('dapo_id', $dapoId)->first();
                 }
-                if (!$existing) {
+                if (! $existing) {
                     $existing = (array) DB::table('master_mapel')->whereRaw('LOWER(nama_mapel) = ?', [strtolower($nama)])->first();
                 }
-                if (!$existing) {
+                if (! $existing) {
                     $targetNorm = $this->normalizeMapelKey($nama);
-                    $allMapel   = DB::table('master_mapel')->get()->map(fn($r) => (array) $r)->all();
+                    $allMapel = DB::table('master_mapel')->get()->map(fn ($r) => (array) $r)->all();
                     foreach ($allMapel as $m) {
-                        if (!empty($m['nama_mapel']) && $this->normalizeMapelKey($m['nama_mapel']) === $targetNorm) {
+                        if (! empty($m['nama_mapel']) && $this->normalizeMapelKey($m['nama_mapel']) === $targetNorm) {
                             $existing = $m;
                             break;
                         }
@@ -1085,13 +1233,13 @@ class DapodikSyncService
                 }
 
                 $data = [
-                    'dapo_id'    => !empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
+                    'dapo_id' => ! empty($dapoId) ? $dapoId : ($existing['dapo_id'] ?? null),
                     'nama_mapel' => $nama,
-                    'kode'       => !empty($existing['kode']) ? $existing['kode'] : strtoupper(substr(str_replace(' ', '', $nama), 0, 10)),
+                    'kode' => ! empty($existing['kode']) ? $existing['kode'] : strtoupper(substr(str_replace(' ', '', $nama), 0, 10)),
                 ];
 
                 // Kelompok mapel hanya diisi jika belum pernah diset (hindari menimpa setting manual)
-                if ($kelompok !== '' && $kelompok !== '-' && (!$existing || empty($existing['kelompok']) || $existing['kelompok'] === '-')) {
+                if ($kelompok !== '' && $kelompok !== '-' && (! $existing || empty($existing['kelompok']) || $existing['kelompok'] === '-')) {
                     $data['kelompok'] = $kelompok;
                 }
 
@@ -1115,7 +1263,7 @@ class DapodikSyncService
                     $added++;
                 }
             } catch (\Throwable $e) {
-                Log::error('DapodikSync Mapel Error: ' . $e->getMessage());
+                Log::error('DapodikSync Mapel Error: '.$e->getMessage());
             }
         }
 
@@ -1134,27 +1282,33 @@ class DapodikSyncService
     public function syncJurusanFromRombel(array $rombelItems, ?int $userId = null): array
     {
         $processed = 0;
-        $added     = 0;
-        $updated   = 0;
+        $added = 0;
+        $updated = 0;
 
         try {
             $seen = [];
             foreach ($rombelItems as $item) {
-                if (!empty($item['jenis_rombel']) && (int) $item['jenis_rombel'] !== 1) continue;
+                if (! empty($item['jenis_rombel']) && (int) $item['jenis_rombel'] !== 1) {
+                    continue;
+                }
 
                 $dapoId = trim($item['jurusan_id'] ?? '');
-                $nama   = trim($item['jurusan_id_str'] ?? '');
-                if ($nama === '' && $dapoId === '') continue;
+                $nama = trim($item['jurusan_id_str'] ?? '');
+                if ($nama === '' && $dapoId === '') {
+                    continue;
+                }
 
                 $key = $nama !== '' ? $nama : $dapoId;
-                if (isset($seen[$key])) continue;
+                if (isset($seen[$key])) {
+                    continue;
+                }
                 $seen[$key] = true;
 
                 $processed++;
                 $res = $this->resolveJurusanId($dapoId, $nama);
-                if (!empty($res['created'])) {
+                if (! empty($res['created'])) {
                     $added++;
-                } elseif (!empty($res['id'])) {
+                } elseif (! empty($res['id'])) {
                     $updated++;
                 }
             }
@@ -1164,7 +1318,8 @@ class DapodikSyncService
 
             return ['status' => true, 'message' => $msg, 'processed' => $processed, 'added' => $added, 'updated' => $updated];
         } catch (\Throwable $e) {
-            Log::error('syncJurusanFromRombel error: ' . $e->getMessage());
+            Log::error('syncJurusanFromRombel error: '.$e->getMessage());
+
             return ['status' => false, 'message' => 'Gagal memproses jurusan — periksa log aplikasi.', 'processed' => $processed, 'added' => $added, 'updated' => $updated];
         }
     }
@@ -1172,7 +1327,7 @@ class DapodikSyncService
     // ── OFFLINE DUMP IMPORT ─────────────────────────────────────────────────
     public function processOfflineDump(string $filePath, string $entitas, ?int $userId = null): array
     {
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             return ['status' => false, 'message' => "File tidak ditemukan: {$filePath}"];
         }
 
@@ -1190,7 +1345,7 @@ class DapodikSyncService
             }
 
             $items = $json['rows'] ?? $json['data'] ?? $json;
-            if (!is_array($items)) {
+            if (! is_array($items)) {
                 return ['status' => false, 'message' => 'Struktur data JSON tidak valid.'];
             }
 
@@ -1199,17 +1354,18 @@ class DapodikSyncService
                     return $this->processGtkItems($items, 'offline_json', $userId);
                 case 'siswa':
                     return $this->processSiswaItems($items, 'offline_json', $userId);
-            case 'rombel':
-                foreach ($items as &$rombelItem) {
-                    if (isset($rombelItem['anggota_rombel']) && is_string($rombelItem['anggota_rombel'])) {
-                        $decoded = json_decode($rombelItem['anggota_rombel'], true);
-                        if (is_array($decoded)) {
-                            $rombelItem['anggota_rombel'] = $decoded;
+                case 'rombel':
+                    foreach ($items as &$rombelItem) {
+                        if (isset($rombelItem['anggota_rombel']) && is_string($rombelItem['anggota_rombel'])) {
+                            $decoded = json_decode($rombelItem['anggota_rombel'], true);
+                            if (is_array($decoded)) {
+                                $rombelItem['anggota_rombel'] = $decoded;
+                            }
                         }
                     }
-                }
-                unset($rombelItem);
-                return $this->processRombelItems($items, 'offline_json', $userId);
+                    unset($rombelItem);
+
+                    return $this->processRombelItems($items, 'offline_json', $userId);
                 case 'mapel':
                     return $this->processMapelItems($items, 'offline_json', $userId);
                 default:
@@ -1222,12 +1378,12 @@ class DapodikSyncService
 
     protected function processZipDump(string $zipPath, ?int $userId = null): array
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath) !== true) {
             return ['status' => false, 'message' => 'Gagal membuka file ZIP.'];
         }
 
-        $tmpDir = sys_get_temp_dir() . '/dapo_zip_' . uniqid();
+        $tmpDir = sys_get_temp_dir().'/dapo_zip_'.uniqid();
         mkdir($tmpDir, 0777, true);
         $zip->extractTo($tmpDir);
         $zip->close();
@@ -1235,8 +1391,10 @@ class DapodikSyncService
         $results = [];
         $files = scandir($tmpDir);
         foreach ($files as $file) {
-            if ($file === '.' || $file === '..') continue;
-            $full = $tmpDir . '/' . $file;
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            $full = $tmpDir.'/'.$file;
             $lower = strtolower($file);
 
             if (str_contains($lower, 'gtk') || str_contains($lower, 'guru')) {
@@ -1255,7 +1413,7 @@ class DapodikSyncService
         rmdir($tmpDir);
 
         return [
-            'status'  => true,
+            'status' => true,
             'message' => 'Import paket ZIP Dapodik selesai.',
             'results' => $results,
         ];
@@ -1278,7 +1436,7 @@ class DapodikSyncService
         if (Schema::hasTable('level_kelas')) {
             if ($tingkat > 0) {
                 $row = (array) DB::table('level_kelas')->where('level', $tingkat)->first();
-                if ($row && !empty($row['id_level'])) {
+                if ($row && ! empty($row['id_level'])) {
                     $levelId = (int) $row['id_level'];
                 }
             }
@@ -1306,7 +1464,7 @@ class DapodikSyncService
             return ['id' => 0, 'created' => false];
         }
 
-        if (!Schema::hasTable('master_jurusan')) {
+        if (! Schema::hasTable('master_jurusan')) {
             return ['id' => 0, 'created' => false];
         }
 
@@ -1316,13 +1474,13 @@ class DapodikSyncService
                 ->whereRaw('LOWER(nama_jurusan) = ?', [strtolower($nama)])
                 ->first();
         }
-        if (!$existing && $kode !== '') {
+        if (! $existing && $kode !== '') {
             $existing = (array) DB::table('master_jurusan')
                 ->where('kode_jurusan', strtoupper($kode))
                 ->first();
         }
         // Fallback: "Umum" / "M0000000" → "NON JURUSAN" jika sudah ada
-        if (!$existing && in_array(strtoupper($kode), ['M0000000', 'M000000'], true)) {
+        if (! $existing && in_array(strtoupper($kode), ['M0000000', 'M000000'], true)) {
             $existing = (array) DB::table('master_jurusan')
                 ->whereRaw('LOWER(nama_jurusan) = ?', ['non jurusan'])
                 ->first();
@@ -1336,7 +1494,7 @@ class DapodikSyncService
             if ($kode !== '' && strtoupper($existing['kode_jurusan'] ?? '') !== strtoupper($kode)) {
                 $update['kode_jurusan'] = strtoupper(substr($kode, 0, 10));
             }
-            if (!empty($update)) {
+            if (! empty($update)) {
                 DB::table('master_jurusan')->where('id_jurusan', $existing['id_jurusan'])->update($update);
             }
 
@@ -1344,13 +1502,15 @@ class DapodikSyncService
         }
 
         $kodeFinal = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $kode !== '' ? $kode : $nama), 0, 10));
-        if ($kodeFinal === '') $kodeFinal = 'JRS';
+        if ($kodeFinal === '') {
+            $kodeFinal = 'JRS';
+        }
 
         DB::table('master_jurusan')->insert([
-            'nama_jurusan' => $nama !== '' ? $nama : ('Jurusan ' . $kode),
+            'nama_jurusan' => $nama !== '' ? $nama : ('Jurusan '.$kode),
             'kode_jurusan' => $kodeFinal,
-            'status'       => 1,
-            'deletable'    => 1,
+            'status' => 1,
+            'deletable' => 1,
         ]);
 
         return ['id' => (int) (int) DB::getPdo()->lastInsertId(), 'created' => true];
@@ -1362,10 +1522,12 @@ class DapodikSyncService
      */
     protected function upsertWaliKelas(int $idGuru, int $idKelas, int $idTp, int $idSmt): void
     {
-        if (!$idGuru || !$idKelas || !Schema::hasTable('jabatan_guru')) return;
+        if (! $idGuru || ! $idKelas || ! Schema::hasTable('jabatan_guru')) {
+            return;
+        }
 
         try {
-            $model = new JabatanGuruModel();
+            $model = new JabatanGuruModel;
 
             // Satu kelas satu wali: lepas wali lama pada kelas ini lebih dulu.
             $model->releaseWaliKelas($idTp, $idSmt, $idKelas, $idGuru);
@@ -1379,7 +1541,7 @@ class DapodikSyncService
             // berbeda antara jabatan_guru dan data kelas.
             $model->syncWaliToMasterKelas($idGuru, $idTp, $idSmt, $idKelas);
         } catch (\Throwable $e) {
-            Log::error('upsertWaliKelas Error: ' . $e->getMessage());
+            Log::error('upsertWaliKelas Error: '.$e->getMessage());
         }
     }
 
@@ -1391,6 +1553,7 @@ class DapodikSyncService
         $name = strtoupper(trim($name));
         $name = str_replace(['-', '_', '.', '/'], ' ', $name);
         $name = preg_replace('/\s+/', ' ', $name);
+
         return trim((string) $name);
     }
 
@@ -1401,19 +1564,19 @@ class DapodikSyncService
      */
     protected function getActiveTpSmt(): array
     {
-        $tp  = 0;
+        $tp = 0;
         $smt = 0;
 
         if (Schema::hasTable('master_tp') && Schema::hasColumn('active', 'master_tp')) {
             $row = (array) DB::table('master_tp')->where('active', '1')->first();
-            if ($row && !empty($row['id_tp'])) {
+            if ($row && ! empty($row['id_tp'])) {
                 $tp = (int) $row['id_tp'];
             }
         }
 
         if (Schema::hasTable('master_smt') && Schema::hasColumn('active', 'master_smt')) {
             $row = (array) DB::table('master_smt')->where('active', '1')->first();
-            if ($row && !empty($row['id_smt'])) {
+            if ($row && ! empty($row['id_smt'])) {
                 $smt = (int) $row['id_smt'];
             }
         }
@@ -1434,10 +1597,10 @@ class DapodikSyncService
             try {
                 DB::table('dapodik_settings')->where('id', '>', 0)->update([
                     'last_sync_at' => date('Y-m-d H:i:s'),
-                    'updated_at'   => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 ]);
             } catch (\Throwable $e) {
-                Log::error('markLastSync Dapodik Error: ' . $e->getMessage());
+                Log::error('markLastSync Dapodik Error: '.$e->getMessage());
             }
         }
     }
@@ -1449,14 +1612,14 @@ class DapodikSyncService
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff)
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0x0FFF) | 0x4000,
+            mt_rand(0, 0x3FFF) | 0x8000,
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0xFFFF),
+            mt_rand(0, 0xFFFF)
         );
     }
 
@@ -1465,8 +1628,17 @@ class DapodikSyncService
      */
     protected function generateKelasSiswaId(): int
     {
-        $row = (array) DB::table('kelas_siswa')->selectRaw('MAX(id_kelas_siswa) as id_kelas_siswa')->first();
-        return (int) ($row['id_kelas_siswa'] ?? 0) + 1;
+        return DB::transaction(function () {
+            // Lock baris dengan id_kelas_siswa tertinggi agar dua proses sync
+            // yang berjalan bersamaan tidak menghasilkan ID duplikat (race condition).
+            $row = (array) DB::table('kelas_siswa')
+                ->orderBy('id_kelas_siswa', 'desc')
+                ->limit(1)
+                ->lockForUpdate()
+                ->first();
+
+            return (int) ($row['id_kelas_siswa'] ?? 0) + 1;
+        });
     }
 
     /**
@@ -1474,7 +1646,9 @@ class DapodikSyncService
      */
     protected function upsertKelasSiswa(int $idSiswa, int $idKelas, int $idTp, int $idSmt): void
     {
-        if (!$idSiswa || !$idKelas || !Schema::hasTable('kelas_siswa')) return;
+        if (! $idSiswa || ! $idKelas || ! Schema::hasTable('kelas_siswa')) {
+            return;
+        }
 
         try {
             $existing = (array) DB::table('kelas_siswa')
@@ -1487,18 +1661,19 @@ class DapodikSyncService
                 if ((int) $existing['id_kelas'] !== $idKelas) {
                     DB::table('kelas_siswa')->where('id_kelas_siswa', $existing['id_kelas_siswa'])->update(['id_kelas' => $idKelas]);
                 }
+
                 return;
             }
 
             DB::table('kelas_siswa')->insert([
                 'id_kelas_siswa' => $this->generateKelasSiswaId(),
-                'id_tp'          => $idTp,
-                'id_smt'         => $idSmt,
-                'id_siswa'       => $idSiswa,
-                'id_kelas'       => $idKelas,
+                'id_tp' => $idTp,
+                'id_smt' => $idSmt,
+                'id_siswa' => $idSiswa,
+                'id_kelas' => $idKelas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('upsertKelasSiswa Error: ' . $e->getMessage());
+            Log::error('upsertKelasSiswa Error: '.$e->getMessage());
         }
     }
 
@@ -1506,27 +1681,29 @@ class DapodikSyncService
 
     protected function writeLog(string $entitas, string $metode, string $status, int $processed, int $added, int $updated, string $keterangan, ?int $userId = null): void
     {
-        if (!Schema::hasTable('dapodik_log')) return;
+        if (! Schema::hasTable('dapodik_log')) {
+            return;
+        }
 
         try {
             $tersimpan = DB::table('dapodik_log')->insert([
-                'entitas'          => $entitas,
-                'metode'           => $metode,
-                'status'           => $status,
-                'total_diperoses'  => $processed,
-                'total_ditambah'   => $added,
+                'entitas' => $entitas,
+                'metode' => $metode,
+                'status' => $status,
+                'total_diperoses' => $processed,
+                'total_ditambah' => $added,
                 'total_diperbarui' => $updated,
-                'keterangan'       => $keterangan,
-                'created_by'       => $userId,
-                'created_at'       => date('Y-m-d H:i:s'),
+                'keterangan' => $keterangan,
+                'created_by' => $userId,
+                'created_at' => date('Y-m-d H:i:s'),
             ]);
             if ($tersimpan === false) {
                 // Kolom yang tidak cocok (mis. tabel lama) membuat ENUM menolak
                 // nilai; tanpa catatan ini riwayat hilang tanpa jejak.
-                Log::error('[DapodikSync] writeLog ' . $entitas . '/' . $status . ' gagal.');
+                Log::error('[DapodikSync] writeLog '.$entitas.'/'.$status.' gagal.');
             }
         } catch (\Throwable $e) {
-            Log::error('writeLog Dapodik Error: ' . $e->getMessage());
+            Log::error('writeLog Dapodik Error: '.$e->getMessage());
         }
     }
 
@@ -1535,17 +1712,17 @@ class DapodikSyncService
      */
     private function parseAgama(array $item): string
     {
-        $val = trim((string)($item['agama_id_str'] ?? $item['agama'] ?? $item['nama_agama'] ?? $item['agama_id'] ?? ''));
+        $val = trim((string) ($item['agama_id_str'] ?? $item['agama'] ?? $item['nama_agama'] ?? $item['agama_id'] ?? ''));
 
         // Standar ID Referensi Web Service Dapodik Kemendikbud
         $map = [
-            '1'  => 'Islam',
-            '2'  => 'Kristen',
-            '3'  => 'Katolik',
-            '4'  => 'Hindu',
-            '5'  => 'Buddha',
-            '6'  => 'Khonghucu',
-            '7'  => 'Kepercayaan thd Tuhan YME',
+            '1' => 'Islam',
+            '2' => 'Kristen',
+            '3' => 'Katolik',
+            '4' => 'Hindu',
+            '5' => 'Buddha',
+            '6' => 'Khonghucu',
+            '7' => 'Kepercayaan thd Tuhan YME',
             '99' => 'Lainnya',
         ];
 
@@ -1553,16 +1730,32 @@ class DapodikSyncService
             return $map[$val];
         }
 
-        if (empty($val)) return '';
+        if (empty($val)) {
+            return '';
+        }
 
         $lower = strtolower($val);
-        if (str_contains($lower, 'islam')) return 'Islam';
-        if (str_contains($lower, 'kristen') || str_contains($lower, 'protestan')) return 'Kristen';
-        if (str_contains($lower, 'katolik') || str_contains($lower, 'katholik')) return 'Katolik';
-        if (str_contains($lower, 'hindu')) return 'Hindu';
-        if (str_contains($lower, 'buddha') || str_contains($lower, 'budha')) return 'Buddha';
-        if (str_contains($lower, 'khonghucu') || str_contains($lower, 'konghucu')) return 'Khonghucu';
-        if (str_contains($lower, 'kepercayaan')) return 'Kepercayaan thd Tuhan YME';
+        if (str_contains($lower, 'islam')) {
+            return 'Islam';
+        }
+        if (str_contains($lower, 'kristen') || str_contains($lower, 'protestan')) {
+            return 'Kristen';
+        }
+        if (str_contains($lower, 'katolik') || str_contains($lower, 'katholik')) {
+            return 'Katolik';
+        }
+        if (str_contains($lower, 'hindu')) {
+            return 'Hindu';
+        }
+        if (str_contains($lower, 'buddha') || str_contains($lower, 'budha')) {
+            return 'Buddha';
+        }
+        if (str_contains($lower, 'khonghucu') || str_contains($lower, 'konghucu')) {
+            return 'Khonghucu';
+        }
+        if (str_contains($lower, 'kepercayaan')) {
+            return 'Kepercayaan thd Tuhan YME';
+        }
 
         return mb_substr($val, 0, 50);
     }
@@ -1579,13 +1772,13 @@ class DapodikSyncService
         $synonyms = [
             'pendidikanagama' => 'agama',
             'danbudipekerti' => '',
-            'danbudi'        => '',
-            'danolahraga'    => '',
-            'dankesehatan'   => '',
-            'olahraga'       => 'jasmani',
-            'olah'           => '',
-            'raga'           => '',
-            'kewarganegaraan'=> '',
+            'danbudi' => '',
+            'danolahraga' => '',
+            'dankesehatan' => '',
+            'olahraga' => 'jasmani',
+            'olah' => '',
+            'raga' => '',
+            'kewarganegaraan' => '',
         ];
 
         foreach ($synonyms as $find => $rep) {
@@ -1600,9 +1793,10 @@ class DapodikSyncService
     public function syncPembelajaranFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getPembelajaran();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = 'Versi Web Service Dapodik lokal di sekolah Anda belum menyediakan rincian jam mengajar. Penugasan mata pelajaran per kelas dapat dikelola secara mandiri pada menu Penugasan Guru.';
             $this->writeLog('pembelajaran', 'api', 'sukses', 0, 0, 0, $msg, $userId);
+
             return ['status' => true, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
@@ -1617,37 +1811,42 @@ class DapodikSyncService
     public function processPembelajaranItems(array $items, string $source = 'api', ?int $userId = null): array
     {
         $processed = count($items);
-        $updated   = 0;
-        $gagal     = 0;
+        $updated = 0;
+        $gagal = 0;
 
         // Penugasan guru selalu per tahun pelajaran & semester aktif.
         [$idTp, $idSmt] = $this->getActiveTpSmt();
         if ($idTp <= 0 || $idSmt <= 0) {
             $pesan = 'Sinkronisasi pembelajaran ditolak: tahun pelajaran atau semester aktif belum ditetapkan.';
             $this->writeLog('pembelajaran', $source, 'gagal', $processed, 0, 0, $pesan, $userId);
+
             return ['status' => false, 'message' => $pesan, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
         $assignments = [];
         foreach ($items as $item) {
             $ptkId = $item['ptk_id'] ?? $item['ptk_terdaftar_id'] ?? null;
-            if (!$ptkId) continue;
+            if (! $ptkId) {
+                continue;
+            }
 
-            $mapelId  = $item['mata_pelajaran_id'] ?? null;
+            $mapelId = $item['mata_pelajaran_id'] ?? null;
             $rombelId = $item['rombongan_belajar_id'] ?? null;
 
-            if (!$mapelId || !$rombelId) continue;
+            if (! $mapelId || ! $rombelId) {
+                continue;
+            }
 
             $mapelRow = DB::table('master_mapel')->where('dapo_id', $mapelId)->first();
             $kelasRow = DB::table('master_kelas')->where('dapo_id', $rombelId)->first();
 
             if ($mapelRow && $kelasRow) {
-                if (!isset($assignments[$ptkId])) {
+                if (! isset($assignments[$ptkId])) {
                     $assignments[$ptkId] = [];
                 }
                 $assignments[$ptkId][] = [
                     'id_mapel' => $mapelRow->id_mapel,
-                    'id_kelas' => $kelasRow->id_kelas
+                    'id_kelas' => $kelasRow->id_kelas,
                 ];
             }
         }
@@ -1659,10 +1858,10 @@ class DapodikSyncService
                 foreach ($list as $assign) {
                     $mId = $assign['id_mapel'];
                     $kId = $assign['id_kelas'];
-                    if (!isset($groupedMapel[$mId])) {
+                    if (! isset($groupedMapel[$mId])) {
                         $groupedMapel[$mId] = [
                             'id_mapel' => $mId,
-                            'kelas_mapel' => []
+                            'kelas_mapel' => [],
                         ];
                     }
                     $groupedMapel[$mId]['kelas_mapel'][] = ['kelas' => $kId];
@@ -1672,7 +1871,7 @@ class DapodikSyncService
 
                 // Simpan mapel_kelas ke jabatan_guru (sesuai struktur sistem)
                 if (Schema::hasTable('jabatan_guru')) {
-                    (new JabatanGuruModel())->upsert(
+                    (new JabatanGuruModel)->upsert(
                         (int) $guru->id_guru,
                         (int) $idTp,
                         (int) $idSmt,
@@ -1681,7 +1880,7 @@ class DapodikSyncService
                 }
                 if (Schema::hasColumn('mapel_kelas', 'master_guru')) {
                     DB::table('master_guru')->where('id_guru', $guru->id_guru)->update([
-                        'mapel_kelas' => $jsonMapelKelas
+                        'mapel_kelas' => $jsonMapelKelas,
                     ]);
                 }
                 $updated++;
@@ -1689,6 +1888,7 @@ class DapodikSyncService
         }
 
         $this->writeLog('pembelajaran', $source, 'sukses', $processed, 0, $updated, "Data pembelajaran diselaraskan ke {$updated} guru.", $userId);
+
         return ['status' => true, 'message' => "{$updated} guru berhasil diselaraskan penugasan pengampunya.", 'processed' => $processed, 'added' => 0, 'updated' => $updated];
     }
 
@@ -1697,13 +1897,14 @@ class DapodikSyncService
     public function syncRuangFromApi(DapodikClient $client, ?int $userId = null): array
     {
         $response = $client->getRuang();
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $response = $client->getSarpras();
         }
 
-        if (!$response['status'] || empty($response['data'])) {
+        if (! $response['status'] || empty($response['data'])) {
             $msg = 'Versi Web Service Dapodik lokal di sekolah Anda belum menyediakan rincian sarpras ruang (dilewati).';
             $this->writeLog('ruang', 'api', 'sukses', 0, 0, 0, $msg, $userId);
+
             return ['status' => true, 'message' => $msg, 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
@@ -1721,32 +1922,34 @@ class DapodikSyncService
         $added = 0;
         $updated = 0;
 
-        if (!Schema::hasTable('cbt_ruang')) {
+        if (! Schema::hasTable('cbt_ruang')) {
             return ['status' => true, 'message' => 'Ruang tidak digunakan (dilewati).', 'processed' => 0, 'added' => 0, 'updated' => 0];
         }
 
         foreach ($items as $item) {
-            $ruangId   = $item['ruang_id'] ?? $item['id_ruang'] ?? $item['prasarana_id'] ?? null;
+            $ruangId = $item['ruang_id'] ?? $item['id_ruang'] ?? $item['prasarana_id'] ?? null;
             $namaRuang = $item['nama_ruang'] ?? $item['nama'] ?? '';
             $kodeRuang = $item['kode_ruang'] ?? substr(strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $namaRuang)), 0, 10);
 
-            if (empty($namaRuang)) continue;
+            if (empty($namaRuang)) {
+                continue;
+            }
 
             $existing = null;
-            if (!empty($ruangId)) {
+            if (! empty($ruangId)) {
                 $existing = DB::table('cbt_ruang')->where('sync_uuid', $ruangId)->first();
             }
-            if (!$existing) {
+            if (! $existing) {
                 $existing = DB::table('cbt_ruang')->whereRaw('LOWER(nama_ruang) = ?', [strtolower($namaRuang)])->first();
             }
 
             $payload = [
-                'nama_ruang'  => $namaRuang,
-                'kode_ruang'  => $kodeRuang ?: 'RUANG',
-                'sync_uuid'   => $ruangId ?: null,
+                'nama_ruang' => $namaRuang,
+                'kode_ruang' => $kodeRuang ?: 'RUANG',
+                'sync_uuid' => $ruangId ?: null,
                 'sync_status' => 'synced',
-                'sync_at'     => date('Y-m-d H:i:s'),
-                'sync_origin' => 'pusat'
+                'sync_at' => date('Y-m-d H:i:s'),
+                'sync_origin' => 'pusat',
             ];
 
             if ($existing) {
@@ -1759,6 +1962,7 @@ class DapodikSyncService
         }
 
         $this->writeLog('ruang', $source, 'sukses', $processed, $added, $updated, "Data ruang diselaraskan ({$added} baru, {$updated} diperbarui).", $userId);
+
         return ['status' => true, 'message' => "{$processed} ruang diproses ({$added} baru, {$updated} diperbarui).", 'processed' => $processed, 'added' => $added, 'updated' => $updated];
     }
 
@@ -1772,6 +1976,7 @@ class DapodikSyncService
         $name = preg_replace('/\b(s\.?pd|s\.?ip|s\.?e|s\.?t|s\.?kom|s\.?ag|s\.?si|m\.?pd|m\.?si|m\.?m|a\.?md|gr)\b/i', '', $name);
         // Remove non-alphanumeric except spaces
         $name = preg_replace('/[^a-zA-Z0-9\s]/', '', $name);
+
         return strtolower(trim(preg_replace('/\s+/', ' ', $name)));
     }
 
@@ -1794,23 +1999,23 @@ class DapodikSyncService
     protected function indeksNamaUnlinked(string $tabel, string $kolomPk, string $kolomNama, array $kolomIdentitas, array $kolomLain = []): array
     {
         $indeks = [];
-        if (!Schema::hasTable($tabel)) {
+        if (! Schema::hasTable($tabel)) {
             return $indeks;
         }
 
         $kolom = array_merge([$kolomPk, $kolomNama], $kolomIdentitas, $kolomLain);
         $kolom = array_values(array_unique(array_filter(
             $kolom,
-            fn($k) => Schema::hasColumn($k, $tabel)
+            fn ($k) => Schema::hasColumn($k, $tabel)
         )));
         if ($kolom === []) {
             return $indeks;
         }
 
-        $rows = DB::table($tabel)->select($kolom)->get()->map(fn($r) => (array) $r)->all();
+        $rows = DB::table($tabel)->select($kolom)->get()->map(fn ($r) => (array) $r)->all();
         foreach ($rows as $baris) {
             foreach ($kolomIdentitas as $k) {
-                if ($k === $kolomNama || !Schema::hasColumn($k, $tabel)) {
+                if ($k === $kolomNama || ! Schema::hasColumn($k, $tabel)) {
                     continue;
                 }
                 if (trim((string) ($baris[$k] ?? '')) !== '') {
@@ -1834,17 +2039,18 @@ class DapodikSyncService
      * baru), atau false bila nama dipakai lebih dari satu baris — pemanggil
      * WAJIB melewati item itu, bukan menimpa orang lain.
      *
-     * @param array<string, array|null> $indeks
+     * @param  array<string, array|null>  $indeks
      */
     protected function cariLewatNama(array $indeks, string $nama, string $label, int &$gagal, array &$pesanGagal)
     {
         $kunci = $this->kunciNama($nama);
-        if ($kunci === '' || !array_key_exists($kunci, $indeks)) {
+        if ($kunci === '' || ! array_key_exists($kunci, $indeks)) {
             return null;
         }
         if ($indeks[$kunci] === null) {
             $gagal++;
-            $pesanGagal[] = $label . ': nama dipakai lebih dari satu baris, tidak ditautkan otomatis';
+            $pesanGagal[] = $label.': nama dipakai lebih dari satu baris, tidak ditautkan otomatis';
+
             return false;
         }
 
