@@ -395,7 +395,7 @@ class PoinHistoryModel extends Model
                     'tipe' => $tipe,
                     'keterangan' => $ket,
                     'ref_id' => $refId,
-                    'created_at' => $r->tgl.' '.($r->jam_masuk ?? '07:00:00'),
+                    'created_at' => $this->buildCreatedAt($r),
                 ]);
                 $inserted++;
             }

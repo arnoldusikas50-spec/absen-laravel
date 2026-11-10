@@ -89,6 +89,38 @@ if (! function_exists('uri_string')) {
     }
 }
 
+if (! function_exists('number_to_size')) {
+    /**
+     * Port CI4 NumberHelper::number_to_size().
+     * Ubah jumlah byte menjadi format ukuran yang mudah dibaca
+     * (mis. 5624 → "5.49 KB"). Non-numerik mengembalikan null.
+     */
+    function number_to_size($num, int $precision = 1): ?string
+    {
+        if ($num === '' || $num === null) {
+            return '';
+        }
+        if (! is_numeric($num)) {
+            return null;
+        }
+
+        $suffix = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        $num = (float) $num;
+
+        $i = 0;
+        while ($num >= 1024.0 && $i < count($suffix) - 1) {
+            $num /= 1024.0;
+            $i++;
+        }
+
+        $formatted = $precision > 0
+            ? number_format(round($num, $precision), $precision)
+            : number_format($num);
+
+        return $formatted.' '.$suffix[$i];
+    }
+}
+
 if (! function_exists('esc')) {
     /**
      * Port helper esc() CodeIgniter 4 → Laravel.

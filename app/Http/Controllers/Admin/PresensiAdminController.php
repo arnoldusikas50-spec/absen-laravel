@@ -10128,6 +10128,20 @@ class PresensiAdminController extends BaseController
     }
 
     /**
+     * Audit log aktivitas backup/restore via AuditLogModel.
+     * Dipertahankan ringan (tanpa try/catch tambahan): model sendiri menangani
+     * kasus tabel audit_logs belum ada.
+     */
+    private function auditLog(string $tableName, ?int $recordId, string $action, ?string $reason = null): void
+    {
+        try {
+            (new AuditLogModel)->log($tableName, $recordId, $action, null, $this->getUserId(), null, null, $reason);
+        } catch (\Throwable $e) {
+            Log::error('[PresensiAdminController::auditLog] '.$e->getMessage());
+        }
+    }
+
+    /**
      * Backup Database for Attendance Tables
      */
     public function backupDatabase()
@@ -10183,6 +10197,7 @@ class PresensiAdminController extends BaseController
                         if ($v === null) {
                             return 'NULL';
                         }
+
                         return $db->getPdo()->quote((string) $v);
                     }, array_values($row));
                     $sql .= "INSERT INTO `$table` (".implode(', ', $insertKeys).') VALUES ('.implode(', ', $insertVals).");\n";
@@ -10194,6 +10209,12 @@ class PresensiAdminController extends BaseController
         $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
 
         $filename = 'backup_absensi_'.date('Y-m-d_H-i-s').'.sql';
+
+        $this->auditLog('sistem_backup', null, 'backup_database', json_encode([
+            'file' => $filename,
+            'tables' => $tables,
+            'source' => 'presensi_admin',
+        ]));
 
         // download() mengharapkan path file; isi SQL dikirim lewat stream
         // supaya tidak perlu menulis file ke disk.
@@ -10214,9 +10235,11 @@ class PresensiAdminController extends BaseController
         $db = DB::connection();
 
         // Dynamically fetch tables (Schema::getTableListing() menggantikan
-        // listTables() yang hanya ada di CodeIgniter).
+        // listTables() yang hanya ada di CodeIgniter). Schema diisi nama
+        // database koneksi (bukan null!) dan $schemaQualified=false agar
+        // hasilnya daftar tabel polos milik database ini saja.
         $tables = [];
-        $allTables = Schema::getTableListing();
+        $allTables = Schema::getTableListing($db->getDatabaseName(), false);
         foreach ($allTables as $t) {
             if (strpos($t, 'absensi_') === 0) {
                 $tables[] = $t;
@@ -10254,7 +10277,13 @@ class PresensiAdminController extends BaseController
             }
         }
 
-        $filename = 'backup_absensi_json_'.date('Y-m-d_H-i-s').'.json';
+        $filename = 'backup_absensi_json_'.date('Y-m_d_H-i-s').'.json';
+
+        $this->auditLog('sistem_backup', null, 'backup_data_json', json_encode([
+            'file' => $filename,
+            'tables' => array_keys($data['tables']),
+            'source' => 'presensi_admin',
+        ]));
 
         // Sama seperti backup SQL: kirim isi lewat stream, bukan sebagai
         // argumen "nama file" pada download().
@@ -10384,6 +10413,12 @@ class PresensiAdminController extends BaseController
                 DB::rollBack();
                 Log::error('[restoreDataJson] rollback, '.count($alasan).' masalah: '.json_encode(array_slice($alasan, 0, 20)));
 
+                $this->auditLog('sistem_restore', null, 'restore_data_json', json_encode([
+                    'status' => 'gagal',
+                    'alasan' => array_slice($alasan, 0, 20),
+                    'source' => 'presensi_admin',
+                ]));
+
                 return $tolak('Restore dibatalkan, tidak ada baris yang tersimpan. '
                     .count($alasan).' masalah, contoh: '.implode('; ', array_slice($alasan, 0, 3)));
             }
@@ -10397,6 +10432,13 @@ class PresensiAdminController extends BaseController
             }
 
             $msg = 'Restore berhasil. '.$ditulis.' baris data ditulis.';
+
+            $this->auditLog('sistem_restore', null, 'restore_data_json', json_encode([
+                'status' => 'berhasil',
+                'ditulis' => $ditulis,
+                'source' => 'presensi_admin',
+            ]));
+
             if ($isAjax) {
                 return $this->respond(true, $msg);
             }

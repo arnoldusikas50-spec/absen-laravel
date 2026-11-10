@@ -254,7 +254,7 @@ class KartuSiswaController extends BaseController
             // Query data siswa yang akan ditampilkan kartunya — AKTIF saja.
             try {
                 $builder = $db->table('master_siswa as ms')
-                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'mk.id_kelas', 'mk.nama_kelas')
+                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'ms.tempat_lahir', 'ms.tanggal_lahir', 'ms.alamat', 'mk.id_kelas', 'mk.nama_kelas')
                     ->addSelect($hasRfidSiswa ? ['ms.nomor_rfid'] : [])
                     ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                     ->join('master_kelas as mk', 'mk.id_kelas', '=', 'ks.id_kelas');
@@ -377,7 +377,7 @@ class KartuSiswaController extends BaseController
         if ($catatan === '') {
             try {
                 $builder = $db->table('master_siswa as ms')
-                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'mk.id_kelas', 'mk.nama_kelas')
+                    ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn', 'ms.foto', 'ms.jenis_kelamin', 'ms.tempat_lahir', 'ms.tanggal_lahir', 'ms.alamat', 'mk.id_kelas', 'mk.nama_kelas')
                     ->addSelect($hasRfidSiswa ? ['ms.nomor_rfid'] : [])
                     ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                     ->join('master_kelas as mk', 'mk.id_kelas', '=', 'ks.id_kelas');

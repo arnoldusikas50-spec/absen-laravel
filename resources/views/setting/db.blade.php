@@ -1,14 +1,33 @@
 @extends('layouts.main')
 
 @section('content')
-<?php $list = $list ?? []; ?>
+@php
+    $list = $list ?? [];
+    $stats = $stats ?? [];
+
+    $badges = [
+        'database' => ['bg-indigo-50 text-indigo-600', 'bi-database', 'Database'],
+        'snapshot' => ['bg-amber-50 text-amber-600', 'bi-clock-history', 'Snapshot'],
+        'file'     => ['bg-emerald-50 text-emerald-600', 'bi-file-earmark-zip', 'File'],
+        'arsip'    => ['bg-slate-100 text-slate-500', 'bi-hdd-stack', 'Arsip Cron'],
+    ];
+
+    // Ikon yang dipakai halaman ini (cek lucide-icons.css sebelum menambah).
+    $icons = [
+        'database' => 'bi bi-database',
+        'snapshot' => 'bi bi-clock-history',
+        'file'     => 'bi bi-file-earmark-zip',
+        'arsip'    => 'bi bi-hdd-stack',
+        'total'    => 'bi bi-collection',
+        'size'     => 'bi bi-clipboard-data',
+    ];
+@endphp
 <!-- Content Header -->
 <div class="content-header fade-in-up">
     <div class="page-header">
         <div class="min-w-0">
-            <h3 class="mb-0 font-bold text-slate-800">
             <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-xs shrink-0">
+                <span class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-sm shrink-0">
                     <i class="bi bi-database text-xl"></i>
                 </span>
                 <span>{{ $judul ?? 'Backup dan Restore' }}</span>
@@ -29,12 +48,58 @@
 
 <div class="content-area space-y-4">
 
+    <!-- Ringkasan -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                <i class="{{ $icons['total'] }}"></i>
+            </span>
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['total'] ?? count($list) }}</div>
+                <div class="text-xs text-slate-400 mt-1">Total Cadangan</div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <i class="{{ $icons['database'] }}"></i>
+            </span>
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['db'] ?? 0 }}</div>
+                <div class="text-xs text-slate-400 mt-1">Backup Database <span class="text-slate-300">· {{ $stats['arsip'] ?? 0 }} arsip cron</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <i class="{{ $icons['file'] }}"></i>
+            </span>
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['file'] ?? 0 }}</div>
+                <div class="text-xs text-slate-400 mt-1">Backup File Uploads</div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                <i class="{{ $icons['size'] }}"></i>
+            </span>
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['total_size'] ?? '0 KB' }}</div>
+                <div class="text-xs text-slate-400 mt-1 truncate">
+                    @if (! empty($stats['last']))
+                        Terakhir: {{ date('d M Y H:i', (int) $stats['last']) }}
+                    @else
+                        Belum ada backup
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Aksi backup -->
     <div class="card-tw">
         <div class="card-tw-body">
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <button type="button" class="btn-tw btn-primary js-backup-btn" onclick="processBackup(this)">
-                    <i class="bi bi-cloud-upload"></i><span>Backup Semua</span>
+                    <i class="bi bi-cloud-arrow-up"></i><span>Backup Semua</span>
                 </button>
                 <button type="button" class="btn-tw btn-light js-backup-btn" onclick="processBackupDb(this)">
                     <i class="bi bi-database"></i><span>Backup Database</span>
@@ -42,6 +107,9 @@
                 <button type="button" class="btn-tw btn-light js-backup-btn" onclick="processBackupFile(this)">
                     <i class="bi bi-file-earmark-zip"></i><span>Backup File</span>
                 </button>
+                <span class="text-xs text-slate-400 ml-auto hidden md:flex items-center gap-1.5">
+                    <i class="bi bi-calendar3"></i>{{ date('d M Y H:i') }}
+                </span>
             </div>
             <div class="mt-3">
                 <div class="flex items-center justify-between mb-1.5">
@@ -51,8 +119,16 @@
                 <div class="progress-tw" style="height:6px">
                     <div id="backupProgressBar" class="progress-bar-tw" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%"></div>
                 </div>
-                <p class="text-xs text-slate-400 mt-2 mb-0">Jangan tutup halaman selama proses berjalan. Restore .sql akan menimpa data saat ini.</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Banner keamanan -->
+    <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex gap-3">
+        <i class="bi bi-shield-check text-blue-500 text-base mt-0.5"></i>
+        <div class="text-xs text-blue-700 leading-tight space-y-1">
+            <p><b>Cadangan disimpan di luar webroot</b> (storage/app/backups) dan hanya bisa diunduh lewat rute terautentikasi admin.</p>
+            <p>Restore selalu membuat <b>snapshot otomatis</b> keadaan sebelum data ditimpa, membutuhkan konfirmasi ketik <b>RESTORE</b>, dan arsip otomatis cron tidak ikut terhapus.</p>
         </div>
     </div>
 
@@ -63,7 +139,7 @@
             <input type="search" id="searchBackup" class="form-control-tw !w-44 !py-1.5 !text-xs" placeholder="Cari file…" autocomplete="off">
         </div>
         <div class="card-tw-body !p-0">
-            <?php if (!empty($list)): ?>
+            @if (! empty($list))
             <div class="table-responsive-tw">
                 <table id="database" class="table-tw">
                     <thead>
@@ -71,41 +147,59 @@
                             <th>File</th>
                             <th class="text-right" style="width:90px">Ukuran</th>
                             <th class="text-right" style="width:130px">Waktu</th>
-                            <th class="text-right" style="width:200px">Aksi</th>
+                            <th class="text-right" style="width:220px">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="backupTableBody">
-                        <?php foreach ($list as $value):
-                            $fname = $value['src'] ?? ($value['nama'] . '.' . $value['type']);
-                            $isSql = !empty($value['is_sql']);
-                        ?>
-                        <tr data-name="{{ strtolower($fname) }}">
-                            <td>
-                                <div class="font-medium text-slate-700 text-[13px] truncate" title="{{ $fname }}">{{ $fname }}</div>
-                                <div class="text-[11px] text-slate-400">{{ date('d M Y H:i', (int) $value['tgl']) }}</div>
-                            </td>
-                            <td class="text-right text-slate-500 whitespace-nowrap">{{ $value['size'] ?? '-' }}</td>
-                            <td class="text-right text-slate-400 text-xs whitespace-nowrap">{{ date('d M Y', (int) $value['tgl']) }}</td>
-                            <td class="text-right whitespace-nowrap">
-                                <div class="inline-flex items-center gap-1.5">
-                                    <a href="{{ url('settings/dbManager/download') }}?src={{ rawurlencode($value['src']) }}"
-                                        class="btn-tw btn-tw-sm btn-light" title="Download">
-                                        <i class="bi bi-download"></i>Download
-                                    </a>
-                                    <?php if ($isSql): ?>
-                                    <button type="button" data-src="{{ $fname }}" onclick="restore(this.dataset.src)"
-                                        class="btn-tw btn-tw-sm btn-light" title="Restore">
-                                        <i class="bi bi-arrow-counterclockwise"></i>Restore
-                                    </button>
-                                    <?php endif; ?>
-                                    <button type="button" data-src="{{ $fname }}" onclick="hapus(this.dataset.src)"
-                                        class="btn-tw btn-tw-sm btn-light !text-red-600" title="Hapus">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+                        @foreach ($list as $value)
+                            @php
+                                $fname = $value['src'] ?? ($value['nama'].'.'.$value['type']);
+                                $b = $badges[$value['kind']] ?? $badges['arsip'];
+                                $bisaRestore = ! empty($value['is_sql']) && ($value['kind'] === 'database' || $value['kind'] === 'snapshot');
+                            @endphp
+                            <tr data-name="{{ strtolower($fname) }}">
+                                <td>
+                                    <div class="flex items-start gap-2 min-w-0">
+                                        <span class="{{ $b[0] }} rounded-md px-2 py-0.5 text-[11px] font-semibold inline-flex items-center gap-1 shrink-0 mt-0.5">
+                                            <i class="{{ $b[1] }}"></i>{{ $b[2] }}
+                                        </span>
+                                        <div class="min-w-0">
+                                            <div class="font-medium text-slate-700 text-[13px] truncate" title="{{ $fname }}">{{ $fname }}</div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                                                <span>{{ date('d M Y H:i', (int) $value['tgl']) }}</span>
+                                                @if ($value['lengkap'] === true)
+                                                    <span class="text-emerald-500 inline-flex items-center gap-0.5"><i class="bi bi-check-circle-fill"></i>Lengkap</span>
+                                                @elseif ($value['lengkap'] === false)
+                                                    <span class="text-red-500 inline-flex items-center gap-0.5"><i class="bi bi-x-circle-fill"></i>Tidak Lengkap</span>
+                                                @elseif ($value['kind'] === 'database' || $value['kind'] === 'snapshot')
+                                                    <span class="text-amber-500 inline-flex items-center gap-0.5"><i class="bi bi-exclamation-triangle-fill"></i>Dump Lama</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-right text-slate-500 whitespace-nowrap">{{ $value['size'] ?? '-' }}</td>
+                                <td class="text-right text-slate-400 text-xs whitespace-nowrap">{{ date('d M Y', (int) $value['tgl']) }}</td>
+                                <td class="text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        <a href="{{ url('settings/dbManager/download') }}?src={{ rawurlencode($value['src']) }}"
+                                            class="btn-tw btn-tw-sm btn-light" title="Download">
+                                            <i class="bi bi-download"></i>Download
+                                        </a>
+                                        @if ($bisaRestore)
+                                        <button type="button" data-src="{{ $fname }}" onclick="restore(this.dataset.src)"
+                                            class="btn-tw btn-tw-sm btn-light" title="Restore">
+                                            <i class="bi bi-arrow-counterclockwise"></i>Restore
+                                        </button>
+                                        @endif
+                                        <button type="button" data-src="{{ $fname }}" onclick="hapus(this.dataset.src)"
+                                            class="btn-tw btn-tw-sm btn-light !text-red-600" title="Hapus">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
                         <tr id="backupEmptySearch" class="hidden">
                             <td colspan="4" class="text-center !py-6 text-xs text-slate-400">Tidak ada file yang cocok.</td>
                         </tr>
@@ -113,19 +207,19 @@
                 </table>
             </div>
             <div class="flex items-center justify-between px-4 py-2.5 border-t border-slate-100">
-                <span class="text-xs text-slate-400">{{ count($list) }} file tersimpan di writable/backups</span>
+                <span class="text-xs text-slate-400">{{ count($list) }} file tersimpan di storage/app/backups — arsip cron (db_*.sql.gz) hanya bisa dihapus satu per satu</span>
                 <button type="button" class="btn-tw btn-tw-sm btn-light !text-red-600" onclick="hapusBackup()">
                     <i class="bi bi-trash3"></i>Hapus Semua
                 </button>
             </div>
-            <?php else: ?>
+            @else
             <div class="text-center px-6 py-10">
                 <p class="text-sm text-slate-500 mb-3">Belum ada backup. Klik <b>Backup Semua</b> untuk mulai.</p>
                 <button type="button" class="btn-tw btn-primary js-backup-btn" onclick="processBackup(this)">
-                    <i class="bi bi-cloud-upload"></i><span>Backup Sekarang</span>
+                    <i class="bi bi-cloud-arrow-up"></i><span>Backup Sekarang</span>
                 </button>
             </div>
-            <?php endif; ?>
+            @endif
         </div>
     </div>
 
@@ -133,7 +227,7 @@
 
 <script>
 (function () {
-    const BASE = (typeof base_url !== 'undefined' ? base_url : '{{ rtrim(url('/') . '/', '/') }}/');
+    const BASE = (typeof base_url !== 'undefined' ? base_url : '{{ rtrim(url('/').'/', '/') }}/');
     const URL = {
         db: BASE + 'settings/dbManager/backupdb',
         files: BASE + 'settings/dbManager/backupdata',
@@ -297,7 +391,7 @@
     window.hapusBackup = function () {
         Swal.fire({
             title: 'Hapus Semua Backup?',
-            html: "<span class='text-red-600'><b>Semua backup manual (db_backup_ / files_backup_) dihapus permanen dan tidak bisa dikembalikan!</b></span><br><br>"
+            html: "<span class='text-red-600'><b>Semua backup manual & snapshot (db_backup_ / files_backup_ / pre_restore_) dihapus permanen!</b></span><br><br>"
                 + "Arsip otomatis dari cron (<code>db_*.sql.gz</code>) <b>tidak disentuh</b> — hapus satu per satu lewat tombol di tabel bila memang perlu.",
             icon: 'warning', showCancelButton: true,
             confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
@@ -345,21 +439,42 @@
 
     window.restore = function (src) {
         Swal.fire({
-            title: 'Restore Database?',
-            html: 'Restore file <b>' + $('<div>').text(src).html() + '</b>?<br><br><span class="text-red-600"><b>PERINGATAN:</b><br>1. Data saat ini akan DITIMPA.<br>2. Wajib backup dulu.<br>3. Tidak dapat dibatalkan.</span>',
-            icon: 'warning', showCancelButton: true,
-            confirmButtonColor: '#16a34a', cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Restore!', cancelButtonText: 'Batal'
+            title: 'Restore Database',
+            html: 'File: <b>' + $('<div>').text(src).html() + '</b><br><br>'
+                + "<span class='text-red-600'><b>PERINGATAN:</b><br>"
+                + '1. Seluruh data saat ini akan DITIMPA.<br>'
+                + '2. Aplikasi membuat snapshot otomatis sebelum restore.<br>'
+                + '3. Proses tidak bisa dibatalkan di tengah jalan.</span><br><br>'
+                + 'Ketik <b>RESTORE</b> untuk melanjutkan:',
+            icon: 'warning',
+            input: 'text',
+            inputPlaceholder: 'RESTORE',
+            inputValidator: function (value) {
+                if (!value || value.trim().toUpperCase() !== 'RESTORE') {
+                    return 'Ketik RESTORE untuk melanjutkan';
+                }
+                return null;
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#d97706', cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Restore!', cancelButtonText: 'Batal',
+            allowEscapeKey: false, allowOutsideClick: false
         }).then(function (result) {
             if (!result.value) return;
-            Swal.fire({ title: 'Merestore…', text: 'Jangan tutup halaman ini.', allowEscapeKey: false, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            ajaxPost(URL.restore, csrfData({ src: src })).done(function (respon) {
+            Swal.fire({
+                title: 'Membuat snapshot & merestore…',
+                text: 'Jangan tutup halaman ini.',
+                allowEscapeKey: false, allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+            ajaxPost(URL.restore, csrfData({ src: src, konfirmasi: 'RESTORE' })).done(function (respon) {
                 refreshCsrf(respon);
                 if (respon.status) {
                     Swal.fire({ title: 'Berhasil', text: respon.message || 'Restore selesai.', icon: 'success' })
                         .then(() => window.location.reload());
                 } else {
-                    Swal.fire({ title: 'Gagal', text: respon.message || 'Restore gagal.', icon: 'error' });
+                    Swal.fire({ title: 'Restore Tidak Lengkap', text: respon.message || 'Restore gagal.', icon: 'warning' })
+                        .then(() => window.location.reload());
                 }
             }).fail(function (xhr) {
                 Swal.fire({ title: 'Error', text: 'Terjadi kesalahan server: ' + errMsg(xhr, 'Restore gagal'), icon: 'error' });

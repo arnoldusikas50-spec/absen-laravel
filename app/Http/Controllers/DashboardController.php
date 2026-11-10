@@ -143,6 +143,11 @@ class DashboardController extends BaseController
         // Metrik 4 Pilar Utama
         $data['presensiHariIni'] = $this->getPresensiHariIni($today);
 
+        // Statistik presensi siswa hari ini (untuk panel "Statistik Siswa")
+        $data['siswaPresensiHariIni'] = ($tp && $smt)
+            ? $this->getSiswaPresensiHariIni($tp->id_tp, $smt->id_smt, $today)
+            : [];
+
         // 1. Presensi Siswa Hari Ini — hanya siswa AKTIF.
         $siswaHadirHariIni = 0;
         try {
@@ -212,14 +217,7 @@ class DashboardController extends BaseController
         $data['petugas_piket_hari'] = $piketHariRoster;
         $data['petugas_piket_tanggal'] = $piketTanggalRoster;
 
-        if ($tp && $smt) {
-            $data['info_box'] = $this->getAdminBox($setting, $tp->id_tp, $smt->id_smt, $today);
-        } else {
-            $data['info_box'] = [];
-        }
-
-        // Feed presensi guru. Saat libur, tampilkan data check-in terakhir
-        // agar panel tidak kosong sekaligus tidak menyiratkan "belum absen".
+        // Feed presensi guru.
         $checkinDate = $today;
         if (! $isHariSekolah) {
             $checkinDate = null;
@@ -378,6 +376,88 @@ class DashboardController extends BaseController
             }
             if ($out['total_guru'] > 0) {
                 $out['persen'] = round(($out['hadir'] / $out['total_guru']) * 100, 1);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ringkasan presensi siswa hari ini untuk dashboard admin.
+     *
+     * Selaras dengan PiketModel: status formal HADIR/SAKIT/IZIN/ALPA/BDR,
+     * plus TANPA_KETERANGAN (tercatat tanpa keterangan) dan varian
+     * 'HADIR TELAT'/'TERLAMBAT' untuk keterlambatan.
+     *
+     * @return array{hadir:int,telat:int,izin:int,sakit:int,alpa:int,bdr:int,tanpa_ket:int,belum_absen:int,recorded:int,total_siswa:int,persen:float}
+     */
+    private function getSiswaPresensiHariIni(int $tp, int $smt, ?string $tanggal = null): array
+    {
+        $tanggal = $tanggal ?: date('Y-m-d');
+        $out = [
+            'hadir' => 0,
+            'telat' => 0,
+            'izin' => 0,
+            'sakit' => 0,
+            'alpa' => 0,
+            'bdr' => 0,
+            'tanpa_ket' => 0,
+            'belum_absen' => 0,
+            'recorded' => 0,
+            'total_siswa' => 0,
+            'persen' => 0,
+        ];
+
+        try {
+            $out['total_siswa'] = (int) $this->dashboardModel->getTotalSiswa($tp, $smt);
+
+            if (Schema::hasTable('presensi_siswa')) {
+                $db = DB::connection();
+                $q = $db->table('presensi_siswa as ps')
+                    ->select('ps.status')
+                    ->where('ps.tgl', $tanggal);
+
+                // Hanya siswa aktif (status '1' di buku_induk) bila tabel tersedia.
+                if (Schema::hasTable('buku_induk')) {
+                    $q->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
+                        ->where(function ($w) {
+                            $w->where('bi.status', '1')->orWhereNull('bi.id_siswa');
+                        });
+                }
+
+                $rows = $q->get();
+                $out['recorded'] = count($rows);
+
+                foreach ($rows as $r) {
+                    $st = strtoupper(trim((string) ($r->status ?? '')));
+                    if ($st === '') {
+                        continue;
+                    }
+                    if (in_array($st, ['HADIR TELAT', 'TERLAMBAT'], true)) {
+                        $out['telat']++;
+                    } elseif ($st === 'HADIR') {
+                        $out['hadir']++;
+                    } elseif ($st === 'SAKIT') {
+                        $out['sakit']++;
+                    } elseif ($st === 'IZIN') {
+                        $out['izin']++;
+                    } elseif ($st === 'BDR') {
+                        $out['bdr']++;
+                    } elseif ($st === 'TANPA_KETERANGAN') {
+                        $out['tanpa_ket']++;
+                    } elseif (in_array($st, ['ALPA', 'ALPHA', 'A'], true)) {
+                        $out['alpa']++;
+                    }
+                }
+            }
+
+            // Siswa yang belum tercatat = total siswa aktif - yang sudah ada baris.
+            $out['belum_absen'] = max(0, $out['total_siswa'] - $out['recorded']);
+
+            // Tingkat kehadiran = hadir + telat terhadap total siswa aktif.
+            if ($out['total_siswa'] > 0) {
+                $out['persen'] = round((($out['hadir'] + $out['telat']) / $out['total_siswa']) * 100, 1);
             }
         } catch (\Throwable $e) {
         }

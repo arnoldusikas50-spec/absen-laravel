@@ -213,9 +213,9 @@ Route::post('admin/poin-siswa/kategori/save', [PoinSiswaController::class, 'save
 Route::post('admin/poin-siswa/kategori/delete', [PoinSiswaController::class, 'deleteKategori'])->middleware(['auth'])->name('admin.poin-siswa.kategori.delete.delete_kategori');
 Route::get('admin/poin-siswa/history/{id}', [PoinSiswaController::class, 'getHistory'])->middleware(['auth'])->name('admin.poin-siswa.history.get_history');
 Route::post('admin/poin-siswa/sync', [PoinSiswaController::class, 'syncPresensi'])->middleware(['auth'])->name('admin.poin-siswa.sync.sync_presensi');
-Route::get('admin/sistem/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth'])->name('admin.sistem.backup.backup_database');
-Route::get('admin/sistem/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth'])->name('admin.sistem.backup-json.backup_data_json');
-Route::post('admin/sistem/restore-json', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth'])->name('admin.sistem.restore-json.restore_data_json');
+Route::get('admin/sistem/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth', 'role:admin'])->name('admin.sistem.backup.backup_database');
+Route::get('admin/sistem/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth', 'role:admin'])->name('admin.sistem.backup-json.backup_data_json');
+Route::post('admin/sistem/restore-json', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth', 'role:admin'])->name('admin.sistem.restore-json.restore_data_json');
 Route::get('auth', [AuthController::class, 'index'])->name('login');
 Route::get('auth/siswa', [AuthController::class, 'siswa'])->name('auth.siswa');
 Route::post('auth/login', [AuthController::class, 'login'])->withoutMiddleware([VerifyCsrfToken::class])->name('auth.login');
@@ -483,9 +483,9 @@ Route::get('admin/presensi/libur', [PresensiAdminController::class, 'holidays'])
 Route::post('admin/presensi/libur/save', [PresensiAdminController::class, 'saveHoliday'])->middleware(['auth'])->name('admin.presensi.libur.save.save_holiday');
 Route::post('admin/presensi/libur/delete', [PresensiAdminController::class, 'deleteHoliday'])->middleware(['auth'])->name('admin.presensi.libur.delete.delete_holiday');
 Route::post('admin/presensi/libur/sync', [PresensiAdminController::class, 'syncHolidays'])->middleware(['auth'])->name('admin.presensi.libur.sync.sync_holidays');
-Route::get('admin/presensi/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth'])->name('admin.presensi.backup.backup_database');
-Route::get('admin/presensi/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth'])->name('admin.presensi.backup-json.backup_data_json');
-Route::post('admin/presensi/restore', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth'])->name('admin.presensi.restore.restore_data_json');
+Route::get('admin/presensi/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth', 'role:admin'])->name('admin.presensi.backup.backup_database');
+Route::get('admin/presensi/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth', 'role:admin'])->name('admin.presensi.backup-json.backup_data_json');
+Route::post('admin/presensi/restore', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth', 'role:admin'])->name('admin.presensi.restore.restore_data_json');
 Route::get('admin/presensi/denda', [PresensiAdminController::class, 'daftarDenda'])->middleware(['auth'])->name('admin.presensi.denda.daftar_denda');
 Route::post('admin/presensi/denda/mark-lunas', [PresensiAdminController::class, 'markLunas'])->middleware(['auth'])->name('admin.presensi.denda.mark-lunas.mark_lunas');
 Route::post('admin/presensi/denda/batal-lunas', [PresensiAdminController::class, 'batalLunas'])->middleware(['auth'])->name('admin.presensi.denda.batal-lunas.batal_lunas');
@@ -530,9 +530,9 @@ Route::get('admin/batch-attendance-status', [PresensiAdminController::class, 'ba
 Route::get('admin/setting', [PresensiAdminController::class, 'setting'])->middleware(['auth'])->name('admin.setting');
 Route::post('admin/setting/save', [PresensiAdminController::class, 'saveSetting'])->middleware(['auth'])->name('admin.setting.save.save_setting');
 Route::get('admin/rekap/export', [PresensiAdminController::class, 'exportRekap'])->middleware(['auth'])->name('admin.rekap.export.export_rekap');
-Route::get('admin/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth'])->name('admin.backup.backup_database');
-Route::get('admin/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth'])->name('admin.backup-json.backup_data_json');
-Route::post('admin/restore', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth'])->name('admin.restore.restore_data_json');
+Route::get('admin/backup', [PresensiAdminController::class, 'backupDatabase'])->middleware(['auth', 'role:admin'])->name('admin.backup.backup_database');
+Route::get('admin/backup-json', [PresensiAdminController::class, 'backupDataJson'])->middleware(['auth', 'role:admin'])->name('admin.backup-json.backup_data_json');
+Route::post('admin/restore', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth', 'role:admin'])->name('admin.restore.restore_data_json');
 Route::get('admin/lokasi', [PresensiAdminController::class, 'locations'])->middleware(['auth'])->name('admin.lokasi.locations');
 Route::post('admin/lokasi/save', [PresensiAdminController::class, 'saveLocation'])->middleware(['auth'])->name('admin.lokasi.save.save_location');
 Route::post('admin/lokasi/utama', [PresensiAdminController::class, 'setLocationUtama'])->middleware(['auth'])->name('admin.lokasi.utama.set_location_utama');

@@ -83,11 +83,12 @@
             padding: 6mm;
         }
 
-        /* Grid Cards: 2 Columns on A4 */
+        /* Grid Cards: 2 kolom, kartu ATM 85.6×54mm — 8 kartu per A4 */
         .card-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 5mm;
+            grid-template-columns: repeat(2, 85.6mm);
+            gap: 4mm 6mm;
+            justify-content: center;
         }
         .card-grid-portrait {
             display: grid;
@@ -103,20 +104,137 @@
             padding: 20px 0;
         }
 
-        /* Individual Card Box */
+        /* ═══════════════════════════════════════════════════════════
+           Kartu ATM ISO/IEC 7810 ID-1: 85.60 × 53.98 mm
+           Grid cetak A4: 2 kolom × 4 baris = 8 kartu per halaman
+        ═══════════════════════════════════════════════════════════ */
         .id-card {
-            width: 92mm;
-            height: 58mm;
-            border: 1px dashed #94a3b8;
-            border-radius: 8px;
+            width: 85.6mm;
+            height: 53.98mm;
+            border: 0.5px dashed #94a3b8;
+            border-radius: 3mm;
             background: #ffffff;
             overflow: hidden;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             position: relative;
             page-break-inside: avoid;
             break-inside: avoid;
         }
+
+        /* Strip kiri: lebar 30mm dari total 85.6mm */
+        .id-left-strip {
+            width: 30mm;
+            flex-shrink: 0;
+            background: linear-gradient(175deg, var(--primary-700, #4338ca) 0%, var(--primary-900, #1e1b4b) 100%);
+            display: flex;
+            flex-direction: column;
+        }
+        .id-strip-header {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1.8mm 2mm;
+            border-bottom: 1px solid rgba(255,255,255,.15);
+        }
+        .id-strip-logo {
+            width: 6mm; height: 6mm;
+            background: #fff; border-radius: 3px; padding: 1px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .id-strip-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .id-strip-kop { min-width: 0; }
+        .id-strip-kop p { margin: 0; line-height: 1.1; }
+        .id-strip-kop .kop-label { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.65); }
+        .id-strip-kop .kop-sekolah { font-size: 5pt; font-weight: 800; color: #fff; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .id-strip-photo-area {
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 1.5mm 2mm; gap: 1mm;
+        }
+        .id-strip-photo {
+            width: 16mm; height: 20mm;
+            border-radius: 1.5mm; overflow: hidden;
+            border: 1px solid rgba(255,255,255,.35);
+            background: #e2e8f0; flex-shrink: 0;
+        }
+        .id-strip-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .id-strip-jk {
+            font-size: 4.5pt; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+            padding: 0.5px 4px; border-radius: 8px;
+        }
+        .id-strip-jk.L { background: rgba(96,165,250,.25); color: #bfdbfe; border: 0.5px solid rgba(147,197,253,.3); }
+        .id-strip-jk.P { background: rgba(244,114,182,.25); color: #fbcfe8; border: 0.5px solid rgba(249,168,212,.3); }
+        .id-strip-tp {
+            padding: 1mm 2mm; text-align: center;
+            border-top: 0.5px solid rgba(255,255,255,.12);
+        }
+        .id-strip-tp span { font-size: 4.5pt; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .05em; }
+
+        /* Panel kanan: identitas + QR + footer */
+        .id-right-panel {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column;
+            position: relative;
+            background-image: url('{{ asset("assets/img/bg-card.png") }}');
+            background-size: cover;
+            background-position: center;
+        }
+        .id-right-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255, 255, 255, 0.82);
+            pointer-events: none; z-index: 0;
+        }
+        .id-right-content {
+            position: relative; z-index: 1;
+            display: flex; flex-direction: column; flex: 1; min-width: 0;
+        }
+        .id-panel-top {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.8mm 2.5mm 0 2.5mm;
+        }
+        .id-panel-label { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--primary-500, #6366f1); }
+        .id-panel-badge {
+            font-size: 5.5pt; font-weight: 900; padding: 0.5px 4px; border-radius: 2px;
+            background: var(--primary-50, #eef2ff); color: var(--primary-700, #4338ca);
+            border: 0.5px solid var(--primary-100, #e0e7ff); text-transform: uppercase;
+        }
+        .id-panel-name {
+            padding: 0.8mm 2.5mm 0 2.5mm;
+            font-size: 7.5pt; font-weight: 900; color: #0f172a; margin: 0;
+            line-height: 1.15; text-transform: uppercase;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .id-panel-body {
+            display: flex; gap: 1.5mm; padding: 1mm 2.5mm 0 2.5mm; flex: 1; align-items: flex-start;
+        }
+        .id-panel-data { flex: 1; min-width: 0; font-size: 5.5pt; line-height: 1.4; color: #334155; }
+        .id-panel-data .row { display: flex; gap: 1.5px; }
+        .id-panel-data .row .lbl { width: 8.5mm; font-weight: 700; color: #94a3b8; font-size: 4.8pt; text-transform: uppercase; flex-shrink: 0; }
+        .id-panel-data .row .val { font-weight: 700; color: #0f172a; font-family: monospace; font-size: 5.5pt; }
+        .id-panel-qr {
+            flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 0.8mm;
+        }
+        .id-panel-qr .qr-print-box {
+            width: 16mm; height: 16mm; padding: 0.8mm;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 1.5mm;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .id-panel-qr .qr-print-box canvas, .id-panel-qr .qr-print-box img, .id-panel-qr .qr-print-box table {
+            max-width: 100% !important; max-height: 100% !important; display: block;
+        }
+        .id-panel-qr .qr-code-text { font-size: 4.5pt; font-weight: 800; color: #1e293b; font-family: monospace; }
+        .id-panel-qr .qr-scan-text { font-size: 3.8pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+        .id-panel-footer {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            padding: 0.8mm 2.5mm 1.5mm 2.5mm; margin-top: auto;
+            border-top: 0.5px solid #f1f5f9;
+        }
+        .id-panel-sign { font-size: 4.8pt; color: #94a3b8; }
+        .id-panel-sign .sign-line { width: 18mm; border-bottom: 0.5px solid #cbd5e1; margin-bottom: 1px; }
+        .id-panel-sign .sign-label { font-weight: 600; }
+        .id-panel-kota { font-size: 4.5pt; color: #64748b; }
 
         /* Portrait Card Box: vertikal 58 x 92mm, tanpa foto */
         .id-card-portrait {
@@ -385,7 +503,7 @@
                 max-width: none !important;
             }
             .card-grid {
-                gap: 3.5mm !important;
+                gap: 3mm 5mm !important;
             }
             .card-grid-portrait {
                 gap: 3.5mm !important;
@@ -396,7 +514,7 @@
             }
             @page {
                 size: A4 portrait;
-                margin: 7mm 6mm;
+                margin: 8mm 10mm;
             }
         }
     </style>
@@ -485,67 +603,77 @@
             <?php endforeach; ?>
         </div>
         <?php else: ?>
+        <!-- ═══ LANDSCAPE: Kartu Pelajar / ID Card — split kiri-kanan ═══ -->
         <div class="{{ $is_single ? 'single-mode' : 'card-grid' }}">
             <?php foreach ($siswa_list as $s): ?>
+                <?php $isLaki = ($s->jenis_kelamin ?? 'L') === 'L'; ?>
                 <div class="id-card">
-                    <!-- Header -->
-                    <div class="card-header">
-                        <div class="card-logo">
-                            <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
+                    <!-- ── Strip Kiri: gradient + logo + foto + JK ── -->
+                    <div class="id-left-strip">
+                        <div class="id-strip-header">
+                            <div class="id-strip-logo">
+                                <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
+                            </div>
+                            <div class="id-strip-kop">
+                                <p class="kop-label">KARTU PELAJAR</p>
+                                <p class="kop-sekolah">{{ $setting->sekolah ?? 'SEKOLAH' }}</p>
+                            </div>
                         </div>
-                        <div class="card-header-text">
-                            <h4 class="card-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
-                            <p class="card-header-subtitle">KARTU PRESENSI DIGITAL • TP {{ $tp_active->tahun ?? '-' }}</p>
+                        <div class="id-strip-photo-area">
+                            <div class="id-strip-photo">
+                                <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}"
+                                     onerror="this.src='{{ asset('assets/img/siswa.png') }}'">
+                            </div>
+                            <span class="id-strip-jk {{ $isLaki ? 'L' : 'P' }}">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</span>
                         </div>
-                        <div class="card-class-badge">
-                            {{ $s->nama_kelas }}
-                        </div>
-                    </div>
-
-                    <!-- Body -->
-                    <div class="card-body">
-                        <!-- Foto Siswa -->
-                        <div class="photo-container">
-                            <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}"
-                                 onerror="this.src='{{ asset('assets/img/siswa.png') }}'">
-                        </div>
-
-                        <!-- Data Siswa -->
-                        <div class="student-details">
-                            <div class="student-name" title="{{ $s->nama }}">{{ $s->nama }}</div>
-                            <table class="info-table">
-                                <tr>
-                                    <td class="label">NIS</td>
-                                    <td class="val">: <strong>{{ $s->nis ?: '-' }}</strong></td>
-                                </tr>
-                                <tr>
-                                    <td class="label">NISN</td>
-                                    <td class="val">: {{ $s->nisn ?: '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="label">KELAS</td>
-                                    <td class="val">: {{ $s->nama_kelas }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="label">JK</td>
-                                    <td class="val">: {{ ($s->jenis_kelamin == 'L') ? 'Laki-laki' : 'Perempuan' }}</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <!-- QR Code -->
-                        <div class="qr-container">
-                            <div class="qr-print-box" data-code="{{ $s->qr_value }}"></div>
-                            <span class="qr-caption font-mono" style="font-size:6pt;color:#0f172a;">{{ $s->qr_value }}</span>
-                            <span class="qr-caption">SCAN ABSEN</span>
+                        <div class="id-strip-tp">
+                            <span>TP {{ $tp_active->tahun ?? '-' }}</span>
                         </div>
                     </div>
 
-                    <!-- Footer -->
-                    <div class="card-footer">
-                        <span class="card-footer-left">Wajib dibawa saat KBM / Presensi Harian</span>
-                        <span>{{ $setting->kota ?? 'Kab. Kupang' }}</span>
-                    </div>
+                    <!-- ── Panel Kanan: identitas + QR ── -->
+                    <div class="id-right-panel">
+                        <div class="id-right-overlay"></div>
+                        <div class="id-right-content">
+                        <div class="id-panel-top">
+                            <span class="id-panel-label">KARTU SISWA AKTIF</span>
+                            <span class="id-panel-badge">{{ $s->nama_kelas }}</span>
+                        </div>
+                        <p class="id-panel-name" title="{{ $s->nama }}">{{ strtoupper($s->nama) }}</p>
+                        <div class="id-panel-body">
+                            <div class="id-panel-data">
+                                <div class="row"><span class="lbl">NIS</span><span class="val">{{ $s->nis ?: '-' }}</span></div>
+                                <div class="row"><span class="lbl">NISN</span><span class="val">{{ $s->nisn ?: '-' }}</span></div>
+                                <div class="row"><span class="lbl">KELAS</span><span class="val" style="font-family:sans-serif;">{{ $s->nama_kelas }}</span></div>
+                                <div class="row"><span class="lbl">JK</span><span class="val" style="font-family:sans-serif;">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</span></div>
+                                @if(!empty($s->tempat_lahir) || !empty($s->tanggal_lahir))
+                                <div class="row" style="align-items:flex-start;">
+                                    <span class="lbl">TTL</span>
+                                    <span class="val" style="font-family:sans-serif;font-size:5.5pt;line-height:1.3;">{{ trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMM Y') : '')) ?: '-' }}</span>
+                                </div>
+                                @endif
+                                @if(!empty($s->alamat))
+                                <div class="row" style="align-items:flex-start;">
+                                    <span class="lbl">ALMT</span>
+                                    <span class="val" style="font-family:sans-serif;font-size:5pt;font-weight:500;color:#475569;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ $s->alamat }}</span>
+                                </div>
+                                @endif
+                            </div>
+                            <div class="id-panel-qr">
+                                <div class="qr-print-box" data-code="{{ $s->qr_value }}"></div>
+                                <span class="qr-code-text">{{ $s->qr_value }}</span>
+                                <span class="qr-scan-text">Scan Absen</span>
+                            </div>
+                        </div>
+                        <div class="id-panel-footer">
+                            <div class="id-panel-sign">
+                                <div class="sign-line"></div>
+                                <span class="sign-label">Kepala Sekolah</span>
+                            </div>
+                            <span class="id-panel-kota">{{ $setting->kota ?? 'Kab. Kupang' }}</span>
+                        </div>
+                        </div><!-- end id-right-content -->
+                    </div><!-- end id-right-panel -->
                 </div>
             <?php endforeach; ?>
         </div>
@@ -559,7 +687,7 @@
             const qrBoxes = document.querySelectorAll('.qr-print-box');
             qrBoxes.forEach(function(box) {
                 const code = box.getAttribute('data-code');
-                const size = parseInt(box.getAttribute('data-size') || '68', 10) || 68;
+                const size = parseInt(box.getAttribute('data-size') || '56', 10) || 56;
                 if (code) {
                     try {
                         new QRCode(box, {

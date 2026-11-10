@@ -430,8 +430,13 @@ class PresensiSiswaQrController extends BaseController
 
         $idGuru = (int) $guru->id_guru;
         $hariIni = self::getHariIndo(date('l'));
-        $tp = DB::table('master_tp')->where('active', 1)->first();
-        $smt = DB::table('master_smt')->where('active', 1)->first();
+        try {
+            $tp = DB::table('master_tp')->where('active', 1)->first();
+            $smt = DB::table('master_smt')->where('active', 1)->first();
+        } catch (\Throwable $e) {
+            $tp = null;
+            $smt = null;
+        }
 
         $isPiket = false;
 

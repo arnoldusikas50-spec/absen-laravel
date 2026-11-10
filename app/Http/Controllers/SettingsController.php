@@ -8,8 +8,10 @@ use App\Libraries\Theme;
 use App\Models\AttendanceLocationModel;
 use App\Models\AttendanceSettingModel;
 use App\Models\DashboardModel;
+use App\Models\LogModel;
 use App\Models\SettingsModel;
 use App\Services\OpenWAService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -19,6 +21,22 @@ class SettingsController extends BaseController
     protected $settings;
 
     protected $dashboard;
+
+    /**
+     * Header dump yang dihasilkan aplikasi ini. restore() menolak file tanpa
+     * header ini, supaya file SQL arbitrer tidak bisa diselundupkan sebagai
+     * "backup" dan dijalankan penuh terhadap database.
+     */
+    private const DUMP_HEADER = '-- ABSEN-DB-BACKUP v2';
+
+    /** Penanda di akhir dump yang dibuat lengkap. */
+    private const DUMP_MARK_LENGKAP = '-- ABSEN-BACKUP-LENGKAP';
+
+    /** Penanda dump tidak lengkap (ditulis di baris pertama file). */
+    private const DUMP_MARK_TIDAK_LENGKAP = '# absen:backup-tidak-lengkap';
+
+    /** Awalan nama file yang dikelola halaman ini; file lain (arsip cron, index.html, .htaccess) dilindungi. */
+    private const BACKUP_PREFIXES = ['db_backup_', 'files_backup_', 'pre_restore_'];
 
     public function __construct()
     {
@@ -109,6 +127,7 @@ class SettingsController extends BaseController
         $totalBytes = 0;
         $dbCount = 0;
         $fileCount = 0;
+        $arsipCount = 0;
         $lastBackup = null;
         foreach (glob($backupPath.'*') ?: [] as $filepath) {
             if (! is_file($filepath)) {
@@ -126,15 +145,35 @@ class SettingsController extends BaseController
                 $lastBackup = $mtime;
             }
             $lower = strtolower($filename);
-            $isDb = (str_ends_with($lower, '.sql') || str_contains($lower, '.sql.'))
-                && ! str_starts_with($lower, 'files_backup_');
-            if (str_starts_with($lower, 'db_backup_') || $isDb) {
+            $isSql = str_ends_with($lower, '.sql');
+            if (str_starts_with($lower, 'db_backup_')) {
                 $kind = 'database';
                 $dbCount++;
-            } else {
+            } elseif (str_starts_with($lower, 'pre_restore_')) {
+                // Snapshot otomatis yang dibuat restore sebelum menimpa data.
+                $kind = 'snapshot';
+                $dbCount++;
+            } elseif (str_starts_with($lower, 'files_backup_')) {
                 $kind = 'file';
                 $fileCount++;
+            } else {
+                // Arsip otomatis cron (db_*.sql.gz) dan file lain di folder ini.
+                $kind = 'arsip';
+                $arsipCount++;
             }
+
+            // Integritas: true = dump lengkap, false = bertanda tidak-lengkap,
+            // null = dump lama tanpa header (tidak bisa direstore dari sini).
+            $lengkap = null;
+            if (($kind === 'database' || $kind === 'snapshot') && $isSql && is_readable($filepath)) {
+                $head = (string) file_get_contents($filepath, false, null, 0, 1024);
+                if (str_contains($head, 'absen:backup-tidak-lengkap')) {
+                    $lengkap = false;
+                } elseif (str_starts_with($head, '-- ABSEN-DB-BACKUP')) {
+                    $lengkap = true;
+                }
+            }
+
             $list[] = [
                 'nama' => $info['filename'] ?? $filename,
                 'type' => $info['extension'] ?? '',
@@ -143,7 +182,8 @@ class SettingsController extends BaseController
                 'tgl' => $mtime,
                 'src' => $filename,
                 'kind' => $kind,
-                'is_sql' => str_ends_with($lower, '.sql'),
+                'is_sql' => $isSql,
+                'lengkap' => $lengkap,
             ];
         }
         usort($list, static fn ($a, $b) => $b['tgl'] <=> $a['tgl']);
@@ -152,6 +192,7 @@ class SettingsController extends BaseController
             'total' => count($list),
             'db' => $dbCount,
             'file' => $fileCount,
+            'arsip' => $arsipCount,
             'total_bytes' => $totalBytes,
             'total_size' => count($list) > 0 ? number_to_size($totalBytes, 2) : '0 KB',
             'last' => $lastBackup,
@@ -259,15 +300,17 @@ class SettingsController extends BaseController
                 // Urutan terbalik (hapus dulu, move tanpa diperiksa) membuat
                 // gangguan apa pun pada move() meninggalkan sekolah tanpa logo
                 // sama sekali sementara respons tetap berkata "berhasil".
+                // CATATAN: move() Laravel/Symfony mengembalikan objek File,
+                // BUKAN true seperti CI4 — kegagalan dilempar sebagai exception.
                 try {
-                    $pindah = $file->move($uploadPath, $fileName, true);
+                    $pindah = $file->move($uploadPath, $fileName);
                 } catch (\Throwable $e) {
                     Log::error('[Settings::uploadFile] move '.$fileName.' gagal: '.$e->getMessage());
                     $pindah = false;
                 }
 
                 $tujuan = $uploadPath.$fileName;
-                if ($pindah !== true || ! is_file($tujuan) || (int) @filesize($tujuan) === 0) {
+                if ($pindah === false || ! is_file($tujuan) || (int) @filesize($tujuan) === 0) {
                     return $this->response->setJSON([
                         'status' => false,
                         'message' => 'Gambar gagal disimpan ke server. Logo lama belum diganti — coba lagi, dan bila berulang periksa izin folder public/uploads/settings.',
@@ -305,7 +348,7 @@ class SettingsController extends BaseController
                     'relative_path' => $relativePath,
                     'filename' => $fileName,
                     'type' => $file->getClientMimeType(),
-                    'size' => $file->getSize(),
+                    'size' => (int) @filesize($tujuan),
                 ];
 
             } else {
@@ -799,19 +842,64 @@ class SettingsController extends BaseController
             return $this->response->setStatusCode(405);
         }
 
+        $hasil = $this->buatDumpDatabase('db_backup_'.date('Ymd_His').'.sql');
+
+        if (! $hasil['ok']) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => $hasil['error'] ?? 'Gagal menulis file backup',
+                'file' => $hasil['file'],
+                'dilewati' => $hasil['dilewati'],
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        $this->catatLog(3, 'Backup database: '.$hasil['file'].' ('.number_to_size($hasil['size'], 2).')');
+
+        return $this->response->setJSON([
+            'status' => true,
+            'message' => 'Backup database berhasil: '.$hasil['file'],
+            'file' => $hasil['file'],
+            'size' => $hasil['size'],
+            'csrfName' => '_token',
+            'csrfHash' => csrf_token(),
+        ]);
+    }
+
+    /**
+     * Inti backup database: dump seluruh tabel milik database koneksi ke file
+     * .sql di storage/app/backups (di luar webroot). Dipakai backupDb() (tombol
+     * manual) dan snapshot pre-restore otomatis, sehingga aturan dump selalu
+     * konsisten: header versi, FOREIGN_KEY_CHECKS di matikan/dinyalakan, dan
+     * penanda lengkap/tidak-lengkap di dalam file.
+     *
+     * @return array{ok: bool, file: string, size: int, dilewati: list<string>, error: ?string}
+     */
+    private function buatDumpDatabase(string $filename): array
+    {
         $backupPath = storage_path('app').'/'.'backups/';
         if (! is_dir($backupPath)) {
             mkdir($backupPath, 0755, true);
         }
 
         $db = DB::connection();
-        // listTables() adalah API CodeIgniter; padanannya di Laravel adalah
-        // Schema::getTableListing() yang mengembalikan nama tabel.
-        $tables = Schema::getTableListing();
-        $filename = 'db_backup_'.date('Ymd_His').'.sql';
-        $filepath = $backupPath.$filename;
+        // Schema::getTableListing() menggantikan listTables() CI4. Dua hal
+        // penting: (1) $schemaQualified=false agar nama tabel polos, bukan
+        // "schema.tabel"; (2) schema HARUS diisi nama database koneksi —
+        // bila null, Laravel men-list tabel dari SEMUA schema user di server
+        // (schema 'absen' lama, 'cms_sekolah', dll.) dan SELECT/DDL akan gagal
+        // untuk tabel yang tidak ada di database ini.
+        $tables = Schema::getTableListing($db->getDatabaseName(), false);
 
-        $sql = '';
+        $filepath = $backupPath.$filename;
+        $sql = self::DUMP_HEADER."\n"
+            .'-- Database: '.$db->getDatabaseName()."\n"
+            .'-- Dibuat  : '.date('Y-m-d H:i:s')."\n"
+            ."-- Jangan edit isi file ini; restore memvalidasi header di atas.\n"
+            ."\n"
+            ."SET FOREIGN_KEY_CHECKS=0;\n\n";
+
         $dilewati = [];
         foreach ($tables as $table) {
             if (strpos($table, 'migration') === 0) {
@@ -821,14 +909,14 @@ class SettingsController extends BaseController
             if ($result === false) {
                 // get() mengembalikan false saat query gagal; melanjutkan berarti
                 // dump tanpa tabel ini tapi tetap dilaporkan "berhasil".
-                Log::error('[Settings::backupDb] gagal membaca '.$table.': '.json_encode(['code' => 0, 'message' => '']));
+                Log::error('[Settings::buatDumpDatabase] gagal membaca '.$table);
                 $dilewati[] = $table;
 
                 continue;
             }
             $fields = Schema::getColumnListing($table);
             if (empty($fields)) {
-                Log::error('[Settings::backupDb] tidak bisa membaca kolom '.$table);
+                Log::error('[Settings::buatDumpDatabase] tidak bisa membaca kolom '.$table);
                 $dilewati[] = $table;
 
                 continue;
@@ -838,7 +926,7 @@ class SettingsController extends BaseController
             $create = $createQ ? ($createQ[0] ?? null) : null;
             $ddl = is_object($create) ? ($create->{'Create Table'} ?? $create->{'Create View'} ?? null) : null;
             if ($ddl === null) {
-                Log::error('[Settings::backupDb] tidak ada DDL untuk '.$table);
+                Log::error('[Settings::buatDumpDatabase] tidak ada DDL untuk '.$table);
                 $dilewati[] = $table;
 
                 continue;
@@ -850,7 +938,10 @@ class SettingsController extends BaseController
             if ($result->count() > 0) {
                 $sql .= "INSERT INTO `$table` VALUES\n";
                 $rows = [];
-                foreach (array_map(fn ($r) => (array) $r, $result) as $row) {
+                // get() Laravel mengembalikan Collection — iterasi langsung
+                // (array_map() menolak Collection sebagai argumen #2).
+                foreach ($result as $row) {
+                    $row = (array) $row;
                     $values = [];
                     foreach ($fields as $field) {
                         $val = $row[$field] ?? null;
@@ -861,7 +952,9 @@ class SettingsController extends BaseController
                             // string seperti '0611450719200011' (NIP/ponsel/kodepos),
                             // dan tanpa kutip angka itu menjadi literal numerik saat
                             // restore, sehingga semua angka 0 di depan hilang.
-                            $values[] = "'".$db->escapeString((string) $val)."'";
+                            // PDO::quote() sudah menambahkan kutip sekaligus
+                            // meng-escape (pengganti escapeString() CI4).
+                            $values[] = $db->getPdo()->quote((string) $val);
                         }
                     }
                     $rows[] = '('.implode(',', $values).')';
@@ -870,38 +963,92 @@ class SettingsController extends BaseController
             }
         }
 
-        if ($dilewati !== []) {
-            // Penanda di dalam dump: restore menolak file bertanda ini, karena
+        $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+        if ($dilewati === []) {
+            $sql .= self::DUMP_MARK_LENGKAP."\n";
+        } else {
+            // Penanda di baris pertama: restore menolak file bertanda ini, karena
             // "sebagian lengkap" jauh lebih berbahaya daripada tidak ada backup.
-            $sql = '# absen:backup-tidak-lengkap tabel='.implode(',', $dilewati)."\n"
+            $sql = self::DUMP_MARK_TIDAK_LENGKAP.' tabel='.implode(',', $dilewati)."\n"
                 .'# Dibuat '.date('Y-m-d H:i:s')." — jangan dipakai untuk restore.\n\n".$sql;
         }
 
         if (file_put_contents($filepath, $sql, LOCK_EX) === false) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menulis file backup']);
+            Log::error('[Settings::buatDumpDatabase] gagal menulis '.$filepath);
+
+            return ['ok' => false, 'file' => $filename, 'size' => 0, 'dilewati' => $dilewati, 'error' => 'Gagal menulis file backup (ruang disk/permission?)'];
         }
 
-        if ($dilewati !== []) {
-            return $this->response->setJSON([
-                'status' => false,
-                'message' => 'Backup TIDAK lengkap: '.count($dilewati).' tabel tidak ikut tersimpan ('
-                    .implode(', ', array_slice($dilewati, 0, 10)).').'
-                    .' File '.$filename.' tidak boleh dipakai untuk restore sebelum tabel-tabel itu berhasil dibaca.',
-                'file' => $filename,
-                'dilewati' => $dilewati,
-                'csrfName' => '_token',
-                'csrfHash' => csrf_token(),
-            ]);
+        return ['ok' => true, 'file' => $filename, 'size' => (int) filesize($filepath), 'dilewati' => $dilewati, 'error' => null];
+    }
+
+    /**
+     * Audit log aktivitas backup/restore ke tabel logs via LogModel.
+     * Kode aktivitas mengikuti konvensi LogModel: 3=create, 5=update, 6=delete.
+     */
+    private function catatLog(int $aktivitas, string $keterangan): void
+    {
+        try {
+            (new LogModel)->saveLog($aktivitas, substr($keterangan, 0, 240), $this->getUserId());
+        } catch (\Throwable $e) {
+            Log::error('[Settings::catatLog] '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Selesaikan nama file backup menjadi path absolut di dalam folder
+     * storage/app/backups, dengan pengaman berlapis: regex nama file, tolak
+     * '..', whitelist awalan nama file, dan realpath harus tetap di dalam
+     * folder backup (cegah path traversal dan symlink keluar folder).
+     *
+     * @param  list<string>|null  $ekstensiDiizinkan  batasi ekstensi (mis. ['.sql'])
+     * @param  list<string>|null  $prefiksDiizinkan  batasi awalan nama file
+     * @return string|null path absolut bila valid, null bila ditolak
+     */
+    private function resolveBackupFile(?string $src, ?array $ekstensiDiizinkan = null, ?array $prefiksDiizinkan = null): ?string
+    {
+        if ($src === null || $src === '' || strlen($src) > 200) {
+            return null;
+        }
+        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src) || str_contains($src, '..')) {
+            return null;
         }
 
-        return $this->response->setJSON([
-            'status' => true,
-            'message' => 'Backup database berhasil: '.$filename,
-            'file' => $filename,
-            'size' => filesize($filepath),
-            'csrfName' => '_token',
-            'csrfHash' => csrf_token(),
-        ]);
+        $lower = strtolower($src);
+        $lolosPrefiks = false;
+        foreach ($prefiksDiizinkan ?? self::BACKUP_PREFIXES as $prefiks) {
+            if (str_starts_with($lower, $prefiks)) {
+                $lolosPrefiks = true;
+                break;
+            }
+        }
+        if (! $lolosPrefiks) {
+            return null;
+        }
+
+        if ($ekstensiDiizinkan !== null) {
+            $lolosEkstensi = false;
+            foreach ($ekstensiDiizinkan as $ekstensi) {
+                if (str_ends_with($lower, strtolower($ekstensi))) {
+                    $lolosEkstensi = true;
+                    break;
+                }
+            }
+            if (! $lolosEkstensi) {
+                return null;
+            }
+        }
+
+        $root = realpath(storage_path('app').'/backups');
+        if ($root === false) {
+            return null;
+        }
+        $abs = realpath($root.'/'.$src);
+        if ($abs === false || ! is_file($abs) || strpos($abs, $root) !== 0) {
+            return null;
+        }
+
+        return $abs;
     }
 
     /**
@@ -975,6 +1122,8 @@ class SettingsController extends BaseController
             ]);
         }
 
+        $this->catatLog(3, 'Backup file uploads: '.$filename.' ('.$dimasukkan.' file, '.number_to_size(filesize($filepath), 2).')');
+
         return $this->response->setJSON([
             'status' => true,
             'message' => 'Backup file berhasil: '.$filename,
@@ -1004,11 +1153,12 @@ class SettingsController extends BaseController
                 'csrfName' => '_token', 'csrfHash' => csrf_token()]);
         }
 
-        // Hanya sapu file yang endpoint ini buat sendiri. Sebelumnya glob '*.*'
-        // menghapus SEMUA isi folder, termasuk arsip malam cron db_*.sql.gz
-        // (satu-satunya recovery point otomatis) dan index.html/.htaccess
-        // pelindung folder — semua hilang tanpa jejak dan tetap dilaporkan bersih.
-        $polaDiizinkan = ['db_backup_', 'files_backup_'];
+        // Hanya sapu file yang endpoint ini buat sendiri (termasuk snapshot
+        // pre-restore). Sebelumnya glob '*.*' menghapus SEMUA isi folder,
+        // termasuk arsip malam cron db_*.sql.gz (satu-satunya recovery point
+        // otomatis) dan index.html/.htaccess pelindung folder — semua hilang
+        // tanpa jejak dan tetap dilaporkan bersih.
+        $polaDiizinkan = self::BACKUP_PREFIXES;
         $dilindungi = [];
         $gagalHapus = [];
         $count = 0;
@@ -1050,6 +1200,8 @@ class SettingsController extends BaseController
             $pesan .= '. '.count($dilindungi).' file arsip otomatis dipertahankan';
         }
 
+        $this->catatLog(6, "Hapus massal backup manual: $count file dihapus".($gagalHapus !== [] ? ', '.count($gagalHapus).' gagal' : ''));
+
         return $this->response->setJSON([
             'status' => $gagalHapus === [],
             'message' => $pesan,
@@ -1073,24 +1225,27 @@ class SettingsController extends BaseController
             return $this->response->setStatusCode(405);
         }
 
-        $src = $this->request->input('src');
-        if (empty($src)) {
+        $src = trim((string) $this->request->input('src'));
+        if ($src === '') {
             return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak boleh kosong']);
         }
 
-        // Security: only allow alphanumeric, underscore, dash, dot
-        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak valid']);
+        // Hanya file buatan halaman ini (db_backup_/files_backup_/pre_restore_)
+        // yang boleh dihapus; arsip cron db_*.sql.gz dan index.html/.htaccess
+        // pelindung folder dilindungi whitelist di resolveBackupFile(), yang
+        // juga menahan path traversal (realpath harus tetap di folder backups).
+        $filepath = $this->resolveBackupFile($src);
+        if ($filepath === null) {
+            return $this->response->setJSON(['status' => false, 'message' => 'File tidak ditemukan atau tidak boleh dihapus']);
         }
 
-        $backupPath = storage_path('app').'/'.'backups/';
-        $filepath = $backupPath.$src;
+        if (! @unlink($filepath)) {
+            Log::error('[Settings::hapusBackup] gagal menghapus '.$filepath);
 
-        if (! is_file($filepath)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File tidak ditemukan']);
+            return $this->response->setJSON(['status' => false, 'message' => 'File tidak bisa dihapus (permission/owner?)']);
         }
 
-        @unlink($filepath);
+        $this->catatLog(6, 'Hapus file backup: '.$src);
 
         return $this->response->setJSON([
             'status' => true,
@@ -1194,29 +1349,41 @@ class SettingsController extends BaseController
             return $this->response->setStatusCode(405);
         }
 
-        $src = $this->request->input('src');
-        if (empty($src)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak boleh kosong']);
-        }
-
-        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak valid']);
-        }
-
-        $backupPath = storage_path('app').'/'.'backups/';
-        $filepath = $backupPath.$src;
-
-        if (! is_file($filepath)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File backup tidak ditemukan']);
-        }
-
-        // Hanya dump teks murni. Arsip cron .sql.gz dibaca sebagai teks menghasilkan
-        // byte acak yang lolos "pisahStatement" lalu dieksekusi sebagai SQL rusak —
-        // sebagian di antaranya bisa saja kebetulan valid dan merusak data.
-        if (! str_ends_with(strtolower($src), '.sql')) {
+        // Konfirmasi ketik RESTORE: menahan klik-kecelakaan, klik ganda, dan
+        // form autofill; restore menimpa seluruh database sehingga konfirmasi
+        // sadar (bukan sekadar tombol OK) wajib.
+        if (strtoupper(trim((string) $this->request->input('konfirmasi'))) !== 'RESTORE') {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Hanya file .sql yang bisa direstore dari halaman ini. File terkompresi (.gz/.zip) harus di-ekstrak dulu di server.',
+                'message' => 'Konfirmasi diperlukan: ketik RESTORE pada kolom konfirmasi.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        // Throttle: satu restore per 2 menit, supaya spam/klik ganda tidak
+        // menghajar server dan admin sempat menyadari restore yang salah kirim.
+        $terakhir = (int) Cache::get('absen_restore_terakhir', 0);
+        if ($terakhir > 0 && time() - $terakhir < 120) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'Restore baru saja dijalankan '.(time() - $terakhir).' detik lalu. Tunggu beberapa saat lagi.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        $src = trim((string) $this->request->input('src'));
+
+        // resolveBackupFile() menahan path traversal (realpath), whitelist
+        // awalan nama file, dan membatasi ekstensi ke .sql — arsip terkompresi
+        // (.gz/.zip) dibaca sebagai teks menghasilkan byte acak yang bisa
+        // lolos parser lalu dieksekusi sebagai SQL rusak.
+        $filepath = $this->resolveBackupFile($src, ['.sql']);
+        if ($filepath === null) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'File backup tidak valid atau tidak ditemukan (hanya db_backup_*.sql / pre_restore_*.sql).',
                 'csrfName' => '_token',
                 'csrfHash' => csrf_token(),
             ]);
@@ -1230,7 +1397,7 @@ class SettingsController extends BaseController
         // Dump yang dilaporkan tidak lengkap saat dibuat tidak boleh dipakai untuk
         // restore: DROP TABLE di dalamnya akan menyapu data sedangkan tabel yang
         // tadi dilewati tidak ikut dipulihkan.
-        if (preg_match('/^#?\s*absen:backup-tidak-lengkap/m', $sql)) {
+        if (preg_match('/^'.preg_quote(self::DUMP_MARK_TIDAK_LENGKAP, '/').'/m', $sql)) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'File ini ditandai sebagai backup TIDAK lengkap saat dibuat. Buat backup baru dulu, lalu restore yang lengkap.',
@@ -1239,53 +1406,104 @@ class SettingsController extends BaseController
             ]);
         }
 
-        $db = DB::connection();
-        DB::beginTransaction();
-
-        // Pisah per statement dengan parser yang mengenali string literal dan
-        // komentar; explode(';') memotong alamat/catatan yang berisi ';'.
-        $statements = $this->pisahStatement($sql);
-        $berhasil = 0;
-        $gagal = 0;
-        foreach ($statements as $stmt) {
-            if (strlen($stmt) > 0) {
-                try {
-                    $db->select($stmt);
-                    $berhasil++;
-                } catch (\Throwable $e) {
-                    // Continue on error (e.g., table already exists).
-                    // Tetap dihitung: tanpa ini restore sebagian terbaca
-                    // "berhasil" padahal banyak statement tidak berjalan,
-                    // dan DDL MySQL di-implied-commit sehingga transComplete()
-                    // tidak bisa membatalkannya.
-                    $gagal++;
-                    Log::error('[Settings::restore] SQL error: '.$e->getMessage());
-                }
-            }
-        }
-
-        DB::commit();
-
-        if (true === false) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Restore gagal (transaksi dibatalkan)']);
-        }
-
-        if ($gagal > 0) {
+        // Hanya terima dump buatan aplikasi ini (header eksplisit). Dump dari
+        // alat lain, atau payload SQL arbitrer yang menyamar sebagai backup,
+        // ditolak — buat backup baru dari halaman ini bila perlu.
+        if (! str_starts_with(ltrim($sql), self::DUMP_HEADER)) {
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Restore TIDAK lengkap: '.$berhasil.' statement berjalan, '.$gagal
-                    .' gagal. Periksa log server sebelum mengandalkan data ini.',
+                'message' => 'File ini bukan dump hasil backup aplikasi (header tidak dikenal). Buat backup baru dari halaman ini, lalu restore file tersebut.',
                 'csrfName' => '_token',
                 'csrfHash' => csrf_token(),
             ]);
         }
 
+        // Snapshot pre-restore wajib: bila gagal dibuat, restore dibatalkan —
+        // lebih baik tidak terjadi apa-apa daripada menimpa data tanpa jalan
+        // kembali.
+        $snapshot = $this->buatDumpDatabase('pre_restore_'.date('Ymd_His').'.sql');
+        if (! $snapshot['ok']) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'Restore dibatalkan: gagal membuat snapshot keadaan saat ini ('.($snapshot['error'] ?? 'tidak diketahui').').',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        // Eksekusi per statement TANPA transaksi pembungkus: MySQL melakukan
+        // implicit commit untuk DDL (DROP/CREATE/ALTER), sehingga begin/commit
+        // tidak bisa membatalkan apa pun dan hanya memberi ilusi keamanan.
+        // Pemulihan dari hasil yang rusak ditangani lewat snapshot pre-restore.
+        $pdo = DB::connection()->getPdo();
+        $berhasil = 0;
+        $gagal = 0;
+        $ditolak = 0;
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        foreach ($this->pisahStatement($sql) as $stmt) {
+            if (! $this->statementDiizinkan($stmt)) {
+                // GRANT/CREATE USER/LOAD DATA dll. bukan bagian dump sekolah;
+                // menolaknya mencegah privilege/OS diserang lewat file backup.
+                $ditolak++;
+                Log::warning('[Settings::restore] statement ditolak (di luar whitelist): '.substr($stmt, 0, 120));
+
+                continue;
+            }
+            try {
+                $pdo->exec($stmt);
+                $berhasil++;
+            } catch (\Throwable $e) {
+                // Statement gagal dicatat lalu dilanjutkan: menghentikan di
+                // tengah jalan justru meninggalkan database setengah jadi.
+                $gagal++;
+                Log::error('[Settings::restore] SQL error: '.$e->getMessage());
+            }
+        }
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+
+        Cache::put('absen_restore_terakhir', time(), 600);
+
+        $ringkasan = 'berhasil '.$berhasil.', gagal '.$gagal.', ditolak '.$ditolak;
+
+        if ($gagal > 0 || $ditolak > 0) {
+            $this->catatLog(5, 'Restore TIDAK lengkap dari '.$src.' ('.$ringkasan.')');
+
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'Restore TIDAK lengkap ('.$ringkasan.'). Snapshot keadaan sebelum restore tersimpan sebagai '
+                    .$snapshot['file'].'. Periksa log server sebelum mencoba lagi.',
+                'snapshot' => $snapshot['file'],
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        $this->catatLog(5, 'Restore database dari '.$src.' ('.$ringkasan.'), snapshot pre-restore: '.$snapshot['file']);
+
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Restore database berhasil ('.$berhasil.' statement)',
+            'message' => 'Restore database berhasil ('.$ringkasan.'). Snapshot otomatis pre-restore: '.$snapshot['file'],
+            'snapshot' => $snapshot['file'],
             'csrfName' => '_token',
             'csrfHash' => csrf_token(),
         ]);
+    }
+
+    /**
+     * Whitelist keyword pertama statement yang boleh dieksekusi saat restore.
+     * Dump aplikasi hanya berisi statement di daftar ini; keyword seperti
+     * GRANT/CREATE USER/LOAD DATA ditolak karena bukan bagian dump sekolah dan
+     * berbahaya bila diselundupkan lewat file yang terlihat seperti backup.
+     */
+    private function statementDiizinkan(string $stmt): bool
+    {
+        preg_match('/^[A-Za-z]+/', ltrim($stmt), $m);
+
+        return in_array(
+            strtoupper($m[0] ?? ''),
+            ['SET', 'USE', 'DROP', 'CREATE', 'ALTER', 'INSERT', 'REPLACE', 'DELETE', 'UPDATE', 'TRUNCATE', 'LOCK', 'UNLOCK', 'RENAME', 'START', 'BEGIN', 'COMMIT', 'ROLLBACK', 'ANALYZE', 'OPTIMIZE'],
+            true
+        );
     }
 
     /**
@@ -1299,14 +1517,11 @@ class SettingsController extends BaseController
 
         $src = (string) ($this->request->query('src') ?? '');
 
-        if (! preg_match('/^[a-zA-Z0-9_\-\.]+$/', $src)) {
-            abort(404);
-        }
-
-        $backupPath = storage_path('app').'/'.'backups/';
-        $filepath = $backupPath.$src;
-
-        if (! is_file($filepath)) {
+        // Unduhan mencakup backup halaman ini + arsip cron db_*.sql.gz;
+        // resolveBackupFile() memvalidasi nama, whitelist awalan, dan realpath
+        // (anti path traversal).
+        $filepath = $this->resolveBackupFile($src, null, ['db_backup_', 'files_backup_', 'pre_restore_', 'db_']);
+        if ($filepath === null) {
             abort(404);
         }
         // File backup sering dibuat cron yang berjalan sebagai user lain; kalau
@@ -1318,6 +1533,6 @@ class SettingsController extends BaseController
             abort(404);
         }
 
-        return $this->response->download($filepath, null)->setFileName($src);
+        return $this->response->download($filepath, null)->setFileName(basename($filepath));
     }
 }

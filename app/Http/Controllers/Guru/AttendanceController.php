@@ -305,7 +305,7 @@ class AttendanceController extends BaseController
     public function logoutApp()
     {
         RememberLogin::clear();
-        session()->destroy();
+        session()->flush();
 
         return redirect()->to('/');
     }
