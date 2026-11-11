@@ -554,7 +554,7 @@
 
     <footer class="page-footer">
         <p class="page-foot">{{ $setting->nama_sekolah ?? 'Presensi & KBM' }}</p>
-        <p class="page-version">IKASMEDIA &middot; v2.2.0</p>
+        <p class="page-version">IKASMEDIA &middot; v2.3.0</p>
     </footer>
 </div>
 

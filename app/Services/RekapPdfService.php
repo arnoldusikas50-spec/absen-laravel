@@ -31,6 +31,7 @@ class RekapPdfService
      * Render rekap denda periode terpilih menjadi string PDF.
      *
      * @return array{pdf:string, filename:string, bulan:string, tahun:string, jumlah_guru:int}
+     *
      * @throws \RuntimeException bila Dompdf tidak menghasilkan output
      */
     public function buildDendaPdf(string $bulan, string $tahun): array
@@ -61,17 +62,19 @@ class RekapPdfService
 
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id]))
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
+            }
             $mapByUser[$att->user_id][$att->tgl] = $att;
         }
 
-        $setting = (new DashboardModel())->getSetting();
-        $absenSettingModel = new AttendanceSettingModel();
+        $setting = (new DashboardModel)->getSetting();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
 
-        if (!$setting)
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
+        }
 
         $pembayaranList = DB::table('absensi_pembayaran_denda')
             ->where('bulan', $bulan)
@@ -86,14 +89,14 @@ class RekapPdfService
         $poinDigunakanMap = [];
 
         foreach ($pembayaranList as $p) {
-            $nominalActual = (float)($p->nominal_bayar ?: $p->total_denda);
+            $nominalActual = (float) ($p->nominal_bayar ?: $p->total_denda);
             if ($p->status === 'lunas') {
                 $lunasMap[$p->user_id] = $p;
             }
-            $kelas = \App\Services\AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
+            $kelas = AttendancePenaltyService::kelasPembayaranDenda($p->metode_bayar, $p->keterangan ?? null);
             if ($kelas === 'POIN') {
                 $potonganPoinMap[$p->user_id] = ($potonganPoinMap[$p->user_id] ?? 0) + $nominalActual;
-                $poinDigunakanMap[$p->user_id] = ($poinDigunakanMap[$p->user_id] ?? 0) + (int)($p->poin_digunakan ?? 0);
+                $poinDigunakanMap[$p->user_id] = ($poinDigunakanMap[$p->user_id] ?? 0) + (int) ($p->poin_digunakan ?? 0);
             } elseif ($kelas === 'SALDO') {
                 $potonganSaldoMap[$p->user_id] = ($potonganSaldoMap[$p->user_id] ?? 0) + $nominalActual;
             } else {
@@ -103,10 +106,12 @@ class RekapPdfService
 
         // Progressive alpha for export — peta tersaring kanonik (missing-only).
         $startExp = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $endExp   = date('Y-m-t', strtotime($startExp));
+        $endExp = date('Y-m-t', strtotime($startExp));
         $alphaDetailExp = $this->filteredAlphaMonthMap($startExp, $endExp, $absenSetting);
         $alphaMap = [];
-        foreach ($alphaDetailExp as $uid => $info) $alphaMap[$uid] = $info['count'];
+        foreach ($alphaDetailExp as $uid => $info) {
+            $alphaMap[$uid] = $info['count'];
+        }
         $alphaDetailMap = $alphaDetailExp;
 
         $ytdStats = $this->getYTDDendaStats($tahun);
@@ -116,14 +121,14 @@ class RekapPdfService
         if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path($setting->kopsekolah))) {
             $type = pathinfo(public_path($setting->kopsekolah), PATHINFO_EXTENSION);
             $imgData = file_get_contents(public_path($setting->kopsekolah));
-            $kopBase64 = 'data:image/' . $type . ';base64,' . base64_encode($imgData);
+            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
         }
 
         $logoBase64 = '';
         if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path($setting->logo_kiri))) {
             $type = pathinfo(public_path($setting->logo_kiri), PATHINFO_EXTENSION);
             $imgData = file_get_contents(public_path($setting->logo_kiri));
-            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($imgData);
+            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
         }
 
         // TTD Kepala Sekolah (dari /settings) untuk blok tanda tangan
@@ -131,7 +136,7 @@ class RekapPdfService
         if (isset($setting->tanda_tangan) && $setting->tanda_tangan && file_exists(public_path($setting->tanda_tangan))) {
             $type = pathinfo(public_path($setting->tanda_tangan), PATHINFO_EXTENSION);
             $imgData = file_get_contents(public_path($setting->tanda_tangan));
-            $ttdBase64 = 'data:image/' . $type . ';base64,' . base64_encode($imgData);
+            $ttdBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
         }
 
         $data = [
@@ -150,7 +155,7 @@ class RekapPdfService
             'ytdStats' => $ytdStats,
             'kopBase64' => $kopBase64,
             'logoBase64' => $logoBase64,
-            'ttdBase64' => $ttdBase64
+            'ttdBase64' => $ttdBase64,
         ];
 
         $html = view('admin.presensi.denda_pdf', $data)->render();
@@ -164,11 +169,11 @@ class RekapPdfService
         }
 
         return [
-            'pdf'          => $pdf,
-            'filename'     => "Rekap_Denda_{$bulan}_{$tahun}.pdf",
-            'bulan'        => $bulan,
-            'tahun'        => $tahun,
-            'jumlah_guru'  => count($users),
+            'pdf' => $pdf,
+            'filename' => "Rekap_Denda_{$bulan}_{$tahun}.pdf",
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'jumlah_guru' => count($users),
         ];
     }
 
@@ -179,12 +184,13 @@ class RekapPdfService
      * sebagai base64 supaya Dompdf tidak perlu akses jaringan.
      *
      * @return array{pdf:string, filename:string, bulan:string, tahun:string, jumlah_guru:int}
+     *
      * @throws \RuntimeException bila Dompdf tidak menghasilkan output
      */
     public function buildRekapBulananPdf(string $bulan, string $tahun): array
     {
-        $setting  = (new DashboardModel())->getSetting();
-        if (!$setting) {
+        $setting = (new DashboardModel)->getSetting();
+        if (! $setting) {
             $setting = (object) ['logo_kiri' => null, 'nama_aplikasi' => 'absensi by ikasmedia'];
         }
 
@@ -207,8 +213,13 @@ class RekapPdfService
         usort($users, function ($a, $b) use ($kepsekNip) {
             $isA = $kepsekNip !== '' && trim((string) ($a->nip ?? '')) === $kepsekNip;
             $isB = $kepsekNip !== '' && trim((string) ($b->nip ?? '')) === $kepsekNip;
-            if ($isA && !$isB) return -1;
-            if (!$isA && $isB) return 1;
+            if ($isA && ! $isB) {
+                return -1;
+            }
+            if (! $isA && $isB) {
+                return 1;
+            }
+
             return strcasecmp((string) ($a->nama_guru ?? ''), (string) ($b->nama_guru ?? ''));
         });
 
@@ -219,7 +230,7 @@ class RekapPdfService
 
         $mapByUser = [];
         foreach ($attendances as $att) {
-            if (!isset($mapByUser[$att->user_id])) {
+            if (! isset($mapByUser[$att->user_id])) {
                 $mapByUser[$att->user_id] = [];
             }
             $mapByUser[$att->user_id][$att->tgl] = $att;
@@ -249,7 +260,7 @@ class RekapPdfService
         if (Schema::hasTable('absensi_izin')) {
             try {
                 $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-                $endDate   = date('Y-m-t', strtotime($startDate));
+                $endDate = date('Y-m-t', strtotime($startDate));
                 $leaveRows = DB::table('absensi_izin')
                     ->where('status', 'approved')
                     ->where('tgl_mulai', '<=', $endDate)
@@ -264,29 +275,63 @@ class RekapPdfService
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('[buildRekapBulananPdf] leaveMap gagal: ' . $e->getMessage());
+                Log::error('[buildRekapBulananPdf] leaveMap gagal: '.$e->getMessage());
             }
         }
 
-        $absenSettingModel = new AttendanceSettingModel();
-        $absenSetting      = $absenSettingModel->first();
+        // Peta detail izin approved bulan ini per user per tanggal,
+        // untuk Lampiran Keterangan (alasan dinas, ijin, sakit, cuti).
+        $izinMap = [];
+        if (Schema::hasTable('absensi_izin')) {
+            try {
+                $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
+                $endDate = date('Y-m-t', strtotime($startDate));
+                $izinRows = DB::table('absensi_izin')
+                    ->where('status', 'approved')
+                    ->where('tgl_mulai', '<=', $endDate)
+                    ->where('tgl_selesai', '>=', $startDate)
+                    ->get()->all();
+                foreach ($izinRows as $iz) {
+                    $jenis = strtolower(trim((string) ($iz->jenis ?? 'ijin')));
+                    if (! in_array($jenis, ['dinas', 'ijin', 'izin', 'sakit', 'cuti'], true)) {
+                        continue;
+                    }
+                    $cur = strtotime(max($startDate, (string) $iz->tgl_mulai));
+                    $end = strtotime(min($endDate, (string) $iz->tgl_selesai));
+                    while ($cur <= $end) {
+                        $d = date('Y-m-d', $cur);
+                        $izinMap[(int) $iz->user_id][$d] = [
+                            'jenis' => $jenis === 'izin' ? 'ijin' : $jenis,
+                            'keterangan' => trim((string) ($iz->keterangan ?? '-')),
+                        ];
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error('[buildRekapBulananPdf] izinMap gagal: '.$e->getMessage());
+            }
+        }
+
+        $absenSettingModel = new AttendanceSettingModel;
+        $absenSetting = $absenSettingModel->first();
 
         // Inline gambar supaya Dompdf tidak butuh akses jaringan
         $logoBase64 = $this->gambarBase64($setting->logo_kiri ?? null);
-        $kopBase64  = $this->gambarBase64($setting->kopsekolah ?? null);
+        $kopBase64 = $this->gambarBase64($setting->kopsekolah ?? null);
 
         $data = [
-            'users'       => $users,
-            'mapByUser'   => $mapByUser,
-            'holidays'    => $holidays,
-            'bulan'       => $bulan,
-            'tahun'       => $tahun,
-            'setting'     => $setting,
+            'users' => $users,
+            'mapByUser' => $mapByUser,
+            'holidays' => $holidays,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'setting' => $setting,
             'absenSetting' => $absenSetting,
             'jadwalKerja' => $jadwalKerja,
-            'leaveMap'    => $leaveMap,
-            'logoBase64'  => $logoBase64,
-            'kopBase64'   => $kopBase64,
+            'leaveMap' => $leaveMap,
+            'izinMap' => $izinMap,
+            'logoBase64' => $logoBase64,
+            'kopBase64' => $kopBase64,
         ];
 
         $html = view('admin.presensi.rekap_pdf', $data)->render();
@@ -300,10 +345,10 @@ class RekapPdfService
         }
 
         return [
-            'pdf'         => $pdf,
-            'filename'    => "Rekap_Presensi_{$bulan}_{$tahun}.pdf",
-            'bulan'       => $bulan,
-            'tahun'       => $tahun,
+            'pdf' => $pdf,
+            'filename' => "Rekap_Presensi_{$bulan}_{$tahun}.pdf",
+            'bulan' => $bulan,
+            'tahun' => $tahun,
             'jumlah_guru' => count($users),
         ];
     }
@@ -312,9 +357,9 @@ class RekapPdfService
     {
         $startDate = substr($startDate, 0, 10);
         $endDate = substr($endDate, 0, 10);
-        $scanStart = date('Y-m-d', strtotime($startDate . ' -62 days'));
+        $scanStart = date('Y-m-d', strtotime($startDate.' -62 days'));
 
-        $svc = new \App\Services\AttendancePenaltyService();
+        $svc = new AttendancePenaltyService;
         try {
             $sum = $svc->calculateAllUsersPeriodAlphaSummary($scanStart, $endDate, $setting);
         } catch (\Throwable $e) {
@@ -339,7 +384,8 @@ class RekapPdfService
                     $recorded[(int) $r->user_id][substr($r->tgl, 0, 10)] = true;
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $today = date('Y-m-d');
         $map = [];
@@ -358,7 +404,7 @@ class RekapPdfService
                 }
                 $items[] = $it;
             }
-            if ($allCount > 0 || !empty($items)) {
+            if ($allCount > 0 || ! empty($items)) {
                 $cappedMissing = $svc->capMissingAlphaEstimates($uid, $items, $setting);
                 $map[$uid] = [
                     'count' => $allCount,
@@ -368,6 +414,7 @@ class RekapPdfService
                 ];
             }
         }
+
         return $map;
     }
 
@@ -379,7 +426,7 @@ class RekapPdfService
         // 1. Get total denda harian YTD
         // Batas "hari ini" dari kalender app, bukan CURDATE(): clock MySQL
         // server satu jam di belakang WITA (lihat AttendancePolicy::hariIniWita).
-        $hariIni = \App\Services\AttendancePolicy::hariIniWita();
+        $hariIni = AttendancePolicy::hariIniWita();
         $dendaHarianRaw = DB::select("
             SELECT user_id, SUM(denda) as total_denda_harian
             FROM absensi_harian
@@ -388,7 +435,7 @@ class RekapPdfService
         ");
         $dendaHarianMap = [];
         foreach ($dendaHarianRaw as $d) {
-            $dendaHarianMap[$d->user_id] = (float)$d->total_denda_harian;
+            $dendaHarianMap[$d->user_id] = (float) $d->total_denda_harian;
         }
 
         // 2. Get payments YTD split by TUNAI, POIN, and SALDO
@@ -404,7 +451,7 @@ class RekapPdfService
         ");
         $dibayarTunaiMap = [];
         foreach ($dibayarTunaiRaw as $d) {
-            $dibayarTunaiMap[$d->user_id] = (float)$d->total;
+            $dibayarTunaiMap[$d->user_id] = (float) $d->total;
         }
 
         $potonganPoinRaw = DB::select("
@@ -415,7 +462,7 @@ class RekapPdfService
         ");
         $potonganPoinMap = [];
         foreach ($potonganPoinRaw as $d) {
-            $potonganPoinMap[$d->user_id] = (float)$d->total;
+            $potonganPoinMap[$d->user_id] = (float) $d->total;
         }
 
         $potonganSaldoRaw = DB::select("
@@ -426,23 +473,23 @@ class RekapPdfService
         ");
         $potonganSaldoMap = [];
         foreach ($potonganSaldoRaw as $d) {
-            $potonganSaldoMap[$d->user_id] = (float)$d->total;
+            $potonganSaldoMap[$d->user_id] = (float) $d->total;
         }
 
         // 3. Get Alpha YTD — panggil langsung AttendancePenaltyService::missingAlphaFines()
         // untuk setiap guru agar kalkulasi 100% identik dan konsisten dengan Attendance::dendaYtd() guru.
-        $absenSettingModel2 = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel2 = new AttendanceSettingModel;
         $absenSetting2 = $absenSettingModel2->first();
         $alphaDendaMapYtd = [];
         $alphaCountMapYtd = [];
-        $currYear = (int)$tahun;
-        $ytdStart = $currYear . '-01-01';
-        $ytdEnd   = ((int)date('Y') === $currYear) ? date('Y-m-d') : $currYear . '-12-31';
+        $currYear = (int) $tahun;
+        $ytdStart = $currYear.'-01-01';
+        $ytdEnd = ((int) date('Y') === $currYear) ? date('Y-m-d') : $currYear.'-12-31';
 
-        $penaltySvcYtd = new \App\Services\AttendancePenaltyService();
-        $usersListYtd = DB::select("SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1");
+        $penaltySvcYtd = new AttendancePenaltyService;
+        $usersListYtd = DB::select('SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1');
         // Batch: SATU kali summary untuk semua guru (bukan N kali full-recompute).
-        $ytdUserIds = array_values(array_unique(array_map(static fn($r) => (int) $r->id, $usersListYtd)));
+        $ytdUserIds = array_values(array_unique(array_map(static fn ($r) => (int) $r->id, $usersListYtd)));
         $missBatchYtd = $penaltySvcYtd->missingAlphaFinesBatch($ytdUserIds, $ytdStart, $ytdEnd, $absenSetting2, false);
         foreach ($usersListYtd as $uRow) {
             $uId = (int) $uRow->id;
@@ -452,7 +499,7 @@ class RekapPdfService
         }
 
         // Settings for alpha fine (fallback)
-        $absenSettingModel = new \App\Models\AttendanceSettingModel();
+        $absenSettingModel = new AttendanceSettingModel;
         $absenSetting = $absenSettingModel->first();
         // dendaAlphaPerHari kept for fallback but nominal is progressive map
 
@@ -465,8 +512,8 @@ class RekapPdfService
                 $nominalExpr = $hasNominalCol ? 'COALESCE(r.nominal, 0)' : '0';
                 $hasRedemptionLink = Schema::hasTable('absensi_pembayaran_denda') && Schema::hasColumn('absensi_pembayaran_denda', 'reward_redemption_id');
                 $excludeSql = $hasRedemptionLink
-                    ? " AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE reward_redemption_id IS NOT NULL)"
-                    : "";
+                    ? ' AND rr.id NOT IN (SELECT COALESCE(reward_redemption_id, 0) FROM absensi_pembayaran_denda WHERE reward_redemption_id IS NOT NULL)'
+                    : '';
                 $unlinkedRows = DB::select("
                     SELECT rr.user_id, SUM({$nominalExpr}) as total
                     FROM reward_redemptions rr
@@ -478,19 +525,20 @@ class RekapPdfService
                 foreach ($unlinkedRows as $ur) {
                     $unlinkedRewardMap[(int) $ur->user_id] = (float) ($ur->total ?? 0);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         // Combine
         $ytdStats = [];
-        $users = DB::select("SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1");
+        $users = DB::select('SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1');
         foreach ($users as $u) {
             $userId = $u->id;
             $harian = $dendaHarianMap[$userId] ?? 0;
             // use progressive map, fallback to flat if service empty
             if (isset($alphaDendaMapYtd[$userId])) {
-                $alphaDenda = (float)$alphaDendaMapYtd[$userId];
-                $alphaCount = (int)($alphaCountMapYtd[$userId] ?? 0);
+                $alphaDenda = (float) $alphaDendaMapYtd[$userId];
+                $alphaCount = (int) ($alphaCountMapYtd[$userId] ?? 0);
             } else {
                 $alphaCount = 0;
                 $alphaDenda = 0;
@@ -503,7 +551,9 @@ class RekapPdfService
             $totalDibayarYTD = $dibayarTunaiYTD + $potonganPoinYTD + $potonganSaldoYTD;
 
             $sisa = $totalDendaYTD - $totalDibayarYTD;
-            if ($sisa < 0) $sisa = 0;
+            if ($sisa < 0) {
+                $sisa = 0;
+            }
 
             $ytdStats[$userId] = [
                 'total_denda' => $totalDendaYTD,
@@ -511,7 +561,7 @@ class RekapPdfService
                 'potongan_poin' => $potonganPoinYTD,
                 'potongan_saldo' => $potonganSaldoYTD,
                 'total_dibayar' => $totalDibayarYTD,
-                'sisa' => $sisa
+                'sisa' => $sisa,
             ];
         }
 
@@ -524,7 +574,7 @@ class RekapPdfService
             return '';
         }
         $full = public_path(ltrim((string) $path, '/'));
-        if (!file_exists($full)) {
+        if (! file_exists($full)) {
             return '';
         }
 
@@ -542,6 +592,6 @@ class RekapPdfService
             return '';
         }
 
-        return 'data:' . $mime . ';base64,' . base64_encode($data);
+        return 'data:'.$mime.';base64,'.base64_encode($data);
     }
 }

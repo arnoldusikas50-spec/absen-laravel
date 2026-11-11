@@ -1596,6 +1596,38 @@ class PresensiAdminController extends BaseController
             }
         }
 
+        // Peta detail izin approved bulan ini per user per tanggal,
+        // untuk Lampiran Keterangan (alasan dinas, ijin, sakit, cuti).
+        $izinMap = [];
+        if (Schema::hasTable('absensi_izin')) {
+            try {
+                $startDateIz = sprintf('%04d-%02d-01', $tahun, $bulan);
+                $endDateIz = date('Y-m-t', strtotime($startDateIz));
+                $izinRows = $db->table('absensi_izin')
+                    ->where('status', 'approved')
+                    ->where('tgl_mulai', '<=', $endDateIz)
+                    ->where('tgl_selesai', '>=', $startDateIz)
+                    ->get();
+                foreach ($izinRows as $iz) {
+                    $jenis = strtolower(trim((string) ($iz->jenis ?? 'ijin')));
+                    if (! in_array($jenis, ['dinas', 'ijin', 'izin', 'sakit', 'cuti'], true)) {
+                        continue;
+                    }
+                    $cur = strtotime(max($startDateIz, (string) $iz->tgl_mulai));
+                    $end = strtotime(min($endDateIz, (string) $iz->tgl_selesai));
+                    while ($cur <= $end) {
+                        $d = date('Y-m-d', $cur);
+                        $izinMap[(int) $iz->user_id][$d] = [
+                            'jenis' => $jenis === 'izin' ? 'ijin' : $jenis,
+                            'keterangan' => trim((string) ($iz->keterangan ?? '-')),
+                        ];
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
         $data = [
             'users' => $users,
             'mapByUser' => $mapByUser,
@@ -1606,6 +1638,7 @@ class PresensiAdminController extends BaseController
             'absenSetting' => $absenSetting,
             'jadwalKerja' => $jadwalKerja,
             'leaveMap' => $leaveMap,
+            'izinMap' => $izinMap,
         ];
 
         $html = view('admin.presensi.rekap_pdf', $data);

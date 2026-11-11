@@ -19,6 +19,7 @@ use App\Services\SiswaDendaService;
 use App\Services\SiswaPoinService;
 use App\Services\SuratPanggilanService;
 use App\Services\SuratTeguranService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -321,15 +322,26 @@ class CronControllerController extends BaseController
     }
 
     /**
-     * Validasi secret key dari query string vs .env.
+     * Validasi secret key dari query string atau header Authorization.
      *
      * Fail-closed: bila CRON_SECRET_KEY kosong, semua request ditolak dan
      * keadaan dicatat critical di log. Endpoint cron mengubah data absensi
      * dan poin, jadi tidak boleh ada nilai default yang bisa ditebak.
+     *
+     * Rate limiting: maksimal 10 request per menit per IP + key,
+     * mencegah brute-force terhadap secret key.
      */
     private function validateKey(): bool
     {
+        // Ambil key dari header Authorization: Bearer <key> atau query ?key=
         $key = $this->request->query('key');
+        if ($key === null) {
+            $authHeader = $this->request->header('Authorization');
+            if ($authHeader !== null && str_starts_with($authHeader, 'Bearer ')) {
+                $key = trim(substr($authHeader, 7));
+            }
+        }
+
         $raw = env('CRON_SECRET_KEY');
         $raw = is_string($raw) ? trim($raw) : '';
 
@@ -343,7 +355,22 @@ class CronControllerController extends BaseController
             return false;
         }
 
-        return hash_equals($raw, (string) $key);
+        if ($key === null || ! hash_equals($raw, (string) $key)) {
+            return false;
+        }
+
+        // Rate limiting: 10 request per menit per IP + key
+        $ip = $this->request->ip() ?? 'unknown';
+        $cacheKey = 'cron_rate_limit:'.md5($ip.':'.substr($raw, 0, 8));
+        $count = (int) Cache::get($cacheKey, 0);
+        if ($count >= 10) {
+            Log::warning('[CronController] rate limit terlampaui IP='.$ip);
+
+            return false;
+        }
+        Cache::put($cacheKey, $count + 1, 60);
+
+        return true;
     }
 
     /**

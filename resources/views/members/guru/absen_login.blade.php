@@ -343,7 +343,7 @@
             <div class="login-footer">
                 <div class="version-badge">
                     <span class="inline-block rounded-full bg-emerald-500 p-1"></span>
-                    <span>v2.2.0 • ikasmedia</span>
+                    <span>v2.3.0 • ikasmedia</span>
                 </div>
             </div>
         </div>

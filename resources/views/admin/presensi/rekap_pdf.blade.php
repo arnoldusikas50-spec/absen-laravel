@@ -390,6 +390,122 @@
             </td>
         </tr>
     </table>
+
+    <!-- ─── LAMPIRAN KETERANGAN: alasan dinas, ijin, sakit (dan cuti) ─── -->
+    <div style="page-break-before: always; margin-top: 20px;">
+        <div class="text-center" style="margin-bottom: 10px;">
+            <div class="text-bold" style="font-size: 13px;">LAMPIRAN KETERANGAN</div>
+            <div style="font-size: 10px;">Alasan Dinas, Izin, dan Sakit</div>
+            <div style="font-size: 10px;">Periode:
+                {{ buat_tanggal(date('F Y', mktime(0, 0, 0, $bulan, 1, $tahun))) }}
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20px;">No</th>
+                    <th>Nama Guru / NIP</th>
+                    <th style="width: 80px;">Tanggal</th>
+                    <th style="width: 70px;">Jenis</th>
+                    <th style="width: 60px;">Jumlah Hari</th>
+                    <th>Keterangan (Alasan)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $no = 1;
+                $jenisLabel = [
+                    'dinas' => 'Dinas Luar',
+                    'ijin'  => 'Izin',
+                    'sakit' => 'Sakit',
+                    'cuti'  => 'Cuti',
+                ];
+                $namaBulan = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
+                              7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+                $rowColors = [
+                    'dinas' => '#e0f7fa', // cyan muda
+                    'ijin'  => '#e3f2fd', // biru muda
+                    'sakit' => '#ffebee', // merah muda
+                    'cuti'  => '#fff9c4', // kuning muda
+                ];
+                $adaIzin = false;
+                foreach ($users as $user):
+                    $izinHarian = $izinMap[$user->id] ?? [];
+                    if (empty($izinHarian)) {
+                        continue;
+                    }
+                    $adaIzin = true;
+                    ksort($izinHarian);
+
+                    // Susun entri izin berurutan menjadi rentang tanggal per jenis + keterangan,
+                    // sehingga tanggal berurutan ditulis sebagai "3-9 November 2026"
+                    // bukan satu baris per tanggal.
+                    $rangeGroups = [];
+                    $current = null;
+                    $prevKey = null;
+                    $prevTs = null;
+                    foreach ($izinHarian as $tgl => $iz) {
+                        $key = $iz['jenis'] . '|' . $iz['keterangan'];
+                        $ts = strtotime($tgl);
+                        $isConsecutive = $prevTs !== null && $ts === strtotime('+1 day', $prevTs);
+                        if ($current === null || $key !== $prevKey || !$isConsecutive) {
+                            if ($current !== null) {
+                                $rangeGroups[] = $current;
+                            }
+                            $current = [
+                                'jenis'       => $iz['jenis'],
+                                'keterangan'  => $iz['keterangan'],
+                                'start'       => $tgl,
+                                'end'         => $tgl,
+                            ];
+                        } else {
+                            $current['end'] = $tgl;
+                        }
+                        $prevKey = $key;
+                        $prevTs  = $ts;
+                    }
+                    if ($current !== null) {
+                        $rangeGroups[] = $current;
+                    }
+
+                    foreach ($rangeGroups as $group):
+                        $start = new DateTime($group['start']);
+                        $end   = new DateTime($group['end']);
+                        $sameDay = $start->format('Y-m-d') === $end->format('Y-m-d');
+                        $sameMonth = $start->format('Y-m') === $end->format('Y-m');
+                        if ($sameDay) {
+                            $tglRange = $start->format('j') . ' ' . $namaBulan[(int) $start->format('n')] . ' ' . $start->format('Y');
+                        } elseif ($sameMonth) {
+                            $tglRange = $start->format('j') . '-' . $end->format('j') . ' ' . $namaBulan[(int) $end->format('n')] . ' ' . $end->format('Y');
+                        } else {
+                            $tglRange = $start->format('d-m-Y') . ' s/d ' . $end->format('d-m-Y');
+                        }
+                        $jumlahHari = (int) ((strtotime($group['end']) - strtotime($group['start'])) / 86400) + 1;
+                        ?>
+                        <tr style="background-color: {{ $rowColors[$group['jenis']] ?? '#ffffff' }};">
+                            <td style="font-size: 9px;">{{ $no++ }}</td>
+                            <td class="text-left" style="font-size: 9px; padding-left: 5px;">
+                                <div class="text-bold">{{ $user->nama_guru }}</div>
+                                <div style="font-size: 8px; color: #555;">{{ $user->nip ?? '' }}</div>
+                            </td>
+                            <td style="font-size: 9px;">{{ $tglRange }}</td>
+                            <td style="font-size: 9px;">{{ $jenisLabel[$group['jenis']] ?? ucfirst($group['jenis']) }}</td>
+                            <td style="font-size: 9px; text-align: center;">{{ $jumlahHari }}</td>
+                            <td class="text-left" style="font-size: 9px; padding-left: 5px;">
+                                {{ $group['keterangan'] }}
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
+                <?php if (! $adaIzin): ?>
+                <tr>
+                    <td colspan="6" style="font-size: 9px; text-align: center;">
+                        Tidak ada data izin / dinas / sakit approved untuk periode ini.
+                    </td>
+                </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
 </body>
 
 </html>

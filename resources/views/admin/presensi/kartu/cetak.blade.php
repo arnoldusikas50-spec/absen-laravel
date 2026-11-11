@@ -75,12 +75,12 @@
             background-color: #e2e8f0;
         }
 
-        /* Sheet Container (A4 Printable Area) */
+        /* Sheet Container — screen preview pakai px agar representasi akurat */
         .sheet-container {
-            max-width: 210mm;
+            max-width: 794px; /* 210mm @ 96dpi */
             margin: 0 auto;
             background: #ffffff;
-            padding: 6mm;
+            padding: 23px; /* 6mm @ 96dpi */
         }
 
         /* Grid Cards: 2 kolom, kartu ATM 85.6×54mm — 8 kartu per A4 */
@@ -725,7 +725,7 @@
             const qrBoxes = document.querySelectorAll('.qr-print-box');
             qrBoxes.forEach(function(box) {
                 const code = box.getAttribute('data-code');
-                const size = parseInt(box.getAttribute('data-size') || '56', 10) || 56;
+                const size = parseInt(box.getAttribute('data-size') || '54', 10) || 54;
                 if (code) {
                     try {
                         new QRCode(box, {

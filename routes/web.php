@@ -504,16 +504,16 @@ Route::post('admin/presensi/whatsapp/verify', [PresensiAdminController::class, '
 Route::get('admin/presensi/notifikasi-status', [PresensiAdminController::class, 'notifikasiStatus'])->middleware(['auth'])->name('admin.presensi.notifikasi-status.notifikasi_status');
 Route::get('admin/presensi/notif-config', [PresensiAdminController::class, 'notifConfig'])->middleware(['auth'])->name('admin.presensi.notif-config.notif_config');
 Route::post('admin/presensi/notif-config/save', [PresensiAdminController::class, 'saveNotifConfig'])->middleware(['auth'])->name('admin.presensi.notif-config.save.save_notif_config');
-Route::get('cron/daily', [CronControllerController::class, 'dailyProcess'])->name('cron.daily.daily_process');
-Route::get('cron/mark-alpha', [CronControllerController::class, 'markAlpha'])->name('cron.mark-alpha.mark_alpha');
-Route::get('cron/poin-siswa', [CronControllerController::class, 'poinSiswa'])->name('cron.poin-siswa.poin_siswa');
-Route::get('cron/rekap-piket', [CronControllerController::class, 'rekapPiket'])->name('cron.rekap-piket.rekap_piket');
-Route::get('cron/semester-recap', [CronControllerController::class, 'semesterRecap'])->name('cron.semester-recap.semester_recap');
-Route::get('cron/weekly-denda', [CronControllerController::class, 'weeklyDendaRecap'])->name('cron.weekly-denda.weekly_denda_recap');
-Route::get('cron/monthly-pdf', [CronControllerController::class, 'monthlyPdf'])->name('cron.monthly-pdf.monthly_pdf');
-Route::get('cron/ucapan-pagi', [CronControllerController::class, 'ucapanPagi'])->name('cron.ucapan-pagi.ucapan_pagi');
-Route::get('cron/ucapan-sore', [CronControllerController::class, 'ucapanSore'])->name('cron.ucapan-sore.ucapan_sore');
-Route::get('cron/apel-kesadaran', [CronControllerController::class, 'apelKesadaran'])->name('cron.apel-kesadaran.apel_kesadaran');
+Route::get('cron/daily', [CronControllerController::class, 'dailyProcess'])->middleware(['auth'])->name('cron.daily.daily_process');
+Route::get('cron/mark-alpha', [CronControllerController::class, 'markAlpha'])->middleware(['auth'])->name('cron.mark-alpha.mark_alpha');
+Route::get('cron/poin-siswa', [CronControllerController::class, 'poinSiswa'])->middleware(['auth'])->name('cron.poin-siswa.poin_siswa');
+Route::get('cron/rekap-piket', [CronControllerController::class, 'rekapPiket'])->middleware(['auth'])->name('cron.rekap-piket.rekap_piket');
+Route::get('cron/semester-recap', [CronControllerController::class, 'semesterRecap'])->middleware(['auth'])->name('cron.semester-recap.semester_recap');
+Route::get('cron/weekly-denda', [CronControllerController::class, 'weeklyDendaRecap'])->middleware(['auth'])->name('cron.weekly-denda.weekly_denda_recap');
+Route::get('cron/monthly-pdf', [CronControllerController::class, 'monthlyPdf'])->middleware(['auth'])->name('cron.monthly-pdf.monthly_pdf');
+Route::get('cron/ucapan-pagi', [CronControllerController::class, 'ucapanPagi'])->middleware(['auth'])->name('cron.ucapan-pagi.ucapan_pagi');
+Route::get('cron/ucapan-sore', [CronControllerController::class, 'ucapanSore'])->middleware(['auth'])->name('cron.ucapan-sore.ucapan_sore');
+Route::get('cron/apel-kesadaran', [CronControllerController::class, 'apelKesadaran'])->middleware(['auth'])->name('cron.apel-kesadaran.apel_kesadaran');
 Route::get('admin/jadwal/get_jadwal/{any}', [JadwalController::class, 'get_jadwal'])->middleware(['auth'])->name('admin.jadwal.get_jadwal');
 Route::post('admin/jadwal/save_setting', [JadwalController::class, 'save_setting'])->middleware(['auth'])->name('admin.jadwal.save_setting');
 Route::post('admin/jadwal/save_mapel_slot', [JadwalController::class, 'save_mapel_slot'])->middleware(['auth'])->name('admin.jadwal.save_mapel_slot');
@@ -616,7 +616,7 @@ Route::post('admin/integrasi/dapodik/saveSettings', [DapodikController::class, '
 Route::post('admin/integrasi/dapodik/testConnection', [DapodikController::class, 'testConnection'])->middleware(['auth', 'role:admin'])->name('admin.integrasi.dapodik.testConnection.test_connection');
 Route::post('admin/integrasi/dapodik/syncApi', [DapodikController::class, 'syncApi'])->middleware(['auth', 'role:admin'])->name('admin.integrasi.dapodik.syncApi.sync_api');
 Route::post('admin/integrasi/dapodik/clearLogs', [DapodikController::class, 'clearLogs'])->middleware(['auth', 'role:admin'])->name('admin.integrasi.dapodik.clearLogs.clear_logs');
-Route::get('cron/dapodik_sync', [CronController::class, 'dapodik_sync'])->name('cron.dapodik_sync');
+Route::get('cron/dapodik_sync', [CronController::class, 'dapodik_sync'])->middleware(['auth'])->name('cron.dapodik_sync');
 
 // CATATAN: RoleMiddleware & RestoreRememberLogin masih memanggil route('auth')
 // — rute login di sini bernama 'login' (sesuai keputusan tahap ini, agar

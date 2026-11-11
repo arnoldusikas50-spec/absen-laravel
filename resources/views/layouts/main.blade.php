@@ -354,7 +354,7 @@
                 <div class="flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span><strong class="font-semibold text-slate-600">Absen Online</strong>
-                        &nbsp;v2.2.0-CI4 &middot; Ikasmedia</span>
+                        &nbsp;v2.3.0 &middot; Ikasmedia</span>
                 </div>
                 <span class="text-slate-300 font-mono">PHP {{ phpversion() }}</span>
             </footer>

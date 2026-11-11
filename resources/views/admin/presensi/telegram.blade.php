@@ -95,10 +95,10 @@
                         <td class="text-center px-3 py-2.5">{{ $no++ }}</td>
                         <td class="px-3 py-2.5 font-bold text-slate-800">{{ $nama }}</td>
                         <td class="text-center px-3 py-2.5 font-mono text-xs">{{ $row->telegram_chat_id }}</td>
-                        <td class="text-center px-3 py-2.5">{{ $badge(!empty($prefs['denda'])) }}</td>
-                        <td class="text-center px-3 py-2.5">{{ $badge(!empty($prefs['teguran'])) }}</td>
-                        <td class="text-center px-3 py-2.5">{{ $badge(!empty($prefs['alpha'])) }}</td>
-                        <td class="text-center px-3 py-2.5">{{ $badge(!empty($prefs['kehadiran'])) }}</td>
+                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['denda'])) !!}</td>
+                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['teguran'])) !!}</td>
+                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['alpha'])) !!}</td>
+                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['kehadiran'])) !!}</td>
                         <td class="text-center px-3 py-2.5 whitespace-nowrap">
                             <button type="button" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-sky-600 text-xs hover:bg-sky-50" onclick="tgTest({{ (int) $row->user_id }}, this)" title="Kirim pesan tes">
                                 <i class="bi bi-send"></i>
