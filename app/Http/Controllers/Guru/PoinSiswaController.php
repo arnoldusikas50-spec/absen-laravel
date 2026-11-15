@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Guru;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\MasterModel;
 use App\Models\PoinSiswaModel;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Pencatatan poin disiplin siswa oleh guru (piket).
@@ -18,29 +16,31 @@ use App\Models\PoinSiswaModel;
 class PoinSiswaController extends BaseController
 {
     protected DashboardModel $dashboardModel;
+
     protected MasterModel $masterModel;
+
     protected PoinSiswaModel $poinModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->masterModel = new MasterModel();
-        $this->poinModel = new PoinSiswaModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->masterModel = new MasterModel;
+        $this->poinModel = new PoinSiswaModel;
         $this->poinModel->ensureTables();
     }
 
     public function index()
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (!$this->isGuru() && !$this->isAdmin()) {
+        if (! $this->isGuru() && ! $this->isAdmin()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $idKelas = (int) ($this->request->query('kelas') ?? 0);
         $kelasList = [];
         if ($tp && $smt) {
@@ -66,7 +66,7 @@ class PoinSiswaController extends BaseController
 
     public function record()
     {
-        if (!$this->isLoggedIn() || (!$this->isGuru() && !$this->isAdmin())) {
+        if (! $this->isLoggedIn() || (! $this->isGuru() && ! $this->isAdmin())) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $res = $this->poinModel->recordManual(
@@ -75,14 +75,16 @@ class PoinSiswaController extends BaseController
             (string) ($this->request->input('keterangan') ?? ''),
             $this->getUserId()
         );
+
         return $this->respond($res['status'], $res['message'] ?? '', $res['skor'] ?? null);
     }
 
     public function history($idSiswa)
     {
-        if (!$this->isLoggedIn() || (!$this->isGuru() && !$this->isAdmin())) {
+        if (! $this->isLoggedIn() || (! $this->isGuru() && ! $this->isAdmin())) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
+
         return $this->respond(true, 'OK', [
             'skor' => $this->poinModel->getSkor((int) $idSiswa),
             'history' => $this->poinModel->getRiwayat((int) $idSiswa, 30),

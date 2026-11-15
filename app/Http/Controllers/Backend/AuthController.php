@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers\Backend;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 
@@ -15,7 +12,7 @@ class AuthController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
+        $this->dashboardModel = new DashboardModel;
     }
 
     /**
@@ -28,7 +25,8 @@ class AuthController extends BaseController
             return redirect()->to('dashboard');
         }
         // Tampilkan view yang sama dengan /auth
-        $data['setting'] = (new \App\Models\DashboardModel())->getSettingRow();
+        $data['setting'] = (new DashboardModel)->getSettingRow();
+
         return view('backend.login', $data);
     }
 
@@ -38,6 +36,7 @@ class AuthController extends BaseController
     public function logout()
     {
         $this->session->destroy();
+
         return redirect()->to('auth')->with('success', 'Anda telah berhasil keluar.');
     }
 }

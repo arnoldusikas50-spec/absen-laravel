@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuthModel;
+use Illuminate\Database\Connection;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,7 +33,7 @@ use Illuminate\Support\Facades\Validator;
  */
 class BaseController extends Controller
 {
-    /** @var \Illuminate\Http\Request */
+    /** @var Request */
     protected $request;
 
     /** @var CiSession */
@@ -40,7 +42,7 @@ class BaseController extends Controller
     /** @var CiResponse */
     protected $response;
 
-    /** @var \Illuminate\Database\Connection|null */
+    /** @var Connection|null */
     protected $db;
 
     protected AuthModel $authModel;
@@ -56,11 +58,11 @@ class BaseController extends Controller
         date_default_timezone_set('Asia/Makassar');
 
         $this->request = request();
-        $this->session = new CiSession();
-        $this->response = new CiResponse();
+        $this->session = new CiSession;
+        $this->response = new CiResponse;
 
         try {
-            $this->authModel = new AuthModel();
+            $this->authModel = new AuthModel;
         } catch (\Throwable $e) {
             // Database connection failed - will be handled by controllers
         }
@@ -78,6 +80,7 @@ class BaseController extends Controller
     protected function getUserId(): ?int
     {
         $id = session()->get('user_id');
+
         return $id === null ? null : (int) $id;
     }
 
@@ -94,12 +97,15 @@ class BaseController extends Controller
         }
         $norm = static function ($g): string {
             $g = strtolower((string) $g);
+
             return $g === 'pengawas' ? 'panitia' : $g;
         };
         if (is_array($group)) {
             $group = array_map($norm, $group);
+
             return in_array($role, $group, true);
         }
+
         return $role === $norm($group);
     }
 
@@ -107,6 +113,7 @@ class BaseController extends Controller
     {
         $role = session()->get('role');
         $roleName = strtolower((string) (session()->get('role_name') ?? ''));
+
         return (string) $role === '1' || $roleName === 'admin' || $this->inGroup('admin');
     }
 
@@ -114,6 +121,7 @@ class BaseController extends Controller
     {
         $role = session()->get('role');
         $roleName = strtolower((string) (session()->get('role_name') ?? ''));
+
         return (string) $role === '2' || $roleName === 'guru' || $this->inGroup('guru');
     }
 
@@ -121,6 +129,7 @@ class BaseController extends Controller
     {
         $role = session()->get('role');
         $roleName = strtolower((string) (session()->get('role_name') ?? ''));
+
         return (string) $role === '4'
             || in_array($roleName, ['panitia', 'pengawas'], true)
             || $this->inGroup(['panitia', 'pengawas']);
@@ -135,6 +144,7 @@ class BaseController extends Controller
     {
         $role = session()->get('role');
         $roleName = strtolower((string) (session()->get('role_name') ?? ''));
+
         return (string) $role === '3' || $roleName === 'siswa' || $this->inGroup('siswa');
     }
 
@@ -149,6 +159,7 @@ class BaseController extends Controller
                 'message' => 'Session expired. Please login again.',
             ], 401);
         }
+
         return redirect()->to('auth')->with('message', 'Silakan login terlebih dahulu.');
     }
 
@@ -178,6 +189,7 @@ class BaseController extends Controller
                 'message' => 'Akses ditolak.',
             ], 403);
         }
+
         return redirect()->to('dashboard')->with('error', 'Akses ditolak.');
     }
 
@@ -193,13 +205,13 @@ class BaseController extends Controller
 
     protected function getAssetsPath(): string
     {
-        return asset('') . 'assets/';
+        return asset('').'assets/';
     }
 
     protected function getUser(): ?object
     {
         $userId = session()->get('user_id');
-        if (!$userId) {
+        if (! $userId) {
             return null;
         }
 
@@ -219,7 +231,7 @@ class BaseController extends Controller
 
     protected function showError(string $message, int $statusCode = 500)
     {
-        return view('errors.html.error_' . $statusCode, [
+        return view('errors.html.error_'.$statusCode, [
             'message' => $message,
         ]);
     }
@@ -282,7 +294,7 @@ class BaseController extends Controller
     protected function getSettingRow(): ?object
     {
         try {
-            if (!Schema::hasTable('setting')) {
+            if (! Schema::hasTable('setting')) {
                 return null;
             }
             $setting = DB::table('setting')->first();
@@ -291,13 +303,13 @@ class BaseController extends Controller
         }
 
         if ($setting) {
-            if (isset($setting->sekolah) && !isset($setting->nama_sekolah)) {
+            if (isset($setting->sekolah) && ! isset($setting->nama_sekolah)) {
                 $setting->nama_sekolah = $setting->sekolah;
             }
-            if (isset($setting->logo_kiri) && !isset($setting->logo)) {
+            if (isset($setting->logo_kiri) && ! isset($setting->logo)) {
                 $setting->logo = $setting->logo_kiri;
             }
-            if (isset($setting->web) && !isset($setting->website)) {
+            if (isset($setting->web) && ! isset($setting->website)) {
                 $setting->website = $setting->web;
             }
         }
@@ -312,17 +324,20 @@ class BaseController extends Controller
     protected function updateSettingRow(array $data): bool
     {
         try {
-            if (!Schema::hasTable('setting')) {
+            if (! Schema::hasTable('setting')) {
                 return false;
             }
             $setting = DB::table('setting')->first();
             if ($setting) {
                 $idCol = isset($setting->id_setting) ? 'id_setting' : 'id';
+
                 return (bool) DB::table('setting')->where($idCol, $setting->{$idCol})->update($data);
             }
+
             return DB::table('setting')->insert($data);
         } catch (\Throwable $e) {
-            Log::error('[BaseController::updateSettingRow] ' . $e->getMessage());
+            Log::error('[BaseController::updateSettingRow] '.$e->getMessage());
+
             return false;
         }
     }
@@ -333,14 +348,15 @@ class BaseController extends Controller
     protected function saveAuditLog(int $aktivitas, string $keterangan = '', ?int $userId = null): bool
     {
         $userId = $userId ?? (int) (session()->get('user_id') ?? 0);
-        if (!$userId) {
+        if (! $userId) {
             return false;
         }
 
         try {
-            if (!Schema::hasTable('logs')) {
+            if (! Schema::hasTable('logs')) {
                 return false;
             }
+
             return DB::table('logs')->insert([
                 'id_user' => $userId,
                 'aktivitas' => $aktivitas,
@@ -362,7 +378,7 @@ class BaseController extends Controller
     protected function addTableColumns(string $table, array $fields): void
     {
         try {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 return;
             }
             $existing = Schema::getColumnListing($table);
@@ -376,7 +392,7 @@ class BaseController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-            Log::error('[BaseController::addTableColumns] ' . $e->getMessage());
+            Log::error('[BaseController::addTableColumns] '.$e->getMessage());
         }
     }
 
@@ -384,11 +400,11 @@ class BaseController extends Controller
     {
         $type = strtoupper((string) ($def['type'] ?? 'VARCHAR'));
         $constraint = $def['constraint'] ?? null;
-        $nullable = !empty($def['null']);
+        $nullable = ! empty($def['null']);
         $default = $def['default'] ?? null;
         $hasDefault = array_key_exists('default', $def);
-        $unsigned = !empty($def['unsigned']);
-        $autoIncrement = !empty($def['auto_increment']);
+        $unsigned = ! empty($def['unsigned']);
+        $autoIncrement = ! empty($def['auto_increment']);
 
         switch ($type) {
             case 'VARCHAR':
@@ -484,7 +500,7 @@ class BaseController extends Controller
                 }
                 if (isset($spec['errors']) && is_array($spec['errors'])) {
                     foreach ($spec['errors'] as $rule => $msg) {
-                        $messages[$field . '.' . $rule] = $msg;
+                        $messages[$field.'.'.$rule] = $msg;
                     }
                 }
             } else {
@@ -499,8 +515,10 @@ class BaseController extends Controller
             foreach ($this->validator->errors()->messages() as $field => $msgs) {
                 $this->validationErrors[$field] = $msgs[0] ?? '';
             }
+
             return false;
         }
+
         return true;
     }
 
@@ -538,13 +556,13 @@ class BaseController extends Controller
                 case 'if_exist':
                     break;
                 case 'min_length':
-                    $out[] = 'min:' . $arg;
+                    $out[] = 'min:'.$arg;
                     break;
                 case 'max_length':
-                    $out[] = 'max:' . $arg;
+                    $out[] = 'max:'.$arg;
                     break;
                 case 'exact_length':
-                    $out[] = 'size:' . $arg;
+                    $out[] = 'size:'.$arg;
                     break;
                 case 'numeric':
                 case 'decimal':
@@ -575,43 +593,43 @@ class BaseController extends Controller
                     $out[] = 'alpha_dash';
                     break;
                 case 'in_list':
-                    $out[] = 'in:' . $arg;
+                    $out[] = 'in:'.$arg;
                     break;
                 case 'matches':
-                    $out[] = 'same:' . $arg;
+                    $out[] = 'same:'.$arg;
                     break;
                 case 'differs':
-                    $out[] = 'different:' . $arg;
+                    $out[] = 'different:'.$arg;
                     break;
                 case 'is_unique':
                     $bits = explode(',', (string) $arg);
                     $tf = explode('.', $bits[0]);
-                    $r = 'unique:' . $tf[0] . ',' . ($tf[1] ?? 'id');
+                    $r = 'unique:'.$tf[0].','.($tf[1] ?? 'id');
                     if (isset($bits[2])) {
-                        $r .= ',' . $bits[2] . ',' . $bits[1];
+                        $r .= ','.$bits[2].','.$bits[1];
                     }
                     $out[] = $r;
                     break;
                 case 'is_not_unique':
-                    $out[] = 'exists:' . str_replace('.', ',', (string) $arg);
+                    $out[] = 'exists:'.str_replace('.', ',', (string) $arg);
                     break;
                 case 'greater_than':
-                    $out[] = 'gt:' . $arg;
+                    $out[] = 'gt:'.$arg;
                     break;
                 case 'greater_than_equal_to':
-                    $out[] = 'gte:' . $arg;
+                    $out[] = 'gte:'.$arg;
                     break;
                 case 'less_than':
-                    $out[] = 'lt:' . $arg;
+                    $out[] = 'lt:'.$arg;
                     break;
                 case 'less_than_equal_to':
-                    $out[] = 'lte:' . $arg;
+                    $out[] = 'lte:'.$arg;
                     break;
                 case 'required_with':
-                    $out[] = 'required_with:' . $arg;
+                    $out[] = 'required_with:'.$arg;
                     break;
                 case 'required_without':
-                    $out[] = 'required_without:' . $arg;
+                    $out[] = 'required_without:'.$arg;
                     break;
                 case 'uploaded':
                     $out[] = 'required';
@@ -619,22 +637,22 @@ class BaseController extends Controller
                     break;
                 case 'max_size':
                     $bits = explode(',', (string) $arg);
-                    $out[] = 'max:' . ($bits[1] ?? 2048);
+                    $out[] = 'max:'.($bits[1] ?? 2048);
                     break;
                 case 'mime_in':
                     $bits = explode(',', (string) $arg, 2);
-                    $out[] = 'mimetypes:' . ($bits[1] ?? '');
+                    $out[] = 'mimetypes:'.($bits[1] ?? '');
                     break;
                 case 'ext_in':
                     $bits = explode(',', (string) $arg);
                     array_shift($bits);
-                    $out[] = 'mimes:' . implode(',', $bits);
+                    $out[] = 'mimes:'.implode(',', $bits);
                     break;
                 case 'is_image':
                     $out[] = 'image';
                     break;
                 case 'regex_match':
-                    $out[] = 'regex:' . $arg;
+                    $out[] = 'regex:'.$arg;
                     break;
                 case 'string':
                     $out[] = 'string';
@@ -646,10 +664,11 @@ class BaseController extends Controller
                     $out[] = 'boolean';
                     break;
                 default:
-                    Log::debug('[BaseController::translateRules] aturan CI4 diabaikan: ' . $name);
+                    Log::debug('[BaseController::translateRules] aturan CI4 diabaikan: '.$name);
                     break;
             }
         }
+
         return implode('|', array_filter($out));
     }
 
@@ -663,6 +682,7 @@ class BaseController extends Controller
             return false;
         }
         RateLimiter::hit($key, $seconds);
+
         return true;
     }
 
@@ -698,8 +718,9 @@ class BaseController extends Controller
         if ($user) {
             $user->nama_lengkap = ($user->first_name === $user->last_name)
                 ? $user->first_name
-                : trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+                : trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
         }
+
         return $user;
     }
 
@@ -722,12 +743,14 @@ class BaseController extends Controller
         $username = trim((string) ($data['username'] ?? ''));
         if ($username === '') {
             Log::error('[AuthModel::register] username kosong — akun tidak dibuat');
+
             return 0;
         }
         $data['username'] = $username;
 
         if ($this->authIsExist($username)) {
-            Log::error('[AuthModel::register] username "' . $username . '" sudah dipakai — tidak ada yang diubah');
+            Log::error('[AuthModel::register] username "'.$username.'" sudah dipakai — tidak ada yang diubah');
+
             return 0;
         }
 
@@ -743,6 +766,7 @@ class BaseController extends Controller
             if ($id <= 0) {
                 DB::rollBack();
                 Log::error('[AuthModel::register] insert users gagal');
+
                 return 0;
             }
             DB::table('users_groups')->insert([
@@ -750,10 +774,12 @@ class BaseController extends Controller
                 'group_id' => (int) $group,
             ]);
             DB::commit();
+
             return $id;
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[AuthModel::register] ' . $e->getMessage());
+            Log::error('[AuthModel::register] '.$e->getMessage());
+
             return 0;
         }
     }
@@ -767,8 +793,9 @@ class BaseController extends Controller
         DB::beginTransaction();
         try {
             $ada = DB::table('users')->where('id', $id)->first();
-            if (!$ada) {
+            if (! $ada) {
                 DB::rollBack();
+
                 return false;
             }
             if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'id_user')) {
@@ -777,10 +804,12 @@ class BaseController extends Controller
             DB::table('users_groups')->where('user_id', $id)->delete();
             DB::table('users')->where('id', $id)->delete();
             DB::commit();
+
             return true;
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[AuthModel::deleteUser#' . $id . '] ' . $e->getMessage());
+            Log::error('[AuthModel::deleteUser#'.$id.'] '.$e->getMessage());
+
             return false;
         }
     }
@@ -794,25 +823,28 @@ class BaseController extends Controller
         if ($userId <= 0) {
             return ['status' => false, 'message' => 'Akun tidak valid.'];
         }
-        if (strlen($new) < 4 || strlen($new) > 30 || !preg_match('/^[A-Za-z0-9_.-]+$/', $new)) {
+        if (strlen($new) < 4 || strlen($new) > 30 || ! preg_match('/^[A-Za-z0-9_.-]+$/', $new)) {
             return ['status' => false, 'message' => 'Username baru tidak valid (4–30 karakter: huruf/angka/titik/strip/underscore).'];
         }
 
         DB::beginTransaction();
         try {
             $user = DB::table('users')->where('id', $userId)->first();
-            if (!$user) {
+            if (! $user) {
                 DB::rollBack();
+
                 return ['status' => false, 'message' => 'Akun tidak ditemukan.'];
             }
             $old = trim((string) $user->username);
             if ($old === $new) {
                 DB::rollBack();
+
                 return ['status' => true, 'message' => 'Username tidak berubah.', 'changed' => false];
             }
             $dupe = DB::table('users')->where('username', $new)->where('id', '!=', $userId)->count();
             if ($dupe > 0) {
                 DB::rollBack();
+
                 return ['status' => false, 'message' => 'Username sudah dipakai akun lain.'];
             }
 
@@ -831,15 +863,17 @@ class BaseController extends Controller
             }
 
             DB::commit();
+
             return [
                 'status' => true,
-                'message' => 'Username "' . $old . '" → "' . $new . '"' . ($ikut > 0 ? ' (+' . $ikut . ' baris master)' : ''),
+                'message' => 'Username "'.$old.'" → "'.$new.'"'.($ikut > 0 ? ' (+'.$ikut.' baris master)' : ''),
                 'changed' => true,
                 'old' => $old,
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[AuthModel::renameUser#' . $userId . '] ' . $e->getMessage());
+            Log::error('[AuthModel::renameUser#'.$userId.'] '.$e->getMessage());
+
             return ['status' => false, 'message' => 'Gagal mengganti username — tidak ada yang berubah.'];
         }
     }
@@ -864,8 +898,9 @@ class BaseController extends Controller
                     ->update(['password' => password_hash($newPassword, PASSWORD_BCRYPT)]);
             }
         } catch (\Throwable $e) {
-            Log::error('[AuthModel::changePassword] ' . $e->getMessage());
+            Log::error('[AuthModel::changePassword] '.$e->getMessage());
         }
+
         return false;
     }
 
@@ -873,9 +908,10 @@ class BaseController extends Controller
     protected function authResetErrorLogin(string $username): bool
     {
         try {
-            if (!Schema::hasTable('login_attempts')) {
+            if (! Schema::hasTable('login_attempts')) {
                 return false;
             }
+
             return (bool) DB::table('login_attempts')->where('login', $username)->delete();
         } catch (\Throwable $e) {
             return false;
@@ -890,7 +926,8 @@ class BaseController extends Controller
         try {
             return DB::table($table)->where($pk, $id)->update($data);
         } catch (\Throwable $e) {
-            Log::error('[BaseController::updateMasterData] ' . $e->getMessage());
+            Log::error('[BaseController::updateMasterData] '.$e->getMessage());
+
             return false;
         }
     }
@@ -912,6 +949,7 @@ class CiSession
         if ($key === null) {
             return session()->all();
         }
+
         return session()->get($key, $default);
     }
 
@@ -919,6 +957,7 @@ class CiSession
     {
         if (is_array($key)) {
             session()->put($key);
+
             return;
         }
         session()->put([$key => $value]);
@@ -954,6 +993,7 @@ class CiSession
             foreach ($key as $k => $v) {
                 session()->flash($k, $v);
             }
+
             return;
         }
         session()->flash($key, $value);
@@ -964,6 +1004,7 @@ class CiSession
         if ($key === null) {
             return session()->all();
         }
+
         return session()->get($key);
     }
 
@@ -990,29 +1031,34 @@ class CiSession
 class CiResponse
 {
     protected int $status = 200;
+
     protected array $headers = [];
 
     public function setStatusCode(int $code): static
     {
         $this->status = $code;
+
         return $this;
     }
 
     public function setContentType(string $type): static
     {
         $this->headers['Content-Type'] = $type;
+
         return $this;
     }
 
     public function setHeader(string $name, $value): static
     {
         $this->headers[$name] = $value;
+
         return $this;
     }
 
     public function noCache(): static
     {
         $this->headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+
         return $this;
     }
 
@@ -1055,12 +1101,13 @@ class CiValidation
         if ($this->validator) {
             return (string) $this->validator->errors()->first($field);
         }
+
         return '';
     }
 
     public function getErrors(): array
     {
-        if (!empty($this->errors)) {
+        if (! empty($this->errors)) {
             return $this->errors;
         }
         if ($this->validator) {
@@ -1068,8 +1115,10 @@ class CiValidation
             foreach ($this->validator->errors()->messages() as $field => $msgs) {
                 $out[$field] = $msgs[0] ?? '';
             }
+
             return $out;
         }
+
         return [];
     }
 
@@ -1092,19 +1141,24 @@ class CiValidation
 class CiForge
 {
     protected array $fields = [];
+
     protected $primaryKey = null;
+
     protected array $keys = [];
+
     protected array $uniqueKeys = [];
 
     public function addField(array $fields): static
     {
         $this->fields = array_merge($this->fields, $fields);
+
         return $this;
     }
 
     public function addPrimaryKey($key): static
     {
         $this->primaryKey = $key;
+
         return $this;
     }
 
@@ -1115,12 +1169,14 @@ class CiForge
         } else {
             $this->keys[] = $key;
         }
+
         return $this;
     }
 
     public function addUniqueKey($key, ?string $name = null): static
     {
         $this->uniqueKeys[] = [$key, $name];
+
         return $this;
     }
 
@@ -1129,6 +1185,7 @@ class CiForge
         try {
             if ($ifNotExists && Schema::hasTable($table)) {
                 $this->reset();
+
                 return true;
             }
             $fields = $this->fields;
@@ -1136,10 +1193,11 @@ class CiForge
             $keys = $this->keys;
             $uniqueKeys = $this->uniqueKeys;
             Schema::create($table, function (Blueprint $t) use ($fields, $primaryKey, $keys, $uniqueKeys) {
-                $helper = new BaseControllerHelper();
+                $helper = new BaseControllerHelper;
                 foreach ($fields as $name => $def) {
                     if (is_string($def)) {
                         $t->string($name, 255);
+
                         continue;
                     }
                     $helper->addCiColumn($t, $name, (array) $def);
@@ -1159,10 +1217,12 @@ class CiForge
                 }
             });
             $this->reset();
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[CiForge::createTable] ' . $e->getMessage());
+            Log::error('[CiForge::createTable] '.$e->getMessage());
             $this->reset();
+
             return false;
         }
     }
@@ -1170,7 +1230,7 @@ class CiForge
     public function addColumn(string $table, array $fields): bool
     {
         try {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 return false;
             }
             $existing = Schema::getColumnListing($table);
@@ -1178,15 +1238,17 @@ class CiForge
             if (empty($toAdd)) {
                 return true;
             }
-            $helper = new BaseControllerHelper();
+            $helper = new BaseControllerHelper;
             Schema::table($table, function (Blueprint $t) use ($toAdd, $helper) {
                 foreach ($toAdd as $name => $def) {
                     $helper->addCiColumn($t, $name, (array) $def);
                 }
             });
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[CiForge::addColumn] ' . $e->getMessage());
+            Log::error('[CiForge::addColumn] '.$e->getMessage());
+
             return false;
         }
     }
@@ -1194,18 +1256,20 @@ class CiForge
     public function modifyColumn(string $table, array $fields): bool
     {
         try {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 return false;
             }
-            $helper = new BaseControllerHelper();
+            $helper = new BaseControllerHelper;
             Schema::table($table, function (Blueprint $t) use ($fields, $helper) {
                 foreach ($fields as $name => $def) {
                     $helper->addCiColumn($t, $name, array_merge((array) $def, ['_change' => true]));
                 }
             });
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[CiForge::modifyColumn] ' . $e->getMessage());
+            Log::error('[CiForge::modifyColumn] '.$e->getMessage());
+
             return false;
         }
     }
@@ -1218,9 +1282,11 @@ class CiForge
             } else {
                 Schema::drop($table);
             }
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[CiForge::dropTable] ' . $e->getMessage());
+            Log::error('[CiForge::dropTable] '.$e->getMessage());
+
             return false;
         }
     }
@@ -1231,9 +1297,11 @@ class CiForge
             Schema::table($table, function (Blueprint $t) use ($column) {
                 $t->dropColumn($column);
             });
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[CiForge::dropColumn] ' . $e->getMessage());
+            Log::error('[CiForge::dropColumn] '.$e->getMessage());
+
             return false;
         }
     }
@@ -1255,15 +1323,15 @@ class BaseControllerHelper
 {
     public function addCiColumn(Blueprint $table, string $name, array $def): void
     {
-        $change = !empty($def['_change']);
+        $change = ! empty($def['_change']);
         unset($def['_change']);
         $type = strtoupper((string) ($def['type'] ?? 'VARCHAR'));
         $constraint = $def['constraint'] ?? null;
-        $nullable = !empty($def['null']);
+        $nullable = ! empty($def['null']);
         $default = $def['default'] ?? null;
         $hasDefault = array_key_exists('default', $def);
-        $unsigned = !empty($def['unsigned']);
-        $autoIncrement = !empty($def['auto_increment']);
+        $unsigned = ! empty($def['unsigned']);
+        $autoIncrement = ! empty($def['auto_increment']);
 
         switch ($type) {
             case 'VARCHAR':

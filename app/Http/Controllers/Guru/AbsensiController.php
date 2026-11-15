@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Guru;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\AttendanceModel;
-use App\Models\LeaveModel;
-use App\Models\DashboardModel;
 use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
+use App\Models\LeaveModel;
+use App\Services\AttendancePenaltyService;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Guru Attendance Controller
@@ -18,17 +17,20 @@ use App\Models\AttendanceSettingModel;
 class AbsensiController extends BaseController
 {
     protected AttendanceModel $attendanceModel;
+
     protected LeaveModel $leaveModel;
+
     protected DashboardModel $dashboardModel;
+
     protected AttendanceSettingModel $attendanceSettingModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->attendanceModel = new AttendanceModel();
-        $this->leaveModel = new LeaveModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->attendanceSettingModel = new AttendanceSettingModel();
+        $this->attendanceModel = new AttendanceModel;
+        $this->leaveModel = new LeaveModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->attendanceSettingModel = new AttendanceSettingModel;
     }
 
     /**
@@ -36,19 +38,21 @@ class AbsensiController extends BaseController
      */
     public function index()
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
+        }
 
         $user = $this->getUser();
-        if (!$user)
+        if (! $user) {
             return redirect()->to('auth');
+        }
 
         // Get guru data
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp->id_tp, $smt->id_smt);
 
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
         }
 
@@ -75,7 +79,7 @@ class AbsensiController extends BaseController
             'wfh' => 0,
             'pending' => 0,
             'alpha' => 0, // alpha biasanya tidak ada di tabel harian jika tidak ada record
-            'total' => count($absensi)
+            'total' => count($absensi),
         ];
 
         // Hitung statistik berdasarkan status_masuk (semua enum; dulu ALPHA/
@@ -135,11 +139,12 @@ class AbsensiController extends BaseController
         try {
             $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
             $endDate = date('Y-m-t', strtotime($startDate));
-            $miss = (new \App\Services\AttendancePenaltyService())
+            $miss = (new AttendancePenaltyService)
                 ->missingAlphaFines((int) $user->id, $startDate, $endDate, $absenSet, false);
             $alphaMissingCount = (int) ($miss['count'] ?? 0);
             $alphaMissingDenda = (float) ($miss['total'] ?? 0);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $data = [
             'user' => $user,
@@ -159,7 +164,7 @@ class AbsensiController extends BaseController
         ];
 
         // Load mobile view if available
-        if (file_exists(app_path() . '/' . 'Views/members/guru/absensi_mobile.php')) {
+        if (file_exists(app_path().'/'.'Views/members/guru/absensi_mobile.php')) {
             return view('members.guru.absensi_mobile', $data);
         }
 
@@ -171,18 +176,20 @@ class AbsensiController extends BaseController
      */
     public function detail($tanggal)
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
+        }
 
         $user = $this->getUser();
-        if (!$user)
+        if (! $user) {
             return redirect()->to('auth');
+        }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp->id_tp, $smt->id_smt);
 
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('guru/absensi')->with('error', 'Data guru tidak ditemukan');
         }
 
@@ -193,17 +200,17 @@ class AbsensiController extends BaseController
             ->where('tgl', $tanggal)
             ->first();
 
-        if (!$absensi) {
+        if (! $absensi) {
             return redirect()->to('guru/absensi')->with('error', 'Data absensi tidak ditemukan');
         }
 
         $data = [
             'user' => $user,
             'judul' => 'Detail Absensi',
-            'subjudul' => 'Tanggal: ' . date('d F Y', strtotime($tanggal)),
+            'subjudul' => 'Tanggal: '.date('d F Y', strtotime($tanggal)),
             'setting' => $this->getSettingRow(),
             'guru' => $guru,
-            'absensi' => $absensi
+            'absensi' => $absensi,
         ];
 
         return view('guru.absensi.detail', $data);
@@ -214,15 +221,16 @@ class AbsensiController extends BaseController
      */
     public function export()
     {
-        if (!$this->isLoggedIn())
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
+        }
 
         $user = $this->getUser();
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp->id_tp, $smt->id_smt);
 
-        if (!$guru) {
+        if (! $guru) {
             return redirect()->to('guru/absensi')->with('error', 'Data guru tidak ditemukan');
         }
 
@@ -246,16 +254,16 @@ class AbsensiController extends BaseController
 
         // Excel export (simple CSV for now)
         $namaAman = preg_replace('/[^A-Za-z0-9_-]/', '', str_replace(' ', '_', (string) $guru->nama_guru));
-        $filename = 'absensi_' . $namaAman . '_' . $tahun . '_' . $bulanStr . '.csv';
-        
+        $filename = 'absensi_'.$namaAman.'_'.$tahun.'_'.$bulanStr.'.csv';
+
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
+
         $output = fopen('php://output', 'w');
-        
+
         // Header
         fputcsv($output, ['Tanggal', 'Jam Masuk', 'Status Masuk', 'Jam Pulang', 'Status Pulang', 'Telat (menit)']);
-        
+
         // Data
         foreach ($absensi as $a) {
             fputcsv($output, [
@@ -264,10 +272,10 @@ class AbsensiController extends BaseController
                 $a->status_masuk ?? '',
                 $a->jam_pulang ?? '',
                 $a->status_pulang ?? '',
-                $a->telat_menit ?? '0'
+                $a->telat_menit ?? '0',
             ]);
         }
-        
+
         fclose($output);
         exit;
     }
@@ -289,7 +297,7 @@ class AbsensiController extends BaseController
             '09' => 'September',
             '10' => 'Oktober',
             '11' => 'November',
-            '12' => 'Desember'
+            '12' => 'Desember',
         ];
     }
 }

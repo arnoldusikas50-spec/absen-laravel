@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Cache;
-
 /**
  * Penanganan error di luar alur controller biasa (dipakai 404 override di CI4).
  *

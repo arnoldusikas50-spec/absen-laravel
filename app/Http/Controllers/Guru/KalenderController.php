@@ -3,40 +3,41 @@
 namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\BaseController;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use App\Models\DashboardModel;
 use App\Models\KalenderModel;
+use Illuminate\Support\Facades\DB;
 
 class KalenderController extends BaseController
 {
     protected $kalenderModel;
+
     protected $db;
 
     public function __construct()
     {
         parent::__construct();
-        $this->kalenderModel = new KalenderModel();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->kalenderModel = new KalenderModel;
+        $this->db = DB::connection();
     }
 
     public function index()
     {
         // Grup rute hanya 'auth' (semua peran) — halaman ini milik guru.
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
         $user = $this->getUser();
-        if (!$user) return redirect()->to('auth');
+        if (! $user) {
+            return redirect()->to('auth');
+        }
 
         [$bulan, $tahun] = $this->bulanTahunValid();
 
         $events = $this->kalenderModel->getEvents($bulan, $tahun);
         $holidays = $this->kalenderModel->getHolidays($bulan, $tahun);
 
-        $dashboardModel = new \App\Models\DashboardModel();
+        $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
 
         return view('members.guru.kalender_mobile', [
@@ -51,7 +52,7 @@ class KalenderController extends BaseController
 
     public function getEvents()
     {
-        if (!$this->inGroup('guru')) {
+        if (! $this->inGroup('guru')) {
             return $this->response->setStatusCode(403)->setJSON(['error' => 'Akses ditolak']);
         }
 
@@ -64,7 +65,7 @@ class KalenderController extends BaseController
         $existingKeys = [];
 
         foreach ($events as $e) {
-            $key = ($e->tgl_mulai) . '_' . strtolower(trim($e->judul));
+            $key = ($e->tgl_mulai).'_'.strtolower(trim($e->judul));
             $existingKeys[$key] = true;
 
             $result[] = [
@@ -72,7 +73,7 @@ class KalenderController extends BaseController
                 'title' => $e->judul,
                 'start' => $e->tgl_mulai,
                 'end' => $e->tgl_selesai ?: $e->tgl_mulai,
-                'end_exclusive' => $e->tgl_selesai ? date('Y-m-d', strtotime($e->tgl_selesai . ' +1 day')) : $e->tgl_mulai,
+                'end_exclusive' => $e->tgl_selesai ? date('Y-m-d', strtotime($e->tgl_selesai.' +1 day')) : $e->tgl_mulai,
                 'description' => $e->deskripsi ?? '',
                 'color' => $e->warna ?: '#6366f1',
                 'tipe' => strtoupper($e->tipe ?: 'EVENT'),
@@ -80,18 +81,18 @@ class KalenderController extends BaseController
         }
 
         foreach ($holidays as $h) {
-            $key = ($h->tgl) . '_' . strtolower(trim($h->judul));
+            $key = ($h->tgl).'_'.strtolower(trim($h->judul));
             if (isset($existingKeys[$key])) {
                 continue; // Prevent duplicate entries
             }
 
             $result[] = [
-                'id' => 'libur_' . $h->tgl,
+                'id' => 'libur_'.$h->tgl,
                 'title' => $h->judul,
                 'start' => $h->tgl,
                 'end' => $h->tgl,
                 'end_exclusive' => $h->tgl,
-                'description' => 'Hari Libur ' . ($h->sumber === 'ABSENSI' ? 'Resmi Sekolah / Nasional' : 'Kalender Akademik'),
+                'description' => 'Hari Libur '.($h->sumber === 'ABSENSI' ? 'Resmi Sekolah / Nasional' : 'Kalender Akademik'),
                 'color' => '#ef4444',
                 'tipe' => 'LIBUR',
                 'sumber' => $h->sumber,
@@ -112,10 +113,15 @@ class KalenderController extends BaseController
     {
         $bulan = (int) ($this->request->query('bulan') ?: date('m'));
         $tahun = (int) ($this->request->query('tahun') ?: date('Y'));
-        if ($bulan < 1 || $bulan > 12) $bulan = (int) date('m');
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = (int) date('m');
+        }
         $minTahun = 2000;
         $maxTahun = (int) date('Y') + 1;
-        if ($tahun < $minTahun || $tahun > $maxTahun) $tahun = (int) date('Y');
+        if ($tahun < $minTahun || $tahun > $maxTahun) {
+            $tahun = (int) date('Y');
+        }
+
         return [str_pad((string) $bulan, 2, '0', STR_PAD_LEFT), (string) $tahun];
     }
 }

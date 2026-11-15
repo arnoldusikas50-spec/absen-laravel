@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
+use App\Models\AttendanceSettingModel;
+use App\Models\DashboardModel;
 use App\Services\NotificationService;
+use App\Services\OpenWAService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Webhook masuk dari gateway WhatsApp OpenWA.
@@ -72,7 +74,7 @@ class WhatsappWebhookController extends BaseController
             // Autentikasi memakai api_key aplikasi (tabel setting, menu
             // Pengaturan) — sama seperti endpoint rekap. Kolom itu tidak ada
             // di absensi_setting, jadi membaca dari sana selalu 401.
-            $aplikasi = (new \App\Models\DashboardModel())->getSettingRow();
+            $aplikasi = (new DashboardModel)->getSettingRow();
         } catch (\Throwable $e) {
             return $this->json(false, 'Koneksi database gagal.', null, 500);
         }
@@ -86,7 +88,7 @@ class WhatsappWebhookController extends BaseController
         }
 
         try {
-            $setting = (new \App\Models\AttendanceSettingModel())->first();
+            $setting = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
             return $this->json(false, 'Koneksi database gagal.', null, 500);
         }
@@ -97,18 +99,18 @@ class WhatsappWebhookController extends BaseController
         }
 
         $secret = self::webhookSecret($openwaKey);
-        $svc    = new \App\Services\OpenWAService($setting);
+        $svc = new OpenWAService($setting);
 
         return $this->json(true, 'OK', [
-            'secret'      => $secret,
-            'webhook_url' => rtrim(url(), '/') . '/api/whatsapp/webhook?secret=' . $secret,
-            'base_url'    => $svc->baseUrl(),
-            'events'      => self::WANTED_EVENTS,
-            'curl'        => 'curl -X POST "' . $svc->baseUrl() . '/api/sessions/{sessionId}/webhooks" '
-                . '-H "Content-Type: application/json" -H "X-API-Key: ' . $openwaKey . '" '
-                . '-d \'{"url":"' . rtrim(url(), '/') . '/api/whatsapp/webhook?secret=' . $secret . '",'
-                . '"events":' . json_encode(self::WANTED_EVENTS) . ',"secret":"ganti-dengan-secret-anda"}\'',
-            'status'      => $svc->getStatus(),
+            'secret' => $secret,
+            'webhook_url' => rtrim(url(), '/').'/api/whatsapp/webhook?secret='.$secret,
+            'base_url' => $svc->baseUrl(),
+            'events' => self::WANTED_EVENTS,
+            'curl' => 'curl -X POST "'.$svc->baseUrl().'/api/sessions/{sessionId}/webhooks" '
+                .'-H "Content-Type: application/json" -H "X-API-Key: '.$openwaKey.'" '
+                .'-d \'{"url":"'.rtrim(url(), '/').'/api/whatsapp/webhook?secret='.$secret.'",'
+                .'"events":'.json_encode(self::WANTED_EVENTS).',"secret":"ganti-dengan-secret-anda"}\'',
+            'status' => $svc->getStatus(),
         ]);
     }
 
@@ -118,7 +120,7 @@ class WhatsappWebhookController extends BaseController
     public function webhook()
     {
         try {
-            $setting = (new \App\Models\AttendanceSettingModel())->first();
+            $setting = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
             return $this->response->setStatusCode(200);
         }
@@ -131,6 +133,7 @@ class WhatsappWebhookController extends BaseController
         $secret = trim((string) ($this->request->query('secret') ?? ''));
         if ($secret === '' || ! hash_equals(self::webhookSecret($openwaKey), $secret)) {
             Log::warning('[openwa-webhook] secret tidak cocok, ditolak.');
+
             return $this->response->setStatusCode(403);
         }
 
@@ -150,7 +153,7 @@ class WhatsappWebhookController extends BaseController
             $data = [];
         }
 
-        $name   = $this->teks($data['name'] ?? null) ?: $this->teks($data['sessionId'] ?? null) ?: 'sesi';
+        $name = $this->teks($data['name'] ?? null) ?: $this->teks($data['sessionId'] ?? null) ?: 'sesi';
         $status = $this->teks($data['status'] ?? null);
 
         // session.restriction = pembatasan imposed WhatsApp sendiri
@@ -166,37 +169,37 @@ class WhatsappWebhookController extends BaseController
 
         if ($event === 'session.restriction' || ! empty($restriction)) {
             $msg = "🚫 <b>WHATSAPP DIBATASI</b>\n"
-                . "Sesi: " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "\n"
-                . "Jenis: " . htmlspecialchars(
+                .'Sesi: '.htmlspecialchars($name, ENT_QUOTES, 'UTF-8')."\n"
+                .'Jenis: '.htmlspecialchars(
                     (string) ($restriction['kind'] ?? 'tidak diketahui'),
                     ENT_QUOTES,
                     'UTF-8'
-                ) . "\n";
+                )."\n";
             if (! empty($restriction['expiresAt'])) {
-                $msg .= "Berlaku sampai: " . $this->waktuLabel($this->teks($restriction['expiresAt'])) . "\n";
+                $msg .= 'Berlaku sampai: '.$this->waktuLabel($this->teks($restriction['expiresAt']))."\n";
             }
             $msg .= "─────────────────\n"
-                . "Notifikasi WhatsApp mungkin tidak terkirim. Cek dashboard OpenWA.";
-            $this->kirimKeAdmin($msg, $name, 'restriction:' . (string) ($restriction['kind'] ?? ''));
+                .'Notifikasi WhatsApp mungkin tidak terkirim. Cek dashboard OpenWA.';
+            $this->kirimKeAdmin($msg, $name, 'restriction:'.(string) ($restriction['kind'] ?? ''));
         } elseif ($status !== '' && $status !== 'ready' && $status !== 'disconnected') {
             // Kirim saat status benar-benar bermasalah. 'ready' dan
             // 'disconnected' terlalu sering untuk jadi notifikasi —
             // reconnect adalah hal biasa, bukan kejadian.
             $lastError = $this->teks($data['lastError'] ?? null);
             $msg = "⚠️ <b>WHATSAPP GATEWAY BERMASALAH</b>\n"
-                . "Sesi: " . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . "\n"
-                . "Status: " . htmlspecialchars($status, ENT_QUOTES, 'UTF-8') . "\n";
+                .'Sesi: '.htmlspecialchars($name, ENT_QUOTES, 'UTF-8')."\n"
+                .'Status: '.htmlspecialchars($status, ENT_QUOTES, 'UTF-8')."\n";
             if ($lastError !== '') {
-                $msg .= "Error: " . mb_strimwidth(
+                $msg .= 'Error: '.mb_strimwidth(
                     htmlspecialchars($lastError, ENT_QUOTES, 'UTF-8'),
                     0,
                     300,
                     '…'
-                ) . "\n";
+                )."\n";
             }
             $msg .= "─────────────────\n"
-                . "Notifikasi WhatsApp tidak terkirim sampai sesi kembali ready.";
-            $this->kirimKeAdmin($msg, $name, 'status:' . $status);
+                .'Notifikasi WhatsApp tidak terkirim sampai sesi kembali ready.';
+            $this->kirimKeAdmin($msg, $name, 'status:'.$status);
         }
 
         // Selalu 200 agar OpenWA tidak retry event yang tidak kita-Azukan.
@@ -212,17 +215,17 @@ class WhatsappWebhookController extends BaseController
      */
     private function kirimKeAdmin(string $message, string $sesi, string $penanda = ''): void
     {
-        Log::error('[openwa-webhook] ' . $sesi . ': ' . strip_tags($message));
+        Log::error('[openwa-webhook] '.$sesi.': '.strip_tags($message));
 
         if ($penanda !== '' && ! $this->sudahPerluDikirim($sesi, $penanda)) {
             return;
         }
 
         try {
-            (new NotificationService())->sendTelegram($message);
+            (new NotificationService)->sendTelegram($message);
         } catch (\Throwable $e) {
             // Kegagalan reporting tidak boleh menggagalkan webhook.
-            Log::error('[openwa-webhook] gagal kirim alert: ' . $e->getMessage());
+            Log::error('[openwa-webhook] gagal kirim alert: '.$e->getMessage());
         }
     }
 
@@ -233,13 +236,13 @@ class WhatsappWebhookController extends BaseController
      */
     private function sudahPerluDikirim(string $sesi, string $penanda): bool
     {
-        $kunci = 'openwa_alert_' . md5($sesi . '|' . $penanda);
+        $kunci = 'openwa_alert_'.md5($sesi.'|'.$penanda);
 
-        if (\Illuminate\Support\Facades\Cache::get($kunci) !== null) {
+        if (Cache::get($kunci) !== null) {
             return false;
         }
 
-        \Illuminate\Support\Facades\Cache::put($kunci, 1, self::ALERT_COOLDOWN_DETIK);
+        Cache::put($kunci, 1, self::ALERT_COOLDOWN_DETIK);
 
         return true;
     }
@@ -248,6 +251,7 @@ class WhatsappWebhookController extends BaseController
     private function waktuLabel(string $iso): string
     {
         $ts = strtotime($iso);
+
         return $ts !== false ? date('d/m/Y H:i', $ts) : $iso;
     }
 

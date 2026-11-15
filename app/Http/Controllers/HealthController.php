@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+
 /**
  * Health endpoint publik untuk monitoring (load balancer / cron eksternal).
  * GET /healthz → 200 {"status":"ok",...} atau 503 bila ada komponen gagal.
@@ -18,10 +18,10 @@ class HealthController extends BaseController
         $checks = [
             'database' => $this->checkDatabase(),
             'writable' => $this->checkWritable(),
-            'disk'     => $this->checkDisk(),
+            'disk' => $this->checkDisk(),
         ];
 
-        $ok = !in_array(false, [$checks['database'], $checks['writable'], $checks['disk']], true);
+        $ok = ! in_array(false, [$checks['database'], $checks['writable'], $checks['disk']], true);
 
         return $this->response
             ->setStatusCode($ok ? 200 : 503)
@@ -29,7 +29,7 @@ class HealthController extends BaseController
             ->setJSON([
                 'status' => $ok ? 'ok' : 'fail',
                 'checks' => $checks,
-                'time'   => date('Y-m-d H:i:s'),
+                'time' => date('Y-m-d H:i:s'),
             ]);
     }
 
@@ -37,9 +37,11 @@ class HealthController extends BaseController
     {
         try {
             DB::connection()->select('SELECT 1');
+
             return true;
         } catch (\Throwable $e) {
-            Log::error('[health] database: ' . $e->getMessage());
+            Log::error('[health] database: '.$e->getMessage());
+
             return false;
         }
     }
@@ -47,7 +49,7 @@ class HealthController extends BaseController
     public function checkWritable(): bool
     {
         $dir = storage_path('logs');
-        if (!is_dir($dir) || !is_writable($dir)) {
+        if (! is_dir($dir) || ! is_writable($dir)) {
             return false;
         }
 
@@ -59,7 +61,7 @@ class HealthController extends BaseController
             return (bool) $tersimpan;
         }
 
-        $probe = $dir . '/.health_probe';
+        $probe = $dir.'/.health_probe';
         $wrote = @file_put_contents($probe, 'ok') !== false;
         if ($wrote) {
             @unlink($probe);
@@ -73,6 +75,7 @@ class HealthController extends BaseController
     {
         try {
             $free = @disk_free_space(storage_path());
+
             return $free === false ? true : $free > 200 * 1024 * 1024;
         } catch (\Throwable $e) {
             return true;
