@@ -1246,7 +1246,7 @@ $todayJamKeluar = ($today && !empty($today->jam_keluar)) ? substr($today->jam_ke
         <div class="s-qr-actions">
             <?php
             $idK = (int) ($siswa->id_kelas ?? 0);
-            $cetakUrl = url('admin/presensi/siswa/kartu/cetak?id_siswa=' . $siswa->id_siswa . ($idK ? '&id_kelas=' . $idK : '') . '&desain=portrait&v=3');
+            $cetakUrl = url('admin/presensi/siswa/kartu/cetak?id_siswa=' . $siswa->id_siswa . ($idK ? '&id_kelas=' . $idK : '') . '&desain=duplex&v=4');
             ?>
             <a href="{{ $cetakUrl }}" target="_blank" class="s-qr-btn s-qr-btn-cetak">
                 <i class="bi bi-printer-fill"></i> Cetak Kartu

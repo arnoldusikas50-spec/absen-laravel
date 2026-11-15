@@ -303,10 +303,10 @@ class KartuSiswaController extends BaseController
         $isGuru = $this->isGuru();
         $basePath = $isGuru ? 'guru/presensi-siswa/kartu' : 'admin/presensi/siswa/kartu';
 
-        // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
-        $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (! in_array($desain, ['landscape', 'portrait'], true)) {
-            $desain = 'landscape';
+        // Pilihan desain: landscape | portrait | duplex (2 sisi PVC) | duplex_portrait
+        $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'duplex')));
+        if (! in_array($desain, ['landscape', 'portrait', 'duplex', 'duplex_portrait'], true)) {
+            $desain = 'duplex';
         }
 
         $data = [
@@ -437,10 +437,10 @@ class KartuSiswaController extends BaseController
             $namaKelasPilih .= ' • '.($siswaList[0]->nama ?? '');
         }
 
-        // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
-        $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
-        if (! in_array($desain, ['landscape', 'portrait'], true)) {
-            $desain = 'landscape';
+        // Pilihan desain: landscape | portrait | duplex (2 sisi PVC) | duplex_portrait
+        $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'duplex')));
+        if (! in_array($desain, ['landscape', 'portrait', 'duplex', 'duplex_portrait'], true)) {
+            $desain = 'duplex';
         }
 
         // Halaman cetak: jangan di-cache browser/proxy agar revisi desain langsung tampil
