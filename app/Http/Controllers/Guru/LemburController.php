@@ -250,7 +250,7 @@ class LemburController extends BaseController
                 }
             }
 
-            $insertId = $this->lemburModel->insert([
+            $insertId = $this->lemburModel->newQuery()->insertGetId([
                 'user_id' => $user->id,
                 'id_guru' => $guru->id_guru ?? null,
                 'tgl' => $tgl,
@@ -305,8 +305,10 @@ class LemburController extends BaseController
             return $this->respond(false, 'Hanya pengajuan dengan status MENUNGGU (PENDING) yang dapat dibatalkan');
         }
 
-        if ($this->lemburModel->where('id', $id)->delete() === false) {
-            Log::error('[Guru\Lembur::delete] hapus '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+        try {
+            $this->lemburModel->newQuery()->where('id', $id)->delete();
+        } catch (\Throwable $e) {
+            Log::error('[Guru\Lembur::delete] hapus '.$id.' gagal: '.$e->getMessage());
 
             return $this->respond(false, 'Pengajuan lembur gagal dibatalkan, silakan coba lagi');
         }

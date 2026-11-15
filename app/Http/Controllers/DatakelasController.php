@@ -577,8 +577,8 @@ class DatakelasController extends BaseController
 
         DB::beginTransaction();
         try {
-            if ($tertaut > 0 && $db->table('kelas_siswa')->where('id_kelas', $id)->update(['id_kelas' => null]) === false) {
-                throw new \RuntimeException('Lepas enrollment gagal: '.json_encode(['code' => 0, 'message' => '']));
+            if ($tertaut > 0) {
+                $db->table('kelas_siswa')->where('id_kelas', $id)->update(['id_kelas' => null]);
             }
 
             $this->jabatanModel->releaseWaliKelas((int) $kelas['id_tp'], (int) $kelas['id_smt'], $id);

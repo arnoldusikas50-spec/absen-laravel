@@ -168,7 +168,7 @@ class KalenderController extends BaseController
             return $this->respond(false, $error);
         }
 
-        $id = $this->kalenderModel->insert([
+        $id = $this->kalenderModel->newQuery()->insertGetId([
             'tgl_mulai' => $tglMulai,
             'tgl_selesai' => $tglSelesai,
             'judul' => $judul,

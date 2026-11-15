@@ -297,9 +297,10 @@ class UseradminController extends BaseController
         $src = 'uploads/profiles/'.$newName;
 
         $db = DB::connection();
-        $tersimpan = $db->table('users')->where('id', $id_user)->update(['foto' => $src]);
-        if ($tersimpan === false) {
-            Log::error('[Useradmin::uploadFile] update kolom foto users#'.$id_user.' gagal');
+        try {
+            $db->table('users')->where('id', $id_user)->update(['foto' => $src]);
+        } catch (\Throwable $e) {
+            Log::error('[Useradmin::uploadFile] update kolom foto users#'.$id_user.' gagal: '.$e->getMessage());
 
             return $this->response->setJSON([
                 'status' => false,
@@ -341,9 +342,10 @@ class UseradminController extends BaseController
         }
 
         $db = DB::connection();
-        $tersimpan = $db->table('users')->where('id', $idUser)->update(['foto' => null]);
-        if ($tersimpan === false) {
-            Log::error('[Useradmin::deleteFile] update kolom foto users#'.$idUser.' gagal');
+        try {
+            $db->table('users')->where('id', $idUser)->update(['foto' => null]);
+        } catch (\Throwable $e) {
+            Log::error('[Useradmin::deleteFile] update kolom foto users#'.$idUser.' gagal: '.$e->getMessage());
 
             return $this->response->setJSON(['status' => false, 'message' => 'Data gagal diperbarui — periksa log aplikasi.']);
         }

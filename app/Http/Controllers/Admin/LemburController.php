@@ -90,9 +90,6 @@ class LemburController extends BaseController
 
         try {
             $hasil = $this->db->select($sql, [$id, 'PENDING']);
-            if ($hasil === false) {
-                throw new \RuntimeException(json_encode(['code' => 0, 'message' => '']));
-            }
             $row = ($hasil[0] ?? null);
 
             return is_object($row) ? $row : null;
@@ -240,17 +237,17 @@ class LemburController extends BaseController
                     ->where('user_id', $lembur->user_id)
                     ->first();
                 if (! $exists) {
-                    $tercatat = $this->db->table('poin_history')->insert([
-                        'user_id' => $lembur->user_id,
-                        'poin' => $poinLembur,
-                        'tipe' => 'BONUS',
-                        'keterangan' => 'Lembur '.$lembur->tgl.' ('.rtrim(rtrim(number_format((float) $lembur->total_jam, 2), '0'), '.').' jam)',
-                        'ref_id' => 'lembur-'.$lembur->id,
-                        'created_at' => date('Y-m-d H:i:s'),
-                    ]);
-                    if ($tercatat === false) {
-                        Log::error('[approveLembur] gagal menulis poin_history lembur '.$lembur->id
-                            .': '.json_encode(['code' => 0, 'message' => '']));
+                    try {
+                        $this->db->table('poin_history')->insert([
+                            'user_id' => $lembur->user_id,
+                            'poin' => $poinLembur,
+                            'tipe' => 'BONUS',
+                            'keterangan' => 'Lembur '.$lembur->tgl.' ('.rtrim(rtrim(number_format((float) $lembur->total_jam, 2), '0'), '.').' jam)',
+                            'ref_id' => 'lembur-'.$lembur->id,
+                            'created_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error('[approveLembur] gagal menulis poin_history lembur '.$lembur->id.': '.$e->getMessage());
                         DB::rollBack();
 
                         return $this->respond(false, 'Poin lembur gagal dibukukan. Persetujuan dibatalkan, silakan coba lagi.');
@@ -265,14 +262,11 @@ class LemburController extends BaseController
             DB::commit();
 
             try {
-                $auditTertulis = (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'APPROVE',
+                (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'APPROVE',
                     (int) $lembur->user_id, $this->getUserId(),
                     ['status' => 'PENDING', 'total_jam' => (float) $lembur->total_jam],
                     ['status' => 'APPROVED', 'poin' => $poinDitambah, 'tarif_poin_per_jam' => $pointPerJam],
                     'Persetujuan lembur '.$lembur->tgl);
-                if ($auditTertulis === false) {
-                    Log::error('[approveLembur] jejak audit lembur '.$lembur->id.' gagal ditulis');
-                }
             } catch (\Throwable $ex) {
                 Log::error('Audit approveLembur gagal: '.$ex->getMessage());
             }
@@ -342,14 +336,11 @@ class LemburController extends BaseController
             DB::commit();
 
             try {
-                $auditTertulis = (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'REJECT',
+                (new AuditLogModel)->log('presensi_lembur', (int) $lembur->id, 'REJECT',
                     (int) $lembur->user_id, $this->getUserId(),
                     ['status' => 'PENDING'],
                     ['status' => 'REJECTED', 'catatan_admin' => $kolomCatatan ? $alasan : null],
                     'Penolakan lembur '.$lembur->tgl);
-                if ($auditTertulis === false) {
-                    Log::error('[rejectLembur] jejak audit lembur '.$lembur->id.' gagal ditulis');
-                }
             } catch (\Throwable $ex) {
                 Log::error('Audit rejectLembur gagal: '.$ex->getMessage());
             }

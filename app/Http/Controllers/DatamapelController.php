@@ -206,14 +206,15 @@ class DatamapelController extends BaseController
             if (! Schema::hasTable($tabel)) {
                 continue;
             }
-            $hasil = $db->table($tabel)
-                ->select($kolom.' AS id_mapel_ref')
-                ->selectRaw('COUNT(*) AS n')
-                ->whereIn($kolom, $idMapel)
-                ->groupBy($kolom)
-                ->get();
-            if ($hasil === false) {
-                Log::error('[Datamapel] gagal memeriksa referensi di '.$tabel.': '.json_encode(['code' => 0, 'message' => '']));
+            try {
+                $hasil = $db->table($tabel)
+                    ->select($kolom.' AS id_mapel_ref')
+                    ->selectRaw('COUNT(*) AS n')
+                    ->whereIn($kolom, $idMapel)
+                    ->groupBy($kolom)
+                    ->get();
+            } catch (\Throwable $e) {
+                Log::error('[Datamapel] gagal memeriksa referensi di '.$tabel.': '.$e->getMessage());
 
                 continue;
             }
@@ -254,9 +255,11 @@ class DatamapelController extends BaseController
             if ($baru !== null && $baru === $csv) {
                 continue;
             }
-            if ($db->table('master_jurusan')->where('id_jurusan', (int) $j['id_jurusan'])
-                ->update(['mapel_peminatan' => $baru]) === false) {
-                Log::error('[Datamapel] gagal membersihkan mapel_peminatan jurusan '.$j['id_jurusan']);
+            try {
+                $db->table('master_jurusan')->where('id_jurusan', (int) $j['id_jurusan'])
+                    ->update(['mapel_peminatan' => $baru]);
+            } catch (\Throwable $e) {
+                Log::error('[Datamapel] gagal membersihkan mapel_peminatan jurusan '.$j['id_jurusan'].': '.$e->getMessage());
             }
         }
     }
@@ -389,9 +392,10 @@ class DatamapelController extends BaseController
             if (! $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->count()) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Kelompok #'.$id.' tidak ditemukan — tidak ada yang diubah.']);
             }
-            $tersimpan = $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->update($data);
-            if ($tersimpan === false) {
-                Log::error('[Datamapel::addkelompokmapel] update '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+            try {
+                $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->update($data);
+            } catch (\Throwable $e) {
+                Log::error('[Datamapel::addkelompokmapel] update '.$id.' gagal: '.$e->getMessage());
 
                 return $this->response->setJSON(['status' => false, 'message' => 'Kelompok gagal diperbarui. Data belum berubah — coba lagi.']);
             }
@@ -469,9 +473,10 @@ class DatamapelController extends BaseController
             unset($data['status']);
         }
 
-        $tersimpan = $db->table('master_mapel')->where('id_mapel', $id)->update($data);
-        if ($tersimpan === false) {
-            Log::error('[Datamapel::update] update '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+        try {
+            $db->table('master_mapel')->where('id_mapel', $id)->update($data);
+        } catch (\Throwable $e) {
+            Log::error('[Datamapel::update] update '.$id.' gagal: '.$e->getMessage());
 
             return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
@@ -506,9 +511,10 @@ class DatamapelController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" masih dipakai '.$pakai.' mapel. Pindahkan mapel itu ke kelompok lain dulu.']);
         }
 
-        $terhapus = $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->delete();
-        if ($terhapus === false) {
-            Log::error('[Datamapel::hapuskelompok] '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+        try {
+            $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->delete();
+        } catch (\Throwable $e) {
+            Log::error('[Datamapel::hapuskelompok] '.$id.' gagal: '.$e->getMessage());
 
             return $this->response->setJSON(['status' => false, 'message' => 'Kelompok gagal dihapus. Data belum berubah — coba lagi.']);
         }
@@ -589,9 +595,11 @@ class DatamapelController extends BaseController
         }
 
         DB::beginTransaction();
-        if ($db->table('master_mapel')->whereIn('id_mapel', $boleh)->delete() === false || ! true) {
+        try {
+            $db->table('master_mapel')->whereIn('id_mapel', $boleh)->delete();
+        } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[Datamapel::delete] hapus massal gagal: '.json_encode(['code' => 0, 'message' => '']));
+            Log::error('[Datamapel::delete] hapus massal gagal: '.$e->getMessage());
 
             return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal dihapus. Tidak ada data yang berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
@@ -631,9 +639,10 @@ class DatamapelController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Mapel tidak ditemukan — tidak ada yang diubah.']);
         }
 
-        $tersimpan = $db->table('master_mapel')->where('id_mapel', $id)->update(['status' => 1]);
-        if ($tersimpan === false) {
-            Log::error('[Datamapel::aktifkan] '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+        try {
+            $db->table('master_mapel')->where('id_mapel', $id)->update(['status' => 1]);
+        } catch (\Throwable $e) {
+            Log::error('[Datamapel::aktifkan] '.$id.' gagal: '.$e->getMessage());
 
             return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal diaktifkan. Coba lagi.']);
         }

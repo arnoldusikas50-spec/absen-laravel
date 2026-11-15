@@ -918,9 +918,7 @@ class JurnalController extends BaseController
 
         try {
             if ($in['id_jurnal'] > 0) {
-                if ($this->jurnalModel->where('id', $in['id_jurnal'])->update($payload) === false) {
-                    throw new \RuntimeException('update gagal');
-                }
+                $this->jurnalModel->newQuery()->where('id', $in['id_jurnal'])->update($payload);
                 $idJurnal = $in['id_jurnal'];
 
                 // Isi berubah → persetujuan/penolakan lama tidak boleh melekat
@@ -941,8 +939,8 @@ class JurnalController extends BaseController
                     $msg .= ' Isi berubah — jurnal masuk antrean validasi ulang.';
                 }
             } else {
-                $idJurnal = $this->jurnalModel->insert($payload);
-                if ($idJurnal === false) {
+                $idJurnal = $this->jurnalModel->newQuery()->insertGetId($payload);
+                if (! $idJurnal) {
                     throw new \RuntimeException('insert gagal');
                 }
                 $this->kabariPiketValidasi($ownerGuruId, $in, false);

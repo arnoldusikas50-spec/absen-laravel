@@ -148,9 +148,10 @@ class PresensiBdrController extends BaseController
             if (! $this->bdrModel->find($id)) {
                 return $this->respond(false, 'Jadwal tidak ditemukan');
             }
-            $tersimpan = $this->bdrModel->where('id', $id)->update($data);
-            if ($tersimpan === false) {
-                Log::error('[PresensiBdr] update jadwal '.$id.' gagal: '.json_encode($this->bdrModel[]));
+            try {
+                $this->bdrModel->newQuery()->where('id', $id)->update($data);
+            } catch (\Throwable $e) {
+                Log::error('[PresensiBdr] update jadwal '.$id.' gagal: '.$e->getMessage());
 
                 return $this->respond(false, 'Jadwal BDR gagal diperbarui. Perubahan belum tersimpan — coba lagi, dan bila berulang lapor ke pengembang.');
             }
@@ -160,7 +161,7 @@ class PresensiBdrController extends BaseController
         }
 
         $data['created_by'] = (int) (session()->get('user_id') ?? 0);
-        $insertId = $this->bdrModel->insert($data);
+        $insertId = $this->bdrModel->newQuery()->insertGetId($data);
         if (! $insertId) {
             return $this->respond(false, 'Gagal menyimpan jadwal BDR');
         }

@@ -206,7 +206,7 @@ class PiketController extends BaseController
         ];
 
         try {
-            $this->piketJadwalModel->insert($insertData);
+            $this->piketJadwalModel->newQuery()->insert($insertData);
         } catch (\Throwable $e) {
             Log::error('[Piket::saveJadwal] '.$e->getMessage());
 
@@ -456,16 +456,20 @@ class PiketController extends BaseController
         }
         $eligibleTeachers = $builder->get();
 
-        if (empty($eligibleTeachers)) {
+        if ($eligibleTeachers->isEmpty()) {
             return $this->response->setJSON([
                 'status' => false,
                 'message' => 'Tidak ada data guru yang memenuhi syarat untuk dijadwalkan piket.',
             ]);
         }
 
-        $eligibleTeacherIds = array_map(function ($g) {
-            return (int) $g->id_guru;
-        }, $eligibleTeachers);
+        // get() Laravel mengembalikan Collection — array_map() menolak Collection
+        // sebagai argumen #2, jadi dipetakan lewat API Collection lalu dikembalikan
+        // sebagai array biasa (dibutuhkan array_fill_keys/array_diff di bawah).
+        $eligibleTeacherIds = $eligibleTeachers
+            ->map(fn ($g) => (int) $g->id_guru)
+            ->values()
+            ->all();
 
         // Jika mode replace, hapus jadwal lama untuk hari-hari terpilih pada TP dan SMT aktif
         if ($mode === 'replace') {
@@ -540,7 +544,7 @@ class PiketController extends BaseController
 
         if (! empty($toInsert)) {
             try {
-                $this->piketJadwalModel->insert($toInsert);
+                $this->piketJadwalModel->newQuery()->insert($toInsert);
             } catch (\Throwable $e) {
                 Log::error('[Piket::generateJadwal] '.$e->getMessage());
 

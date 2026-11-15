@@ -160,8 +160,10 @@
 
     <!-- Stats Row -->
     <?php 
-        $avg_point = !empty($teachers) ? array_sum(array_column($teachers, 'poin_tahunan')) / count($teachers) : 0;
-        $top_teacher = !empty($teachers) ? $teachers[0] : null;
+        // $teachers adalah Collection Eloquent/Query Builder, bukan array CI4:
+        // array_column() tidak menerimanya, gunakan API Collection.
+        $avg_point = collect($teachers)->avg('poin_tahunan') ?? 0;
+        $top_teacher = collect($teachers)->first();
     ?>
     <div class="flex flex-wrap gap-4">
         <div class="">

@@ -226,9 +226,10 @@ class DatatahunController extends BaseController
             return $this->balas(false, $nama.' tidak ditemukan — mungkin sudah dihapus.');
         }
 
-        $diubah = $db->table($tabel)->where($pk, $id)->update([$kolom => $label]);
-        if ($diubah === false) {
-            Log::error('[Datatahun] update '.$tabel.'#'.$id.' ditolak DB');
+        try {
+            $db->table($tabel)->where($pk, $id)->update([$kolom => $label]);
+        } catch (\Throwable $e) {
+            Log::error('[Datatahun] update '.$tabel.'#'.$id.' ditolak DB: '.$e->getMessage());
 
             return $this->balas(false, $nama.' gagal disimpan. Data belum berubah.');
         }
@@ -255,13 +256,15 @@ class DatatahunController extends BaseController
         }
 
         $db = DB::connection();
-        $tersimpan = $db->table('master_hari_efektif')->replace([
-            'id_hari_efektif' => (string) ((int) $tp->id_tp.(int) $smt->id_smt),
-            'jml_hari_efektif' => $jumlah,
-        ]);
-
-        if ($tersimpan === false) {
-            Log::error('[Datatahun] replace master_hari_efektif ditolak DB (tp='.$tp->id_tp.' smt='.$smt->id_smt.')');
+        // Query Builder Laravel tidak punya replace() (itu API CI4). Padanannya
+        // updateOrInsert(): perbarui bila barisnya ada, sisipkan bila belum.
+        try {
+            $db->table('master_hari_efektif')->updateOrInsert(
+                ['id_hari_efektif' => (string) ((int) $tp->id_tp.(int) $smt->id_smt)],
+                ['jml_hari_efektif' => $jumlah]
+            );
+        } catch (\Throwable $e) {
+            Log::error('[Datatahun] simpan master_hari_efektif ditolak DB (tp='.$tp->id_tp.' smt='.$smt->id_smt.'): '.$e->getMessage());
 
             return $this->balas(false, 'Jumlah hari efektif gagal disimpan. Data belum berubah — coba lagi.');
         }
@@ -343,10 +346,9 @@ class DatatahunController extends BaseController
                    AND c.DATA_TYPE IN ('int', 'bigint', 'mediumint', 'smallint')
                    AND UPPER(c.EXTRA) NOT LIKE '%AUTO_INCREMENT%'
                  ORDER BY c.TABLE_NAME";
+        // select() mengembalikan array dan melempar QueryException saat gagal,
+        // tidak pernah false seperti kontrak CI4.
         $q = $db->select($sql, [$kolomTarget, $tabel]);
-        if ($q === false) {
-            return [true, ''];
-        }
 
         $kandidat = array_map(
             static fn (array $b): string => (string) ($b['nama'] ?? ''),

@@ -392,7 +392,7 @@ class JadwalController extends BaseController
             return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil diperbarui']);
         }
 
-        $this->jadwalPribadiModel->insert($payload);
+        $this->jadwalPribadiModel->newQuery()->insert($payload);
 
         return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil ditambahkan']);
     }

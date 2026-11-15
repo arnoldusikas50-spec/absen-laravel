@@ -7,6 +7,7 @@ use App\Http\Controllers\CiForge;
 use App\Models\DashboardModel;
 use App\Models\PoinHistoryModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class PoinGuruController extends BaseController
@@ -94,13 +95,14 @@ class PoinGuruController extends BaseController
         $gagal = 0;
         foreach ($rows as $row) {
             $total = (float) ($row->total_poin ?? 0);
-            $tersimpan = $db->table('master_guru')
-                ->where('id_guru', $row->id_guru)
-                ->update(['poin_tahunan' => $total]);
-            if ($tersimpan === false) {
-                $gagal++;
-            } else {
+            try {
+                $db->table('master_guru')
+                    ->where('id_guru', $row->id_guru)
+                    ->update(['poin_tahunan' => $total]);
                 $count++;
+            } catch (\Throwable $e) {
+                Log::error('[PoinGuru] update poin_tahunan guru '.$row->id_guru.' gagal: '.$e->getMessage());
+                $gagal++;
             }
         }
 

@@ -518,7 +518,7 @@ class CronControllerController extends BaseController
                     $ketDendaAlpha .= ' (dibatasi cap bulanan Rp '.number_format($dendaHariIni, 0, ',', '.').')';
                 }
 
-                $insertId = $this->attendanceModel->insert([
+                $insertId = $this->attendanceModel->newQuery()->insertGetId([
                     'user_id' => $guru->id,
                     'id_guru' => $guru->id_guru ?? null,
                     'tgl' => $today,

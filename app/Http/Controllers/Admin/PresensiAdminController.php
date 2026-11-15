@@ -703,7 +703,7 @@ class PresensiAdminController extends BaseController
                 } else {
                     $data['jam_masuk'] = null;
                     $data['jam_pulang'] = null;
-                    $logId = $attendanceModel->insert($data);
+                    $logId = $attendanceModel->newQuery()->insertGetId($data);
                     $logAction = 'INSERT';
                 }
 
@@ -2881,7 +2881,7 @@ class PresensiAdminController extends BaseController
         $setting = $settingModel->first();
         if (! $setting) {
             // Create default if not exists
-            $settingModel->insert([
+            $settingModel->newQuery()->insert([
                 'jam_masuk' => '07:30:00',
                 'jam_pulang' => '15:00:00',
                 'radius_meter' => 100,
@@ -2889,7 +2889,7 @@ class PresensiAdminController extends BaseController
             $setting = $settingModel->first();
         }
 
-        $locations = $locationModel->get();
+        $locations = $locationModel->newQuery()->get();
         $jadwal = $db->table('absensi_jadwal_kerja')->orderBy('hari', 'ASC')->get();
 
         $this->patchSettingNomorTable();
@@ -3175,7 +3175,7 @@ class PresensiAdminController extends BaseController
         if ($current) {
             $settingModel->where('id', $current->id)->update($data);
         } else {
-            $settingModel->insert($data);
+            $settingModel->newQuery()->insert($data);
         }
 
         // Catatan keamanan: perubahan token kiosk dicatat, tapi nilainya tidak
@@ -4453,7 +4453,7 @@ class PresensiAdminController extends BaseController
         $this->patchAbsensiLokasiTable();
 
         $locationModel = new AttendanceLocationModel;
-        $locations = $locationModel->get();
+        $locations = $locationModel->newQuery()->get();
 
         // Get setting & active year/semester
         $appSetting = $this->getSettingRow();
@@ -4523,9 +4523,12 @@ class PresensiAdminController extends BaseController
 
         if ($id) {
             $locationModel->where('id', (int) $id)->update($data);
+            $targetId = (int) $id;
             $msg = 'Lokasi berhasil diperbarui';
         } else {
-            $locationModel->insert($data);
+            // Model Eloquent tidak punya getInsertID() (API CI4 lama), jadi id
+            // baris baru diambil langsung dari insertGetId().
+            $targetId = (int) $locationModel->insertGetId($data);
             $msg = 'Lokasi berhasil ditambahkan';
         }
 
@@ -4534,7 +4537,6 @@ class PresensiAdminController extends BaseController
         // lewat checkbox di form, atau membatalkannya (is_utama=0).
         $isUtama = $this->request->input('is_utama');
         $ssoon = $this->request->input('set_utama');   // 1 = jadikan utama, 0 = lepas
-        $targetId = (int) ($id ?: ($locationModel->getInsertID() ?: 0));
 
         if ($ssoon !== null && trim((string) $ssoon) !== '') {
             $locationModel->setUtama(((int) $ssoon) === 1 ? $targetId : 0);
@@ -4551,7 +4553,9 @@ class PresensiAdminController extends BaseController
 
         // Row bisa saja sudah hilang (id kiriman lama/rusak) — first() null
         // akan fatal di produksi (DBDebug melempar), jadi aman-kan dulu.
-        $rowTersimpan = $targetId > 0 ? $locationModel->first($targetId, true) : null;
+        // find(), bukan first($id, true): first() Eloquent memperlakukan argumen
+        // pertama sebagai daftar kolom sehingga query jadi `select 2 from ...`.
+        $rowTersimpan = $targetId > 0 ? AttendanceLocationModel::query()->find($targetId) : null;
 
         return $this->respond(true, $msg, [
             'is_utama' => $rowTersimpan ? (int) $rowTersimpan->is_utama : 0,
@@ -4574,7 +4578,7 @@ class PresensiAdminController extends BaseController
         $id = (int) $this->request->input('id');
         $aktif = (int) $this->request->input('aktif');
 
-        if ($id <= 0 || ! $locationModel->first($id, true)) {
+        if ($id <= 0 || ! AttendanceLocationModel::query()->find($id)) {
             return $this->respond(false, 'Lokasi tidak ditemukan');
         }
 
@@ -6606,7 +6610,7 @@ class PresensiAdminController extends BaseController
                     } else {
                         $attData['jam_masuk'] = null;
                         $attData['jam_pulang'] = null;
-                        $logId = $attendanceModel->insert($attData);
+                        $logId = $attendanceModel->newQuery()->insertGetId($attData);
                     }
                     (new PoinHistoryModel)->syncAttendancePoint($logId);
                 }
@@ -9412,14 +9416,14 @@ class PresensiAdminController extends BaseController
                     return $this->respond(false, 'Poin guru tidak mencukupi (Saldo: '.number_format($saldo).' pts, Dibutuhkan: '.number_format($poinDigunakan).' pts untuk Rp '.number_format($sisaDenda, 0, ',', '.').' pada tarif '.number_format($tarifPoin, 0, ',', '.').' Rp/poin)');
                 }
 
-                $tercatat = $poinModel->insert([
+                $tercatat = $poinModel->newQuery()->insertGetId([
                     'user_id' => $userId,
                     'poin' => -1 * abs($poinDigunakan),
                     'tipe' => 'REDEEM',
                     'keterangan' => 'Potong Denda Periode '.$bulan.'/'.$tahun.(! empty($keterangan) ? ' ('.$keterangan.')' : ''),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
-                if ($tercatat === false) {
+                if (! $tercatat) {
                     // CI4 mengembalikan false (bukan exception) saat DB menolak
                     // insert — tanpanya denda dianggap lunas tanpa poin terpakai.
                     DB::rollBack();
@@ -9533,14 +9537,14 @@ class PresensiAdminController extends BaseController
                 foreach ($existingRows as $existing) {
                     // If payment was made with POIN and points were deducted, refund them
                     if (($existing->metode_bayar === 'POIN' || ! empty($existing->poin_digunakan)) && (int) $existing->poin_digunakan > 0) {
-                        $tercatatRefund = $poinModel->insert([
+                        $tercatatRefund = $poinModel->newQuery()->insertGetId([
                             'user_id' => $userId,
                             'poin' => abs((int) $existing->poin_digunakan),
                             'tipe' => 'MANUAL_ADD',
                             'keterangan' => 'Pengembalian Poin (Pembatalan Pelunasan Denda '.$bulan.'/'.$tahun.')',
                             'created_at' => date('Y-m-d H:i:s'),
                         ]);
-                        if ($tercatatRefund === false) {
+                        if (! $tercatatRefund) {
                             // Pembatalan tanpa pencatatan refund = poin guru
                             // hilang diam. Batalkan seluruh pembatalan.
                             DB::rollBack();
@@ -9826,14 +9830,14 @@ class PresensiAdminController extends BaseController
             // Deduct points once for the whole payment if POIN method
             if ($metodeBayar === 'POIN' && $poinDigunakan > 0) {
                 $bulanStr = implode(', ', $bulanTerbayar);
-                $tercatat = $poinModel->insert([
+                $tercatat = $poinModel->newQuery()->insertGetId([
                     'user_id' => $userId,
                     'poin' => -1 * abs($poinDigunakan),
                     'tipe' => 'REDEEM',
                     'keterangan' => 'Potong Denda Periode '.$bulanStr.(! empty($keterangan) ? ' ('.$keterangan.')' : ''),
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
-                if ($tercatat === false) {
+                if (! $tercatat) {
                     DB::rollBack();
                     Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#'.$userId.' periode '.$bulanStr);
 
@@ -10568,9 +10572,11 @@ class PresensiAdminController extends BaseController
             }
 
             if ($updateData !== []) {
-                if ($db->table('absensi_harian')->where('id', $row->id)->update($updateData) === false) {
+                try {
+                    $db->table('absensi_harian')->where('id', $row->id)->update($updateData);
+                } catch (\Throwable $e) {
                     $gagalUpdate++;
-                    Log::error('[cleanOldPhotos] update id '.$row->id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+                    Log::error('[cleanOldPhotos] update id '.$row->id.' gagal: '.$e->getMessage());
                 }
             }
         }

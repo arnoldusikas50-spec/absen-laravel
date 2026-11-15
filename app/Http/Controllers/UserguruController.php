@@ -276,20 +276,18 @@ class UserguruController extends BaseController
         // jalur yang masih membaca master_guru.
         $dibuka = DB::beginTransaction();
         try {
-            $hasilUsers = $db->table('users')->where('id', (int) $account->id)->update([
-                'password' => password_hash($default, PASSWORD_BCRYPT),
-            ]);
-            $hasilMaster = true;
-            if (Schema::hasTable('master_guru')) {
-                $hasilMaster = $db->table('master_guru')->where('username', $username)->update(['password' => $default]);
-            }
-
-            if ($hasilUsers === false || $hasilMaster === false) {
+            try {
+                $db->table('users')->where('id', (int) $account->id)->update([
+                    'password' => password_hash($default, PASSWORD_BCRYPT),
+                ]);
+                if (Schema::hasTable('master_guru')) {
+                    $db->table('master_guru')->where('username', $username)->update(['password' => $default]);
+                }
+            } catch (\Throwable $e) {
                 if ($dibuka) {
                     DB::rollBack();
                 }
-                Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'" (users='
-                    .var_export($hasilUsers, true).', master='.var_export($hasilMaster, true).')');
+                Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
 
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
             }

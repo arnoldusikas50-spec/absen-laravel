@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB; // Added for Data Manipulation
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
- // For Logging
+// For Logging
 
 /**
  * Guru Controller - Migrated from CI3
@@ -301,11 +301,12 @@ class GuruController extends BaseController
                 return $this->response->setJSON(['status' => false, 'message' => 'Password lama salah — password belum diubah.']);
             }
 
-            $tersimpan = $db->table('users')->where('id', $user->id)->update([
-                'password' => password_hash($newPass, PASSWORD_BCRYPT),
-            ]);
-            if ($tersimpan === false) {
-                Log::error('[Guru::updateLogin] update users.password gagal: '.json_encode(['code' => 0, 'message' => '']));
+            try {
+                $db->table('users')->where('id', $user->id)->update([
+                    'password' => password_hash($newPass, PASSWORD_BCRYPT),
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('[Guru::updateLogin] update users.password gagal: '.$e->getMessage());
 
                 return $this->response->setJSON([
                     'status' => false,

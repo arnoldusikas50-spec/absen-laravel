@@ -2183,9 +2183,11 @@ class DataguruController extends BaseController
             }
 
             foreach ($gantiPassword as $idUser => $plain) {
-                if ($db->table('users')->where('id', $idUser)->update(['password' => password_hash($plain, PASSWORD_BCRYPT)]) === false) {
+                try {
+                    $db->table('users')->where('id', $idUser)->update(['password' => password_hash($plain, PASSWORD_BCRYPT)]);
+                } catch (\Throwable $e) {
                     DB::rollBack();
-                    Log::error('[Dataguru::update_all] update users.password gagal untuk id_user '.$idUser);
+                    Log::error('[Dataguru::update_all] update users.password gagal untuk id_user '.$idUser.': '.$e->getMessage());
 
                     return $this->response->setJSON([
                         'status' => false,
@@ -2195,9 +2197,11 @@ class DataguruController extends BaseController
             }
 
             foreach ($gantiUsername as $idUser => $baru) {
-                if ($db->table('users')->where('id', $idUser)->update(['username' => $baru]) === false) {
+                try {
+                    $db->table('users')->where('id', $idUser)->update(['username' => $baru]);
+                } catch (\Throwable $e) {
                     DB::rollBack();
-                    Log::error('[Dataguru::update_all] update users.username gagal untuk id_user '.$idUser);
+                    Log::error('[Dataguru::update_all] update users.username gagal untuk id_user '.$idUser.': '.$e->getMessage());
 
                     return $this->response->setJSON([
                         'status' => false,

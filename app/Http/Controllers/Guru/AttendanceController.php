@@ -1186,7 +1186,7 @@ class AttendanceController extends BaseController
                 }
             }
             try {
-                $insertedId = $this->attendanceModel->insert($data);
+                $insertedId = $this->attendanceModel->newQuery()->insertGetId($data);
             } catch (\Throwable $e) {
                 DB::rollBack();
                 if ($this->isDuplicateKeyError($e)) {
@@ -1194,7 +1194,7 @@ class AttendanceController extends BaseController
                 }
                 throw $e;
             }
-            if ($insertedId === false) {
+            if (! $insertedId) {
                 DB::rollBack();
                 if ($this->attendanceModel->where('user_id', $userId)->where('tgl', $today)->first()) {
                     return $this->respond(false, 'Anda sudah absen masuk hari ini (Tgl: '.$today.')');
@@ -2519,7 +2519,7 @@ class AttendanceController extends BaseController
         try {
             if ($db && Schema::hasTable('absensi_lokasi')) {
                 $locationModel = new AttendanceLocationModel;
-                $locations = $locationModel->get();
+                $locations = $locationModel->newQuery()->get();
 
                 if (empty($locations)) {
                     $locations = $db->table('absensi_lokasi')->get();
@@ -4596,7 +4596,7 @@ class AttendanceController extends BaseController
                 }
             }
             try {
-                $insertedId = $this->attendanceModel->insert($data);
+                $insertedId = $this->attendanceModel->newQuery()->insertGetId($data);
             } catch (\Throwable $e) {
                 DB::rollBack();
                 if ($this->isDuplicateKeyError($e)) {
@@ -4604,7 +4604,7 @@ class AttendanceController extends BaseController
                 }
                 throw $e;
             }
-            if ($insertedId === false) {
+            if (! $insertedId) {
                 DB::rollBack();
 
                 return ['bridged' => false, 'reason' => 'Gagal mencatat absen harian. Hanya tercatat sebagai peserta acara.'];
@@ -6854,7 +6854,7 @@ class AttendanceController extends BaseController
                 $namaBaru = $newName;
             }
 
-            $this->leaveModel->insert([
+            $this->leaveModel->newQuery()->insert([
                 'user_id' => $userId,
                 'id_guru' => $this->resolveIdGuru((int) $userId),
                 'tgl_mulai' => $tglMulai,
@@ -7320,7 +7320,7 @@ class AttendanceController extends BaseController
 
             // Create correction request
             $correctionModel = new AttendanceCorrectionModel;
-            $correctionModel->insert([
+            $correctionModel->newQuery()->insert([
                 'attendance_id' => $attendanceId,
                 'user_id' => session()->get('user_id'),
                 'field_name' => $fieldName,

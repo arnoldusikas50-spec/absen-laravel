@@ -229,9 +229,10 @@ class RewardController extends BaseController
             if (! $rewardModel->find($id)) {
                 return $this->respond(false, 'Reward tidak ditemukan');
             }
-            $tersimpan = $rewardModel->where('id', $id)->update($data);
-            if ($tersimpan === false) {
-                Log::error('[Admin\Reward] update reward '.$id.' gagal: '.json_encode($rewardModel[]));
+            try {
+                $rewardModel->newQuery()->where('id', $id)->update($data);
+            } catch (\Throwable $e) {
+                Log::error('[Admin\Reward] update reward '.$id.' gagal: '.$e->getMessage());
 
                 return $this->respond(false, 'Reward gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
             }
@@ -239,9 +240,10 @@ class RewardController extends BaseController
             return $this->respond(true, 'Reward berhasil diperbarui'.($stok <= 0 ? ' (otomatis dinonaktifkan karena stok 0)' : ''));
         }
 
-        $insertId = $rewardModel->insert($data);
-        if (! $insertId) {
-            Log::error('[Admin\Reward] insert reward gagal: '.json_encode($rewardModel[]));
+        try {
+            $rewardModel->newQuery()->insertGetId($data);
+        } catch (\Throwable $e) {
+            Log::error('[Admin\Reward] insert reward gagal: '.$e->getMessage());
 
             return $this->respond(false, 'Reward gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -268,9 +270,10 @@ class RewardController extends BaseController
             return $this->respond(false, "Reward tidak dapat dihapus karena sudah memiliki {$used} riwayat penukaran. Nonaktifkan saja agar tidak muncul di katalog guru.");
         }
 
-        $terhapus = $rewardModel->where('id', $id)->delete();
-        if ($terhapus === false) {
-            Log::error('[Admin\Reward] delete reward '.$id.' ditolak DB');
+        try {
+            $rewardModel->newQuery()->where('id', $id)->delete();
+        } catch (\Throwable $e) {
+            Log::error('[Admin\Reward] delete reward '.$id.' gagal: '.$e->getMessage());
 
             return $this->respond(false, 'Reward gagal dihapus. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -313,7 +316,7 @@ class RewardController extends BaseController
         }
 
         // Cegah rentang tumpang tindih dengan tier lain
-        $others = $tierModel->get();
+        $others = $tierModel->newQuery()->get();
         $newMax = $poinMax === 0 ? PHP_INT_MAX : $poinMax;
         foreach ($others as $o) {
             if ($id > 0 && (int) $o->id === $id) {
@@ -338,9 +341,10 @@ class RewardController extends BaseController
             if (! $tierModel->find($id)) {
                 return $this->respond(false, 'Tier tidak ditemukan');
             }
-            $tersimpan = $tierModel->where('id', $id)->update($data);
-            if ($tersimpan === false) {
-                Log::error('[Admin\Reward] update tier '.$id.' gagal: '.json_encode($tierModel[]));
+            try {
+                $tierModel->newQuery()->where('id', $id)->update($data);
+            } catch (\Throwable $e) {
+                Log::error('[Admin\Reward] update tier '.$id.' gagal: '.$e->getMessage());
 
                 return $this->respond(false, 'Tier gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
             }
@@ -348,9 +352,10 @@ class RewardController extends BaseController
             return $this->respond(true, 'Tier berhasil diperbarui');
         }
 
-        $insertId = $tierModel->insert($data);
-        if (! $insertId) {
-            Log::error('[Admin\Reward] insert tier gagal: '.json_encode($tierModel[]));
+        try {
+            $tierModel->newQuery()->insertGetId($data);
+        } catch (\Throwable $e) {
+            Log::error('[Admin\Reward] insert tier gagal: '.$e->getMessage());
 
             return $this->respond(false, 'Tier gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }
@@ -369,13 +374,14 @@ class RewardController extends BaseController
         if (! $tierModel->find($id)) {
             return $this->respond(false, 'Tier tidak ditemukan');
         }
-        if (count($tierModel->get()) <= 1) {
+        if (count($tierModel->newQuery()->get()) <= 1) {
             return $this->respond(false, 'Tier terakhir tidak dapat dihapus. Minimal 1 tier harus ada.');
         }
 
-        $terhapus = $tierModel->where('id', $id)->delete();
-        if ($terhapus === false) {
-            Log::error('[Admin\Reward] delete tier '.$id.' ditolak DB');
+        try {
+            $tierModel->newQuery()->where('id', $id)->delete();
+        } catch (\Throwable $e) {
+            Log::error('[Admin\Reward] delete tier '.$id.' gagal: '.$e->getMessage());
 
             return $this->respond(false, 'Tier gagal dihapus. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.');
         }

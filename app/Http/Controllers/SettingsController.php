@@ -61,7 +61,7 @@ class SettingsController extends BaseController
 
         $absenSetting = $settingModel->first();
         if (! $absenSetting) {
-            $settingModel->insert([
+            $settingModel->newQuery()->insert([
                 'jam_masuk' => '07:30:00',
                 'jam_pulang' => '15:00:00',
                 'radius_meter' => 100,
@@ -69,7 +69,7 @@ class SettingsController extends BaseController
             $absenSetting = $settingModel->first();
         }
 
-        $locations = $locationModel->get();
+        $locations = $locationModel->newQuery()->get();
         $jadwal = $db->table('absensi_jadwal_kerja')->orderBy('hari', 'ASC')->get();
 
         $this->ensureNomorSettingColumns();
@@ -582,11 +582,13 @@ class SettingsController extends BaseController
                     if ($sync !== []) {
                         $mainId = $this->mainAbsensiSettingId($db);
                         if ($mainId > 0) {
-                            $tersimpan = $db->table('absensi_setting')->where('id', $mainId)->update($sync);
+                            $db->table('absensi_setting')->where('id', $mainId)->update($sync);
                         } else {
-                            $tersimpan = $db->table('absensi_setting')->insert($sync) !== false;
+                            $db->table('absensi_setting')->insert($sync);
                         }
-                        $syncNotif = $tersimpan === false ? 'gagal' : 'ok';
+                        // Kegagalan tulisan melempar QueryException dan ditangkap
+                        // catch di bawah yang menyetel 'gagal'.
+                        $syncNotif = 'ok';
                     } else {
                         $syncNotif = 'kolom_tidak_ada';
                     }
