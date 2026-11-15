@@ -2,6 +2,7 @@
 
 namespace App\Libraries;
 
+use App\Models\UserNotifikasiModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -33,6 +34,7 @@ class TelegramLink
      * Kita buang '@username' karena Telegram API hanya menerima id numerik.
      *
      * @return string '' bila kosong, string valid bila sah
+     *
      * @throws \InvalidArgumentException bila format tidak dikenali
      */
     public static function normalizeChatId(?string $raw): string
@@ -98,7 +100,7 @@ class TelegramLink
             return ['ok' => false, 'message' => 'ID Telegram kosong.', 'chat_id' => ''];
         }
 
-        $model = new \App\Models\UserNotifikasiModel();
+        $model = new UserNotifikasiModel;
 
         if (! $model->bindChatDirect($userId, $chatId)) {
             // Model menyimpan alasannya di lastBindError; pakai itu supaya
@@ -107,6 +109,7 @@ class TelegramLink
             $alasan = trim($model->lastBindError) !== ''
                 ? $model->lastBindError
                 : 'Gagal menyimpan tautan Telegram.';
+
             return ['ok' => false, 'message' => $alasan, 'chat_id' => $chatId];
         }
 
@@ -116,12 +119,12 @@ class TelegramLink
                     ->update(['telegram_id' => $chatId]);
             }
         } catch (\Throwable $e) {
-            Log::error('[TelegramLink] gagal menulis master_guru.telegram_id: ' . $e->getMessage());
+            Log::error('[TelegramLink] gagal menulis master_guru.telegram_id: '.$e->getMessage());
         }
 
         return [
-            'ok'      => true,
-            'message' => 'Tautan Telegram aktif. Notifikasi personal akan dikirim ke ' . $chatId . '.',
+            'ok' => true,
+            'message' => 'Tautan Telegram aktif. Notifikasi personal akan dikirim ke '.$chatId.'.',
             'chat_id' => $chatId,
         ];
     }
@@ -140,13 +143,13 @@ class TelegramLink
 
         if ($userId > 0) {
             try {
-                $row = (new \App\Models\UserNotifikasiModel())->getByUserId($userId);
-                if ($row && !empty($row->telegram_chat_id)) {
-                    $sukses = (new \App\Models\UserNotifikasiModel())
+                $row = (new UserNotifikasiModel)->getByUserId($userId);
+                if ($row && ! empty($row->telegram_chat_id)) {
+                    $sukses = (new UserNotifikasiModel)
                         ->unbindByChatId((string) $row->telegram_chat_id) && $sukses;
                 }
             } catch (\Throwable $e) {
-                Log::error('[TelegramLink] gagal melepas user_notifikasi: ' . $e->getMessage());
+                Log::error('[TelegramLink] gagal melepas user_notifikasi: '.$e->getMessage());
                 $sukses = false;
             }
         }
@@ -160,7 +163,7 @@ class TelegramLink
                     ->update(['telegram_id' => null]);
             }
         } catch (\Throwable $e) {
-            Log::error('[TelegramLink] gagal mengosongkan master_guru.telegram_id: ' . $e->getMessage());
+            Log::error('[TelegramLink] gagal mengosongkan master_guru.telegram_id: '.$e->getMessage());
             $sukses = false;
         }
 
@@ -174,8 +177,8 @@ class TelegramLink
     public static function chatIdForGuru(int $idGuru, int $userId): string
     {
         if ($userId > 0) {
-            $row = (new \App\Models\UserNotifikasiModel())->getByUserId($userId);
-            if ($row && !empty($row->telegram_chat_id)) {
+            $row = (new UserNotifikasiModel)->getByUserId($userId);
+            if ($row && ! empty($row->telegram_chat_id)) {
                 return (string) $row->telegram_chat_id;
             }
         }
@@ -185,12 +188,12 @@ class TelegramLink
                 if (Schema::hasColumn('master_guru', 'telegram_id')) {
                     $g = DB::table('master_guru')->select('telegram_id')
                         ->where('id_guru', $idGuru)->first();
-                    if ($g && !empty($g->telegram_id)) {
+                    if ($g && ! empty($g->telegram_id)) {
                         return (string) $g->telegram_id;
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('[TelegramLink] gagal membaca master_guru.telegram_id: ' . $e->getMessage());
+                Log::error('[TelegramLink] gagal membaca master_guru.telegram_id: '.$e->getMessage());
             }
         }
 

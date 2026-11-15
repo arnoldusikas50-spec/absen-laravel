@@ -30,7 +30,8 @@ use Illuminate\Support\Facades\Schema;
 class RememberLogin
 {
     public const COOKIE_NAME = 'remember_presensi';
-    public const DAYS        = 30;
+
+    public const DAYS = 30;
 
     /**
      * Terbitkan token remember baru untuk user dan pasang cookie 30 hari.
@@ -42,19 +43,19 @@ class RememberLogin
         }
 
         try {
-            $selector  = bin2hex(random_bytes(9));
+            $selector = bin2hex(random_bytes(9));
             $validator = bin2hex(random_bytes(32));
 
             DB::table('users')
                 ->where('id', $userId)
                 ->update([
                     'remember_selector' => $selector,
-                    'remember_code'     => hash('sha256', $validator),
+                    'remember_code' => hash('sha256', $validator),
                 ]);
 
-            self::sendCookie($selector . ':' . $validator);
+            self::sendCookie($selector.':'.$validator);
         } catch (\Throwable $e) {
-            Log::error('RememberLogin::issue gagal: ' . $e->getMessage());
+            Log::error('RememberLogin::issue gagal: '.$e->getMessage());
         }
     }
 
@@ -86,16 +87,18 @@ class RememberLogin
                 ->where('a.remember_selector', $selector)
                 ->first();
 
-            if (!$user || (string) ($user->active ?? '') !== '1') {
+            if (! $user || (string) ($user->active ?? '') !== '1') {
                 self::clear();
+
                 return false;
             }
 
-            if (empty($user->remember_code) || !hash_equals((string) $user->remember_code, hash('sha256', $validator))) {
+            if (empty($user->remember_code) || ! hash_equals((string) $user->remember_code, hash('sha256', $validator))) {
                 // Token tidak cocok — kemungkinan dicuri/disalahgunakan: cabut token user ini.
                 DB::table('users')->where('id', (int) $user->id)
                     ->update(['remember_selector' => null, 'remember_code' => null]);
                 self::clear();
+
                 return false;
             }
 
@@ -103,28 +106,29 @@ class RememberLogin
 
             // Remember 30 hari hanya untuk guru & siswa.
             // Admin/panitia ditolak demi keamanan (termasuk token lama bila ada).
-            if (!in_array($roleName, ['guru', 'siswa'], true)) {
+            if (! in_array($roleName, ['guru', 'siswa'], true)) {
                 DB::table('users')->where('id', (int) $user->id)
                     ->update(['remember_selector' => null, 'remember_code' => null]);
                 self::clear();
+
                 return false;
             }
 
             $isGuru = ($roleName === 'guru');
-            $idGuru    = 0;
-            $namaGuru  = null;
-            $fotoGuru  = null;
+            $idGuru = 0;
+            $namaGuru = null;
+            $fotoGuru = null;
             if ($isGuru && Schema::hasTable('master_guru')) {
                 $guru = DB::table('master_guru')->where('id_user', (int) $user->id)->first();
                 if ($guru) {
-                    $idGuru   = (int) ($guru->id_guru ?? 0);
+                    $idGuru = (int) ($guru->id_guru ?? 0);
                     $namaGuru = $guru->nama_guru ?? null;
                     $fotoGuru = $guru->foto ?? null;
                 }
             }
 
-            $nama = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
-            if ($nama === '' && !empty($namaGuru)) {
+            $nama = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+            if ($nama === '' && ! empty($namaGuru)) {
                 $nama = $namaGuru;
             }
 
@@ -132,16 +136,16 @@ class RememberLogin
             session()->regenerate();
 
             session()->put([
-                'user_id'       => (int) $user->id,
-                'id_guru'       => $idGuru,
-                'username'      => $user->username,
-                'nama'          => $nama,
-                'email'         => $user->email,
-                'role'          => $user->group_id,
-                'role_name'     => $user->role_name,
-                'foto'          => $fotoGuru ?: $user->foto,
-                'school_uuid'   => $user->company ?? null,
-                'is_login'      => true,
+                'user_id' => (int) $user->id,
+                'id_guru' => $idGuru,
+                'username' => $user->username,
+                'nama' => $nama,
+                'email' => $user->email,
+                'role' => $user->group_id,
+                'role_name' => $user->role_name,
+                'foto' => $fotoGuru ?: $user->foto,
+                'school_uuid' => $user->company ?? null,
+                'is_login' => true,
                 'login_variant' => $isGuru ? 'staff' : 'siswa',
             ]);
 
@@ -152,7 +156,8 @@ class RememberLogin
 
             return true;
         } catch (\Throwable $e) {
-            Log::error('RememberLogin::restore gagal: ' . $e->getMessage());
+            Log::error('RememberLogin::restore gagal: '.$e->getMessage());
+
             return false;
         }
     }
@@ -164,7 +169,7 @@ class RememberLogin
     {
         try {
             $raw = request()->cookie(self::COOKIE_NAME);
-            if (!empty($raw) && strpos($raw, ':') !== false) {
+            if (! empty($raw) && strpos($raw, ':') !== false) {
                 [$selector] = explode(':', $raw, 2);
                 if ($selector !== '') {
                     DB::table('users')

@@ -29,5 +29,4 @@ class ShiftAnggotaModel extends Model
         'hari' => 'integer',
         'created_at' => 'datetime',
     ];
-
 }

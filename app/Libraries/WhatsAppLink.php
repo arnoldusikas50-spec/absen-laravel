@@ -2,6 +2,7 @@
 
 namespace App\Libraries;
 
+use App\Models\UserNotifikasiModel;
 use App\Services\WhatsAppFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,7 @@ class WhatsAppLink
      * Nomor non-Indonesia dianggap Indonesia juga bila tidak diawali 62.
      *
      * @return string '' bila kosong, digit valid bila sah
+     *
      * @throws \InvalidArgumentException bila tidak ada digit yang cocok
      */
     public static function normalizeNumber(?string $raw): string
@@ -77,8 +79,8 @@ class WhatsAppLink
      *
      * Nomor kosong berarti melepas tautan.
      *
-     * @param  bool $verified True bila penganggil sudah berwenang
-     *                        mengonfirmasi (admin), sehingga langsung aktif
+     * @param  bool  $verified  True bila penganggil sudah berwenang
+     *                          mengonfirmasi (admin), sehingga langsung aktif
      * @return array{ok:bool, message:string, number:string}
      */
     public static function attachToGuru(int $idGuru, int $userId, ?string $raw, bool $verified = false): array
@@ -96,7 +98,7 @@ class WhatsAppLink
             return ['ok' => false, 'message' => $e->getMessage(), 'number' => ''];
         }
 
-        $model = new \App\Models\UserNotifikasiModel();
+        $model = new UserNotifikasiModel;
 
         // Nomor kosong = lepas, dan tidak ada yang perlu dikonfirmasi.
         $verified = $verified && $number !== '';
@@ -120,11 +122,11 @@ class WhatsAppLink
         $sudahAktif = $model->getVerifiedWaNumber($userId) !== '';
 
         return [
-            'ok'      => true,
+            'ok' => true,
             'message' => $sudahAktif
-                ? 'Tautan WhatsApp aktif. Notifikasi personal akan dikirim ke +' . $number . '.'
+                ? 'Tautan WhatsApp aktif. Notifikasi personal akan dikirim ke +'.$number.'.'
                 : 'Nomor tersimpan, menunggu konfirmasi admin di menu Notifikasi.',
-            'number'  => $number,
+            'number' => $number,
         ];
     }
 
@@ -140,7 +142,7 @@ class WhatsAppLink
         $sukses = true;
 
         if ($userId > 0) {
-            $sukses = (new \App\Models\UserNotifikasiModel())->unbindWa($userId);
+            $sukses = (new UserNotifikasiModel)->unbindWa($userId);
         }
 
         // master_guru hanya catatan tampilan; kegagalannya tidak membuat
@@ -158,7 +160,7 @@ class WhatsAppLink
     public static function numberForGuru(int $idGuru, int $userId): string
     {
         if ($userId > 0) {
-            $n = (new \App\Models\UserNotifikasiModel())->getWaNumber($userId);
+            $n = (new UserNotifikasiModel)->getWaNumber($userId);
             if ($n !== '') {
                 return $n;
             }
@@ -174,7 +176,7 @@ class WhatsAppLink
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('[WhatsAppLink] gagal membaca master_guru.wa_number: ' . $e->getMessage());
+                Log::error('[WhatsAppLink] gagal membaca master_guru.wa_number: '.$e->getMessage());
             }
         }
 
@@ -197,7 +199,7 @@ class WhatsAppLink
             DB::table('master_guru')->where('id_guru', $idGuru)
                 ->update(['wa_number' => $number === '' ? null : $number]);
         } catch (\Throwable $e) {
-            Log::error('[WhatsAppLink] gagal menulis master_guru.wa_number: ' . $e->getMessage());
+            Log::error('[WhatsAppLink] gagal menulis master_guru.wa_number: '.$e->getMessage());
         }
     }
 }

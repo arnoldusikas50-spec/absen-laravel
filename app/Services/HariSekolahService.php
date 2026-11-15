@@ -28,9 +28,11 @@ use Illuminate\Support\Facades\Schema;
  */
 class HariSekolahService
 {
-    public const AKTIF      = 'aktif';
+    public const AKTIF = 'aktif';
+
     public const AKHIR_PEKAN = 'akhir_pekan';
-    public const LIBUR      = 'libur';
+
+    public const LIBUR = 'libur';
 
     private const NAMA_HARI = [
         'Sun' => 'Minggu',
@@ -51,25 +53,25 @@ class HariSekolahService
     /**
      * Status satu tanggal.
      *
-     * @param  string|null $tanggal Format Y-m-d. Default hari ini.
+     * @param  string|null  $tanggal  Format Y-m-d. Default hari ini.
      * @return array{status:string,keterangan:string,nama_hari:string,tanggal:string,peringatan:?string}
      */
     public function status(?string $tanggal = null): array
     {
-        $tanggal  = $this->normalizeDate($tanggal);
+        $tanggal = $this->normalizeDate($tanggal);
         $namaHari = self::NAMA_HARI[date('D', strtotime($tanggal))] ?? date('D', strtotime($tanggal));
 
         // 1. Libur mingguan (Minggu / hari yang disetel di pengaturan).
         //    Daftar nama hari datang dari AttendancePolicy, jadi 'SUN',
         //    'minggu', dan ' sun ' dikenali sama seperti jalur absensi.
         $mingguan = AttendancePolicy::hariLiburMingguan();
-        $singkat  = date('D', strtotime($tanggal));
+        $singkat = date('D', strtotime($tanggal));
         if (in_array($singkat, $mingguan, true)) {
-            return $this->result(self::AKHIR_PEKAN, $namaHari, $tanggal, 'Hari ' . $namaHari . ' (libur mingguan)');
+            return $this->result(self::AKHIR_PEKAN, $namaHari, $tanggal, 'Hari '.$namaHari.' (libur mingguan)');
         }
 
         // 2. Jadwal per hari (bisa menandai hari sekolah libur tanpa tanggal merah).
-        $iso    = (int) date('N', strtotime($tanggal)); // 1=Senin .. 7=Minggu
+        $iso = (int) date('N', strtotime($tanggal)); // 1=Senin .. 7=Minggu
         $jadwal = AttendancePolicy::jadwalKerja()[$iso] ?? null;
         if ($jadwal !== null && (int) ($jadwal->is_libur ?? 0) === 1) {
             return $this->result(self::LIBUR, $namaHari, $tanggal, 'Libur per jadwal hari kerja');
@@ -79,6 +81,7 @@ class HariSekolahService
         $petaLibur = AttendancePolicy::liburNasional();
         if (isset($petaLibur[$tanggal])) {
             $ket = $petaLibur[$tanggal];
+
             return $this->result(self::LIBUR, $namaHari, $tanggal, $ket !== '' ? $ket : 'Hari libur');
         }
 
@@ -102,7 +105,7 @@ class HariSekolahService
             $hasil[] = [
                 'kode' => $kode,
                 'nama' => self::NAMA_HARI[$kode],
-                'iso'  => $iso[$kode],
+                'iso' => $iso[$kode],
             ];
         }
 
@@ -125,11 +128,11 @@ class HariSekolahService
     public function tanggalPanjang(?string $tanggal = null): string
     {
         $tanggal = $this->normalizeDate($tanggal);
-        $ts      = strtotime($tanggal);
+        $ts = strtotime($tanggal);
 
-        return $this->namaHari($tanggal) . ', ' . (int) date('j', $ts)
-            . ' ' . (self::NAMA_BULAN[(int) date('n', $ts)] ?? date('F', $ts))
-            . ' ' . date('Y', $ts);
+        return $this->namaHari($tanggal).', '.(int) date('j', $ts)
+            .' '.(self::NAMA_BULAN[(int) date('n', $ts)] ?? date('F', $ts))
+            .' '.date('Y', $ts);
     }
 
     /**
@@ -141,22 +144,23 @@ class HariSekolahService
     public function peringatanKalender(?string $tanggal = null): ?string
     {
         $tanggal = $this->normalizeDate($tanggal);
-        $tahun   = (int) date('Y', strtotime($tanggal));
+        $tahun = (int) date('Y', strtotime($tanggal));
 
         try {
             if (! Schema::hasTable('absensi_hari_libur')) {
                 return 'Tabel absensi_hari_libur belum ada — libur nasional tidak terdeteksi.';
             }
             $jumlah = (int) DB::table('absensi_hari_libur')
-                ->where('tanggal', '>=', $tahun . '-01-01')
-                ->where('tanggal', '<=', $tahun . '-12-31')
+                ->where('tanggal', '>=', $tahun.'-01-01')
+                ->where('tanggal', '<=', $tahun.'-12-31')
                 ->count();
 
             if ($jumlah === 0) {
-                return 'Kalender libur untuk tahun ' . $tahun . ' masih kosong — libur nasional belum terdeteksi.';
+                return 'Kalender libur untuk tahun '.$tahun.' masih kosong — libur nasional belum terdeteksi.';
             }
         } catch (\Throwable $e) {
-            Log::error('[HariSekolahService] periksa kalender libur: ' . $e->getMessage());
+            Log::error('[HariSekolahService] periksa kalender libur: '.$e->getMessage());
+
             return 'Gagal memeriksa kalender libur — periksa log aplikasi.';
         }
 
@@ -177,7 +181,7 @@ class HariSekolahService
         $dari = $this->normalizeDate($dari);
 
         for ($i = 1; $i <= $maksHari; $i++) {
-            $tanggal = date('Y-m-d', strtotime($dari . ' +' . $i . ' day'));
+            $tanggal = date('Y-m-d', strtotime($dari.' +'.$i.' day'));
             if ($this->status($tanggal)['status'] === self::AKTIF) {
                 return $tanggal;
             }
@@ -189,10 +193,10 @@ class HariSekolahService
     private function result(string $status, string $namaHari, string $tanggal, string $keterangan): array
     {
         return [
-            'status'     => $status,
+            'status' => $status,
             'keterangan' => $keterangan,
-            'nama_hari'  => $namaHari,
-            'tanggal'    => $tanggal,
+            'nama_hari' => $namaHari,
+            'tanggal' => $tanggal,
             'peringatan' => null,
         ];
     }

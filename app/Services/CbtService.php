@@ -14,26 +14,30 @@ use Illuminate\Support\Facades\Log;
  * \Config\Services::cache() -> Cache facade, log_message -> Log).
  *
  * CbtService - Business Logic Layer for CBT
- * 
+ *
  * Centralizes common CBT operations to avoid code duplication
  * across controllers. Implements caching for frequently accessed data.
  */
 class CbtService
 {
     protected $cbtModel;
+
     protected $cbtSiswaModel;
+
     protected $dashboardModel;
 
     // Cache TTL in seconds
     const CACHE_TTL_SHORT = 60;      // 1 minute
+
     const CACHE_TTL_MEDIUM = 300;    // 5 minutes
+
     const CACHE_TTL_LONG = 3600;     // 1 hour
 
     public function __construct()
     {
-        $this->cbtModel = new CbtModel();
-        $this->cbtSiswaModel = new CbtSiswaModel();
-        $this->dashboardModel = new DashboardModel();
+        $this->cbtModel = new CbtModel;
+        $this->cbtSiswaModel = new CbtSiswaModel;
+        $this->dashboardModel = new DashboardModel;
     }
 
     /**
@@ -57,28 +61,31 @@ class CbtService
             // Use username from session directly (like Siswa.php and Kbm.php do)
             $username = $session->get('username');
 
-            if (!$username) {
+            if (! $username) {
                 Log::debug('CbtService: No username in session');
+
                 return null;
             }
 
             $tp = $this->dashboardModel->getTahunActive();
             $smt = $this->dashboardModel->getSemesterActive();
 
-            if (!$tp || !$smt) {
+            if (! $tp || ! $smt) {
                 Log::debug('CbtService: No active TP or SMT');
+
                 return null;
             }
 
             $siswa = $this->dashboardModel->getDataSiswa($username, $tp->id_tp, $smt->id_smt);
 
-            if (!$siswa) {
-                Log::debug('CbtService: Siswa not found for username ' . $username);
+            if (! $siswa) {
+                Log::debug('CbtService: Siswa not found for username '.$username);
             }
 
             return $siswa;
         } catch (\Throwable $e) {
-            Log::error('CbtService::getCurrentSiswa error: ' . $e->getMessage());
+            Log::error('CbtService::getCurrentSiswa error: '.$e->getMessage());
+
             return null;
         }
     }
@@ -100,7 +107,7 @@ class CbtService
 
         $data = [
             'tp' => $tp,
-            'smt' => $smt
+            'smt' => $smt,
         ];
 
         Cache::put($cacheKey, $data, self::CACHE_TTL_LONG);
@@ -120,7 +127,7 @@ class CbtService
             return $cached;
         }
 
-        $sql = "
+        $sql = '
             SELECT 
                 j.*,
                 b.id_bank, b.bank_kode, b.bank_nama, b.bank_level, b.bank_kelas,
@@ -134,7 +141,7 @@ class CbtService
             LEFT JOIN cbt_jenis jn ON j.id_jenis = jn.id_jenis
             LEFT JOIN master_mapel m ON b.bank_mapel_id = m.id_mapel
             WHERE j.id_jadwal = ?
-        ";
+        ';
 
         $jadwal = DB::selectOne($sql, [$idJadwal]);
 
@@ -175,7 +182,7 @@ class CbtService
             $idSiswa,
             $period['tp']->id_tp,
             $period['smt']->id_smt,
-            $levelId
+            $levelId,
         ]);
 
         // Filter by class
@@ -183,8 +190,9 @@ class CbtService
         foreach ($exams as $exam) {
             // Get bank_kelas from jadwal
             $jadwal = $this->getJadwalComplete($exam->id_jadwal);
-            if (!$jadwal)
+            if (! $jadwal) {
                 continue;
+            }
 
             $bankKelas = $this->parseKelasIds($jadwal->bank_kelas);
 
@@ -228,7 +236,7 @@ class CbtService
     {
         $jadwal = $this->getJadwalComplete($idJadwal);
 
-        if (!$jadwal) {
+        if (! $jadwal) {
             return ['allowed' => false, 'reason' => 'Jadwal tidak ditemukan'];
         }
 
@@ -305,15 +313,15 @@ class CbtService
             return $cached;
         }
 
-        $sql = "
+        $sql = '
             SELECT jenis, COUNT(*) as jumlah
             FROM cbt_soal
             WHERE id_bank = ?
             GROUP BY jenis
-        ";
+        ';
 
         $result = DB::select($sql, [$idBank]);
-        $counts = array_column(array_map(fn($r) => (array) $r, $result), 'jumlah', 'jenis');
+        $counts = array_column(array_map(fn ($r) => (array) $r, $result), 'jumlah', 'jenis');
 
         Cache::put($cacheKey, $counts, self::CACHE_TTL_LONG);
 
@@ -373,7 +381,7 @@ class CbtService
             ->all();
 
         // Apply deterministic shuffle if randomization is enabled
-        if ($acak == '1' && !empty($questions)) {
+        if ($acak == '1' && ! empty($questions)) {
             // Use student+jadwal as seed for consistent order
             mt_srand($seed);
             $shuffled = $questions;
@@ -442,6 +450,7 @@ class CbtService
         }
 
         $cache[$key] = $this->cbtSiswaModel->getCbtSiswa($idSiswa, $idJadwal);
+
         return $cache[$key];
     }
 

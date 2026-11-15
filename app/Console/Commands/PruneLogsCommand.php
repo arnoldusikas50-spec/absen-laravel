@@ -88,6 +88,7 @@ class PruneLogsCommand extends Command
                     $this->warn('akan dihapus: '.basename($file).' ('.round($byte / 1024, 1).' KB, '.date('Y-m-d', $umur).')');
                     $dihapus++;
                     $byteDibebaskan += $byte;
+
                     continue;
                 }
                 if (@unlink($file)) {

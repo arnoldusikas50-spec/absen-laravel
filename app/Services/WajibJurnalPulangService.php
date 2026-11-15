@@ -46,7 +46,7 @@ final class WajibJurnalPulangService
      * untuk layar scanner.
      *
      * @return array{sesi:list<object>,message:string,message_singkat:string,data:array}|null
-     *         null berarti absen pulang boleh dilanjutkan
+     *                                                                                        null berarti absen pulang boleh dilanjutkan
      */
     public static function gate(
         int $idGuru,
@@ -66,10 +66,10 @@ final class WajibJurnalPulangService
         $lengkap = self::pesanLengkap($sesi, $petugas);
 
         return [
-            'sesi'            => $sesi,
-            'message'         => $lengkap['message'],
+            'sesi' => $sesi,
+            'message' => $lengkap['message'],
             'message_singkat' => self::pesanKiosk($sesi, $namaGuru),
-            'data'            => $lengkap['data'],
+            'data' => $lengkap['data'],
         ];
     }
 
@@ -115,7 +115,7 @@ final class WajibJurnalPulangService
         ?int $hari = null
     ): array {
         $setting ??= AttendancePolicy::setting();
-        if (!$setting || (int) ($setting->wajib_jurnal_sebelum_pulang ?? 0) !== 1 || $idGuru <= 0) {
+        if (! $setting || (int) ($setting->wajib_jurnal_sebelum_pulang ?? 0) !== 1 || $idGuru <= 0) {
             return [];
         }
 
@@ -125,16 +125,16 @@ final class WajibJurnalPulangService
         }
 
         $batas = substr((string) ($waktu ?? date('H:i:s')), 0, 5);
-        $hari  = $hari ?? AttendancePolicy::isoHari($tanggal);
+        $hari = $hari ?? AttendancePolicy::isoHari($tanggal);
 
         try {
             $tpRow = DB::table('master_tp')->where('active', 1)->first();
             $smtRow = DB::table('master_smt')->where('active', 1)->first();
-            if (!$tpRow || !$smtRow) {
+            if (! $tpRow || ! $smtRow) {
                 return [];
             }
 
-            return (new JurnalGuruModel())->getSesiBelumDijurnal(
+            return (new JurnalGuruModel)->getSesiBelumDijurnal(
                 $idGuru,
                 (int) $tpRow->id_tp,
                 (int) $smtRow->id_smt,
@@ -144,7 +144,8 @@ final class WajibJurnalPulangService
                 self::butuhValidasi($setting)
             );
         } catch (\Throwable $e) {
-            Log::error('[wajib-jurnal] validasi absen pulang gagal: ' . $e->getMessage());
+            Log::error('[wajib-jurnal] validasi absen pulang gagal: '.$e->getMessage());
+
             return [];
         }
     }
@@ -160,13 +161,13 @@ final class WajibJurnalPulangService
     public static function petugasValidasi(string $tanggal, $db = null): array
     {
         try {
-            $tpRow  = DB::table('master_tp')->where('active', 1)->first();
+            $tpRow = DB::table('master_tp')->where('active', 1)->first();
             $smtRow = DB::table('master_smt')->where('active', 1)->first();
-            if (!$tpRow || !$smtRow) {
+            if (! $tpRow || ! $smtRow) {
                 return [];
             }
 
-            $rows = (new PiketJadwalModel())->getPiketHariIni(
+            $rows = (new PiketJadwalModel)->getPiketHariIni(
                 AttendancePolicy::namaHariId($tanggal),
                 (int) $tpRow->id_tp,
                 (int) $smtRow->id_smt
@@ -180,8 +181,8 @@ final class WajibJurnalPulangService
                     continue;
                 }
                 $out[$idGuru] = [
-                    'nama'    => $nama,
-                    'nip'     => trim((string) ($r->nip ?? '')),
+                    'nama' => $nama,
+                    'nip' => trim((string) ($r->nip ?? '')),
                     'id_guru' => $idGuru,
                     'id_user' => (int) ($r->id_user ?? 0),
                 ];
@@ -189,7 +190,8 @@ final class WajibJurnalPulangService
 
             return array_values($out);
         } catch (\Throwable $e) {
-            Log::error('[wajib-jurnal] gagal memuat jadwal piket: ' . $e->getMessage());
+            Log::error('[wajib-jurnal] gagal memuat jadwal piket: '.$e->getMessage());
+
             return [];
         }
     }
@@ -220,16 +222,16 @@ final class WajibJurnalPulangService
      * sudah ada tapi belum disetujui masuk ke 'sesi_menunggu_validasi' agar
      * tautan "Isi" tidak ditawarkan untuk sesi yang sudah terisi.
      *
-     * @param array<int,object>        $sesiKurang
-     * @param list<array{nama:string}> $petugas
+     * @param  array<int,object>  $sesiKurang
+     * @param  list<array{nama:string}>  $petugas
      * @return array{message:string,data:array}
      */
     public static function pesanLengkap(array $sesiKurang, array $petugas = []): array
     {
-        $belum    = [];
+        $belum = [];
         $menunggu = [];
         foreach ($sesiKurang as $sesi) {
-            if (!empty($sesi->menunggu_validasi)) {
+            if (! empty($sesi->menunggu_validasi)) {
                 $menunggu[] = $sesi;
             } else {
                 $belum[] = $sesi;
@@ -243,32 +245,32 @@ final class WajibJurnalPulangService
         if (empty($menunggu)) {
             return [
                 'message' => 'Absen pulang belum bisa dilakukan. Lengkapi jurnal mengajar sesi yang sudah dimulai hari ini untuk: '
-                    . self::daftarLabel($belum) . '. Buka menu Jurnal Mengajar, lalu coba absen pulang lagi.',
+                    .self::daftarLabel($belum).'. Buka menu Jurnal Mengajar, lalu coba absen pulang lagi.',
                 'data' => $payload,
             ];
         }
 
         $payload['sesi_menunggu_validasi'] = self::payloadSesi($menunggu);
-        $payload['butuh_validasi']   = true;
+        $payload['butuh_validasi'] = true;
         $payload['petugas_validasi'] = $petugas;
 
         $grup = [];
-        if (!empty($belum)) {
-            $grup[] = 'belum diisi untuk: ' . self::daftarLabel($belum);
+        if (! empty($belum)) {
+            $grup[] = 'belum diisi untuk: '.self::daftarLabel($belum);
         }
-        $ditolak = array_filter($menunggu, static fn($s) => strtoupper((string) ($s->validasi_status ?? '')) === JurnalGuruModel::VALIDASI_REJECTED);
-        if (!empty($ditolak)) {
-            $grup[] = 'ditolak dan perlu diperbaiki untuk: ' . self::daftarLabel($ditolak);
+        $ditolak = array_filter($menunggu, static fn ($s) => strtoupper((string) ($s->validasi_status ?? '')) === JurnalGuruModel::VALIDASI_REJECTED);
+        if (! empty($ditolak)) {
+            $grup[] = 'ditolak dan perlu diperbaiki untuk: '.self::daftarLabel($ditolak);
         }
-        $menungguSah = array_filter($menunggu, static fn($s) => strtoupper((string) ($s->validasi_status ?? '')) !== JurnalGuruModel::VALIDASI_REJECTED);
-        if (!empty($menungguSah)) {
-            $grup[] = 'masih menunggu validasi untuk: ' . self::daftarLabel($menungguSah);
+        $menungguSah = array_filter($menunggu, static fn ($s) => strtoupper((string) ($s->validasi_status ?? '')) !== JurnalGuruModel::VALIDASI_REJECTED);
+        if (! empty($menungguSah)) {
+            $grup[] = 'masih menunggu validasi untuk: '.self::daftarLabel($menungguSah);
         }
 
         $pesan = 'Absen pulang belum bisa dilakukan. Jurnal mengajar hari ini '
-            . implode('; jurnal ', $grup)
-            . '. ' . self::frasePetugas($petugas, !empty($ditolak))
-            . ' Setelah seluruh jurnal berstatus disetujui, absen pulang dapat dilanjutkan.';
+            .implode('; jurnal ', $grup)
+            .'. '.self::frasePetugas($petugas, ! empty($ditolak))
+            .' Setelah seluruh jurnal berstatus disetujui, absen pulang dapat dilanjutkan.';
 
         return [
             'message' => $pesan,
@@ -285,16 +287,16 @@ final class WajibJurnalPulangService
      * untuk jurnal yang justru harus diperbaiki lebih dulu hanya membuatnya
      * berdiri di gerbang tanpa tahu apa yang harus dilakukan.
      *
-     * @param array<int,object> $sesiKurang
+     * @param  array<int,object>  $sesiKurang
      */
     public static function pesanKiosk(array $sesiKurang, string $namaGuru = ''): string
     {
-        $si       = $namaGuru !== '' ? $namaGuru : 'Anda';
-        $belum    = 0;
+        $si = $namaGuru !== '' ? $namaGuru : 'Anda';
+        $belum = 0;
         $menunggu = 0;
-        $ditolak  = 0;
+        $ditolak = 0;
         foreach ($sesiKurang as $sesi) {
-            if (!empty($sesi->menunggu_validasi)) {
+            if (! empty($sesi->menunggu_validasi)) {
                 if (strtoupper(trim((string) ($sesi->validasi_status ?? ''))) === JurnalGuruModel::VALIDASI_REJECTED) {
                     $ditolak++;
                 } else {
@@ -315,18 +317,18 @@ final class WajibJurnalPulangService
                 $bagian[] = "{$menunggu} sesi menunggu validasi piket";
             }
 
-            return $si . ' belum bisa absen pulang: ' . self::hubunganKalimat($bagian) . '.';
+            return $si.' belum bisa absen pulang: '.self::hubunganKalimat($bagian).'.';
         }
 
         if ($menunggu === 0) {
-            return $si . " belum bisa absen pulang: jurnal mengajar {$belum} sesi hari ini belum diisi.";
+            return $si." belum bisa absen pulang: jurnal mengajar {$belum} sesi hari ini belum diisi.";
         }
 
         if ($belum === 0) {
-            return $si . " belum bisa absen pulang: jurnal {$menunggu} sesi hari ini menunggu validasi piket.";
+            return $si." belum bisa absen pulang: jurnal {$menunggu} sesi hari ini menunggu validasi piket.";
         }
 
-        return $si . " belum bisa absen pulang: jurnal {$belum} sesi belum diisi dan {$menunggu} sesi menunggu validasi piket.";
+        return $si." belum bisa absen pulang: jurnal {$belum} sesi belum diisi dan {$menunggu} sesi menunggu validasi piket.";
     }
 
     /** "{Nama} · {Kelas} · {Mapel} (07:00–07:45)" untuk beberapa sesi. */
@@ -340,7 +342,7 @@ final class WajibJurnalPulangService
         $text = implode('; ', $labels);
         $sisa = count($sesi) - count($labels);
         if ($sisa > 0) {
-            $text .= '; dan ' . $sisa . ' sesi lainnya';
+            $text .= '; dan '.$sisa.' sesi lainnya';
         }
 
         return $text;
@@ -355,7 +357,7 @@ final class WajibJurnalPulangService
 
         $terakhir = array_pop($bagian);
 
-        return implode(', ', $bagian) . ' dan ' . $terakhir;
+        return implode(', ', $bagian).' dan '.$terakhir;
     }
 
     /** Arahkan guru ke penanggung jawab validasi. */
@@ -365,7 +367,7 @@ final class WajibJurnalPulangService
         $awal = $adaDitolak ? 'Perbaiki jurnal yang ditolak, lalu minta validasi' : 'Minta validasi jurnal';
 
         return $nama !== ''
-            ? $awal . ' kepada guru piket hari ini: ' . $nama . '.'
+            ? $awal.' kepada guru piket hari ini: '.$nama.'.'
             : 'Belum ada guru piket terjadwal hari ini sebagai penanggung jawab validasi — hubungi admin presensi.';
     }
 
@@ -373,21 +375,21 @@ final class WajibJurnalPulangService
      * Nama guru sering mengandung koma ("NAMA, S.Pd"), jadi dipisah tanda garis
      * miring ganda agar tidak disalahartikan sebagai awal nama baru.
      *
-     * @param list<array{nama:string}> $petugas
+     * @param  list<array{nama:string}>  $petugas
      */
     private static function namaPetugas(array $petugas): string
     {
-        $nama = array_map(static fn($p) => trim((string) ($p['nama'] ?? '')), $petugas);
-        $nama = array_values(array_filter($nama, static fn($n) => $n !== ''));
+        $nama = array_map(static fn ($p) => trim((string) ($p['nama'] ?? '')), $petugas);
+        $nama = array_values(array_filter($nama, static fn ($n) => $n !== ''));
         if (empty($nama)) {
             return '';
         }
 
         $tampil = array_slice($nama, 0, self::MAX_PETUGAS);
-        $sisa   = count($nama) - count($tampil);
-        $text   = implode(' / ', $tampil);
+        $sisa = count($nama) - count($tampil);
+        $text = implode(' / ', $tampil);
 
-        return $sisa > 0 ? $text . ' dan ' . $sisa . ' guru piket lainnya' : $text;
+        return $sisa > 0 ? $text.' dan '.$sisa.' guru piket lainnya' : $text;
     }
 
     /** @param array<int,object> $sesi */
@@ -412,17 +414,17 @@ final class WajibJurnalPulangService
     /** "Jam 3 · VII-A · Matematika (09:00–10:00)" */
     public static function labelSesi(object $sesi): string
     {
-        $jamKe  = trim((string) ($sesi->jam_ke ?? ''));
+        $jamKe = trim((string) ($sesi->jam_ke ?? ''));
         $rentang = substr((string) ($sesi->dari ?? ''), 0, 5);
-        if (!empty($sesi->sampai)) {
-            $rentang = trim($rentang . '–' . substr((string) $sesi->sampai, 0, 5), '–');
+        if (! empty($sesi->sampai)) {
+            $rentang = trim($rentang.'–'.substr((string) $sesi->sampai, 0, 5), '–');
         }
 
-        $label = ($jamKe !== '' ? 'Jam ' . $jamKe . ' · ' : '')
-            . trim((string) ($sesi->nama_kelas ?? 'Kelas')) . ' · '
-            . trim((string) ($sesi->nama_mapel ?? 'Mapel'));
+        $label = ($jamKe !== '' ? 'Jam '.$jamKe.' · ' : '')
+            .trim((string) ($sesi->nama_kelas ?? 'Kelas')).' · '
+            .trim((string) ($sesi->nama_mapel ?? 'Mapel'));
         if ($rentang !== '') {
-            $label .= ' (' . $rentang . ')';
+            $label .= ' ('.$rentang.')';
         }
 
         return $label;

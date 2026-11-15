@@ -40,19 +40,19 @@ class GuruTerawalService
 
     /**
      * Pemicu pengumuman dari jalur check-in mana pun.
- *
- * Sengaja static + tidak melempar exception, supaya setiap call site cukup
- * satu baris dan kegagalan notifikasi tidak pernah menggagalkan absensi guru.
- *
- * @param $db      Koneksi database yang sudah dipakai pemanggil
- * @param string   $tanggal Format Y-m-d
- */
-public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
+     *
+     * Sengaja static + tidak melempar exception, supaya setiap call site cukup
+     * satu baris dan kegagalan notifikasi tidak pernah menggagalkan absensi guru.
+     *
+     * @param  $db  Koneksi database yang sudah dipakai pemanggil
+     * @param  string  $tanggal  Format Y-m-d
+     */
+    public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
     {
         try {
-            (new self())->cekDanKirim($tanggal, $userId);
+            (new self)->cekDanKirim($tanggal, $userId);
         } catch (\Throwable $e) {
-            Log::error('[GuruTerawal] afterCheckIn gagal: ' . $e->getMessage());
+            Log::error('[GuruTerawal] afterCheckIn gagal: '.$e->getMessage());
         }
     }
 
@@ -62,7 +62,7 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
      * Tidak melempar exception: notifikasi tidak boleh membuat absensi guru
      * gagal. Semua masalah dicatat di log dan dikembalikan sebagai array status.
      *
-     * @param  string $tanggal Format Y-m-d
+     * @param  string  $tanggal  Format Y-m-d
      * @return array{terkirim:bool,alasan:string,peminat:?array}
      */
     public function cekDanKirim(string $tanggal, int $triggerUserId = 0): array
@@ -72,13 +72,13 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
         try {
             $peminat = $this->guruTerawal(null, $tanggal);
         } catch (\Throwable $e) {
-            Log::error('[GuruTerawal] gagal menghitung guru terawal: ' . $e->getMessage());
+            Log::error('[GuruTerawal] gagal menghitung guru terawal: '.$e->getMessage());
 
             return ['terkirim' => false, 'alasan' => 'Gagal menghitung — periksa log aplikasi.', 'peminat' => null];
         }
 
         if ($peminat === null) {
-            return ['terkirim' => false, 'alasan' => 'Belum ada yang absen pada ' . $tanggal, 'peminat' => null];
+            return ['terkirim' => false, 'alasan' => 'Belum ada yang absen pada '.$tanggal, 'peminat' => null];
         }
 
         // Pre-check: hari ini sudah diklaim? Framework (MySQLi Connection)
@@ -102,18 +102,18 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
         // mengklaim — pengumuman hari ini sudah ada, jadi berhenti di sini.
         try {
             DB::table('absensi_pengumuman_harian')->insert([
-                'tgl'             => $tanggal,
-                'user_id'         => (int) $peminat->user_id,
-                'nama_guru'       => (string) $peminat->nama_guru,
-                'jam_masuk'       => $peminat->jam_masuk,
-                'created_at'      => date('Y-m-d H:i:s'),
-                'updated_at'      => date('Y-m-d H:i:s'),
+                'tgl' => $tanggal,
+                'user_id' => (int) $peminat->user_id,
+                'nama_guru' => (string) $peminat->nama_guru,
+                'jam_masuk' => $peminat->jam_masuk,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
         } catch (\Throwable $e) {
             if ($this->isDuplicateKeyError($e)) {
                 return ['terkirim' => false, 'alasan' => 'Sudah diumumkan sebelumnya', 'peminat' => $peminat];
             }
-            Log::error('[GuruTerawal] gagal mengklaim pengumuman: ' . $e->getMessage());
+            Log::error('[GuruTerawal] gagal mengklaim pengumuman: '.$e->getMessage());
 
             return ['terkirim' => false, 'alasan' => 'Gagal mengklaim — periksa log aplikasi.', 'peminat' => $peminat];
         }
@@ -121,20 +121,20 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
         // Pengiriman sengaja DI LUAR try/catch pertama: kalau Telegram gagal,
         // klaim tetap tercatat agar tidak mencoba mengirim ulang tiap absensi.
         $notif = $this->notification();
-        $dmOk  = false;
+        $dmOk = false;
         $grpOk = false;
         $catatan = [];
 
         try {
             $res = $notif->notifyGuruTerawal($peminat, $this->chatIdGuru((int) $peminat->user_id));
             $grpOk = ($res['grup'] ?? false) === true;
-            $dmOk  = ($res['dm'] ?? false) === true;
+            $dmOk = ($res['dm'] ?? false) === true;
 
             if (! $grpOk) {
-                $catatan[] = 'grup gagal: ' . ($res['alasan'] ?? 'tanpa keterangan');
+                $catatan[] = 'grup gagal: '.($res['alasan'] ?? 'tanpa keterangan');
             }
             if (! $dmOk) {
-                $catatan[] = 'DM gagal: ' . ($res['alasan_dm'] ?? 'guru belum menautkan WhatsApp/Telegram');
+                $catatan[] = 'DM gagal: '.($res['alasan_dm'] ?? 'guru belum menautkan WhatsApp/Telegram');
             } elseif (($res['kanal_dm'] ?? '') === 'grup') {
                 // DM "berhasil" lewat fallback ke grup. dm_terkirim tetap
                 // dicatat 1 — pesan memang sampai ke semua orang — tapi
@@ -144,16 +144,16 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
             }
         } catch (\Throwable $e) {
             $catatan[] = 'error: periksa log aplikasi';
-            Log::error('[GuruTerawal] gagal mengirim pengumuman: ' . $e->getMessage());
+            Log::error('[GuruTerawal] gagal mengirim pengumuman: '.$e->getMessage());
         }
 
         DB::table('absensi_pengumuman_harian')
             ->where('tgl', $tanggal)
             ->update([
-                'dm_terkirim'   => $dmOk ? 1 : 0,
+                'dm_terkirim' => $dmOk ? 1 : 0,
                 'grup_terkirim' => $grpOk ? 1 : 0,
-                'catatan'       => $catatan === [] ? null : mb_substr(implode('; ', $catatan), 0, 255),
-                'updated_at'    => date('Y-m-d H:i:s'),
+                'catatan' => $catatan === [] ? null : mb_substr(implode('; ', $catatan), 0, 255),
+                'updated_at' => date('Y-m-d H:i:s'),
             ]);
 
         Log::info(sprintf(
@@ -169,7 +169,7 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
             'terkirim' => $grpOk,
             // Dicatat apa pun yang bermasalah, tidak hanya saat grup gagal —
             // kegagalan DM tetap perlu terlihat meski grupnya berhasil.
-            'alasan'  => $catatan === [] ? '' : implode('; ', $catatan),
+            'alasan' => $catatan === [] ? '' : implode('; ', $catatan),
             'dm_kirim' => $dmOk,
             'peminat' => $peminat,
         ];
@@ -213,12 +213,12 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
     private function isiNama($db, object $row): object
     {
         $row->nama_guru = trim((string) ($row->nama_guru ?? ''));
-        $row->sapaan    = 'Bapak atau Ibu';
+        $row->sapaan = 'Bapak atau Ibu';
 
         if ($row->nama_guru === '') {
             $u = DB::table('users')->select('first_name', 'last_name')->where('id', $row->user_id)->first();
             if ($u) {
-                $row->nama_guru = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                $row->nama_guru = trim(($u->first_name ?? '').' '.($u->last_name ?? ''));
             }
         }
         if ($row->nama_guru === '') {
@@ -254,7 +254,7 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
 
             return TelegramLink::chatIdForGuru($id, $userId);
         } catch (\Throwable $e) {
-            Log::error('[GuruTerawal] gagal mencari chat id guru: ' . $e->getMessage());
+            Log::error('[GuruTerawal] gagal mencari chat id guru: '.$e->getMessage());
 
             return '';
         }
@@ -262,7 +262,7 @@ public static function afterCheckIn($db, string $tanggal, int $userId = 0): void
 
     private function notification(): NotificationService
     {
-        return $this->notification ??= new NotificationService();
+        return $this->notification ??= new NotificationService;
     }
 
     private function normalizeDate(string $tanggal): string

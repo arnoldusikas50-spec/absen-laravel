@@ -29,8 +29,8 @@ final class SuratTeguranLevel
      */
     private const TINGKAT = [
         10 => 'TINGKAT III (10 Hari)',
-        7  => 'TINGKAT II (7 Hari)',
-        3  => 'TINGKAT I (3 Hari)',
+        7 => 'TINGKAT II (7 Hari)',
+        3 => 'TINGKAT I (3 Hari)',
     ];
 
     /**

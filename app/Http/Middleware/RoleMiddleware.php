@@ -32,7 +32,7 @@ class RoleMiddleware
 
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json([
                     'status' => false,
@@ -66,12 +66,12 @@ class RoleMiddleware
      */
     protected function normalizeRoles(array $roles): array
     {
-        $roles = array_filter(array_map(fn($r) => strtolower(trim((string) $r)), $roles));
+        $roles = array_filter(array_map(fn ($r) => strtolower(trim((string) $r)), $roles));
         if (empty($roles)) {
             $roles = ['admin'];
         }
 
-        return array_map(fn($r) => $r === 'pengawas' ? 'panitia' : $r, $roles);
+        return array_map(fn ($r) => $r === 'pengawas' ? 'panitia' : $r, $roles);
     }
 
     protected function userHasRole(Request $request, array $allowed): bool

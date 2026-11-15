@@ -51,9 +51,9 @@ class PresensiBdrService
 
         $rows = [];
         try {
-            $rows = (new PresensiBdrModel())->getRowsUntukTanggal($tanggal);
+            $rows = (new PresensiBdrModel)->getRowsUntukTanggal($tanggal);
         } catch (\Throwable $e) {
-            Log::error('[PresensiBdrService::rowsUntukTanggal] ' . $e->getMessage());
+            Log::error('[PresensiBdrService::rowsUntukTanggal] '.$e->getMessage());
         }
 
         return self::$cacheRows[$tanggal] = $rows;
@@ -81,6 +81,7 @@ class PresensiBdrService
                     foreach ($this->semuaKelasAktif(null) as $idKelas) {
                         $peta[$idKelas] ??= $row;
                     }
+
                     continue;
                 }
                 foreach ($ids as $idKelas) {
@@ -100,6 +101,7 @@ class PresensiBdrService
         if ($idKelas <= 0) {
             return null;
         }
+
         return $this->kelasTerdampak($tanggal)[$idKelas] ?? null;
     }
 
@@ -113,6 +115,7 @@ class PresensiBdrService
             return null;
         }
         $judul = trim((string) ($row->judul ?? ''));
+
         return $judul !== '' ? $judul : 'Belajar dari rumah';
     }
 
@@ -131,9 +134,10 @@ class PresensiBdrService
         }
 
         try {
-            $rows = (new PresensiBdrModel())->getRowsDalamRentang($tglAwal, $tglAkhir);
+            $rows = (new PresensiBdrModel)->getRowsDalamRentang($tglAwal, $tglAkhir);
         } catch (\Throwable $e) {
-            Log::error('[PresensiBdrService::tanggalUntukKelas] ' . $e->getMessage());
+            Log::error('[PresensiBdrService::tanggalUntukKelas] '.$e->getMessage());
+
             return $hasil;
         }
 
@@ -143,7 +147,7 @@ class PresensiBdrService
                 continue;
             }
             $akhir = (string) ($row->tgl_selesai ?? '') !== '' ? (string) $row->tgl_selesai : (string) $row->tgl_mulai;
-            $dari  = max((string) $row->tgl_mulai, $tglAwal);
+            $dari = max((string) $row->tgl_mulai, $tglAwal);
             $sampai = min($akhir, $tglAkhir);
             for ($ts = strtotime($dari); $ts !== false && date('Y-m-d', $ts) <= $sampai; $ts = strtotime('+1 day', $ts)) {
                 $hasil[date('Y-m-d', $ts)] = trim((string) ($row->judul ?? '')) ?: 'Belajar dari rumah';
@@ -164,6 +168,7 @@ class PresensiBdrService
 
         if ($lingkup === 'KELAS') {
             $id = (int) ($row->id_kelas ?? 0);
+
             return $id > 0 ? [$id] : [];
         }
 
@@ -186,9 +191,11 @@ class PresensiBdrService
             foreach ($q->get()->all() as $k) {
                 $ids[] = (int) $k->id_kelas;
             }
+
             return $ids;
         } catch (\Throwable $e) {
-            Log::error('[PresensiBdrService::resolveKelasIds] ' . $e->getMessage());
+            Log::error('[PresensiBdrService::resolveKelasIds] '.$e->getMessage());
+
             return [];
         }
     }
@@ -213,8 +220,9 @@ class PresensiBdrService
                 $ids[] = (int) $k->id_kelas;
             }
         } catch (\Throwable $e) {
-            Log::error('[PresensiBdrService::semuaKelasAktif] ' . $e->getMessage());
+            Log::error('[PresensiBdrService::semuaKelasAktif] '.$e->getMessage());
         }
+
         return $ids;
     }
 
@@ -224,11 +232,15 @@ class PresensiBdrService
     private function batasiAktif($q, $db = null): void
     {
         try {
-            $dashboard = new DashboardModel();
-            $tp  = $dashboard->getTahunActive();
+            $dashboard = new DashboardModel;
+            $tp = $dashboard->getTahunActive();
             $smt = $dashboard->getSemesterActive();
-            if ($tp)  $q->where('id_tp', (int) $tp->id_tp);
-            if ($smt) $q->where('id_smt', (int) $smt->id_smt);
+            if ($tp) {
+                $q->where('id_tp', (int) $tp->id_tp);
+            }
+            if ($smt) {
+                $q->where('id_smt', (int) $smt->id_smt);
+            }
         } catch (\Throwable $e) {
         }
         try {
@@ -245,13 +257,14 @@ class PresensiBdrService
             && checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
             return "{$m[1]}-{$m[2]}-{$m[3]}";
         }
+
         return date('Y-m-d');
     }
 
     /** Kosongkan cache — dipanggil setelah admin mengubah jadwal BDR. */
     public static function resetCache(): void
     {
-        self::$cacheRows  = [];
+        self::$cacheRows = [];
         self::$cacheKelas = [];
     }
 }

@@ -105,6 +105,7 @@ class SuratTeguranAuditCommand extends Command
             if (! $apply) {
                 $this->line('  akan diselaraskan ke '.$level.': '.$label);
                 $n++;
+
                 continue;
             }
 

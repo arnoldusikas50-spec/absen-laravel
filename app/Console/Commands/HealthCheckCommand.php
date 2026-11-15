@@ -53,7 +53,7 @@ class HealthCheckCommand extends Command
 
         try {
             // Fallback WA bila TG mati: coba keduanya via method publik.
-            $notif = new NotificationService();
+            $notif = new NotificationService;
             $sentTg = $notif->sendTelegram($msg);
             $sentWa = false;
             try {
@@ -68,6 +68,7 @@ class HealthCheckCommand extends Command
         }
 
         $this->error('FAIL: '.implode(', ', $failed));
+
         // Exit non-zero agar pola `curl --fail || php artisan health:check`
         // dan monitoring cron bisa deteksi gagal (sebelumnya selalu exit 0).
         return self::FAILURE;

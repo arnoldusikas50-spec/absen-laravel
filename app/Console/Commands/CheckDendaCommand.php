@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\Admin\PresensiAdmin;
+use App\Http\Controllers\Admin\PresensiAdminController;
 use App\Models\AttendanceSettingModel;
 use App\Services\AttendancePenaltyService;
 use Illuminate\Console\Command;
@@ -70,7 +72,7 @@ class CheckDendaCommand extends Command
 
         // 2. Guru Attendance::dendaYtd logic
         $setting = (new AttendanceSettingModel)->first();
-        $penaltySvc = new AttendancePenaltyService();
+        $penaltySvc = new AttendancePenaltyService;
         $startDate = $awalTahun;
         $endDate = date('Y-m-d');
         $missYtd = $penaltySvc->missingAlphaFines((int) $user->id, $startDate, $endDate, $setting, false);
@@ -142,8 +144,8 @@ class CheckDendaCommand extends Command
     private function resolveAdminControllerClass(): ?string
     {
         foreach ([
-            \App\Http\Controllers\Admin\PresensiAdminController::class,
-            \App\Http\Controllers\Admin\PresensiAdmin::class,
+            PresensiAdminController::class,
+            PresensiAdmin::class,
         ] as $candidate) {
             if (class_exists($candidate)) {
                 return $candidate;

@@ -39,15 +39,16 @@ trait CliOptionTrait
 
         $argv = $_SERVER['argv'] ?? [];
         foreach ($argv as $i => $arg) {
-            if ($arg === '--' . $nama) {
+            if ($arg === '--'.$nama) {
                 $next = $argv[$i + 1] ?? null;
-                if ($next !== null && !str_starts_with((string) $next, '-')) {
+                if ($next !== null && ! str_starts_with((string) $next, '-')) {
                     return $next;
                 }
+
                 return true;
             }
-            if (str_starts_with($arg, '--' . $nama . '=')) {
-                return substr($arg, strlen('--' . $nama . '='));
+            if (str_starts_with($arg, '--'.$nama.'=')) {
+                return substr($arg, strlen('--'.$nama.'='));
             }
         }
 
@@ -97,9 +98,10 @@ trait CliOptionTrait
     {
         if (method_exists($this, 'warn')) {
             $this->warn($pesan);
+
             return;
         }
 
-        fwrite(STDERR, $pesan . PHP_EOL);
+        fwrite(STDERR, $pesan.PHP_EOL);
     }
 }

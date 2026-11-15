@@ -45,7 +45,8 @@ final class AttendancePolicy
     /** Batas grace inklusif sampai detik ke-59 pada menit terakhir. */
     public const GRACE_EPS_DETIK = 59;
 
-    public const DEFAULT_JAM_MASUK  = '07:15:00';
+    public const DEFAULT_JAM_MASUK = '07:15:00';
+
     public const DEFAULT_JAM_PULANG = '14:00:00';
 
     /**
@@ -60,6 +61,7 @@ final class AttendancePolicy
     private const NAMA_HARI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     private static ?object $setting = null;
+
     private static bool $settingLoaded = false;
 
     /** @var array<int, object>|null map hari ISO => baris absensi_jadwal_kerja */
@@ -76,12 +78,12 @@ final class AttendancePolicy
     /** Buang seluruh cache (sesudah menyimpan setting, atau antar siklus cron). */
     public static function reset(): void
     {
-        self::$setting      = null;
+        self::$setting = null;
         self::$settingLoaded = false;
-        self::$jadwalKerja  = null;
+        self::$jadwalKerja = null;
         self::$liburNasional = null;
-        self::$jadwalCache  = [];
-        self::$shiftModel   = null;
+        self::$jadwalCache = [];
+        self::$shiftModel = null;
     }
 
     /** Baris utama absensi_setting (id terkecil) — null bila tabel/baris belum ada. */
@@ -98,7 +100,7 @@ final class AttendancePolicy
                     ->orderBy('id', 'ASC')->first() ?: null;
             }
         } catch (\Throwable $e) {
-            Log::error('[AttendancePolicy] gagal memuat absensi_setting: ' . $e->getMessage());
+            Log::error('[AttendancePolicy] gagal memuat absensi_setting: '.$e->getMessage());
             self::$setting = null;
         }
 
@@ -125,7 +127,7 @@ final class AttendancePolicy
             $out[] = self::normalisasiHari($kode);
         }
 
-        return array_values(array_filter($out, static fn($d) => $d !== ''));
+        return array_values(array_filter($out, static fn ($d) => $d !== ''));
     }
 
     /** @return array<int, object> map hari ISO (1=Senin) => baris jadwal */
@@ -139,8 +141,8 @@ final class AttendancePolicy
         try {
             if (Schema::hasTable('absensi_jadwal_kerja')) {
                 foreach (DB::table('absensi_jadwal_kerja')
-                         ->select('hari', 'jam_masuk', 'jam_pulang', 'is_libur')
-                         ->get()->all() as $row) {
+                    ->select('hari', 'jam_masuk', 'jam_pulang', 'is_libur')
+                    ->get()->all() as $row) {
                     $iso = (int) ($row->hari ?? 0);
                     if ($iso >= 1 && $iso <= 7) {
                         $map[$iso] = $row;
@@ -148,7 +150,7 @@ final class AttendancePolicy
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[AttendancePolicy] gagal memuat absensi_jadwal_kerja: ' . $e->getMessage());
+            Log::error('[AttendancePolicy] gagal memuat absensi_jadwal_kerja: '.$e->getMessage());
         }
 
         return self::$jadwalKerja = $map;
@@ -172,7 +174,7 @@ final class AttendancePolicy
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[AttendancePolicy] gagal memuat absensi_hari_libur: ' . $e->getMessage());
+            Log::error('[AttendancePolicy] gagal memuat absensi_hari_libur: '.$e->getMessage());
         }
 
         return self::$liburNasional = $map;
@@ -181,13 +183,14 @@ final class AttendancePolicy
     public static function isoHari(string $tanggal): int
     {
         $ts = strtotime(self::normalisasiTanggal($tanggal));
+
         return $ts === false ? 1 : (int) date('N', $ts);
     }
 
     /** Libur mingguan: CSV pengaturan ATAU is_libur pada jadwal hari itu. */
     public static function isLiburMingguan(string $tanggal): bool
     {
-        $iso  = self::isoHari($tanggal);
+        $iso = self::isoHari($tanggal);
         $kode = self::NAMA_HARI[(int) date('w', strtotime(self::normalisasiTanggal($tanggal)))];
 
         if (in_array($kode, self::hariLiburMingguan(), true)) {
@@ -197,6 +200,7 @@ final class AttendancePolicy
         $jadwal = self::jadwalKerja()[$iso] ?? null;
         if ($jadwal !== null) {
             $flag = is_array($jadwal) ? ($jadwal['is_libur'] ?? 0) : ($jadwal->is_libur ?? 0);
+
             return (int) $flag === 1;
         }
 
@@ -224,16 +228,18 @@ final class AttendancePolicy
         $tanggal = self::normalisasiTanggal($tanggal);
         if (self::isLiburNasional($tanggal)) {
             $ket = self::liburNasional()[$tanggal];
+
             return ($ket !== '') ? $ket : 'Hari libur nasional';
         }
         if (self::isLiburMingguan($tanggal)) {
-            $iso  = self::isoHari($tanggal);
+            $iso = self::isoHari($tanggal);
             $jadwal = self::jadwalKerja()[$iso] ?? null;
             $flag = $jadwal !== null ? (int) (is_array($jadwal) ? ($jadwal['is_libur'] ?? 0) : ($jadwal->is_libur ?? 0)) : 0;
             if ($flag === 1) {
                 return 'Libur per jadwal hari kerja';
             }
-            return 'Hari ' . self::namaHariId($tanggal) . ' (libur mingguan)';
+
+            return 'Hari '.self::namaHariId($tanggal).' (libur mingguan)';
         }
 
         return null;
@@ -258,15 +264,15 @@ final class AttendancePolicy
     public static function jadwalSiswa(string $tanggal): array
     {
         $tanggal = self::normalisasiTanggal($tanggal);
-        $key     = 'siswa|' . $tanggal;
+        $key = 'siswa|'.$tanggal;
         if (isset(self::$jadwalCache[$key])) {
             return self::$jadwalCache[$key];
         }
 
         $setting = self::setting();
-        $jadwal  = self::jadwalKerja()[self::isoHari($tanggal)] ?? null;
+        $jadwal = self::jadwalKerja()[self::isoHari($tanggal)] ?? null;
 
-        $jamMasuk  = self::pickTime($jadwal->jam_masuk ?? null)
+        $jamMasuk = self::pickTime($jadwal->jam_masuk ?? null)
             ?? self::pickTime($setting->jam_masuk ?? null)
             ?? self::DEFAULT_JAM_MASUK;
         $jamPulang = self::pickTime($jadwal->jam_pulang ?? null)
@@ -276,10 +282,10 @@ final class AttendancePolicy
         $grace = self::graceGlobal();
 
         return self::$jadwalCache[$key] = [
-            'jam_masuk'   => $jamMasuk,
-            'jam_pulang'  => $jamPulang,
+            'jam_masuk' => $jamMasuk,
+            'jam_pulang' => $jamPulang,
             'grace_menit' => $grace,
-            'sumber'      => $jadwal !== null ? 'jadwal' : 'setting',
+            'sumber' => $jadwal !== null ? 'jadwal' : 'setting',
         ];
     }
 
@@ -292,29 +298,29 @@ final class AttendancePolicy
     public static function jadwalGuru(int $userId, string $tanggal): array
     {
         $tanggal = self::normalisasiTanggal($tanggal);
-        $key     = 'guru|' . $userId . '|' . $tanggal;
+        $key = 'guru|'.$userId.'|'.$tanggal;
         if (isset(self::$jadwalCache[$key])) {
             return self::$jadwalCache[$key];
         }
 
         $setting = self::setting() ?? (object) [];
-        $jadwal  = self::jadwalKerja()[self::isoHari($tanggal)] ?? null;
+        $jadwal = self::jadwalKerja()[self::isoHari($tanggal)] ?? null;
 
         try {
-            self::$shiftModel ??= new ShiftModel();
+            self::$shiftModel ??= new ShiftModel;
             $sched = self::$shiftModel->getScheduleForUser($userId, self::isoHari($tanggal), $jadwal, $setting);
         } catch (\Throwable $e) {
-            Log::error('[AttendancePolicy] jadwalGuru fallback: ' . $e->getMessage());
+            Log::error('[AttendancePolicy] jadwalGuru fallback: '.$e->getMessage());
             $sched = null;
         }
 
         if (! is_array($sched) || empty($sched['jam_masuk'])) {
             $siswaSched = self::jadwalSiswa($tanggal);
             $sched = [
-                'jam_masuk'   => $siswaSched['jam_masuk'],
-                'jam_pulang'  => $siswaSched['jam_pulang'],
+                'jam_masuk' => $siswaSched['jam_masuk'],
+                'jam_pulang' => $siswaSched['jam_pulang'],
                 'grace_menit' => $siswaSched['grace_menit'],
-                'sumber'      => 'setting',
+                'sumber' => 'setting',
             ];
         }
 
@@ -329,11 +335,11 @@ final class AttendancePolicy
      */
     public static function batasAkhirMasukTs(string $tanggal, array $jadwal): int
     {
-        $jam  = self::pickTime($jadwal['jam_masuk'] ?? null) ?? self::DEFAULT_JAM_MASUK;
+        $jam = self::pickTime($jadwal['jam_masuk'] ?? null) ?? self::DEFAULT_JAM_MASUK;
         $grace = (int) ($jadwal['grace_menit'] ?? self::graceGlobal());
-        $ts = strtotime(self::normalisasiTanggal($tanggal) . ' ' . $jam);
+        $ts = strtotime(self::normalisasiTanggal($tanggal).' '.$jam);
         if ($ts === false) {
-            $ts = strtotime(self::normalisasiTanggal($tanggal) . ' ' . self::DEFAULT_JAM_MASUK);
+            $ts = strtotime(self::normalisasiTanggal($tanggal).' '.self::DEFAULT_JAM_MASUK);
         }
 
         return $ts + ($grace * 60) + self::GRACE_EPS_DETIK;
@@ -373,14 +379,14 @@ final class AttendancePolicy
     /**
      * Rumus baku status masuk.
      *
-     * @param string $tanggal Y-m-d
-     * @param string $waktu   'H:i:s', 'Y-m-d H:i:s', atau 'Y-m-d H:i'
+     * @param  string  $tanggal  Y-m-d
+     * @param  string  $waktu  'H:i:s', 'Y-m-d H:i:s', atau 'Y-m-d H:i'
      * @return array{status:string, telat_menit:int, datang_awal_menit:int, batas:string}
      */
     public static function telat(string $tanggal, string $waktu, array $jadwal): array
     {
         $tanggal = self::normalisasiTanggal($tanggal);
-        $batas   = self::batasAkhirMasukTs($tanggal, $jadwal);
+        $batas = self::batasAkhirMasukTs($tanggal, $jadwal);
         $checkTs = self::waktuKeTs($tanggal, $waktu);
 
         $label = date('H:i', $batas);
@@ -389,22 +395,22 @@ final class AttendancePolicy
             return ['status' => 'ONTIME', 'telat_menit' => 0, 'datang_awal_menit' => 0, 'batas' => $label];
         }
 
-        $thresholdTs = strtotime($tanggal . ' ' . (self::pickTime($jadwal['jam_masuk'] ?? null) ?? self::DEFAULT_JAM_MASUK));
+        $thresholdTs = strtotime($tanggal.' '.(self::pickTime($jadwal['jam_masuk'] ?? null) ?? self::DEFAULT_JAM_MASUK));
 
         if ($checkTs <= $batas) {
             return [
-                'status'             => 'ONTIME',
-                'telat_menit'        => 0,
-                'datang_awal_menit'  => $checkTs < $thresholdTs ? (int) floor(($thresholdTs - $checkTs) / 60) : 0,
-                'batas'              => $label,
+                'status' => 'ONTIME',
+                'telat_menit' => 0,
+                'datang_awal_menit' => $checkTs < $thresholdTs ? (int) floor(($thresholdTs - $checkTs) / 60) : 0,
+                'batas' => $label,
             ];
         }
 
         return [
-            'status'             => 'LATE',
-            'telat_menit'        => (int) ceil(($checkTs - $batas) / 60),
-            'datang_awal_menit'  => 0,
-            'batas'              => $label,
+            'status' => 'LATE',
+            'telat_menit' => (int) ceil(($checkTs - $batas) / 60),
+            'datang_awal_menit' => 0,
+            'batas' => $label,
         ];
     }
 
@@ -420,7 +426,7 @@ final class AttendancePolicy
             return false;
         }
 
-        return strtotime($tanggal) < strtotime('-' . self::PENDING_REVIEW_HARI . ' day', strtotime(date('Y-m-d')));
+        return strtotime($tanggal) < strtotime('-'.self::PENDING_REVIEW_HARI.' day', strtotime(date('Y-m-d')));
     }
 
     /**
@@ -463,7 +469,7 @@ final class AttendancePolicy
     public static function sqlBebasPulangStatus(string $kolom): string
     {
         $kolom = preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $kolom) ? $kolom : 'a.status_masuk';
-        $list  = "'" . implode("', '", self::statusBebasPenaltiPulang()) . "'";
+        $list = "'".implode("', '", self::statusBebasPenaltiPulang())."'";
 
         return "({$kolom} IS NULL OR ({$kolom} NOT IN ({$list}) AND {$kolom} NOT LIKE 'DINAS%'))";
     }
@@ -497,11 +503,11 @@ final class AttendancePolicy
         $alias = preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $alias) ? $alias : 'a';
 
         return "SUM(CASE WHEN ({$alias}.jam_masuk IS NOT NULL AND {$alias}.jam_masuk <> '0000-00-00 00:00:00')"
-            . " AND ({$alias}.jam_pulang IS NULL OR {$alias}.jam_pulang = '0000-00-00 00:00:00')"
-            . " AND {$alias}.tgl < '" . self::hariIniWita() . "'"
-            . ' AND ' . self::sqlBebasPulangStatus($alias . '.status_masuk')
-            . ' AND ' . self::sqlBebasPulangStatus($alias . '.status_pulang')
-            . ' THEN 5 ELSE 0 END)';
+            ." AND ({$alias}.jam_pulang IS NULL OR {$alias}.jam_pulang = '0000-00-00 00:00:00')"
+            ." AND {$alias}.tgl < '".self::hariIniWita()."'"
+            .' AND '.self::sqlBebasPulangStatus($alias.'.status_masuk')
+            .' AND '.self::sqlBebasPulangStatus($alias.'.status_pulang')
+            .' THEN 5 ELSE 0 END)';
     }
 
     /**
@@ -517,7 +523,7 @@ final class AttendancePolicy
         $alias = preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $alias) ? $alias : 'a';
 
         return "COUNT(CASE WHEN ({$alias}.status_masuk IN ('ONTIME', 'LATE', 'WFH') OR {$alias}.status_masuk LIKE 'DINAS%')"
-            . " AND {$alias}.status_masuk != 'DINAS_REJECTED' THEN 1 ELSE NULL END)";
+            ." AND {$alias}.status_masuk != 'DINAS_REJECTED' THEN 1 ELSE NULL END)";
     }
 
     /**
@@ -557,10 +563,10 @@ final class AttendancePolicy
         $alias = preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $alias) ? $alias : 'a';
 
         $ada = static function (string $kolom) use ($adaKolom): bool {
-            return !array_key_exists($kolom, $adaKolom) || (bool) $adaKolom[$kolom];
+            return ! array_key_exists($kolom, $adaKolom) || (bool) $adaKolom[$kolom];
         };
 
-        $dinas      = "{$alias}.status_masuk LIKE 'DINAS%'";
+        $dinas = "{$alias}.status_masuk LIKE 'DINAS%'";
         $dinasPulang = "{$alias}.status_pulang LIKE 'DINAS%'";
 
         // Dinas yang DITOLAK tidak boleh dapat poin kehadiran: rekap kehadiran
@@ -569,19 +575,19 @@ final class AttendancePolicy
         $ditolak = "{$alias}.status_masuk != 'DINAS_REJECTED'";
 
         $termOntime = "SUM(CASE WHEN ({$alias}.status_masuk = 'ONTIME' OR {$dinas}) AND {$ditolak} THEN 10 ELSE 0 END)";
-        $termLate   = "SUM(CASE WHEN {$alias}.status_masuk = 'LATE' THEN 5 ELSE 0 END)";
-        $termTelat  = $ada('telat_menit')
+        $termLate = "SUM(CASE WHEN {$alias}.status_masuk = 'LATE' THEN 5 ELSE 0 END)";
+        $termTelat = $ada('telat_menit')
             ? "COALESCE(SUM(CASE WHEN {$dinas} THEN 0 ELSE {$alias}.telat_menit END), 0) * 0.1" : '0';
-        $termCepat  = $ada('pulang_cepat_menit')
+        $termCepat = $ada('pulang_cepat_menit')
             ? "COALESCE(SUM(CASE WHEN {$dinas} OR {$dinasPulang} THEN 0 ELSE {$alias}.pulang_cepat_menit END), 0) * 0.1" : '0';
-        $termAwal   = $ada('datang_awal_menit')
+        $termAwal = $ada('datang_awal_menit')
             ? "COALESCE(SUM({$alias}.datang_awal_menit), 0) * 0.05" : '0';
-        $termAkhir  = $ada('pulang_akhir_menit')
+        $termAkhir = $ada('pulang_akhir_menit')
             ? "COALESCE(SUM({$alias}.pulang_akhir_menit), 0) * 0.05" : '0';
         $termPulang = self::sqlTermBelumPulang($alias);
 
         return "({$termOntime} - {$termLate} - {$termTelat} - {$termCepat}"
-            . " + {$termAwal} + {$termAkhir} - {$termPulang})";
+            ." + {$termAwal} + {$termAkhir} - {$termPulang})";
     }
 
     /**
@@ -613,13 +619,14 @@ final class AttendancePolicy
         }
         if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/', $waktu) === 1) {
             $ts = strtotime(str_replace('T', ' ', $waktu));
+
             return $ts === false ? null : $ts;
         }
         $jam = self::pickTime($waktu);
         if ($jam === null) {
             return null;
         }
-        $ts = strtotime($tanggal . ' ' . $jam);
+        $ts = strtotime($tanggal.' '.$jam);
 
         return $ts === false ? null : $ts;
     }

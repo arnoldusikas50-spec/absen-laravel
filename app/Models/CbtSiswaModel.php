@@ -33,5 +33,4 @@ class CbtSiswaModel extends Model
     ];
 
     public $timestamps = false;
-
 }

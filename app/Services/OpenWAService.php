@@ -84,7 +84,7 @@ class OpenWAService
 
             return;
         }
-        $row = (new AttendanceSettingModel())->first();
+        $row = (new AttendanceSettingModel)->first();
         $setting = $row ?: (object) [];
 
         // Fallback ke config/notifications.php bila nilai DB kosong.
@@ -97,7 +97,7 @@ class OpenWAService
                 'wa_target_number' => 'wa_target_number',
             };
             if (trim((string) ($setting->{$key} ?? '')) === '') {
-                $setting->{$key} = config('notifications.' . $configKey, '');
+                $setting->{$key} = config('notifications.'.$configKey, '');
             }
         }
 
@@ -145,6 +145,7 @@ class OpenWAService
         if (WhatsAppFormatter::isValidChatId($raw)) {
             return ltrim($raw, '@');
         }
+
         return WhatsAppFormatter::normalizeNumber($raw);
     }
 
@@ -162,18 +163,18 @@ class OpenWAService
      * (validasi config, normalisasi chat id, resolusi sesi, pemecahan
      * pesan, penerjemahan error).
      *
-     * @param  string              $method 'GET' atau 'POST'
-     * @param  string              $path   Path relatif terhadap baseUrl(),
-     *                                      sudah termasuk prefix /api
-     * @param  array<string,mixed>|null $body Body JSON, null untuk GET
-     * @param  int              $timeout Override timeout (detik)
+     * @param  string  $method  'GET' atau 'POST'
+     * @param  string  $path  Path relatif terhadap baseUrl(),
+     *                        sudah termasuk prefix /api
+     * @param  array<string,mixed>|null  $body  Body JSON, null untuk GET
+     * @param  int  $timeout  Override timeout (detik)
      * @return array{status:int, body:array|null, error:string}
-     *                                  error non-kosong hanya bila koneksi
-     *                                  sendiri gagal (bukan HTTP error)
+     *                                                          error non-kosong hanya bila koneksi
+     *                                                          sendiri gagal (bukan HTTP error)
      */
     protected function request(string $method, string $path, ?array $body = null, int $timeout = self::TIMEOUT): array
     {
-        $url = $this->baseUrl() . $path;
+        $url = $this->baseUrl().$path;
 
         try {
             // Auth WAJIB lewat header: OpenWA sengaja menolak API key di
@@ -189,7 +190,8 @@ class OpenWAService
                 ? $pending->get($url)
                 : $pending->asJson()->post($url, $body ?? []);
         } catch (\Throwable $e) {
-            Log::error('[OpenWAService] request gagal: ' . $e->getMessage());
+            Log::error('[OpenWAService] request gagal: '.$e->getMessage());
+
             return ['status' => 0, 'body' => null, 'error' => 'OpenWA tidak dapat dihubungi — periksa log aplikasi.'];
         }
 
@@ -198,16 +200,16 @@ class OpenWAService
 
         return [
             'status' => $status,
-            'body'   => is_array($decoded) ? $decoded : null,
-            'error'  => '',
+            'body' => is_array($decoded) ? $decoded : null,
+            'error' => '',
         ];
     }
 
     /**
      * Kirim pesan teks ke satu chat.
      *
-     * @param  string $chatId Nomor (format bebas) atau WID grup
-     * @param  string $html   Pesan HTML Telegram; dikonversi ke markup WA
+     * @param  string  $chatId  Nomor (format bebas) atau WID grup
+     * @param  string  $html  Pesan HTML Telegram; dikonversi ke markup WA
      * @return bool true bila OpenWA menerima semua potongannya
      */
     public function sendText(string $chatId, string $html): bool
@@ -217,22 +219,25 @@ class OpenWAService
 
         if (! $this->isConfigured()) {
             $this->lastError = 'OpenWA belum dikonfigurasi (Base URL / API Key kosong di Pengaturan > Notifikasi).';
-            Log::error('[OpenWA] ' . $this->lastError);
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         $wid = $this->resolveChatId($chatId);
         if ($wid === '') {
-            $this->lastError = 'Nomor/chat tujuan WhatsApp tidak valid: ' . $chatId;
-            Log::error('[OpenWA] ' . $this->lastError);
+            $this->lastError = 'Nomor/chat tujuan WhatsApp tidak valid: '.$chatId;
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         $sessionId = $this->resolveSessionId();
         if ($sessionId === '') {
             $this->lastError = 'Tidak ada sesi WhatsApp yang siap di OpenWA. '
-                . 'Buat sesi, scan QR, lalu pastikan statusnya "ready".';
-            Log::error('[OpenWA] ' . $this->lastError);
+                .'Buat sesi, scan QR, lalu pastikan statusnya "ready".';
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
@@ -267,11 +272,11 @@ class OpenWAService
      * membuat 400 — mis. `linkPreview` yang dipakai sendText TIDAK boleh
      * ikut di sini.
      *
-     * @param  string $chatId    Nomor tujuan atau WID grup
-     * @param  string $filePath  Path absolut berkas di server
-     * @param  string $filename  Nama berkas yang dilihat penerima
-     * @param  string $caption   Teks pendek sebelum berkas (opsional)
-     * @param  string $mimetype  MIME type, wajib bila isi dikirim base64
+     * @param  string  $chatId  Nomor tujuan atau WID grup
+     * @param  string  $filePath  Path absolut berkas di server
+     * @param  string  $filename  Nama berkas yang dilihat penerima
+     * @param  string  $caption  Teks pendek sebelum berkas (opsional)
+     * @param  string  $mimetype  MIME type, wajib bila isi dikirim base64
      * @return bool true bila OpenWA menerima berkasnya
      */
     public function sendDocument(
@@ -286,35 +291,40 @@ class OpenWAService
 
         if (! $this->isConfigured()) {
             $this->lastError = 'OpenWA belum dikonfigurasi (Base URL / API Key kosong di Pengaturan > Notifikasi).';
-            Log::error('[OpenWA] ' . $this->lastError);
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         $wid = $this->resolveChatId($chatId);
         if ($wid === '') {
-            $this->lastError = 'Nomor/chat tujuan WhatsApp tidak valid: ' . $chatId;
-            Log::error('[OpenWA] ' . $this->lastError);
+            $this->lastError = 'Nomor/chat tujuan WhatsApp tidak valid: '.$chatId;
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         if (! is_file($filePath) || ! is_readable($filePath)) {
-            $this->lastError = 'Berkas tidak bisa dibaca: ' . $filePath;
-            Log::error('[OpenWA] ' . $this->lastError);
+            $this->lastError = 'Berkas tidak bisa dibaca: '.$filePath;
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         $isi = file_get_contents($filePath);
         if ($isi === false || $isi === '') {
-            $this->lastError = 'Berkas kosong atau gagal dibaca: ' . $filePath;
-            Log::error('[OpenWA] ' . $this->lastError);
+            $this->lastError = 'Berkas kosong atau gagal dibaca: '.$filePath;
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
         if (strlen($isi) > self::MAX_DOCUMENT_BYTES) {
             $mb = round(strlen($isi) / 1048576, 1);
             $this->lastError = "Berkas terlalu besar untuk dikirim lewat WhatsApp ({$mb} MB, batas "
-                . round(self::MAX_DOCUMENT_BYTES / 1048576) . ' MB).';
-            Log::error('[OpenWA] ' . $this->lastError);
+                .round(self::MAX_DOCUMENT_BYTES / 1048576).' MB).';
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
@@ -323,14 +333,15 @@ class OpenWAService
         $sessionId = $this->resolveSessionId();
         if ($sessionId === '') {
             $this->lastError = 'Tidak ada sesi WhatsApp yang siap di OpenWA. '
-                . 'Buat sesi, scan QR, lalu pastikan statusnya "ready".';
-            Log::error('[OpenWA] ' . $this->lastError);
+                .'Buat sesi, scan QR, lalu pastikan statusnya "ready".';
+            Log::error('[OpenWA] '.$this->lastError);
+
             return false;
         }
 
-$body = [
-            'chatId'   => $wid,
-            'base64'   => base64_encode($isi),
+        $body = [
+            'chatId' => $wid,
+            'base64' => base64_encode($isi),
             'mimetype' => $mimetype !== '' ? $mimetype : 'application/pdf',
             'filename' => $nama,
         ];
@@ -346,7 +357,7 @@ $body = [
             $teks = trim((string) $teks);
             if ($teks !== '') {
                 if (mb_strlen($teks) > self::MAX_CAPTION) {
-                    $teks = mb_substr($teks, 0, self::MAX_CAPTION - 1) . '…';
+                    $teks = mb_substr($teks, 0, self::MAX_CAPTION - 1).'…';
                 }
                 $body['caption'] = $teks;
             }
@@ -354,7 +365,7 @@ $body = [
 
         $res = $this->request(
             'POST',
-            '/sessions/' . rawurlencode($sessionId) . '/messages/send-document',
+            '/sessions/'.rawurlencode($sessionId).'/messages/send-document',
             $body,
             self::TIMEOUT_DOCUMENT
         );
@@ -362,20 +373,23 @@ $body = [
         $this->lastStatus = $res['status'];
 
         if ($res['error'] !== '') {
-            $this->lastError = 'Server tidak bisa menghubungi OpenWA (' . $res['error'] . ')';
-            Log::error('[OpenWA] koneksi gagal: ' . $res['error']);
+            $this->lastError = 'Server tidak bisa menghubungi OpenWA ('.$res['error'].')';
+            Log::error('[OpenWA] koneksi gagal: '.$res['error']);
+
             return false;
         }
 
         // 201 = WhatsApp MENERIMA berkas (bukan sampai ke penerima), sama
         // seperti send-text. 200 disertakan untuk proxy yang menormalkan.
         if ($res['status'] === 201 || $res['status'] === 200) {
-            Log::info('[OpenWA] berkas "' . $nama . '" terkirim ke ' . $wid . ' (HTTP ' . $res['status'] . ')');
+            Log::info('[OpenWA] berkas "'.$nama.'" terkirim ke '.$wid.' (HTTP '.$res['status'].')');
+
             return true;
         }
 
         $this->lastError = $this->translateError($res['status'], $res['body'], true);
-        Log::error('[OpenWA] kirim berkas gagal (HTTP ' . $res['status'] . '): ' . $this->lastError);
+        Log::error('[OpenWA] kirim berkas gagal (HTTP '.$res['status'].'): '.$this->lastError);
+
         return false;
     }
 
@@ -387,13 +401,13 @@ $body = [
     {
         $res = $this->request(
             'POST',
-            '/sessions/' . rawurlencode($sessionId) . '/messages/send-text',
+            '/sessions/'.rawurlencode($sessionId).'/messages/send-text',
             [
                 // Hanya field yang ada di SendTextMessageDto. OpenWA memakai
                 // ValidationPipe whitelist+forbidNonWhitelisted, jadi field
                 // asing membuat 400.
-                'chatId'      => $wid,
-                'text'        => $text,
+                'chatId' => $wid,
+                'text' => $text,
                 'linkPreview' => false,
             ]
         );
@@ -401,20 +415,23 @@ $body = [
         $this->lastStatus = $res['status'];
 
         if ($res['error'] !== '') {
-            $this->lastError = 'Server tidak bisa menghubungi OpenWA (' . $res['error'] . ')';
-            Log::error('[OpenWA] koneksi gagal: ' . $res['error']);
+            $this->lastError = 'Server tidak bisa menghubungi OpenWA ('.$res['error'].')';
+            Log::error('[OpenWA] koneksi gagal: '.$res['error']);
+
             return false;
         }
 
         // 201 = diterima WhatsApp (bukan terkirim ke penerima); 200 disertakan
         // untuk proxy yang menormalkan status.
         if ($res['status'] === 201 || $res['status'] === 200) {
-            Log::info('[OpenWA] terkirim ke ' . $wid . ' (HTTP ' . $res['status'] . ')');
+            Log::info('[OpenWA] terkirim ke '.$wid.' (HTTP '.$res['status'].')');
+
             return true;
         }
 
         $this->lastError = $this->translateError($res['status'], $res['body']);
-        Log::error('[OpenWA] kirim gagal (HTTP ' . $res['status'] . '): ' . $this->lastError);
+        Log::error('[OpenWA] kirim gagal (HTTP '.$res['status'].'): '.$this->lastError);
+
         return false;
     }
 
@@ -478,13 +495,15 @@ $body = [
         $this->lastStatus = $res['status'];
 
         if ($res['error'] !== '') {
-            $this->lastError = 'Tidak bisa menghubungi OpenWA (' . $res['error'] . ')';
-            Log::error('[OpenWA] listSessions gagal: ' . $res['error']);
+            $this->lastError = 'Tidak bisa menghubungi OpenWA ('.$res['error'].')';
+            Log::error('[OpenWA] listSessions gagal: '.$res['error']);
+
             return null;
         }
 
         if ($res['status'] !== 200) {
             $this->lastError = $this->translateError($res['status'], $res['body']);
+
             return null;
         }
 
@@ -500,35 +519,37 @@ $body = [
     public function getStatus(): array
     {
         $out = [
-            'ok'           => false,
-            'base_url'     => $this->baseUrl(),
+            'ok' => false,
+            'base_url' => $this->baseUrl(),
             'session_name' => $this->sessionName(),
-            'sessions'     => [],
-            'error'        => '',
+            'sessions' => [],
+            'error' => '',
         ];
 
         if (! $this->isConfigured()) {
             $out['error'] = 'Base URL atau API Key belum diisi.';
+
             return $out;
         }
 
         $sessions = $this->listSessions();
         if ($sessions === null) {
             $out['error'] = $this->lastError !== '' ? $this->lastError : 'Gateway tidak bisa dihubungi.';
+
             return $out;
         }
 
-        $out['sessions'] = array_map(static fn($s) => [
-            'id'          => (string) ($s['id'] ?? ''),
-            'name'        => (string) ($s['name'] ?? ''),
-            'status'      => (string) ($s['status'] ?? ''),
-            'phone'       => (string) ($s['phone'] ?? ''),
-            'push_name'   => (string) ($s['pushName'] ?? ''),
-            'last_error'  => (string) ($s['lastError'] ?? ''),
+        $out['sessions'] = array_map(static fn ($s) => [
+            'id' => (string) ($s['id'] ?? ''),
+            'name' => (string) ($s['name'] ?? ''),
+            'status' => (string) ($s['status'] ?? ''),
+            'phone' => (string) ($s['phone'] ?? ''),
+            'push_name' => (string) ($s['pushName'] ?? ''),
+            'last_error' => (string) ($s['lastError'] ?? ''),
             'restriction' => $s['restriction'] ?? null,
         ], $sessions);
 
-        $ready = array_values(array_filter($out['sessions'], static fn($s) => $s['status'] === 'ready'));
+        $ready = array_values(array_filter($out['sessions'], static fn ($s) => $s['status'] === 'ready'));
         $out['ok'] = $ready !== [];
         if (! $out['ok']) {
             $out['error'] = 'Belum ada sesi WhatsApp berstatus "ready" di gateway.';
@@ -551,6 +572,7 @@ $body = [
         if (WhatsAppFormatter::isValidChatId($raw)) {
             return ltrim($raw, '@');
         }
+
         return WhatsAppFormatter::normalizeNumber($raw);
     }
 
@@ -570,6 +592,7 @@ $body = [
         } catch (\Throwable $e) {
             // diabaikan: hanya optimisation
         }
+
         return $value;
     }
 
@@ -586,11 +609,11 @@ $body = [
     /**
      * Translate error OpenWA menjadi pesan yang bisa ditindaklanjuti.
      *
-     * @param int   $code          HTTP status
-     * @param mixed $body          Body response
-     * @param bool  $dokumen       Permintaan ini kirim berkas (bukan teks)?
-     *                            413 punya arti berbeda: byte untuk berkas,
-     *                            karakter untuk teks.
+     * @param  int  $code  HTTP status
+     * @param  mixed  $body  Body response
+     * @param  bool  $dokumen  Permintaan ini kirim berkas (bukan teks)?
+     *                         413 punya arti berbeda: byte untuk berkas,
+     *                         karakter untuk teks.
      */
     private function translateError(int $code, $body, bool $dokumen = false): string
     {
@@ -612,20 +635,20 @@ $body = [
             // 403 punya beberapa sebab yang gejalanya sama persis, jadi
             // semua disebutkan sekaligus supaya admin bisa mencocokkan sendiri.
             403 => 'API Key ditolak akses (403). Salah satu dari: role di bawah OPERATOR, key di-scope ke sesi '
-                . 'lain, atau Allowed IPs pada key tidak mencakup IP server ini. '
-                . 'Kalau key tidak punya Allowed IPs, pastikan juga aplikasi dan OpenWA '
-                . 'bisa saling menjangkau (127.0.0.1 hanya berlaku bila satu mesin).',
+                .'lain, atau Allowed IPs pada key tidak mencakup IP server ini. '
+                .'Kalau key tidak punya Allowed IPs, pastikan juga aplikasi dan OpenWA '
+                .'bisa saling menjangkau (127.0.0.1 hanya berlaku bila satu mesin).',
             404 => 'Sesi WhatsApp tidak ditemukan di OpenWA. Pastikan sesi dibuat dan tidak salah id.',
             409 => 'Sesi WhatsApp belum siap / sedang sibuk. Tunggu statusnya "ready" lalu coba lagi.',
             413 => $dokumen
-                ? 'Berkas terlalu besar untuk OpenWA (batas ' . round(self::MAX_DOCUMENT_BYTES / 1048576) . ' MB).'
-                : 'Pesan terlalu besar untuk OpenWA (batas ' . self::MAX_TEXT . ' karakter).',
+                ? 'Berkas terlalu besar untuk OpenWA (batas '.round(self::MAX_DOCUMENT_BYTES / 1048576).' MB).'
+                : 'Pesan terlalu besar untuk OpenWA (batas '.self::MAX_TEXT.' karakter).',
             429 => 'OpenWA membatasi laju kirim (rate limit / pacing). Coba lagi beberapa saat lagi.',
-            500 => 'OpenWA gagal mengirim lewat engine WhatsApp: ' . ($detail !== '' ? $detail : 'tanpa keterangan'),
+            500 => 'OpenWA gagal mengirim lewat engine WhatsApp: '.($detail !== '' ? $detail : 'tanpa keterangan'),
             502 => 'Koneksi engine WhatsApp di OpenWA terputus (retryable).',
             503 => 'OpenWA tidak siap / sedang reconnect. Coba lagi sebentar.',
             504 => 'OpenWA timeout menunggu WhatsApp. Coba lagi.',
-            default => 'OpenWA menolak (HTTP ' . $code . '): ' . ($detail !== '' ? (string) $detail : 'tanpa keterangan'),
+            default => 'OpenWA menolak (HTTP '.$code.'): '.($detail !== '' ? (string) $detail : 'tanpa keterangan'),
         };
     }
 }

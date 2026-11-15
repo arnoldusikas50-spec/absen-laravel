@@ -45,7 +45,8 @@ class SuratPanggilanService
     public const AMBANG = [3, 5, 7];
 
     /** Sumber surat. */
-    public const SUMBER_CRON   = 'cron';
+    public const SUMBER_CRON = 'cron';
+
     public const SUMBER_MANUAL = 'manual';
 
     /** Label tingkat untuk UI & PDF. */
@@ -74,18 +75,19 @@ class SuratPanggilanService
         $tahun = $tahun > 0 ? $tahun : (int) date('Y');
 
         $daysInMonth = (int) date('t', mktime(0, 0, 0, $bulan, 1, $tahun));
-        $tglAwal  = sprintf('%04d-%02d-01', $tahun, $bulan);
+        $tglAwal = sprintf('%04d-%02d-01', $tahun, $bulan);
         $tglAkhir = sprintf('%04d-%02d-%02d', $tahun, $bulan, $daysInMonth);
 
         // Hari efektif & daftar hari libur bulan ini. Sumbernya satu:
         // AttendancePolicy (libur mingguan ternormalisasi ATAU jadwal per hari
         // ATAU kalender libur nasional), sama dengan rekap siswa dan scan QR.
         $hariEfektif = 0;
-        $hariLibur   = [];
+        $hariLibur = [];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $tgl = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
             if (AttendancePolicy::isLibur($tgl)) {
                 $hariLibur[$tgl] = true;
+
                 continue;
             }
             $hariEfektif++;
@@ -100,14 +102,14 @@ class SuratPanggilanService
         ));
 
         return [
-            'bulan'          => $bulan,
-            'tahun'          => $tahun,
-            'tglAwal'        => $tglAwal,
-            'tglAkhir'       => $tglAkhir,
-            'daysInMonth'    => $daysInMonth,
-            'hariEfektif'    => $hariEfektif,
-            'hariLibur'      => $hariLibur,
-            'jamBatasMasuk'  => $jamBatasMasuk,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'tglAwal' => $tglAwal,
+            'tglAkhir' => $tglAkhir,
+            'daysInMonth' => $daysInMonth,
+            'hariEfektif' => $hariEfektif,
+            'hariLibur' => $hariLibur,
+            'jamBatasMasuk' => $jamBatasMasuk,
         ];
     }
 
@@ -202,13 +204,13 @@ class SuratPanggilanService
                             if ($sid <= 0 || isset($perSiswa[$sid])) {
                                 continue;
                             }
-                            if (!isset($petaStatus[$sid]) || $petaStatus[$sid] === '1') {
+                            if (! isset($petaStatus[$sid]) || $petaStatus[$sid] === '1') {
                                 $perSiswa[$sid] = [];
                             }
                         }
                     }
                 } catch (\Throwable $e) {
-                    Log::error('[SuratPanggilan] gagal enumerasi siswa tanpa baris: ' . $e->getMessage());
+                    Log::error('[SuratPanggilan] gagal enumerasi siswa tanpa baris: '.$e->getMessage());
                 }
             } elseif (($idKelas === null || $idKelas <= 0) && $petaStatus === null) {
                 // Fallback saat tabel buku_induk belum ada (mis. skema lama /
@@ -221,7 +223,7 @@ class SuratPanggilanService
                             ->get()->all();
                         foreach ($aktif as $s) {
                             $sid = (int) ($s->id_siswa ?? 0);
-                            if ($sid > 0 && !isset($perSiswa[$sid])) {
+                            if ($sid > 0 && ! isset($perSiswa[$sid])) {
                                 $perSiswa[$sid] = [];
                             }
                         }
@@ -231,17 +233,17 @@ class SuratPanggilanService
                         $semua = DB::table('master_siswa')->select('id_siswa')->get()->all();
                         foreach ($semua as $s) {
                             $sid = (int) ($s->id_siswa ?? 0);
-                            if ($sid > 0 && !isset($perSiswa[$sid])) {
+                            if ($sid > 0 && ! isset($perSiswa[$sid])) {
                                 $perSiswa[$sid] = [];
                             }
                         }
                     }
                 } catch (\Throwable $e) {
-                    Log::error('[SuratPanggilan] gagal enumerasi siswa tanpa baris: ' . $e->getMessage());
+                    Log::error('[SuratPanggilan] gagal enumerasi siswa tanpa baris: '.$e->getMessage());
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] gagal filter siswa aktif: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] gagal filter siswa aktif: '.$e->getMessage());
         }
 
         // Daftar hari efektif (tanggal => true).
@@ -252,7 +254,7 @@ class SuratPanggilanService
         // cron dan halaman rekap berjalan untuk seluruh sekolah.
         $bdrKelas = [];
         try {
-            $bdrSvc = new PresensiBdrService();
+            $bdrSvc = new PresensiBdrService;
             for ($d = 1; $d <= $ctx['daysInMonth']; $d++) {
                 $tgl = sprintf('%04d-%02d-%02d', $ctx['tahun'], $ctx['bulan'], $d);
                 $terdampak = $bdrSvc->kelasTerdampak($tgl);
@@ -261,7 +263,7 @@ class SuratPanggilanService
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] gagal membaca jadwal BDR: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] gagal membaca jadwal BDR: '.$e->getMessage());
         }
 
         // Kelas setiap siswa, untuk menilai BDR dan hari tercatat per kelas.
@@ -270,7 +272,7 @@ class SuratPanggilanService
         $hariEfektifList = [];
         for ($d = 1; $d <= $ctx['daysInMonth']; $d++) {
             $tgl = sprintf('%04d-%02d-%02d', $ctx['tahun'], $ctx['bulan'], $d);
-            if (!isset($ctx['hariLibur'][$tgl])) {
+            if (! isset($ctx['hariLibur'][$tgl])) {
                 $hariEfektifList[$tgl] = true;
             }
         }
@@ -324,6 +326,7 @@ class SuratPanggilanService
                         $tanpaKet++;
                     }
                     $tglAlpha[] = $tgl;
+
                     continue;
                 }
 
@@ -337,11 +340,11 @@ class SuratPanggilanService
             }
 
             $hasil[$idSiswa] = [
-                'id_siswa'         => $idSiswa,
-                'alpha'            => $alpha,
-                'terlambat'        => $terlambat,
+                'id_siswa' => $idSiswa,
+                'alpha' => $alpha,
+                'terlambat' => $terlambat,
                 'tanpa_keterangan' => $tanpaKet,
-                'tanggal_alpha'    => $tglAlpha,
+                'tanggal_alpha' => $tglAlpha,
             ];
         }
 
@@ -386,7 +389,7 @@ class SuratPanggilanService
 
         $peta = [];
         try {
-            if (!Schema::hasTable('kelas_siswa') || !Schema::hasTable('master_kelas')) {
+            if (! Schema::hasTable('kelas_siswa') || ! Schema::hasTable('master_kelas')) {
                 return $peta;
             }
             $rows = DB::table('kelas_siswa as ks')
@@ -400,12 +403,12 @@ class SuratPanggilanService
                 ->get()->all();
             foreach ($rows as $r) {
                 $sid = (int) ($r->id_siswa ?? 0);
-                if ($sid > 0 && !isset($peta[$sid])) {
+                if ($sid > 0 && ! isset($peta[$sid])) {
                     $peta[$sid] = (int) ($r->id_kelas ?? 0);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] gagal membaca penempatan kelas: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] gagal membaca penempatan kelas: '.$e->getMessage());
             $peta = [];
         }
 
@@ -424,11 +427,11 @@ class SuratPanggilanService
         $semua = self::rekapAlphaBulan($ctx);
 
         return $semua[$idSiswa] ?? [
-            'id_siswa'         => $idSiswa,
-            'alpha'            => 0,
-            'terlambat'        => 0,
+            'id_siswa' => $idSiswa,
+            'alpha' => 0,
+            'terlambat' => 0,
             'tanpa_keterangan' => 0,
-            'tanggal_alpha'    => [],
+            'tanggal_alpha' => [],
         ];
     }
 
@@ -469,7 +472,7 @@ class SuratPanggilanService
         try {
             $hasil['dibatalkan'] = self::sinkronkan($bulan, $tahun, $ctx);
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] sinkronkan gagal: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] sinkronkan gagal: '.$e->getMessage());
         }
 
         $rekap = self::rekapAlphaBulan($ctx);
@@ -493,15 +496,15 @@ class SuratPanggilanService
                 if ($ok) {
                     $hasil['diterbitkan']++;
                     $hasil['detail'][] = [
-                        'id_siswa'   => $idSiswa,
-                        'level'      => $level,
-                        'alpha'      => $alpha,
-                        'terlambat'  => (int) $r['terlambat'],
+                        'id_siswa' => $idSiswa,
+                        'level' => $level,
+                        'alpha' => $alpha,
+                        'terlambat' => (int) $r['terlambat'],
                     ];
                 }
             } catch (\Throwable $e) {
                 $hasil['gagal']++;
-                Log::error('[SuratPanggilan] gagal terbit untuk siswa ' . $idSiswa . ': ' . $e->getMessage());
+                Log::error('[SuratPanggilan] gagal terbit untuk siswa '.$idSiswa.': '.$e->getMessage());
             }
         }
 
@@ -515,7 +518,7 @@ class SuratPanggilanService
      * Alur: siswa → kelas_siswa.id_kelas → master_kelas.guru_id →
      * master_guru.id_user → user_id (tujuan notifikasi personal).
      *
-     * @param array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int}> $detail
+     * @param  array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int}>  $detail
      * @return array<int,array{id_siswa:int,level:int,alpha:int,terlambat:int,id_user_wali:int}>
      */
     public static function buildDaftarPanggilanDenganWaliKelas($db = null, int $bulan = 0, int $tahun = 0, array $detail = []): array
@@ -541,13 +544,13 @@ class SuratPanggilanService
                 $kelasSiswa[(int) $r->id_siswa] = (int) $r->id_kelas;
             }
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] gagal baca kelas_siswa untuk notif manual: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] gagal baca kelas_siswa untuk notif manual: '.$e->getMessage());
         }
 
         // ── kelas → wali guru (guru_id) ───────────────────
         $idKelasList = array_values(array_unique(array_filter($kelasSiswa)));
         $kelasWaliGuru = [];
-        if (!empty($idKelasList)) {
+        if (! empty($idKelasList)) {
             try {
                 $rows = DB::table('master_kelas')
                     ->select('id_kelas', 'guru_id')
@@ -559,14 +562,14 @@ class SuratPanggilanService
                     $kelasWaliGuru[(int) $r->id_kelas] = (int) $r->guru_id;
                 }
             } catch (\Throwable $e) {
-                Log::error('[SuratPanggilan] gagal baca master_kelas wali untuk notif manual: ' . $e->getMessage());
+                Log::error('[SuratPanggilan] gagal baca master_kelas wali untuk notif manual: '.$e->getMessage());
             }
         }
 
         // ── guru_id → user_id ─────────────────────────────
         $guruIds = array_values(array_unique(array_filter($kelasWaliGuru)));
         $guruUser = [];
-        if (!empty($guruIds)) {
+        if (! empty($guruIds)) {
             try {
                 $rows = DB::table('master_guru')
                     ->select('id_guru', 'id_user')
@@ -576,7 +579,7 @@ class SuratPanggilanService
                     $guruUser[(int) $r->id_guru] = (int) $r->id_user;
                 }
             } catch (\Throwable $e) {
-                Log::error('[SuratPanggilan] gagal baca master_guru user_id untuk notif manual: ' . $e->getMessage());
+                Log::error('[SuratPanggilan] gagal baca master_guru user_id untuk notif manual: '.$e->getMessage());
             }
         }
 
@@ -585,14 +588,14 @@ class SuratPanggilanService
         foreach ($detail as $d) {
             $idSiswa = (int) $d['id_siswa'];
             $idKelas = $kelasSiswa[$idSiswa] ?? 0;
-            $idGuru  = $kelasWaliGuru[$idKelas] ?? 0;
-            $idUser  = $guruUser[$idGuru] ?? 0;
+            $idGuru = $kelasWaliGuru[$idKelas] ?? 0;
+            $idUser = $guruUser[$idGuru] ?? 0;
 
             $daftar[] = [
-                'id_siswa'     => $idSiswa,
-                'level'        => (int) $d['level'],
-                'alpha'        => (int) $d['alpha'],
-                'terlambat'    => (int) $d['terlambat'],
+                'id_siswa' => $idSiswa,
+                'level' => (int) $d['level'],
+                'alpha' => (int) $d['alpha'],
+                'terlambat' => (int) $d['terlambat'],
                 'id_user_wali' => $idUser,
             ];
         }
@@ -640,7 +643,7 @@ class SuratPanggilanService
             }
             $affected = DB::table(self::TABEL)->where('id', $surat->id)->update([
                 'status' => 'dibatalkan',
-                'keterangan_batal' => 'Otomatis: alpha turun menjadi ' . $alpha . ' (ambang level ' . $surat->level . ') per ' . substr($now, 0, 10),
+                'keterangan_batal' => 'Otomatis: alpha turun menjadi '.$alpha.' (ambang level '.$surat->level.') per '.substr($now, 0, 10),
                 'updated_at' => $now,
             ]);
             if ($affected === 1) {
@@ -681,7 +684,7 @@ class SuratPanggilanService
             }
         } catch (\Throwable $e) {
         }
-        if (!in_array($level, self::AMBANG, true)) {
+        if (! in_array($level, self::AMBANG, true)) {
             return ['ok' => false, 'message' => 'Tingkat surat tidak valid.'];
         }
         if ($bulan < 1 || $bulan > 12) {
@@ -714,7 +717,7 @@ class SuratPanggilanService
 
             return ['ok' => true, 'message' => 'Surat panggilan berhasil dibuat.', 'id' => $terbit];
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] buatManual gagal: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] buatManual gagal: '.$e->getMessage());
 
             return ['ok' => false, 'message' => 'Gagal membuat surat — periksa log aplikasi.'];
         }
@@ -805,12 +808,12 @@ class SuratPanggilanService
 
             $now = date('Y-m-d H:i:s');
             DB::table(self::TABEL)->where('id', $sudahAda->id)->update([
-                'status'           => 'aktif',
-                'jumlah_alpha'     => $jumlahAlpha,
+                'status' => 'aktif',
+                'jumlah_alpha' => $jumlahAlpha,
                 'jumlah_terlambat' => $jumlahTerlambat,
-                'keterangan'       => $keterangan !== '' ? mb_substr($keterangan, 0, 255) : $sudahAda->keterangan,
+                'keterangan' => $keterangan !== '' ? mb_substr($keterangan, 0, 255) : $sudahAda->keterangan,
                 'keterangan_batal' => null,
-                'updated_at'       => $now,
+                'updated_at' => $now,
             ]);
 
             return (int) $sudahAda->id;
@@ -830,27 +833,27 @@ class SuratPanggilanService
                 continue; // sudah dibatalkan, biarkan arsip utuh
             }
             DB::table(self::TABEL)->where('id', $b->id)->update([
-                'status'           => 'dibatalkan',
-                'keterangan_batal' => 'Digantikan oleh surat tingkat ' . $level . ' per ' . substr($now, 0, 10),
-                'updated_at'       => $now,
+                'status' => 'dibatalkan',
+                'keterangan_batal' => 'Digantikan oleh surat tingkat '.$level.' per '.substr($now, 0, 10),
+                'updated_at' => $now,
             ]);
         }
 
         $now = date('Y-m-d H:i:s');
 
         $row = [
-            'id_siswa'         => $idSiswa,
-            'bulan'            => $bulan,
-            'tahun'            => $tahun,
-            'level'            => $level,
-            'jumlah_alpha'     => $jumlahAlpha,
+            'id_siswa' => $idSiswa,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'level' => $level,
+            'jumlah_alpha' => $jumlahAlpha,
             'jumlah_terlambat' => $jumlahTerlambat,
-            'nomor_urut'       => self::nomorUrutBerikutnya($tahun),
-            'sumber'           => $sumber,
-            'status'           => 'aktif',
-            'keterangan'       => $keterangan !== '' ? mb_substr($keterangan, 0, 255) : null,
-            'created_at'       => $now,
-            'updated_at'       => $now,
+            'nomor_urut' => self::nomorUrutBerikutnya($tahun),
+            'sumber' => $sumber,
+            'status' => 'aktif',
+            'keterangan' => $keterangan !== '' ? mb_substr($keterangan, 0, 255) : null,
+            'created_at' => $now,
+            'updated_at' => $now,
         ];
 
         // Penerima disalin dari master_siswa saat surat terbit, supaya
@@ -897,12 +900,12 @@ class SuratPanggilanService
                 ->where('id_siswa', $idSiswa)
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('[SuratPanggilan] gagal baca penerima: ' . $e->getMessage());
+            Log::error('[SuratPanggilan] gagal baca penerima: '.$e->getMessage());
 
             return ['penerima' => null, 'nohp_penerima' => null];
         }
 
-        if (!$row) {
+        if (! $row) {
             return ['penerima' => null, 'nohp_penerima' => null];
         }
 
@@ -917,7 +920,7 @@ class SuratPanggilanService
             $nohp = trim((string) $nohp);
             if ($nama !== '' || $nohp !== '') {
                 return [
-                    'penerima'     => $nama !== '' ? $nama : null,
+                    'penerima' => $nama !== '' ? $nama : null,
                     'nohp_penerima' => $nohp !== '' ? $nohp : null,
                 ];
             }
@@ -953,7 +956,7 @@ class SuratPanggilanService
     {
         $hasil = ['dicek' => 0, 'diperbarui' => 0, 'dibatalkan' => 0];
 
-        if (!Schema::hasTable(self::TABEL)) {
+        if (! Schema::hasTable(self::TABEL)) {
             return $hasil;
         }
 
@@ -982,12 +985,13 @@ class SuratPanggilanService
             if ($alphaLive < $level && (string) ($surat->sumber ?? self::SUMBER_CRON) !== self::SUMBER_MANUAL) {
                 $affected = DB::table(self::TABEL)->where('id', $surat->id)->update([
                     'status' => 'dibatalkan',
-                    'keterangan_batal' => 'Otomatis (hitung ulang): alpha turun menjadi ' . $alphaLive . ' (ambang level ' . $level . ') per ' . substr($now, 0, 10),
+                    'keterangan_batal' => 'Otomatis (hitung ulang): alpha turun menjadi '.$alphaLive.' (ambang level '.$level.') per '.substr($now, 0, 10),
                     'updated_at' => $now,
                 ]);
                 if ($affected === 1) {
                     $hasil['dibatalkan']++;
                 }
+
                 continue;
             }
 
@@ -1020,7 +1024,7 @@ class SuratPanggilanService
     public static function batalkan(int $id, string $alasan = ''): bool
     {
         $row = DB::table(self::TABEL)->where('id', $id)->first();
-        if (!$row) {
+        if (! $row) {
             return false;
         }
         if (($row->status ?? 'aktif') === 'dibatalkan') {
@@ -1028,9 +1032,9 @@ class SuratPanggilanService
         }
 
         $set = [
-            'status'           => 'dibatalkan',
+            'status' => 'dibatalkan',
             'keterangan_batal' => $alasan !== '' ? mb_substr($alasan, 0, 255) : null,
-            'updated_at'       => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
 
         return (bool) DB::table(self::TABEL)->where('id', $id)->update($set);

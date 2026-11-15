@@ -36,10 +36,10 @@ class IzinKuotaService
 {
     /** Label yang dipakai di pesan error ke pengguna. */
     private const LABEL = [
-        'ijin'   => 'Izin',
-        'sakit'  => 'Sakit',
-        'cuti'   => 'Cuti',
-        'dinas'  => 'Dinas',
+        'ijin' => 'Izin',
+        'sakit' => 'Sakit',
+        'cuti' => 'Cuti',
+        'dinas' => 'Dinas',
     ];
 
     /**
@@ -48,20 +48,20 @@ class IzinKuotaService
      * HADIR (poin + hadir), bukan hak yang dikonsumsi.
      */
     private const KUOTA_TAHUNAN = [
-        'ijin'   => 'max_izin_hari',
-        'sakit'  => 'max_sakit_hari',
-        'cuti'   => 'max_cuti_hari',
-        'dinas'  => '',
+        'ijin' => 'max_izin_hari',
+        'sakit' => 'max_sakit_hari',
+        'cuti' => 'max_cuti_hari',
+        'dinas' => '',
     ];
 
     /**
      * Batas durasi per pengajuan. 0 = tanpa batas.
      */
     private const BATAS_PENGAJUAN = [
-        'ijin'   => 'max_izin_per_pengajuan',
-        'sakit'  => 'max_sakit_per_pengajuan',
-        'cuti'   => 'max_cuti_per_pengajuan',
-        'dinas'  => 'max_dinas_per_pengajuan',
+        'ijin' => 'max_izin_per_pengajuan',
+        'sakit' => 'max_sakit_per_pengajuan',
+        'cuti' => 'max_cuti_per_pengajuan',
+        'dinas' => 'max_dinas_per_pengajuan',
     ];
 
     /**
@@ -82,20 +82,21 @@ class IzinKuotaService
 
     /** Default bila kolom setting belum terisi. */
     private const DEFAULT_KUOTA_TAHUNAN = [
-        'ijin'   => 3,
-        'sakit'  => 12,
-        'cuti'   => 12,
-        'dinas'  => 0,
+        'ijin' => 3,
+        'sakit' => 12,
+        'cuti' => 12,
+        'dinas' => 0,
     ];
 
     private const DEFAULT_BATAS_PENGAJUAN = [
-        'ijin'   => 3,
-        'sakit'  => 3,
-        'cuti'   => 12,
-        'dinas'  => 30,
+        'ijin' => 3,
+        'sakit' => 3,
+        'cuti' => 12,
+        'dinas' => 30,
     ];
 
     private $setting;
+
     private ?array $konteksLibur = null;
 
     /** Cache hari libur nasional per rentang tanggal. */
@@ -118,6 +119,7 @@ class IzinKuotaService
         if ($j === 'izin') {
             return 'ijin';
         }
+
         return in_array($j, ['ijin', 'sakit', 'cuti', 'dinas'], true) ? $j : '';
     }
 
@@ -136,6 +138,7 @@ class IzinKuotaService
         if ($canon === 'ijin') {
             return ['ijin', 'izin', 'IJIN', 'IZIN', 'Ijin', 'Izin'];
         }
+
         return [$canon, strtoupper($canon), ucfirst($canon)];
     }
 
@@ -166,7 +169,7 @@ class IzinKuotaService
 
         $this->konteksLibur = [
             'hariLibur' => $hariLibur,
-            'jadwal'    => $jadwal,
+            'jadwal' => $jadwal,
             'adaNasional' => Schema::hasTable('absensi_hari_libur'),
         ];
 
@@ -184,7 +187,7 @@ class IzinKuotaService
      */
     public function nasionalDalam(string $start, string $end): array
     {
-        $key = $start . '|' . $end;
+        $key = $start.'|'.$end;
         if (isset($this->cacheNasional[$key])) {
             return $this->cacheNasional[$key];
         }
@@ -209,7 +212,7 @@ class IzinKuotaService
                     $out[substr((string) ($r->tanggal ?? ''), 0, 10)] = true;
                 }
             } catch (\Throwable $e) {
-                Log::error('IzinKuotaService: gagal memuat hari libur nasional: ' . $e->getMessage());
+                Log::error('IzinKuotaService: gagal memuat hari libur nasional: '.$e->getMessage());
             }
         }
 
@@ -239,6 +242,7 @@ class IzinKuotaService
 
         if ((int) ($this->getSetting()->kuota_hari_kerja ?? 1) === 0) {
             $selisih = (int) ((strtotime($end) - strtotime($start)) / 86400) + 1;
+
             return max(0, $selisih);
         }
 
@@ -264,6 +268,7 @@ class IzinKuotaService
         if ($nilai === null || $nilai === '') {
             return self::DEFAULT_KUOTA_TAHUNAN[$canon] ?? 0;
         }
+
         return max(0, (int) $nilai);
     }
 
@@ -278,6 +283,7 @@ class IzinKuotaService
         if ($nilai === null || $nilai === '') {
             return self::DEFAULT_BATAS_PENGAJUAN[$canon] ?? 0;
         }
+
         return max(0, (int) $nilai);
     }
 
@@ -293,9 +299,9 @@ class IzinKuotaService
      * Baris di-clip ke batas tahun, dan hari liburnya ikut dibuang agar
      * totalnya sama dengan yang akan ditulis ke absensi_harian.
      *
-     * @param int $idAbaikan Baris izin yang sedang diedit (0 = tidak ada).
-     *                       Diexclude supaya pengajuan yang sama tidak
-     *                       menghitung dirinya sendiri.
+     * @param  int  $idAbaikan  Baris izin yang sedang diedit (0 = tidak ada).
+     *                          Diexclude supaya pengajuan yang sama tidak
+     *                          menghitung dirinya sendiri.
      */
     public function terpakaiTahun(int $userId, string $canon, int $tahun, int $idAbaikan = 0, ?string $kategoriCuti = null): int
     {
@@ -303,8 +309,8 @@ class IzinKuotaService
             return 0;
         }
 
-        $batasAwal  = $tahun . '-01-01';
-        $batasAkhir = $tahun . '-12-31';
+        $batasAwal = $tahun.'-01-01';
+        $batasAkhir = $tahun.'-12-31';
 
         // Panaskan cache libur nasional untuk SELURUH tahun sekali saja.
         // Semua hitungHari() di bawah memakai potongan yang terklip di dalam
@@ -342,20 +348,21 @@ class IzinKuotaService
 
             $baris = $builder->get()->all();
         } catch (\Throwable $e) {
-            Log::error('IzinKuotaService: hitung kuota gagal: ' . $e->getMessage());
+            Log::error('IzinKuotaService: hitung kuota gagal: '.$e->getMessage());
+
             return 0;
         }
 
         $total = 0;
         foreach ($baris as $row) {
-            $mulai   = substr((string) ($row->tgl_mulai ?? ''), 0, 10);
+            $mulai = substr((string) ($row->tgl_mulai ?? ''), 0, 10);
             $selesai = substr((string) ($row->tgl_selesai ?? ''), 0, 10);
             if ($mulai === '' || $selesai === '') {
                 continue;
             }
             // Clip ke tahun berjalan supaya pengajuan lintas tahun dihitung
             // hanya pada bagiannya di tahun ini.
-            $mulai   = max($mulai, $batasAwal);
+            $mulai = max($mulai, $batasAwal);
             $selesai = min($selesai, $batasAkhir);
             if ($mulai > $selesai) {
                 continue;
@@ -377,7 +384,7 @@ class IzinKuotaService
     public function perTahun(string $start, string $end): array
     {
         $potongan = [];
-        $tahun    = (int) substr($start, 0, 4);
+        $tahun = (int) substr($start, 0, 4);
         $tahunEnd = (int) substr($end, 0, 4);
 
         // Pengaman: rentang sudah tervalidasi <= 1 tahun di controller,
@@ -387,9 +394,9 @@ class IzinKuotaService
         }
 
         for ($t = $tahun; $t <= $tahunEnd; $t++) {
-            $mulaiTahun   = $t . '-01-01';
-            $selesaiTahun = $t . '-12-31';
-            $mulai   = max($start, $mulaiTahun);
+            $mulaiTahun = $t.'-01-01';
+            $selesaiTahun = $t.'-12-31';
+            $mulai = max($start, $mulaiTahun);
             $selesai = min($end, $selesaiTahun);
             if ($mulai > $selesai) {
                 continue;
@@ -427,7 +434,7 @@ class IzinKuotaService
             $canon = 'ijin';
         }
 
-        $label  = self::label($canon);
+        $label = self::label($canon);
         $kategoriKhusus = $canon === 'cuti'
             // Kategori besar/melahirkan/cap adalah hak mandiri: batas
             // durasinya dipegang CutiKategoriService (hari kalender),
@@ -446,16 +453,16 @@ class IzinKuotaService
         }
 
         $batasPengajuan = $kategoriKhusus ? 0 : $this->batasPengajuan($canon);
-        $batasTahun     = $kategoriKhusus ? 0 : $this->batasTahunan($canon);
+        $batasTahun = $kategoriKhusus ? 0 : $this->batasTahunan($canon);
 
         $hasil = [
-            'ok'             => true,
-            'pesan'          => '',
-            'hari'           => 0,
-            'tahun'          => (int) substr($start, 0, 4),
-            'batas'          => $batasTahun,
-            'terpakai'       => 0,
-            'sisa'           => $batasTahun,
+            'ok' => true,
+            'pesan' => '',
+            'hari' => 0,
+            'tahun' => (int) substr($start, 0, 4),
+            'batas' => $batasTahun,
+            'terpakai' => 0,
+            'sisa' => $batasTahun,
             'batasPengajuan' => $batasPengajuan,
         ];
 
@@ -470,42 +477,45 @@ class IzinKuotaService
 
         if ($batasPengajuan > 0 && $hasil['hari'] > $batasPengajuan) {
             $satuan = $this->satuanHari();
-            $hasil['ok']    = false;
+            $hasil['ok'] = false;
             $hasil['pesan'] = "Maksimal durasi $label per pengajuan adalah $batasPengajuan $satuan. Pengajuan Anda: {$hasil['hari']} $satuan.";
+
             return $hasil;
         }
 
         if ($batasTahun <= 0) {
             // Tanpa kuota tahunan: sisa tidak relevan.
             $hasil['sisa'] = 0;
+
             return $hasil;
         }
 
         // Per tahun: pengajuan lintas tahun diuji per bagiannya.
         foreach ($this->perTahun($start, $end) as $potongan) {
-            $tahun    = $potongan['tahun'];
+            $tahun = $potongan['tahun'];
             $terpakai = $this->terpakaiTahun($userId, $canon, $tahun, $idAbaikan);
-            $diminta  = $this->hitungHari($potongan['mulai'], $potongan['selesai']);
+            $diminta = $this->hitungHari($potongan['mulai'], $potongan['selesai']);
 
             if ($terpakai + $diminta > $batasTahun) {
-                $sisa   = max(0, $batasTahun - $terpakai);
+                $sisa = max(0, $batasTahun - $terpakai);
                 $satuan = $this->satuanHari();
 
-                $hasil['ok']       = false;
-                $hasil['tahun']    = $tahun;
+                $hasil['ok'] = false;
+                $hasil['tahun'] = $tahun;
                 $hasil['terpakai'] = $terpakai;
                 // Sama seperti cabang sukses: sisa = yang tersedia
                 // sebelum pengajuan ini.
-                $hasil['sisa']     = $sisa;
-                $hasil['pesan']    = "Kuota $label tahun $tahun tersisa $sisa $satuan (terpakai $terpakai dari $batasTahun $satuan). Pengajuan Anda: $diminta $satuan.";
+                $hasil['sisa'] = $sisa;
+                $hasil['pesan'] = "Kuota $label tahun $tahun tersisa $sisa $satuan (terpakai $terpakai dari $batasTahun $satuan). Pengajuan Anda: $diminta $satuan.";
+
                 return $hasil;
             }
 
             // Simpan tahun terakhir yang lolos supaya pemanggil bisa
             // menampilkan sisa kuota yang relevan.
-            $hasil['tahun']    = $tahun;
+            $hasil['tahun'] = $tahun;
             $hasil['terpakai'] = $terpakai;
-            $hasil['sisa']     = max(0, $batasTahun - $terpakai);
+            $hasil['sisa'] = max(0, $batasTahun - $terpakai);
         }
 
         return $hasil;
@@ -519,22 +529,22 @@ class IzinKuotaService
     public function ringkasan(int $userId, ?int $tahun = null): array
     {
         $tahun = $tahun ?: (int) date('Y');
-        $out   = [];
+        $out = [];
 
         foreach (['ijin', 'sakit', 'cuti', 'dinas'] as $canon) {
             $batasTahun = $this->batasTahunan($canon);
             // Ringkasan cuti selalu menyajikan saldo CUTI TAHUNAN:
             // kategori besar/melahirkan/cap bukan bagian dari kuota ini.
-            $terpakai   = $this->terpakaiTahun($userId, $canon, $tahun, 0, $canon === 'cuti' ? 'tahunan' : null);
+            $terpakai = $this->terpakaiTahun($userId, $canon, $tahun, 0, $canon === 'cuti' ? 'tahunan' : null);
 
             $out[$canon] = [
-                'label'          => self::label($canon),
-                'batas'          => $batasTahun,
-                'terpakai'       => $terpakai,
+                'label' => self::label($canon),
+                'batas' => $batasTahun,
+                'terpakai' => $terpakai,
                 // null = tidak ada kuota tahunan, bukan "sisa 0".
-                'sisa'           => $batasTahun > 0 ? max(0, $batasTahun - $terpakai) : null,
+                'sisa' => $batasTahun > 0 ? max(0, $batasTahun - $terpakai) : null,
                 'batasPengajuan' => $this->batasPengajuan($canon),
-                'aktif'          => $batasTahun > 0 || $this->batasPengajuan($canon) > 0,
+                'aktif' => $batasTahun > 0 || $this->batasPengajuan($canon) > 0,
             ];
         }
 
@@ -551,8 +561,9 @@ class IzinKuotaService
     private function getSetting()
     {
         if ($this->setting === null) {
-            $this->setting = (new AttendanceSettingModel())->first() ?? (object) [];
+            $this->setting = (new AttendanceSettingModel)->first() ?? (object) [];
         }
+
         return $this->setting;
     }
 }

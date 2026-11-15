@@ -26,14 +26,15 @@ class AttendancePenaltyService
 {
     // Batas menit antar tier
     private const TIER1_LIMIT = 30;
+
     private const TIER2_LIMIT = 60;
 
     /**
      * Hitung denda dan poin untuk keterlambatan atau pulang awal (progresif).
      *
-     * @param int    $minutes  Jumlah menit keterlambatan / pulang awal
-     * @param object $setting  Object setting dari tabel absensi_setting
-     * @param string $type     Keterangan jenis ('Telat Masuk' | 'Pulang Awal')
+     * @param  int  $minutes  Jumlah menit keterlambatan / pulang awal
+     * @param  object  $setting  Object setting dari tabel absensi_setting
+     * @param  string  $type  Keterangan jenis ('Telat Masuk' | 'Pulang Awal')
      * @return array{points: int, denda: float, keterangan: string}
      */
     public function calculatePenalty(int $minutes, object $setting, string $type = 'Telat'): array
@@ -50,26 +51,26 @@ class AttendancePenaltyService
         $p2 = (int) ($setting->point_tier_2 ?? 2);
         $p3 = (int) ($setting->point_tier_3 ?? 5);
 
-        $totalDenda  = 0.0;
+        $totalDenda = 0.0;
         $totalPoints = 0;
 
         // Tier 1: 0 – TIER1_LIMIT menit
         $t1Mins = min($minutes, self::TIER1_LIMIT);
-        $totalDenda  += $t1Mins * $d1;
+        $totalDenda += $t1Mins * $d1;
         $totalPoints += $t1Mins * $p1;
 
         if ($minutes > self::TIER1_LIMIT) {
             // Tier 2: TIER1_LIMIT+1 – TIER2_LIMIT menit
             $remaining = $minutes - self::TIER1_LIMIT;
-            $t2Range   = self::TIER2_LIMIT - self::TIER1_LIMIT;
-            $t2Mins    = min($remaining, $t2Range);
-            $totalDenda  += $t2Mins * $d2;
+            $t2Range = self::TIER2_LIMIT - self::TIER1_LIMIT;
+            $t2Mins = min($remaining, $t2Range);
+            $totalDenda += $t2Mins * $d2;
             $totalPoints += $t2Mins * $p2;
 
             if ($minutes > self::TIER2_LIMIT) {
                 // Tier 3: TIER2_LIMIT+1 menit ke atas
                 $t3Mins = $minutes - self::TIER2_LIMIT;
-                $totalDenda  += $t3Mins * $d3;
+                $totalDenda += $t3Mins * $d3;
                 $totalPoints += $t3Mins * $p3;
             }
         }
@@ -78,8 +79,8 @@ class AttendancePenaltyService
         // (cap per bulan dilakukan di rekap, bukan per kejadian)
 
         return [
-            'points'     => $totalPoints,
-            'denda'      => $totalDenda,
+            'points' => $totalPoints,
+            'denda' => $totalDenda,
             'keterangan' => "{$type} {$minutes} menit (Progresif)",
         ];
     }
@@ -87,8 +88,8 @@ class AttendancePenaltyService
     /**
      * Hitung poin reward untuk datang awal atau pulang terlambat (progresif).
      *
-     * @param int    $minutes  Jumlah menit datang lebih awal / pulang lebih akhir
-     * @param object $setting  Object setting dari tabel absensi_setting
+     * @param  int  $minutes  Jumlah menit datang lebih awal / pulang lebih akhir
+     * @param  object  $setting  Object setting dari tabel absensi_setting
      * @return int Poin reward (positif)
      */
     public function calculateReward(int $minutes, object $setting): int
@@ -117,8 +118,8 @@ class AttendancePenaltyService
 
         if ($minutes > $tier1Limit) {
             $remaining = $minutes - $tier1Limit;
-            $t2Range   = $tier2Limit - $tier1Limit;
-            $t2Mins    = min($remaining, $t2Range);
+            $t2Range = $tier2Limit - $tier1Limit;
+            $t2Mins = min($remaining, $t2Range);
             $totalPoints += $t2Mins * $p2;
 
             if ($minutes > $tier2Limit) {
@@ -138,10 +139,10 @@ class AttendancePenaltyService
      * telat dari jam_masuk, bukan dari akhir grace, sehingga hasilnya `grace`
      * menit lebih besar dari jalur tulis yang sedang aktif).
      *
-     * @param string $recordedTime  Waktu absen (Y-m-d H:i:s)
-     * @param string $date          Tanggal (Y-m-d)
-     * @param string $jamMasukBatas Jam batas masuk dari jadwal (H:i:s)
-     * @param int    $graceMins     Toleransi dalam menit
+     * @param  string  $recordedTime  Waktu absen (Y-m-d H:i:s)
+     * @param  string  $date  Tanggal (Y-m-d)
+     * @param  string  $jamMasukBatas  Jam batas masuk dari jadwal (H:i:s)
+     * @param  int  $graceMins  Toleransi dalam menit
      * @return array{status: string, telat_menit: int, datang_awal_menit: int}
      */
     public function calcStatusMasuk(
@@ -151,13 +152,13 @@ class AttendancePenaltyService
         int $graceMins = AttendancePolicy::GRACE_DEFAULT
     ): array {
         $hit = AttendancePolicy::telat($date, $recordedTime, [
-            'jam_masuk'   => $jamMasukBatas,
+            'jam_masuk' => $jamMasukBatas,
             'grace_menit' => $graceMins,
         ]);
 
         return [
-            'status'            => $hit['status'],
-            'telat_menit'       => $hit['telat_menit'],
+            'status' => $hit['status'],
+            'telat_menit' => $hit['telat_menit'],
             'datang_awal_menit' => $hit['datang_awal_menit'],
         ];
     }
@@ -165,9 +166,9 @@ class AttendancePenaltyService
     /**
      * Hitung status pulang (ONTIME / EARLY) dan menit pulang cepat.
      *
-     * @param string $recordedTime    Waktu pulang (Y-m-d H:i:s)
-     * @param string $date            Tanggal (Y-m-d)
-     * @param string $jamPulangBatas  Jam batas pulang dari jadwal (H:i:s)
+     * @param  string  $recordedTime  Waktu pulang (Y-m-d H:i:s)
+     * @param  string  $date  Tanggal (Y-m-d)
+     * @param  string  $jamPulangBatas  Jam batas pulang dari jadwal (H:i:s)
      * @return array{status: string, pulang_cepat_menit: int, pulang_akhir_menit: int}
      */
     public function calcStatusPulang(
@@ -175,14 +176,14 @@ class AttendancePenaltyService
         string $date,
         string $jamPulangBatas
     ): array {
-        $threshold = strtotime($date . ' ' . $jamPulangBatas);
+        $threshold = strtotime($date.' '.$jamPulangBatas);
         $checkTime = strtotime($recordedTime);
 
         if ($checkTime < $threshold) {
             return [
-                'status'              => 'EARLY',
-                'pulang_cepat_menit'  => (int) ceil(($threshold - $checkTime) / 60),
-                'pulang_akhir_menit'  => 0,
+                'status' => 'EARLY',
+                'pulang_cepat_menit' => (int) ceil(($threshold - $checkTime) / 60),
+                'pulang_akhir_menit' => 0,
             ];
         }
 
@@ -190,9 +191,9 @@ class AttendancePenaltyService
         $pulangAkhirMenit = ($diffMinutes >= 60) ? ($diffMinutes - 60) : 0;
 
         return [
-            'status'              => 'ONTIME',
-            'pulang_cepat_menit'  => 0,
-            'pulang_akhir_menit'  => $pulangAkhirMenit,
+            'status' => 'ONTIME',
+            'pulang_cepat_menit' => 0,
+            'pulang_akhir_menit' => $pulangAkhirMenit,
         ];
     }
 
@@ -200,9 +201,9 @@ class AttendancePenaltyService
      * Hitung persentase kehadiran guru dalam satu bulan.
      * Mengabaikan hari libur mingguan dan hari libur nasional.
      *
-     * @param int    $userId          ID user guru
-     * @param int    $bulan           Bulan (1-12)
-     * @param int    $tahun           Tahun
+     * @param  int  $userId  ID user guru
+     * @param  int  $bulan  Bulan (1-12)
+     * @param  int  $tahun  Tahun
      * @return array{
      *   persen: float,
      *   total_hadir: int,
@@ -219,8 +220,8 @@ class AttendancePenaltyService
     ): array {
 
         $startDate = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $endDate   = date('Y-m-t', strtotime($startDate));
-        $today     = date('Y-m-d');
+        $endDate = date('Y-m-t', strtotime($startDate));
+        $today = date('Y-m-d');
 
         // Jangan hitung hari yang belum datang
         if ($endDate > $today) {
@@ -236,7 +237,7 @@ class AttendancePenaltyService
             ->get()->all();
 
         $presentDates = [];
-        $leaveDates   = [];
+        $leaveDates = [];
         foreach ($records as $r) {
             $st = strtoupper(trim((string) ($r->status_masuk ?? '')));
             if (in_array($st, ['ALPHA', 'ALPA'], true)) {
@@ -270,14 +271,15 @@ class AttendancePenaltyService
                         $curIz = strtotime('+1 day', $curIz);
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $totalEfektif = 0;
-        $totalHadir   = 0;
+        $totalHadir = 0;
 
         $current = strtotime($startDate);
-        $end     = strtotime($endDate);
+        $end = strtotime($endDate);
 
         while ($current <= $end) {
             $dateStr = date('Y-m-d', $current);
@@ -285,11 +287,12 @@ class AttendancePenaltyService
             // Libur (mingguan ternormalisasi + kalender + jadwal sekolah) bukan
             // hari efektif. Izin/sakit/cuti resmi juga dispensasi sah, bukan
             // dihitung sebagai tidak hadir.
-            $skip = \App\Services\AttendancePolicy::isLibur($dateStr)
+            $skip = AttendancePolicy::isLibur($dateStr)
                 || isset($leaveDates[$dateStr]);
 
             if ($skip) {
                 $current = strtotime('+1 day', $current);
+
                 continue;
             }
 
@@ -301,7 +304,7 @@ class AttendancePenaltyService
             $current = strtotime('+1 day', $current);
         }
 
-        $persen     = $totalEfektif > 0 ? round(($totalHadir / $totalEfektif) * 100, 2) : 100.0;
+        $persen = $totalEfektif > 0 ? round(($totalHadir / $totalEfektif) * 100, 2) : 100.0;
         $totalAlpha = max(0, $totalEfektif - $totalHadir);
 
         $status = 'aman';
@@ -310,11 +313,11 @@ class AttendancePenaltyService
         }
 
         return [
-            'persen'              => $persen,
-            'total_hadir'         => $totalHadir,
-            'total_hari_efektif'  => $totalEfektif,
-            'total_alpha'         => $totalAlpha,
-            'status'              => $status,
+            'persen' => $persen,
+            'total_hadir' => $totalHadir,
+            'total_hari_efektif' => $totalEfektif,
+            'total_alpha' => $totalAlpha,
+            'status' => $status,
         ];
     }
 
@@ -322,14 +325,14 @@ class AttendancePenaltyService
      * Tegakkan max_denda_bulan: batasi TOTAL denda satu baris absensi agar
      * akumulasi denda user dalam bulan berjalan tidak melebihi setting.
      *
-     * @param int      $userId        ID user
-     * @param string   $dateYmd       Tanggal baris (Y-m-d) → penentu bulan
-     * @param float    $proposedTotal Total denda baris SETELAH perubahan ini
-     * @param object   $setting       Setting absensi (memuat max_denda_bulan)
-     * @param int|null $excludeId     ID baris ini (tidak dihitung ganda)
-     * @param bool     $lock          true = baca dengan FOR UPDATE; WAJIB dipanggil
-     *     di dalam transaksi aktif sebelum INSERT/UPDATE, agar dua request
-     *     paralel tidak sama-sama lolos cap (race condition).
+     * @param  int  $userId  ID user
+     * @param  string  $dateYmd  Tanggal baris (Y-m-d) → penentu bulan
+     * @param  float  $proposedTotal  Total denda baris SETELAH perubahan ini
+     * @param  object  $setting  Setting absensi (memuat max_denda_bulan)
+     * @param  int|null  $excludeId  ID baris ini (tidak dihitung ganda)
+     * @param  bool  $lock  true = baca dengan FOR UPDATE; WAJIB dipanggil
+     *                      di dalam transaksi aktif sebelum INSERT/UPDATE, agar dua request
+     *                      paralel tidak sama-sama lolos cap (race condition).
      * @return array{total: float, capped: bool}
      */
     public function applyMonthlyCap(int $userId, string $dateYmd, float $proposedTotal, object $setting, ?int $excludeId = null, bool $lock = false): array
@@ -339,7 +342,7 @@ class AttendancePenaltyService
             return ['total' => $proposedTotal, 'capped' => false];
         }
 
-        $monthStart = substr($dateYmd, 0, 7) . '-01';
+        $monthStart = substr($dateYmd, 0, 7).'-01';
         $monthEnd = date('Y-m-t', strtotime($monthStart));
 
         if ($lock) {
@@ -383,11 +386,11 @@ class AttendancePenaltyService
      * dihitung sebagai tunggakan/poin; estimasi terakhir yang terpotong
      * sebagian dipertahankan dengan nominal yang disesuaikan.
      *
-     * @param int         $userId ID user guru
-     * @param array       $items  Estimasi alpha [['tgl' => Y-m-d, 'denda' => float, ...]]
-     * @param object|null $setting Setting absensi (null = ambil dari DB)
-     * @param array|null  $recordedMonthTotals Total denda tercatat per 'YYYY-MM'
-     *     (null = ambil dari DB; array kosong = tidak ada denda tercatat)
+     * @param  int  $userId  ID user guru
+     * @param  array  $items  Estimasi alpha [['tgl' => Y-m-d, 'denda' => float, ...]]
+     * @param  object|null  $setting  Setting absensi (null = ambil dari DB)
+     * @param  array|null  $recordedMonthTotals  Total denda tercatat per 'YYYY-MM'
+     *                                           (null = ambil dari DB; array kosong = tidak ada denda tercatat)
      * @return array{items: array, total: float, count: int}
      */
     public function capMissingAlphaEstimates(int $userId, array $items, ?object $setting = null, ?array $recordedMonthTotals = null): array
@@ -396,18 +399,18 @@ class AttendancePenaltyService
             return ['items' => [], 'total' => 0.0, 'count' => 0];
         }
 
-        if (!$setting) {
+        if (! $setting) {
             try {
                 $setting = DB::table('absensi_setting')->orderBy('id', 'ASC')->first();
             } catch (\Throwable $e) {
                 $setting = null;
             }
-            if (!$setting) {
+            if (! $setting) {
                 $setting = (object) [];
             }
         }
 
-        usort($items, static fn($a, $b) => strcmp((string) ($a['tgl'] ?? ''), (string) ($b['tgl'] ?? '')));
+        usort($items, static fn ($a, $b) => strcmp((string) ($a['tgl'] ?? ''), (string) ($b['tgl'] ?? '')));
 
         $max = (float) ($setting->max_denda_bulan ?? 0);
         if ($max <= 0) {
@@ -422,7 +425,7 @@ class AttendancePenaltyService
         $firstMonth = substr((string) ($items[0]['tgl'] ?? ''), 0, 7);
         $lastItem = $items[count($items) - 1];
         $lastMonth = substr((string) ($lastItem['tgl'] ?? ''), 0, 7);
-        if (!preg_match('/^\d{4}-\d{2}$/', $firstMonth) || !preg_match('/^\d{4}-\d{2}$/', $lastMonth)) {
+        if (! preg_match('/^\d{4}-\d{2}$/', $firstMonth) || ! preg_match('/^\d{4}-\d{2}$/', $lastMonth)) {
             return ['items' => [], 'total' => 0.0, 'count' => 0];
         }
 
@@ -432,17 +435,18 @@ class AttendancePenaltyService
                 $rows = DB::table('absensi_harian')
                     ->select('tgl', 'denda')
                     ->where('user_id', $userId)
-                    ->where('tgl', '>=', $firstMonth . '-01')
-                    ->where('tgl', '<=', date('Y-m-t', strtotime($lastMonth . '-01')))
+                    ->where('tgl', '>=', $firstMonth.'-01')
+                    ->where('tgl', '<=', date('Y-m-t', strtotime($lastMonth.'-01')))
                     ->get()->all();
                 foreach ($rows as $r) {
                     $month = substr((string) ($r->tgl ?? ''), 0, 7);
-                    if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                    if (! preg_match('/^\d{4}-\d{2}$/', $month)) {
                         continue;
                     }
                     $recorded[$month] = ($recorded[$month] ?? 0.0) + (float) ($r->denda ?? 0);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $estimated = [];
@@ -450,7 +454,7 @@ class AttendancePenaltyService
         $total = 0.0;
         foreach ($items as $it) {
             $date = substr((string) ($it['tgl'] ?? ''), 0, 10);
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
                 continue;
             }
             $month = substr($date, 0, 7);
@@ -465,7 +469,7 @@ class AttendancePenaltyService
             }
             if ($original > $remaining) {
                 $it['denda'] = $remaining;
-                $it['keterangan'] = trim((string) ($it['keterangan'] ?? '') . ' (dibatasi cap bulanan Rp ' . number_format($remaining, 0, ',', '.') . ')');
+                $it['keterangan'] = trim((string) ($it['keterangan'] ?? '').' (dibatasi cap bulanan Rp '.number_format($remaining, 0, ',', '.').')');
             }
 
             $estimated[$month] = ($estimated[$month] ?? 0.0) + (float) $it['denda'];
@@ -486,9 +490,9 @@ class AttendancePenaltyService
      * tahun. Dipakai rekap mingguan, tabel admin, dan bayar nominal agar
      * angkanya identik di semua tempat.
      *
-     * @param array<string,float> $dendaHarianPerBulan 'YYYY-MM' => total
-     * @param array<string,float> $alphaPerBulan       'YYYY-MM' => total estimasi
-     * @param array<string,float> $bayarPerBulan       'YYYY-MM' => total non-batal
+     * @param  array<string,float>  $dendaHarianPerBulan  'YYYY-MM' => total
+     * @param  array<string,float>  $alphaPerBulan  'YYYY-MM' => total estimasi
+     * @param  array<string,float>  $bayarPerBulan  'YYYY-MM' => total non-batal
      * @return array{bulan:array<int,array{bulan:int,tahun:int,total_denda:float,sudah_dibayar:float,sisa:float}>,total_sisa:float,kredit_sisa:float}
      */
     public static function hitungSisaLedger(array $dendaHarianPerBulan, array $alphaPerBulan, array $bayarPerBulan): array
@@ -496,16 +500,17 @@ class AttendancePenaltyService
         $normal = static function (array $masuk): array {
             $keluar = [];
             foreach ($masuk as $kunci => $nilai) {
-                if (!preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $kunci, $m)) {
+                if (! preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $kunci, $m)) {
                     continue;
                 }
-                $keluar[$m[1] . '-' . $m[2]] = (float) $nilai;
+                $keluar[$m[1].'-'.$m[2]] = (float) $nilai;
             }
+
             return $keluar;
         };
         $harian = $normal($dendaHarianPerBulan);
-        $alpha  = $normal($alphaPerBulan);
-        $bayar  = $normal($bayarPerBulan);
+        $alpha = $normal($alphaPerBulan);
+        $bayar = $normal($bayarPerBulan);
 
         $semuaBulan = array_unique(array_merge(array_keys($harian), array_keys($alpha), array_keys($bayar)));
         sort($semuaBulan);
@@ -518,6 +523,7 @@ class AttendancePenaltyService
             $sudah = $bayar[$kunci] ?? 0.0;
             if ($total <= 0) {
                 $kredit += $sudah;
+
                 continue;
             }
             if ($sudah > $total) {
@@ -527,11 +533,11 @@ class AttendancePenaltyService
             $sisa = max(0.0, $total - $sudah);
             if ($sisa > 0) {
                 $bulan[] = [
-                    'bulan'         => (int) $bln,
-                    'tahun'         => (int) $thn,
-                    'total_denda'   => $total,
+                    'bulan' => (int) $bln,
+                    'tahun' => (int) $thn,
+                    'total_denda' => $total,
                     'sudah_dibayar' => $sudah,
-                    'sisa'          => $sisa,
+                    'sisa' => $sisa,
                 ];
             } else {
                 $kredit += max(0.0, $sudah - $total);
@@ -550,7 +556,7 @@ class AttendancePenaltyService
                 $kredit -= $potong;
             }
             unset($b);
-            $bulan = array_values(array_filter($bulan, static fn($b) => $b['sisa'] > 0));
+            $bulan = array_values(array_filter($bulan, static fn ($b) => $b['sisa'] > 0));
         }
 
         $totalSisa = 0.0;
@@ -581,6 +587,7 @@ class AttendancePenaltyService
             if ($metode === 'SALDO') {
                 return 'SALDO';
             }
+
             return 'TUNAI';
         }
         $ket = strtolower(trim((string) $keterangan));
@@ -590,6 +597,7 @@ class AttendancePenaltyService
         if (str_contains($ket, 'saldo')) {
             return 'SALDO';
         }
+
         return 'TUNAI';
     }
 
@@ -612,7 +620,8 @@ class AttendancePenaltyService
                     $tahun[] = (int) $m[1];
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         try {
             if (Schema::hasTable('absensi_pembayaran_denda')) {
                 $rows = DB::table('absensi_pembayaran_denda')
@@ -624,7 +633,8 @@ class AttendancePenaltyService
                     }
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
         $tahun = array_values(array_unique($tahun));
         sort($tahun);
 
@@ -659,19 +669,20 @@ class AttendancePenaltyService
                     ->get()->all();
                 foreach ($rows as $r) {
                     $kunci = substr((string) ($r->tgl ?? ''), 0, 7);
-                    if (!preg_match('/^\d{4}-\d{2}$/', $kunci)) {
+                    if (! preg_match('/^\d{4}-\d{2}$/', $kunci)) {
                         continue;
                     }
                     $harian[$kunci] = ($harian[$kunci] ?? 0.0) + (float) ($r->denda ?? 0);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
 
             try {
                 $setting = DB::table('absensi_setting')->orderBy('id', 'ASC')->first();
             } catch (\Throwable $e) {
                 $setting = null;
             }
-            if (!$setting) {
+            if (! $setting) {
                 $setting = (object) [];
             }
             try {
@@ -684,12 +695,13 @@ class AttendancePenaltyService
                 );
                 foreach (($miss['items'] ?? []) as $mi) {
                     $kunci = substr((string) ($mi['tgl'] ?? ''), 0, 7);
-                    if (!preg_match('/^\d{4}-\d{2}$/', $kunci)) {
+                    if (! preg_match('/^\d{4}-\d{2}$/', $kunci)) {
                         continue;
                     }
                     $alpha[$kunci] = ($alpha[$kunci] ?? 0.0) + (float) ($mi['denda'] ?? 0);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
 
             try {
                 if (Schema::hasTable('absensi_pembayaran_denda')) {
@@ -701,7 +713,7 @@ class AttendancePenaltyService
                         ->get()->all();
                     foreach ($rows as $r) {
                         $kunci = sprintf('%04d-%02d', (int) ($r->tahun ?? $thn), (int) ($r->bulan ?? 0));
-                        if (!preg_match('/^\d{4}-\d{2}$/', $kunci) || (int) substr($kunci, 5, 2) < 1) {
+                        if (! preg_match('/^\d{4}-\d{2}$/', $kunci) || (int) substr($kunci, 5, 2) < 1) {
                             continue;
                         }
                         $nominal = (float) ($r->nominal_bayar ?? 0);
@@ -711,7 +723,8 @@ class AttendancePenaltyService
                         $bayar[$kunci] = ($bayar[$kunci] ?? 0.0) + $nominal;
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         return self::hitungSisaLedger($harian, $alpha, $bayar)['bulan'];
@@ -721,13 +734,13 @@ class AttendancePenaltyService
      * Total sisa kanonik lintas tahun untuk banyak guru sekaligus.
      * Satu estimator batch + query agregat (bukan N× pindai penuh).
      *
-     * @param int[] $userIds
+     * @param  int[]  $userIds
      * @return array<int,float> user_id => total sisa
      */
     public function sisaDendaBatch(array $userIds): array
     {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
-        $userIds = array_values(array_filter($userIds, static fn($id) => $id > 0));
+        $userIds = array_values(array_filter($userIds, static fn ($id) => $id > 0));
         $hasil = array_fill_keys($userIds, 0.0);
         if ($userIds === []) {
             return $hasil;
@@ -745,7 +758,7 @@ class AttendancePenaltyService
             foreach ($rows as $r) {
                 $uid = (int) ($r->user_id ?? 0);
                 $kunci = substr((string) ($r->tgl ?? ''), 0, 7);
-                if ($uid <= 0 || !preg_match('/^\d{4}-\d{2}$/', $kunci)) {
+                if ($uid <= 0 || ! preg_match('/^\d{4}-\d{2}$/', $kunci)) {
                     continue;
                 }
                 $harian[$uid][$kunci] = ($harian[$uid][$kunci] ?? 0.0) + (float) ($r->denda ?? 0);
@@ -753,7 +766,8 @@ class AttendancePenaltyService
                     $awalGlobal = substr((string) $r->tgl, 0, 10);
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         try {
             if (Schema::hasTable('absensi_pembayaran_denda')) {
@@ -765,7 +779,7 @@ class AttendancePenaltyService
                 foreach ($rows as $r) {
                     $uid = (int) ($r->user_id ?? 0);
                     $kunci = sprintf('%04d-%02d', (int) ($r->tahun ?? 0), (int) ($r->bulan ?? 0));
-                    if ($uid <= 0 || !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $kunci)) {
+                    if ($uid <= 0 || ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $kunci)) {
                         continue;
                     }
                     $nominal = (float) ($r->nominal_bayar ?? 0);
@@ -775,7 +789,8 @@ class AttendancePenaltyService
                     $bayar[$uid][$kunci] = ($bayar[$uid][$kunci] ?? 0.0) + $nominal;
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $alpha = [];
         try {
@@ -783,7 +798,7 @@ class AttendancePenaltyService
         } catch (\Throwable $e) {
             $setting = null;
         }
-        if (!$setting) {
+        if (! $setting) {
             $setting = (object) [];
         }
         try {
@@ -791,13 +806,14 @@ class AttendancePenaltyService
             foreach ($semua as $uid => $ringkas) {
                 foreach (($ringkas['items'] ?? []) as $mi) {
                     $kunci = substr((string) ($mi['tgl'] ?? ''), 0, 7);
-                    if (!preg_match('/^\d{4}-\d{2}$/', $kunci)) {
+                    if (! preg_match('/^\d{4}-\d{2}$/', $kunci)) {
                         continue;
                     }
                     $alpha[$uid][$kunci] = ($alpha[$uid][$kunci] ?? 0.0) + (float) ($mi['denda'] ?? 0);
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         foreach ($userIds as $uid) {
             $hasil[$uid] = self::hitungSisaLedger(
@@ -817,10 +833,10 @@ class AttendancePenaltyService
     {
         return match (strtoupper($status)) {
             'IJIN', 'IZIN' => (int) ($setting->point_izin ?? 0),
-            'SAKIT'         => (int) ($setting->point_sakit ?? 0),
-            'CUTI'          => (int) ($setting->point_cuti ?? 0),
+            'SAKIT' => (int) ($setting->point_sakit ?? 0),
+            'CUTI' => (int) ($setting->point_cuti ?? 0),
             'DINAS', 'DINAS_APPROVED' => (int) ($setting->point_hadir ?? $setting->point_hadir_ontime ?? 10),
-            default         => 0,
+            default => 0,
         };
     }
 
@@ -831,10 +847,10 @@ class AttendancePenaltyService
     public function normalizeIzinStatus(string $jenis): string
     {
         return match (strtolower(trim($jenis))) {
-            'sakit'  => 'SAKIT',
-            'cuti'   => 'CUTI',
-            'dinas'  => 'DINAS_APPROVED',
-            default  => 'IJIN',
+            'sakit' => 'SAKIT',
+            'cuti' => 'CUTI',
+            'dinas' => 'DINAS_APPROVED',
+            default => 'IJIN',
         };
     }
 
@@ -843,8 +859,8 @@ class AttendancePenaltyService
      * Fungsi progresif bertingkat sudah dihapus — semua hari alpa
      * dikenakan tarif flat yang sama tanpa kelipatan.
      *
-     * @param int    $consecutiveDay Dipertahankan untuk kompatibilitas (diabaikan, selalu flat).
-     * @param object $setting        Setting presensi (absensi_setting)
+     * @param  int  $consecutiveDay  Dipertahankan untuk kompatibilitas (diabaikan, selalu flat).
+     * @param  object  $setting  Setting presensi (absensi_setting)
      * @return array{denda: float, multiplier: float, consecutive_day: int, keterangan: string}
      */
     public function calculateConsecutiveAlphaFine(int $consecutiveDay, object $setting): array
@@ -857,13 +873,13 @@ class AttendancePenaltyService
 
         $multiplier = 1.0;
         $fine = $base * $multiplier;
-        $ket = 'Alpa (Rp ' . number_format($base, 0, ',', '.') . ')';
+        $ket = 'Alpa (Rp '.number_format($base, 0, ',', '.').')';
 
         return [
-            'denda'           => $fine,
-            'multiplier'      => $multiplier,
+            'denda' => $fine,
+            'multiplier' => $multiplier,
             'consecutive_day' => $consecutiveDay,
-            'keterangan'      => $ket,
+            'keterangan' => $ket,
         ];
     }
 
@@ -872,8 +888,8 @@ class AttendancePenaltyService
      * Mengabaikan hari libur mingguan dan libur nasional resmi (tidak memutuskan streak).
      * Kehadiran atau izin sah akan memutuskan streak.
      *
-     * @param int    $userId     ID user guru
-     * @param string $targetDate Tanggal evaluasi (Y-m-d)
+     * @param  int  $userId  ID user guru
+     * @param  string  $targetDate  Tanggal evaluasi (Y-m-d)
      * @return int Jumlah hari alpa berturut-turut (minimal 1 jika hari ini alpa, 0 jika hari ini hadir/izin)
      */
     public function getConsecutiveAlphaStreak(int $userId, string $targetDate): int
@@ -887,7 +903,7 @@ class AttendancePenaltyService
 
         if ($targetRecord) {
             $st = strtoupper(trim((string) ($targetRecord->status_masuk ?? '')));
-            if (!in_array($st, ['ALPHA', 'ALPA'], true) && !empty($targetRecord->jam_masuk)) {
+            if (! in_array($st, ['ALPHA', 'ALPA'], true) && ! empty($targetRecord->jam_masuk)) {
                 return 0; // Guru hadir atau izin pada targetDate
             }
         }
@@ -916,7 +932,7 @@ class AttendancePenaltyService
             $dateStr = date('Y-m-d', $checkTime);
 
             // Skip hari libur (tidak memutuskan streak)
-            if (\App\Services\AttendancePolicy::isLibur($dateStr)) {
+            if (AttendancePolicy::isLibur($dateStr)) {
                 continue;
             }
 
@@ -928,7 +944,7 @@ class AttendancePenaltyService
 
             if ($prevRecord) {
                 $pst = strtoupper(trim((string) ($prevRecord->status_masuk ?? '')));
-                if (!in_array($pst, ['ALPHA', 'ALPA'], true) && (!empty($prevRecord->jam_masuk) || in_array($pst, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'WFH', 'ONTIME', 'LATE'], true))) {
+                if (! in_array($pst, ['ALPHA', 'ALPA'], true) && (! empty($prevRecord->jam_masuk) || in_array($pst, ['IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS_APPROVED', 'WFH', 'ONTIME', 'LATE'], true))) {
                     // Hadir atau izin sah: streak terputus!
                     break;
                 }
@@ -971,16 +987,17 @@ class AttendancePenaltyService
      *     Estimasi yang dikembalikan sudah dibatasi max_denda_bulan per bulan
      *     kalender (termasuk denda tercatat pada bulan yang sama).
      *
-     * @param int         $userId       ID user guru
-     * @param string      $startDate    Awal periode (Y-m-d)
-     * @param string      $endDate      Akhir periode (Y-m-d)
-     * @param object|null $setting      Setting absensi (null = ambil dari DB)
-     * @param bool        $includeToday true = sertakan hari ini
+     * @param  int  $userId  ID user guru
+     * @param  string  $startDate  Awal periode (Y-m-d)
+     * @param  string  $endDate  Akhir periode (Y-m-d)
+     * @param  object|null  $setting  Setting absensi (null = ambil dari DB)
+     * @param  bool  $includeToday  true = sertakan hari ini
      * @return array{items: array, total: float, count: int}
      */
     public function missingAlphaFines(int $userId, string $startDate, string $endDate, ?object $setting = null, bool $includeToday = false): array
     {
         $batch = $this->missingAlphaFinesBatch([$userId], $startDate, $endDate, $setting, $includeToday);
+
         return $batch[$userId] ?? ['items' => [], 'total' => 0.0, 'count' => 0];
     }
 
@@ -991,23 +1008,23 @@ class AttendancePenaltyService
      *
      * Aturan per user identik dengan missingAlphaFines().
      *
-     * @param int[]       $userIds
+     * @param  int[]  $userIds
      * @return array<int, array{items: array, total: float, count: int}>
      */
     public function missingAlphaFinesBatch(array $userIds, string $startDate, string $endDate, ?object $setting = null, bool $includeToday = false): array
     {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
-        $userIds = array_values(array_filter($userIds, static fn($id) => $id > 0));
+        $userIds = array_values(array_filter($userIds, static fn ($id) => $id > 0));
         if ($userIds === []) {
             return [];
         }
-        if (!$setting) {
+        if (! $setting) {
             try {
                 $setting = DB::table('absensi_setting')->orderBy('id', 'ASC')->first();
             } catch (\Throwable $e) {
                 $setting = null;
             }
-            if (!$setting) {
+            if (! $setting) {
                 $setting = (object) [];
             }
         }
@@ -1045,10 +1062,11 @@ class AttendancePenaltyService
                     $recordedSums[$uid][$month] = ($recordedSums[$uid][$month] ?? 0.0) + (float) ($r->denda ?? 0);
                 }
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         // Sekali summary untuk semua user (pindai mundur agar streak kontinu).
-        $scanStart = date('Y-m-d', strtotime($startDate . ' -62 days'));
+        $scanStart = date('Y-m-d', strtotime($startDate.' -62 days'));
         try {
             $summary = $this->calculateAllUsersPeriodAlphaSummary($scanStart, $endDate, $setting);
         } catch (\Throwable $e) {
@@ -1065,7 +1083,7 @@ class AttendancePenaltyService
                 if ($t === '' || $t < $startDate || $t > $endDate) {
                     continue;
                 }
-                if (!$includeToday && $t >= $today) {
+                if (! $includeToday && $t >= $today) {
                     continue;
                 }
                 if (isset($recordedDates[$uid][$t])) {
@@ -1083,14 +1101,14 @@ class AttendancePenaltyService
      * Hitung rekap akumulasi denda alpa FLAT untuk seluruh user dalam periode tertentu.
      * Mengembalikan map [$userId => ['count' => int, 'total_denda' => float, 'items' => array]]
      *
-     * @param string      $startDate Tanggal mulai (Y-m-d)
-     * @param string      $endDate   Tanggal selesai (Y-m-d)
-     * @param object|null $setting   Setting absensi
+     * @param  string  $startDate  Tanggal mulai (Y-m-d)
+     * @param  string  $endDate  Tanggal selesai (Y-m-d)
+     * @param  object|null  $setting  Setting absensi
      * @return array<int, array{count: int, total_denda: float, items: array}>
      */
     public function calculateAllUsersPeriodAlphaSummary(string $startDate, string $endDate, ?object $setting = null): array
     {
-        if (!$setting) {
+        if (! $setting) {
             $setting = DB::table('absensi_setting')->orderBy('id', 'ASC')->first();
         }
 
@@ -1100,7 +1118,7 @@ class AttendancePenaltyService
         }
 
         // Ambil semua guru aktif
-        $users = DB::select("SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1");
+        $users = DB::select('SELECT u.id FROM users u JOIN users_groups ug ON ug.user_id = u.id WHERE ug.group_id = 2 AND u.active = 1');
 
         // Ambil seluruh record absensi pada periode
         $attRows = DB::table('absensi_harian')
@@ -1148,7 +1166,7 @@ class AttendancePenaltyService
         $endTs = min(strtotime($endDate), $todayTs) - 86400;
 
         $baseFlat = (float) ($setting->denda_alpha_per_hari ?? 5000);
-        $ketFlat = 'Alpa (Rp ' . number_format($baseFlat, 0, ',', '.') . ')';
+        $ketFlat = 'Alpa (Rp '.number_format($baseFlat, 0, ',', '.').')';
 
         foreach ($users as $u) {
             $uid = (int) $u->id;
@@ -1159,12 +1177,12 @@ class AttendancePenaltyService
 
             $curTs = $startTs;
             while ($curTs <= $endTs) {
-                $dateStr   = date('Y-m-d', $curTs);
+                $dateStr = date('Y-m-d', $curTs);
 
                 $curTs = strtotime('+1 day', $curTs);
 
                 // Skip libur (mingguan ternormalisasi + kalender + jadwal sekolah).
-                if (\App\Services\AttendancePolicy::isLibur($dateStr)) {
+                if (AttendancePolicy::isLibur($dateStr)) {
                     continue;
                 }
 
@@ -1187,11 +1205,11 @@ class AttendancePenaltyService
                         // Sebelumnya baris pending yang punya jam_masuk selalu lolos
                         // dari hitungan ini, sehingga dua penghitung alpha memberi
                         // jumlah hari yang berbeda untuk guru yang sama.
-                        if (!\App\Services\AttendancePolicy::pendingLewatBatas($dateStr)) {
+                        if (! AttendancePolicy::pendingLewatBatas($dateStr)) {
                             continue;
                         }
                         $isAlpha = true;
-                    } elseif (!empty($rec->jam_masuk) || in_array($st, ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_OUT'], true)) {
+                    } elseif (! empty($rec->jam_masuk) || in_array($st, ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_OUT'], true)) {
                         continue;
                     } else {
                         $isAlpha = true;
@@ -1206,19 +1224,19 @@ class AttendancePenaltyService
                     $alphaDates[] = $dateStr;
                     $totalDenda += $baseFlat;
                     $items[] = [
-                        'tgl'             => $dateStr,
+                        'tgl' => $dateStr,
                         'consecutive_day' => 1,
-                        'multiplier'      => 1.0,
-                        'denda'           => $baseFlat,
-                        'keterangan'      => $ketFlat,
+                        'multiplier' => 1.0,
+                        'denda' => $baseFlat,
+                        'keterangan' => $ketFlat,
                     ];
                 }
             }
 
             $result[$uid] = [
-                'count'       => $alphaCount,
+                'count' => $alphaCount,
                 'total_denda' => $totalDenda,
-                'items'       => $items
+                'items' => $items,
             ];
         }
 
@@ -1235,10 +1253,10 @@ class AttendancePenaltyService
      * 3. Menghormati jam kerja berjalan: HARI INI ($today) TIDAK BOLEH dihitung alpha jika waktu sekarang
      *    masih sebelum jam pulang / batas cutoff absen hari ini.
      *
-     * @param int         $userId  ID User guru (users.id)
-     * @param int         $bulan   1-12
-     * @param int         $tahun   Tahun (misal 2026)
-     * @param object|null $setting Object setting dari absensi_setting
+     * @param  int  $userId  ID User guru (users.id)
+     * @param  int  $bulan  1-12
+     * @param  int  $tahun  Tahun (misal 2026)
+     * @param  object|null  $setting  Object setting dari absensi_setting
      * @return int Jumlah hari alpha riil
      */
     public function calculateTeacherMonthlyAlpha(int $userId, int $bulan, int $tahun, ?object $setting = null): int
@@ -1260,21 +1278,21 @@ class AttendancePenaltyService
             return [];
         }
 
-        if (!$setting) {
-            $attSettingModel = new AttendanceSettingModel();
+        if (! $setting) {
+            $attSettingModel = new AttendanceSettingModel;
             $setting = $attSettingModel->first() ?? (object) [];
         }
 
         $startOfMonth = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $endOfMonth   = date('Y-m-t', strtotime($startOfMonth));
-        $today        = date('Y-m-d');
+        $endOfMonth = date('Y-m-t', strtotime($startOfMonth));
+        $today = date('Y-m-d');
         $isCurrentMonth = ($today >= $startOfMonth && $today <= $endOfMonth);
-        $endDate      = $isCurrentMonth ? $today : $endOfMonth;
+        $endDate = $isCurrentMonth ? $today : $endOfMonth;
 
         // Jangan hitung tanggal sebelum user dibuat di sistem (proteksi guru baru masuk di tengah bulan)
         if (Schema::hasTable('users')) {
             $userRow = DB::table('users')->select('created_on')->where('id', $userId)->first();
-            if ($userRow && !empty($userRow->created_on)) {
+            if ($userRow && ! empty($userRow->created_on)) {
                 $userCreatedDate = date('Y-m-d', (int) $userRow->created_on);
                 if ($userCreatedDate > $startOfMonth && $userCreatedDate <= $endOfMonth) {
                     $startOfMonth = $userCreatedDate;
@@ -1285,7 +1303,7 @@ class AttendancePenaltyService
         // Libur (mingguan + nasional + jadwal sekolah) diselesaikan
         // AttendancePolicy; peta jadwal per hari ISO tetap dibutuhkan untuk
         // jam pulang hari ini di bawah.
-        $jadwalKerja = \App\Services\AttendancePolicy::jadwalKerja();
+        $jadwalKerja = AttendancePolicy::jadwalKerja();
 
         // Izin sah dari absensi_izin (approved)
         $approvedLeaves = [];
@@ -1308,7 +1326,8 @@ class AttendancePenaltyService
                         $c = strtotime('+1 day', $c);
                     }
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         // Presensi harian
@@ -1331,17 +1350,19 @@ class AttendancePenaltyService
 
         while ($cur <= $end) {
             $dateStr = date('Y-m-d', $cur);
-            $dayISO  = (int) date('N', $cur);
+            $dayISO = (int) date('N', $cur);
 
             // Skip libur (mingguan ternormalisasi + nasional + jadwal sekolah)
-            if (\App\Services\AttendancePolicy::isLibur($dateStr)) {
+            if (AttendancePolicy::isLibur($dateStr)) {
                 $cur = strtotime('+1 day', $cur);
+
                 continue;
             }
 
             // Skip jika ada izin sah approved
             if (isset($approvedLeaves[$dateStr])) {
                 $cur = strtotime('+1 day', $cur);
+
                 continue;
             }
 
@@ -1351,6 +1372,7 @@ class AttendancePenaltyService
                 // Jika masih dalam jam kerja (belum lewat jam pulang), JANGAN dihitung alpha
                 if ($nowTime < $jamPulangHariIni) {
                     $cur = strtotime('+1 day', $cur);
+
                     continue;
                 }
             }
@@ -1371,10 +1393,10 @@ class AttendancePenaltyService
                     // finalisasiPendingVerifikasi() menuliskan status ALPHA-nya
                     // agar denda, surat teguran, dan rekap memakai satu
                     // angka yang sama.
-                    if (\App\Services\AttendancePolicy::pendingLewatBatas($dateStr)) {
+                    if (AttendancePolicy::pendingLewatBatas($dateStr)) {
                         $alphaDates[] = $dateStr;
                     }
-                } elseif (in_array($st, ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_OUT'], true) || !empty($rec->jam_masuk)) {
+                } elseif (in_array($st, ['ONTIME', 'LATE', 'WFH', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'DINAS', 'DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_OUT'], true) || ! empty($rec->jam_masuk)) {
                     // Hadir atau izin tercatat
                 } else {
                     $alphaDates[] = $dateStr;
@@ -1398,10 +1420,10 @@ class AttendancePenaltyService
      * Jika akumulasi alpha terkini pada bulan tersebut sudah < level surat,
      * surat teguran aktif otomatis ditandai 'dibatalkan'.
      *
-     * @param int         $userId  ID User guru
-     * @param int         $bulan   1-12
-     * @param int         $tahun   Tahun
-     * @param object|null $setting Setting presensi
+     * @param  int  $userId  ID User guru
+     * @param  int  $bulan  1-12
+     * @param  int  $tahun  Tahun
+     * @param  object|null  $setting  Setting presensi
      * @return int Jumlah surat yang dibatalkan
      */
     public function syncSuratTeguranOnAttendanceChange(int $userId, int $bulan, int $tahun, ?object $setting = null, ?string $reason = null): int
@@ -1410,9 +1432,8 @@ class AttendancePenaltyService
             return 0;
         }
 
-
-        $svc = new SuratTeguranService();
-        if (!$svc->tabelAda()) {
+        $svc = new SuratTeguranService;
+        if (! $svc->tabelAda()) {
             return 0;
         }
 
@@ -1433,7 +1454,7 @@ class AttendancePenaltyService
         if ($hidup > 0) {
             Log::info(sprintf(
                 '[SuratTeguran] %d surat dihidupkan kembali untuk guru %d, periode %d/%d '
-                . '(alpha kini %d hari) — pembatalan sebelumnya sudah tidak berlaku.',
+                .'(alpha kini %d hari) — pembatalan sebelumnya sudah tidak berlaku.',
                 $hidup,
                 $idGuru,
                 $bulan,
@@ -1445,5 +1466,3 @@ class AttendancePenaltyService
         return $batal;
     }
 }
-
-

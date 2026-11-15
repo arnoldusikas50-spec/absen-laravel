@@ -10,21 +10,30 @@ namespace App\Libraries;
  */
 class RouterosAPI
 {
-    var $debug = false;
-    var $connected = false;
-    var $port = 8728;
-    var $ssl = false;
-    var $timeout = 3;
-    var $attempts = 3;
-    var $delay = 3;
-    var $socket;
-    var $error_no;
-    var $error_str;
+    public $debug = false;
+
+    public $connected = false;
+
+    public $port = 8728;
+
+    public $ssl = false;
+
+    public $timeout = 3;
+
+    public $attempts = 3;
+
+    public $delay = 3;
+
+    public $socket;
+
+    public $error_no;
+
+    public $error_str;
 
     public function debug($text)
     {
         if ($this->debug) {
-            echo $text . "\n";
+            echo $text."\n";
         }
     }
 
@@ -33,12 +42,13 @@ class RouterosAPI
         $this->port = $port;
         for ($i = 1; $i <= $this->attempts; $i++) {
             $this->connected = $this->attempt_connect($ip, $login, $password);
-            if (!$this->connected) {
+            if (! $this->connected) {
                 sleep($this->delay);
             } else {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -46,19 +56,20 @@ class RouterosAPI
     {
         $protocol = ($this->ssl) ? 'ssl://' : '';
         $context = stream_context_create(['ssl' => ['ciphers' => 'ADH:ALL', 'verify_peer' => false, 'verify_peer_name' => false]]);
-        $this->socket = @stream_socket_client($protocol . $ip . ':' . $this->port, $this->error_no, $this->error_str, $this->timeout, STREAM_CLIENT_CONNECT, $context);
+        $this->socket = @stream_socket_client($protocol.$ip.':'.$this->port, $this->error_no, $this->error_str, $this->timeout, STREAM_CLIENT_CONNECT, $context);
 
         if ($this->socket) {
-            socket_set_timeout($this->socket, $this->timeout);
+            stream_set_timeout($this->socket, $this->timeout);
             $this->write('/login', false);
-            $this->write('=name=' . $login, false);
-            $this->write('=password=' . $password);
+            $this->write('=name='.$login, false);
+            $this->write('=password='.$password);
             $response = $this->read(false);
 
             if (isset($response[0]) && $response[0] == '!done') {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -88,29 +99,32 @@ class RouterosAPI
                     $parsed[] = $p;
                 }
             }
+
             return $parsed;
         }
+
         return [];
     }
 
     public function comm($comm, $arr = [])
     {
-        if (!$this->connected) {
+        if (! $this->connected) {
             return false;
         }
         $count = count($arr);
-        $this->write($comm, !($count > 0));
+        $this->write($comm, ! ($count > 0));
         $i = 0;
         foreach ($arr as $k => $v) {
             switch ($k) {
-                case "-":
-                    $this->write('=' . $v, ($i + 1 == $count));
+                case '-':
+                    $this->write('='.$v, ($i + 1 == $count));
                     break;
                 default:
-                    $this->write('=' . $k . '=' . $v, ($i + 1 == $count));
+                    $this->write('='.$k.'='.$v, ($i + 1 == $count));
             }
             $i++;
         }
+
         return $this->read();
     }
 
@@ -119,9 +133,10 @@ class RouterosAPI
         $response = [];
         if ($this->socket) {
             while (true) {
-                $status = socket_get_status($this->socket);
-                if (!$status)
+                $status = stream_get_meta_data($this->socket);
+                if (! $status) {
                     break;
+                }
 
                 $length = $this->decode_length();
                 if ($length === false) {
@@ -139,7 +154,7 @@ class RouterosAPI
                     // Simple implementation:
                     $response[] = explode("\n", '!trap');
                 } else {
-                    // For attributes, sometimes they come sequentially. 
+                    // For attributes, sometimes they come sequentially.
                     // This simple reader assumes array of lines.
                     // A standard line read loop is safer for attributes.
                 }
@@ -149,11 +164,12 @@ class RouterosAPI
             }
             // Retrying the standard known-good read loop logic for stability:
         }
+
         return $response;
     }
 
     // Using a more robust read/write implementation embedded below for reliability
-    var $buffer = '';
+    public $buffer = '';
 
     public function write($command, $param2 = true)
     {
@@ -171,29 +187,31 @@ class RouterosAPI
         if ($length < 0x80) {
             $length = chr($length);
         } elseif ($length < 0x4000) {
-            $length = chr(($length >> 8) | 0x80) . chr($length & 0xFF);
+            $length = chr(($length >> 8) | 0x80).chr($length & 0xFF);
         } elseif ($length < 0x200000) {
-            $length = chr(($length >> 16) | 0xC0) . chr(($length >> 8) & 0xFF) . chr($length & 0xFF);
+            $length = chr(($length >> 16) | 0xC0).chr(($length >> 8) & 0xFF).chr($length & 0xFF);
         } elseif ($length < 0x10000000) {
-            $length = chr(($length >> 24) | 0xE0) . chr(($length >> 16) & 0xFF) . chr(($length >> 8) & 0xFF) . chr($length & 0xFF);
+            $length = chr(($length >> 24) | 0xE0).chr(($length >> 16) & 0xFF).chr(($length >> 8) & 0xFF).chr($length & 0xFF);
         } elseif ($length >= 0x10000000) {
-            $length = chr(0xF0) . chr(($length >> 24) & 0xFF) . chr(($length >> 16) & 0xFF) . chr(($length >> 8) & 0xFF) . chr($length & 0xFF);
+            $length = chr(0xF0).chr(($length >> 24) & 0xFF).chr(($length >> 16) & 0xFF).chr(($length >> 8) & 0xFF).chr($length & 0xFF);
         }
+
         return $length;
     }
 
     private function send_packet($data)
     {
         $len = $this->encode_length(strlen($data));
-        fwrite($this->socket, $len . $data);
-        //$this->debug('>>> ' . $data);
+        fwrite($this->socket, $len.$data);
+        // $this->debug('>>> ' . $data);
     }
 
     private function decode_length()
     {
         $byte = @fread($this->socket, 1);
-        if ($byte === false || $byte === '')
+        if ($byte === false || $byte === '') {
             return false;
+        }
         $length = ord($byte);
         if (($length & 0x80) == 0x00) {
             return $length;
@@ -206,13 +224,14 @@ class RouterosAPI
         } else {
             $length = ord(fread($this->socket, 1)) << 24 | ord(fread($this->socket, 1)) << 16 | ord(fread($this->socket, 1)) << 8 | ord(fread($this->socket, 1));
         }
+
         return $length;
     }
 
     // Override Read for robustness
     public function read_v2($parse = true)
     {
-        $RESPONSE = array();
+        $RESPONSE = [];
         $received_done = false;
         while (true) {
             // Read first byte of length
@@ -235,18 +254,19 @@ class RouterosAPI
                 $length = ord(fread($this->socket, 1)) << 24 | ord(fread($this->socket, 1)) << 16 | ord(fread($this->socket, 1)) << 8 | ord(fread($this->socket, 1));
             }
 
-            $line = "";
+            $line = '';
             if ($length > 0) {
-                $line = "";
+                $line = '';
                 while (strlen($line) < $length) {
                     $chunk = fread($this->socket, $length - strlen($line));
-                    if ($chunk === false)
+                    if ($chunk === false) {
                         break 2;
+                    }
                     $line .= $chunk;
                 }
             }
 
-            //$this->debug('<<< ' . $line);
+            // $this->debug('<<< ' . $line);
 
             if ($line == '!done') {
                 $received_done = true;
@@ -254,7 +274,7 @@ class RouterosAPI
             } elseif ($line == '!trap') {
                 // Trap
             } elseif ($line == '!re') {
-                $RESPONSE[] = array(); // New Row
+                $RESPONSE[] = []; // New Row
             } else {
                 // Attribute
                 if (substr($line, 0, 1) == '=') {
@@ -272,6 +292,7 @@ class RouterosAPI
                 }
             }
         }
+
         return $RESPONSE;
     }
 }

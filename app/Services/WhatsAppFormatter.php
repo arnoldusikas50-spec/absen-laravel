@@ -29,33 +29,33 @@ class WhatsAppFormatter
     /** Tag yang diganti ke marker WhatsApp. */
     private const TAG_MAP = [
         // Bold
-        'b'      => '*',
+        'b' => '*',
         'strong' => '*',
         // Italic
-        'i'      => '_',
-        'em'     => '_',
+        'i' => '_',
+        'em' => '_',
         // Strikis
-        's'      => '~',
+        's' => '~',
         'strike' => '~',
-        'del'    => '~',
+        'del' => '~',
         // Mono — WA butuh tiga backtick di kedua sisi
-        'code'   => '```',
-        'pre'    => '```',
+        'code' => '```',
+        'pre' => '```',
         // Tanpa padanan WhatsApp: dibuang, bukan ditampilkan mentah
-        'u'      => '',
-        'ins'    => '',
-        'a'      => '',
+        'u' => '',
+        'ins' => '',
+        'a' => '',
     ];
 
     /**
      * Ubah pesan HTML Telegram menjadi pesan WhatsApp.
      *
-     * @param string $html  Pesan sumber (boleh HTML Telegram)
-     * @param bool   $chunk Pecah menjadi beberapa pesan bila melebihi batas.
-     *                      Dimatikan pada hasil diagnosis/test yang perlu
-     *                      melihat teks utuh.
+     * @param  string  $html  Pesan sumber (boleh HTML Telegram)
+     * @param  bool  $chunk  Pecah menjadi beberapa pesan bila melebihi batas.
+     *                       Dimatikan pada hasil diagnosis/test yang perlu
+     *                       melihat teks utuh.
      * @return string|array<int,string> string tunggal, atau daftar potongan
-     *                                   bila $chunk aktif dan pesan kepanjangan
+     *                                  bila $chunk aktif dan pesan kepanjangan
      */
     public static function toWhatsApp(string $html, bool $chunk = true)
     {
@@ -87,6 +87,7 @@ class WhatsAppFormatter
             '#</?([a-z]+)[^>]*>#i',
             static function (array $m): string {
                 $marker = self::TAG_MAP[strtolower($m[1])] ?? null;
+
                 return $marker === null ? '' : $marker; // null = tag tanpa padanan
             },
             $text
@@ -139,13 +140,15 @@ class WhatsAppFormatter
                 foreach (str_split($line, $budget) as $piece) {
                     $chunks[] = $piece;
                 }
+
                 continue;
             }
 
-            $candidate = $current === '' ? $line : $current . "\n" . $line;
+            $candidate = $current === '' ? $line : $current."\n".$line;
             if (mb_strlen($candidate) > $budget) {
                 $chunks[] = $current;
                 $current = $line;
+
                 continue;
             }
             $current = $candidate;
@@ -163,8 +166,8 @@ class WhatsAppFormatter
         }
 
         foreach ($chunks as $i => $chunk) {
-            $label = '(' . ($i + 1) . '/' . $total . ')';
-            $chunks[$i] = $chunk . "\n\n" . $label;
+            $label = '('.($i + 1).'/'.$total.')';
+            $chunks[$i] = $chunk."\n\n".$label;
         }
 
         return $chunks;
@@ -179,7 +182,8 @@ class WhatsAppFormatter
         if (mb_strlen($text) <= self::MAX_LENGTH) {
             return $text;
         }
-        return mb_substr($text, 0, self::MAX_LENGTH - 1) . '…';
+
+        return mb_substr($text, 0, self::MAX_LENGTH - 1).'…';
     }
 
     /**
@@ -199,12 +203,12 @@ class WhatsAppFormatter
 
         // Buang satu angka nol di depan: 0812 -> 812 (kode negara Indonesia).
         if (str_starts_with($digits, '0')) {
-            $digits = '62' . substr($digits, 1);
+            $digits = '62'.substr($digits, 1);
         } elseif (! str_starts_with($digits, '62')) {
-            $digits = '62' . $digits;
+            $digits = '62'.$digits;
         }
 
-        return $digits . '@c.us';
+        return $digits.'@c.us';
     }
 
     /**
@@ -214,6 +218,7 @@ class WhatsAppFormatter
     public static function normalizeDigits(?string $raw): string
     {
         $wid = self::normalizeNumber($raw);
+
         return $wid === '' ? '' : str_replace('@c.us', '', $wid);
     }
 

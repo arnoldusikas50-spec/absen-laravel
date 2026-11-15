@@ -53,9 +53,10 @@ class SiswaPoinService
     private function poin(): PoinSiswaModel
     {
         if ($this->poin === null) {
-            $this->poin = new PoinSiswaModel();
+            $this->poin = new PoinSiswaModel;
             $this->poin->ensureTables();
         }
+
         return $this->poin;
     }
 
@@ -78,9 +79,9 @@ class SiswaPoinService
     /**
      * Menit keterlambatan. 0 bila tepat waktu, tidak absen, atau izin resmi.
      *
-     * @param string|null $tanggal Tanggal baris presensi (Y-m-d). Wajib dikirim
-     *                             oleh pemanggil yang membaca baris historis —
-     *                             tanpa ini jadwal per hari tidak berlaku.
+     * @param  string|null  $tanggal  Tanggal baris presensi (Y-m-d). Wajib dikirim
+     *                                oleh pemanggil yang membaca baris historis —
+     *                                tanpa ini jadwal per hari tidak berlaku.
      */
     public function menitTerlambat(?string $jamMasuk, ?string $status = null, ?string $tanggal = null): int
     {
@@ -115,17 +116,19 @@ class SiswaPoinService
     private function kategori(string $cariNama): ?object
     {
         try {
-            if (!Schema::hasTable('disiplin_kategori')) {
+            if (! Schema::hasTable('disiplin_kategori')) {
                 return null;
             }
+
             return DB::table('disiplin_kategori')
                 ->where('jenis', 'PELANGGARAN')
                 ->where('is_active', 1)
-                ->where('nama', 'like', '%' . $cariNama . '%')
+                ->where('nama', 'like', '%'.$cariNama.'%')
                 ->orderBy('id', 'ASC')
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::kategori] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::kategori] '.$e->getMessage());
+
             return null;
         }
     }
@@ -145,7 +148,7 @@ class SiswaPoinService
     private function pelanggaranPresensi(object $row): ?array
     {
         $status = strtoupper(trim((string) ($row->status ?? '')));
-        $tgl    = substr((string) ($row->tgl ?? '-'), 0, 10);
+        $tgl = substr((string) ($row->tgl ?? '-'), 0, 10);
 
         if (in_array($status, self::STATUS_IZIN, true)) {
             return null; // izin resmi bukan pelanggaran
@@ -157,16 +160,16 @@ class SiswaPoinService
 
         if (in_array($status, self::STATUS_ALPA, true)) {
             return [
-                'cari'       => 'bolos',
-                'keterangan' => 'Otomatis: alpha tanpa keterangan (' . $tgl . ')',
+                'cari' => 'bolos',
+                'keterangan' => 'Otomatis: alpha tanpa keterangan ('.$tgl.')',
             ];
         }
 
         $telat = $this->menitTerlambat($row->jam_masuk ?? null, $status, $tgl);
         if ($telat > 0) {
             return [
-                'cari'       => 'terlambat',
-                'keterangan' => 'Otomatis: terlambat ' . $telat . ' menit (' . $tgl . ')',
+                'cari' => 'terlambat',
+                'keterangan' => 'Otomatis: terlambat '.$telat.' menit ('.$tgl.')',
             ];
         }
 
@@ -188,11 +191,11 @@ class SiswaPoinService
             return $this->hasil('ID presensi tidak valid', 0);
         }
 
-        if (!Schema::hasTable('poin_siswa_history')) {
+        if (! Schema::hasTable('poin_siswa_history')) {
             return $this->hasil('Tabel poin belum siap', 0);
         }
 
-        $ref = 'presensi-' . $presensiId;
+        $ref = 'presensi-'.$presensiId;
         $poinModel = $this->poin();
 
         // Transaksi: hapus-lama + tulis-baru + cache harus atomik agar
@@ -202,7 +205,7 @@ class SiswaPoinService
         try {
             DB::beginTransaction();
             $row = DB::table('presensi_siswa')->where('id', $presensiId)->first();
-            if (!$row) {
+            if (! $row) {
                 // Baris presensi dihapus → lengkapi juga pengurangan point-nya.
                 $dihapus = DB::table('poin_siswa_history')->where('ref_id', $ref)->get()->all();
                 $idSiswa = 0;
@@ -212,12 +215,14 @@ class SiswaPoinService
                 if ($idSiswa > 0) {
                     DB::table('poin_siswa_history')->where('ref_id', $ref)->delete();
                     DB::commit();
+
                     return [
                         'status' => true, 'message' => 'Presensi dihapus, poin otomatis dibatalkan',
                         'poin' => 0, 'skor' => $poinModel->updateCache($idSiswa), 'skipped' => false,
                     ];
                 }
                 DB::commit();
+
                 return $this->hasil('Presensi tidak ditemukan', 0);
             }
 
@@ -226,6 +231,7 @@ class SiswaPoinService
                 // Transaksi sudah terbuka di atas: rollback sebelum keluar
                 // agar tidak menaikkan transaction depth pemanggil.
                 DB::rollBack();
+
                 return $this->hasil('Siswa tidak valid', 0);
             }
 
@@ -250,6 +256,7 @@ class SiswaPoinService
                         DB::table('poin_siswa_history')->where('ref_id', $ref)->delete();
                         $skor = $poinModel->updateCache($idSiswa);
                         DB::commit();
+
                         return [
                             'status' => true, 'message' => 'Siswa tidak aktif — poin otomatis dibatalkan',
                             'poin' => 0, 'skor' => $skor, 'skipped' => true,
@@ -267,6 +274,7 @@ class SiswaPoinService
                 DB::table('poin_siswa_history')->where('ref_id', $ref)->delete();
                 $skor = $poinModel->updateCache($idSiswa);
                 DB::commit();
+
                 return [
                     'status' => true, 'message' => 'Tidak ada pengurangan poin',
                     'poin' => 0, 'skor' => $skor, 'skipped' => true,
@@ -283,21 +291,23 @@ class SiswaPoinService
                     $skor = $poinModel->updateCache($idSiswa);
                     Log::warning('[SiswaPoinService] Kategori "'.$langgar['cari'].'" tidak aktif/berubah nama. Poin lama untuk ref '.$ref.' dipertahankan ('.(int) $lama->poin.' poin).');
                     DB::commit();
+
                     return [
-                        'status'  => true,
-                        'message' => 'Kategori "' . ucfirst($langgar['cari']) . '" sedang nonaktif atau diganti nama — poin lama (' . (int) $lama->poin . ') dipertahankan, tidak ada perubahan',
-                        'poin'    => 0,
-                        'skor'    => $skor,
+                        'status' => true,
+                        'message' => 'Kategori "'.ucfirst($langgar['cari']).'" sedang nonaktif atau diganti nama — poin lama ('.(int) $lama->poin.') dipertahankan, tidak ada perubahan',
+                        'poin' => 0,
+                        'skor' => $skor,
                         'skipped' => true,
                     ];
                 }
                 $skor = $poinModel->updateCache($idSiswa);
                 DB::commit();
+
                 return [
-                    'status'  => true,
-                    'message' => 'Pelanggaran terdeteksi, tapi kategori "' . ucfirst($langgar['cari']) . '" tidak aktif — poin tidak dipotong',
-                    'poin'    => 0,
-                    'skor'    => $skor,
+                    'status' => true,
+                    'message' => 'Pelanggaran terdeteksi, tapi kategori "'.ucfirst($langgar['cari']).'" tidak aktif — poin tidak dipotong',
+                    'poin' => 0,
+                    'skor' => $skor,
                     'skipped' => true,
                 ];
             }
@@ -318,6 +328,7 @@ class SiswaPoinService
             if ($poin === 0) {
                 $skor = $poinModel->updateCache($idSiswa);
                 DB::commit();
+
                 return [
                     'status' => true, 'message' => 'Poin sudah mentok di 0',
                     'poin' => 0, 'skor' => $skor, 'skipped' => true,
@@ -325,37 +336,43 @@ class SiswaPoinService
             }
 
             $tertulis = DB::table('poin_siswa_history')->insert([
-                'id_siswa'     => $idSiswa,
-                'id_kelas'     => isset($row->id_kelas) ? (int) $row->id_kelas : null,
-                'poin'         => $poin,
-                'kategori_id'  => (int) $kat->id,
-                'tipe'         => 'PRESENSI',
-                'keterangan'   => mb_substr($langgar['keterangan'], 0, 255),
-                'ref_id'       => $ref,
-                'created_by'   => null,
-                'created_at'   => date('Y-m-d H:i:s'),
+                'id_siswa' => $idSiswa,
+                'id_kelas' => isset($row->id_kelas) ? (int) $row->id_kelas : null,
+                'poin' => $poin,
+                'kategori_id' => (int) $kat->id,
+                'tipe' => 'PRESENSI',
+                'keterangan' => mb_substr($langgar['keterangan'], 0, 255),
+                'ref_id' => $ref,
+                'created_by' => null,
+                'created_at' => date('Y-m-d H:i:s'),
             ]);
             // Entri lama sudah dihapus di atas: kalau sisipan ini gagal dan
             // tetap di-commit, pengurangan siswa hilang begitu saja.
             // (Di Laravel insert() yang gagal melempar QueryException ke
             // outer catch -> rollback; cek $tertulis hanya pengaman.)
             if ($tertulis === false) {
-                Log::error('[SiswaPoinService::recalc#' . $presensiId . '] insert ledger gagal.');
+                Log::error('[SiswaPoinService::recalc#'.$presensiId.'] insert ledger gagal.');
+
                 return $this->gagalTrans('Poin otomatis gagal tersimpan — poin lama dipertahankan');
             }
 
             $skor = $poinModel->updateCache($idSiswa);
             DB::commit();
+
             return [
-                'status'  => true,
-                'message' => $langgar['keterangan'] . ' (' . $poin . ' poin)',
-                'poin'    => $poin,
-                'skor'    => $skor,
+                'status' => true,
+                'message' => $langgar['keterangan'].' ('.$poin.' poin)',
+                'poin' => $poin,
+                'skor' => $skor,
                 'skipped' => false,
             ];
         } catch (\Throwable $e) {
-            try { DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('[SiswaPoinService::recalc#' . $presensiId . '] ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('[SiswaPoinService::recalc#'.$presensiId.'] '.$e->getMessage());
+
             return $this->hasil('Gagal menghitung poin otomatis', 0);
         }
     }
@@ -376,14 +393,17 @@ class SiswaPoinService
                 ->where('tgl', substr($tgl, 0, 10))
                 ->orderBy('id', 'DESC')
                 ->first();
-            if (!$row) {
+            if (! $row) {
                 // Tidak ada baris: buang sisa pengurangan milik ref yang menunjuk id ini.
                 $this->buangSemuaPresensiSiswa($idSiswa, $tgl);
+
                 return $this->hasil('Tidak ada data presensi', 0);
             }
+
             return $this->recalc((int) $row->id);
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::recalcSiswaTanggal] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::recalcSiswaTanggal] '.$e->getMessage());
+
             return $this->hasil('Gagal menghitung poin', 0);
         }
     }
@@ -404,7 +424,7 @@ class SiswaPoinService
                 ->where('id_siswa', $idSiswa)->where('tgl', $tgl)->get()->all();
             foreach ($ids as $r) {
                 $n += DB::table('poin_siswa_history')
-                    ->where('ref_id', 'presensi-' . (int) $r->id)->delete();
+                    ->where('ref_id', 'presensi-'.(int) $r->id)->delete();
             }
 
             // Cara 2: baris presensinya SUDAH hilang, jadi ref_id di atas
@@ -417,15 +437,17 @@ class SiswaPoinService
             $n += DB::table('poin_siswa_history')
                 ->where('id_siswa', $idSiswa)
                 ->where('tipe', 'PRESENSI')
-                ->where('keterangan', 'like', '(' . $tgl . ')')
+                ->where('keterangan', 'like', '('.$tgl.')')
                 ->delete();
 
             if ($n > 0) {
                 $this->poin()->updateCache($idSiswa);
             }
+
             return $n;
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::buangSemuaPresensiSiswa] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::buangSemuaPresensiSiswa] '.$e->getMessage());
+
             return 0;
         }
     }
@@ -451,22 +473,24 @@ class SiswaPoinService
             foreach ($rows as $r) {
                 $checked++;
                 $before = DB::table('poin_siswa_history')
-                    ->where('ref_id', 'presensi-' . (int) $r->id)->first();
+                    ->where('ref_id', 'presensi-'.(int) $r->id)->first();
                 $res = $this->recalc((int) $r->id);
                 $after = DB::table('poin_siswa_history')
-                    ->where('ref_id', 'presensi-' . (int) $r->id)->first();
+                    ->where('ref_id', 'presensi-'.(int) $r->id)->first();
                 if (($before === null) !== ($after === null)
                     || ($before && $after && (int) $before->poin !== (int) $after->poin)) {
                     $changed++;
                 }
             }
+
             return [
                 'checked' => $checked,
                 'changed' => $changed,
                 'message' => "Sinkron poin siswa {$bulan}/{$tahun}: {$checked} baris diperiksa, {$changed} berubah",
             ];
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::recalcBulan] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::recalcBulan] '.$e->getMessage());
+
             return ['checked' => 0, 'changed' => 0, 'message' => 'Gagal sinkron — periksa log aplikasi'];
         }
     }
@@ -485,7 +509,8 @@ class SiswaPoinService
             DB::rollBack();
         } catch (\Throwable $e) {
         }
-        Log::error('[SiswaPoinService] ' . $pesan);
+        Log::error('[SiswaPoinService] '.$pesan);
+
         return $this->hasil($pesan, 0);
     }
 
@@ -498,14 +523,14 @@ class SiswaPoinService
     public static function sinkron(?int $presensiId = null, ?int $idSiswa = null, ?string $tgl = null): void
     {
         try {
-            $svc = new self();
+            $svc = new self;
             if ($presensiId !== null && $presensiId > 0) {
                 $svc->recalc($presensiId);
             } elseif ($idSiswa !== null && $idSiswa > 0 && $tgl !== null) {
                 $svc->recalcSiswaTanggal($idSiswa, $tgl);
             }
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::sinkron] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::sinkron] '.$e->getMessage());
         }
     }
 
@@ -515,9 +540,9 @@ class SiswaPoinService
     public static function batalkan(int $presensiId): void
     {
         try {
-            (new self())->recalc($presensiId);
+            (new self)->recalc($presensiId);
         } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::batalkan] ' . $e->getMessage());
+            Log::error('[SiswaPoinService::batalkan] '.$e->getMessage());
         }
     }
 }

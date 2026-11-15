@@ -18,8 +18,11 @@ use Illuminate\Http\JsonResponse;
 trait CbtAuthTrait
 {
     protected $currentUser;
+
     protected $currentSiswa;
+
     protected $currentTp;
+
     protected $currentSmt;
 
     /**
@@ -28,11 +31,12 @@ trait CbtAuthTrait
      */
     protected function requireSiswaAuth(): ?object
     {
-        if (!$this->isLoggedIn() || !$this->inGroup('siswa')) {
+        if (! $this->isLoggedIn() || ! $this->inGroup('siswa')) {
             return null;
         }
 
         $this->loadCurrentContext();
+
         return $this->currentSiswa;
     }
 
@@ -48,7 +52,7 @@ trait CbtAuthTrait
 
         $this->currentUser = $this->authModel->user($this->getUserId());
 
-        if (!$this->currentUser) {
+        if (! $this->currentUser) {
             return;
         }
 
@@ -70,7 +74,7 @@ trait CbtAuthTrait
         return response()->json([
             'status' => false,
             'success' => false,
-            'message' => $message
+            'message' => $message,
         ], $code);
     }
 
@@ -82,7 +86,7 @@ trait CbtAuthTrait
         $response = [
             'status' => true,
             'success' => true,
-            'message' => $message
+            'message' => $message,
         ];
 
         if ($data !== null) {
@@ -129,6 +133,7 @@ trait CbtAuthTrait
                 $missing[] = $param;
             }
         }
+
         return $missing;
     }
 }

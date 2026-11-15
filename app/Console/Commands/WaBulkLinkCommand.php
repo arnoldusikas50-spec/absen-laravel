@@ -2,8 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Libraries\WhatsAppLink;
+use App\Models\UserNotifikasiModel;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -38,7 +41,7 @@ class WaBulkLinkCommand extends Command
         // Validasi lewat pustaka yang sama dengan form, supaya CLI dan UI
         // tidak bisa menerima format berbeda.
         try {
-            $nomor = \App\Libraries\WhatsAppLink::normalizeNumber($nomorArg);
+            $nomor = WhatsAppLink::normalizeNumber($nomorArg);
         } catch (\InvalidArgumentException $e) {
             $this->error('Nomor ditolak: '.$e->getMessage());
             $this->line('Contoh benar: --nomor=6285104899117');
@@ -67,7 +70,7 @@ class WaBulkLinkCommand extends Command
         $this->line('Guru ditangani: '.count($guru));
         $this->line('');
 
-        $model = new \App\Models\UserNotifikasiModel();
+        $model = new UserNotifikasiModel;
         $ok = 0;
         $gagal = 0;
         $tabel = [];
@@ -77,6 +80,7 @@ class WaBulkLinkCommand extends Command
             if ($userId <= 0) {
                 $this->error('  guru id='.$g->id_guru.' tanpa id_user, dilewati');
                 $gagal++;
+
                 continue;
             }
 
@@ -92,7 +96,7 @@ class WaBulkLinkCommand extends Command
                     }
                 } catch (\Throwable $e) {
                     $masterOk = false;
-                    \Illuminate\Support\Facades\Log::error('[wa:bulk] master_guru id='.$g->id_guru.': '.$e->getMessage());
+                    Log::error('[wa:bulk] master_guru id='.$g->id_guru.': '.$e->getMessage());
                 }
                 $sukses = $tersimpan && $masterOk;
             } else {

@@ -34,7 +34,7 @@ class RestoreRememberLogin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() && !session()->get('is_login')) {
+        if (! auth()->check() && ! session()->get('is_login')) {
             RememberLogin::restore();
         }
 
@@ -65,11 +65,12 @@ class RestoreRememberLogin
                 ->where('a.id', $userId)
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('RestoreRememberLogin revalidasi gagal: ' . $e->getMessage());
+            Log::error('RestoreRememberLogin revalidasi gagal: '.$e->getMessage());
+
             return;
         }
 
-        if (!$row || (string) ($row->active ?? '') !== '1') {
+        if (! $row || (string) ($row->active ?? '') !== '1') {
             session()->invalidate();
             auth()->logout();
             if ($request->ajax() || $request->expectsJson()) {

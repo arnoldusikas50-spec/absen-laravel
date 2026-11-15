@@ -68,36 +68,36 @@ class CutiKategoriService
      */
     public const KATEGORI = [
         'tahunan' => [
-            'label'          => 'Cuti Tahunan',
+            'label' => 'Cuti Tahunan',
             'min_masa_kerja' => 1,
-            'maks_hari'      => 0,
-            'jenis_ptk'      => ['PNS', 'CPNS', 'PPPK'],
-            'gender'         => null,
-            'ketentuan'      => 'Minimal 1 tahun terus-menerus bekerja. 12 hari kerja, sisa dapat diakumulasi maksimal 18 hari kerja (termasuk cuti tahun berjalan). Tidak berlaku bagi yang mendapat liburan sesuai kalender akademik.',
+            'maks_hari' => 0,
+            'jenis_ptk' => ['PNS', 'CPNS', 'PPPK'],
+            'gender' => null,
+            'ketentuan' => 'Minimal 1 tahun terus-menerus bekerja. 12 hari kerja, sisa dapat diakumulasi maksimal 18 hari kerja (termasuk cuti tahun berjalan). Tidak berlaku bagi yang mendapat liburan sesuai kalender akademik.',
         ],
         'besar' => [
-            'label'          => 'Cuti Besar',
+            'label' => 'Cuti Besar',
             'min_masa_kerja' => 5,
-            'maks_hari'      => 90,
-            'jenis_ptk'      => ['PNS', 'CPNS'],
-            'gender'         => null,
-            'ketentuan'      => 'Minimal 5 tahun mengabdi terus-menerus (PNS). Maksimal 3 bulan, misal untuk ibadah (Haji), melahirkan anak ke-4 dan seterusnya, atau kepentingan keluarga yang mendesak. Cuti tahunan tahun berjalan menjadi hangus.',
+            'maks_hari' => 90,
+            'jenis_ptk' => ['PNS', 'CPNS'],
+            'gender' => null,
+            'ketentuan' => 'Minimal 5 tahun mengabdi terus-menerus (PNS). Maksimal 3 bulan, misal untuk ibadah (Haji), melahirkan anak ke-4 dan seterusnya, atau kepentingan keluarga yang mendesak. Cuti tahunan tahun berjalan menjadi hangus.',
         ],
         'melahirkan' => [
-            'label'          => 'Cuti Melahirkan',
+            'label' => 'Cuti Melahirkan',
             'min_masa_kerja' => 0,
-            'maks_hari'      => 90,
-            'jenis_ptk'      => ['PNS', 'CPNS', 'PPPK'],
-            'gender'         => 'P',
-            'ketentuan'      => 'Untuk pegawai perempuan yang melahirkan anak ke-1, ke-2, atau ke-3. Maksimal 3 bulan. Anak ke-4 dan seterusnya menggunakan Cuti Besar.',
+            'maks_hari' => 90,
+            'jenis_ptk' => ['PNS', 'CPNS', 'PPPK'],
+            'gender' => 'P',
+            'ketentuan' => 'Untuk pegawai perempuan yang melahirkan anak ke-1, ke-2, atau ke-3. Maksimal 3 bulan. Anak ke-4 dan seterusnya menggunakan Cuti Besar.',
         ],
         'cap' => [
-            'label'          => 'Cuti Karena Alasan Penting',
+            'label' => 'Cuti Karena Alasan Penting',
             'min_masa_kerja' => 0,
-            'maks_hari'      => 30,
-            'jenis_ptk'      => ['PNS', 'CPNS', 'PPPK'],
-            'gender'         => null,
-            'ketentuan'      => 'Untuk kedaruratan pribadi: keluarga inti (ibu, bapak, istri/suami, anak, adik, kakak, mertua, menantu) sakit keras atau meninggal dunia, melangsungkan pernikahan pertama, atau mengalami musibah bencana alam. Maksimal 1 bulan.',
+            'maks_hari' => 30,
+            'jenis_ptk' => ['PNS', 'CPNS', 'PPPK'],
+            'gender' => null,
+            'ketentuan' => 'Untuk kedaruratan pribadi: keluarga inti (ibu, bapak, istri/suami, anak, adik, kakak, mertua, menantu) sakit keras atau meninggal dunia, melangsungkan pernikahan pertama, atau mengalami musibah bencana alam. Maksimal 1 bulan.',
         ],
     ];
 
@@ -114,6 +114,7 @@ class CutiKategoriService
         if (! self::valid($kategori)) {
             return true; // nilai asing → aman dihitung ke kuota
         }
+
         return $kategori === 'tahunan';
     }
 
@@ -150,7 +151,8 @@ class CutiKategoriService
                 ->whereRaw('YEAR(tgl_selesai) >= ?', [$tahun])
                 ->count();
         } catch (\Throwable $e) {
-            Log::error('CutiKategoriService: gagal cek cuti besar aktif: ' . $e->getMessage());
+            Log::error('CutiKategoriService: gagal cek cuti besar aktif: '.$e->getMessage());
+
             return false;
         }
     }
@@ -173,7 +175,8 @@ class CutiKategoriService
                 ->orderBy('deleted_at', 'ASC')
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('CutiKategoriService: gagal membaca profil guru: ' . $e->getMessage());
+            Log::error('CutiKategoriService: gagal membaca profil guru: '.$e->getMessage());
+
             return null;
         }
         if (! $row) {
@@ -185,14 +188,14 @@ class CutiKategoriService
         // ini berisi JENIS TENAGA (Guru, Kepala Sekolah, dst → hasil Dapodik),
         // bukan status — dipakai hanya sebagai fallback data lama yang
         // status_pegawai-nya kosong tetapi jenis_ptk-nya PNS/PPPK.
-        $status   = strtoupper(trim((string) ($row->status_pegawai ?? '')));
+        $status = strtoupper(trim((string) ($row->status_pegawai ?? '')));
         $jenisPtk = strtoupper(trim((string) ($row->jenis_ptk ?? '')));
-        $ptk      = $status !== '' ? $status : $jenisPtk;
+        $ptk = $status !== '' ? $status : $jenisPtk;
 
         return [
-            'jenis_ptk'     => $ptk,
+            'jenis_ptk' => $ptk,
             'jenis_kelamin' => strtoupper(trim((string) ($row->jenis_kelamin ?? ''))),
-            'tmt'           => self::tmtEfektif($row->tmt ?? null, $row->nip ?? ''),
+            'tmt' => self::tmtEfektif($row->tmt ?? null, $row->nip ?? ''),
         ];
     }
 
@@ -233,13 +236,13 @@ class CutiKategoriService
             // tahun pengangkatan sebagai aproksimasi. Verifikator tetap
             // bisa menilai lebih teliti — atau mengisi kolom
             // `master_guru.tmt` untuk memaksa nilai pasti.
-            return $tahun . '-01-01';
+            return $tahun.'-01-01';
         }
         if ((int) $bulan < 1 || (int) $bulan > 12) {
             return '';
         }
 
-        return $tahun . '-' . $bulan . '-01';
+        return $tahun.'-'.$bulan.'-01';
     }
 
     /**
@@ -281,9 +284,9 @@ class CutiKategoriService
                 continue;
             }
             $out[] = [
-                'kode'      => $kode,
-                'label'     => $r['label'],
-                'ketentuan' => $r['ketentuan'] . self::catatanHariMaju($kode),
+                'kode' => $kode,
+                'label' => $r['label'],
+                'ketentuan' => $r['ketentuan'].self::catatanHariMaju($kode),
                 'maks_hari' => $r['maks_hari'],
             ];
         }
@@ -299,8 +302,8 @@ class CutiKategoriService
     public static function catatanHariMaju(string $kode): string
     {
         return self::butuhHariMaju($kode)
-            ? ' Ajukan minimal ' . self::HARI_MAJU_PENGAJUAN . ' hari sebelum tanggal mulai.'
-            : ' Dikecualikan dari batas ' . self::HARI_MAJU_PENGAJUAN . ' hari — boleh dimulai hari ini.';
+            ? ' Ajukan minimal '.self::HARI_MAJU_PENGAJUAN.' hari sebelum tanggal mulai.'
+            : ' Dikecualikan dari batas '.self::HARI_MAJU_PENGAJUAN.' hari — boleh dimulai hari ini.';
     }
 
     /** Opsi dropdown form untuk seorang user (shortcut profil+filter). */
@@ -324,6 +327,7 @@ class CutiKategoriService
         if ($tmtTs === false || $tglTs === false) {
             return null;
         }
+
         return max(0.0, ($tglTs - $tmtTs) / (365.25 * 86400));
     }
 
@@ -337,6 +341,7 @@ class CutiKategoriService
         if ($s === false || $e === false || $e < $s) {
             return 0;
         }
+
         return (int) floor(($e - $s) / 86400) + 1;
     }
 
@@ -354,11 +359,11 @@ class CutiKategoriService
 
         if (! $profil) {
             return [
-                'ok'    => false,
+                'ok' => false,
                 'pesan' => 'Data pegawai tidak ditemukan. Kategori cuti hanya untuk pegawai ASN (PNS/PPPK).',
             ];
         }
-        $r   = self::KATEGORI[$kategori];
+        $r = self::KATEGORI[$kategori];
         $ptk = $profil['jenis_ptk'];
 
         $ptkOk = false;
@@ -372,44 +377,47 @@ class CutiKategoriService
         if (! $ptkOk) {
             if ($kategori === 'besar') {
                 return [
-                    'ok'    => false,
+                    'ok' => false,
                     'pesan' => 'Cuti Besar hanya untuk PNS. PPPK dan pegawai lain tidak berhak mengajukan Cuti Besar.',
                 ];
             }
+
             return [
-                'ok'    => false,
-                'pesan' => 'Kategori ' . $r['label'] . ' tidak berlaku untuk status kepegawaian "' . ($ptk !== '' ? $ptk : 'tidak terdata') . '".',
+                'ok' => false,
+                'pesan' => 'Kategori '.$r['label'].' tidak berlaku untuk status kepegawaian "'.($ptk !== '' ? $ptk : 'tidak terdata').'".',
             ];
         }
 
         if ($r['gender'] !== null && $r['gender'] !== ($profil['jenis_kelamin'] ?? '')) {
             if ($kategori === 'melahirkan') {
                 return [
-                    'ok'    => false,
+                    'ok' => false,
                     'pesan' => 'Cuti Melahirkan hanya untuk pegawai PEREMPUAN.',
                 ];
             }
-            return ['ok' => false, 'pesan' => 'Kategori ' . $r['label'] . ' tidak berlaku untuk data jenis kelamin Anda.'];
+
+            return ['ok' => false, 'pesan' => 'Kategori '.$r['label'].' tidak berlaku untuk data jenis kelamin Anda.'];
         }
 
         if ($r['min_masa_kerja'] > 0) {
             $masa = self::masaKerjaTahun($profil['tmt'] ?? '', $tglMulai);
             if ($masa === null) {
                 return [
-                    'ok'    => false,
-                    'pesan' => 'Masa kerja (TMT pengangkatan) belum terdata, sehingga kategori ' . $r['label'] . ' tidak bisa diverifikasi. Hubungi administrator.',
+                    'ok' => false,
+                    'pesan' => 'Masa kerja (TMT pengangkatan) belum terdata, sehingga kategori '.$r['label'].' tidak bisa diverifikasi. Hubungi administrator.',
                 ];
             }
             if ($masa < $r['min_masa_kerja']) {
                 if ($kategori === 'tahunan') {
                     return [
-                        'ok'    => false,
-                        'pesan' => 'Cuti Tahunan diberikan kepada pegawai yang telah bekerja minimal 1 tahun terus-menerus. Masa kerja Anda: ' . number_format($masa, 1, ',', '.') . ' tahun.',
+                        'ok' => false,
+                        'pesan' => 'Cuti Tahunan diberikan kepada pegawai yang telah bekerja minimal 1 tahun terus-menerus. Masa kerja Anda: '.number_format($masa, 1, ',', '.').' tahun.',
                     ];
                 }
+
                 return [
-                    'ok'    => false,
-                    'pesan' => 'Kategori ' . $r['label'] . ' mensyaratkan masa kerja minimal ' . $r['min_masa_kerja'] . ' tahun terus-menerus. Masa kerja Anda: ' . number_format($masa, 1, ',', '.') . ' tahun.',
+                    'ok' => false,
+                    'pesan' => 'Kategori '.$r['label'].' mensyaratkan masa kerja minimal '.$r['min_masa_kerja'].' tahun terus-menerus. Masa kerja Anda: '.number_format($masa, 1, ',', '.').' tahun.',
                 ];
             }
         }

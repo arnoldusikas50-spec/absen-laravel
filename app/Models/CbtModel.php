@@ -20,5 +20,4 @@ class CbtModel extends Model
     ];
 
     public $timestamps = false;
-
 }

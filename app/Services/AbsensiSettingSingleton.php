@@ -25,8 +25,10 @@ use Illuminate\Support\Facades\Schema;
 class AbsensiSettingSingleton
 {
     private const BACKUP_TABLE = 'absensi_setting_dup_backup';
+
     private const GUARD_COLUMN = 'singleton_guard';
-    private const GUARD_KEY    = 'uq_absensi_setting_single_row';
+
+    private const GUARD_KEY = 'uq_absensi_setting_single_row';
 
     /**
      * @return array{archived: list<int>, guard: string}
@@ -34,19 +36,19 @@ class AbsensiSettingSingleton
     public static function enforce($db = null): array
     {
         $archived = [];
-        $guard    = 'skip';
+        $guard = 'skip';
 
-        if (!Schema::hasTable('absensi_setting')) {
+        if (! Schema::hasTable('absensi_setting')) {
             return ['archived' => $archived, 'guard' => 'no-table'];
         }
 
         $rows = DB::table('absensi_setting')->orderBy('id', 'ASC')->get()
-            ->map(fn($r) => (array) $r)->all();
+            ->map(fn ($r) => (array) $r)->all();
 
         $extras = array_slice($rows, 1);
         if ($extras !== []) {
             // Sekali saja: membuat tabel di dalam loop akan mencoba CREATE dua kali.
-            DB::statement('CREATE TABLE IF NOT EXISTS `' . self::BACKUP_TABLE . '` LIKE `absensi_setting`');
+            DB::statement('CREATE TABLE IF NOT EXISTS `'.self::BACKUP_TABLE.'` LIKE `absensi_setting`');
             self::stripGuardFromBackup();
             foreach ($extras as $row) {
                 $id = (int) ($row['id'] ?? 0);
@@ -67,15 +69,15 @@ class AbsensiSettingSingleton
     {
         self::dropGuard();
 
-        if (!Schema::hasTable(self::BACKUP_TABLE)) {
+        if (! Schema::hasTable(self::BACKUP_TABLE)) {
             return 0;
         }
 
         $existing = DB::table('absensi_setting')->pluck('id')->all();
-        $moved    = 0;
+        $moved = 0;
         foreach (DB::table(self::BACKUP_TABLE)->orderBy('id', 'ASC')->get() as $rowObj) {
             $row = (array) $rowObj;
-            if (!in_array($row['id'], $existing, true)) {
+            if (! in_array($row['id'], $existing, true)) {
                 unset($row[self::GUARD_COLUMN]);
                 DB::table('absensi_setting')->insert($row);
                 $moved++;
@@ -87,15 +89,15 @@ class AbsensiSettingSingleton
 
     private static function archiveThenDelete(array $row, int $id): int
     {
-        if (!DB::table(self::BACKUP_TABLE)->where('id', $id)->exists()) {
+        if (! DB::table(self::BACKUP_TABLE)->where('id', $id)->exists()) {
             unset($row[self::GUARD_COLUMN]);
             DB::table(self::BACKUP_TABLE)->insert($row);
         }
         DB::table('absensi_setting')->where('id', $id)->delete();
 
-        Log::warning('[absensi_setting] baris duplikat id ' . $id
-            . ' (jam_masuk ' . ($row['jam_masuk'] ?? '?') . ', hari libur ' . ($row['hari_libur_mingguan'] ?? '?')
-            . ', denda alpha ' . ($row['denda_alpha_per_hari'] ?? '?') . ') diarsipkan ke ' . self::BACKUP_TABLE);
+        Log::warning('[absensi_setting] baris duplikat id '.$id
+            .' (jam_masuk '.($row['jam_masuk'] ?? '?').', hari libur '.($row['hari_libur_mingguan'] ?? '?')
+            .', denda alpha '.($row['denda_alpha_per_hari'] ?? '?').') diarsipkan ke '.self::BACKUP_TABLE);
 
         return $id;
     }
@@ -114,12 +116,14 @@ class AbsensiSettingSingleton
         try {
             DB::statement(
                 'ALTER TABLE `absensi_setting`
-                    ADD COLUMN `' . self::GUARD_COLUMN . '` TINYINT GENERATED ALWAYS AS (1) STORED,
-                    ADD UNIQUE KEY `' . self::GUARD_KEY . '` (`' . self::GUARD_COLUMN . '`)'
+                    ADD COLUMN `'.self::GUARD_COLUMN.'` TINYINT GENERATED ALWAYS AS (1) STORED,
+                    ADD UNIQUE KEY `'.self::GUARD_KEY.'` (`'.self::GUARD_COLUMN.'`)'
             );
+
             return 'installed';
         } catch (\Throwable $e) {
-            Log::error('[absensi_setting] guard single-row tidak terpasang: ' . $e->getMessage());
+            Log::error('[absensi_setting] guard single-row tidak terpasang: '.$e->getMessage());
+
             return 'unsupported';
         }
     }
@@ -132,8 +136,8 @@ class AbsensiSettingSingleton
     private static function stripGuardFromBackup(): void
     {
         foreach ([
-            'ALTER TABLE `' . self::BACKUP_TABLE . '` DROP INDEX `' . self::GUARD_KEY . '`',
-            'ALTER TABLE `' . self::BACKUP_TABLE . '` DROP COLUMN `' . self::GUARD_COLUMN . '`',
+            'ALTER TABLE `'.self::BACKUP_TABLE.'` DROP INDEX `'.self::GUARD_KEY.'`',
+            'ALTER TABLE `'.self::BACKUP_TABLE.'` DROP COLUMN `'.self::GUARD_COLUMN.'`',
         ] as $sql) {
             try {
                 DB::statement($sql);
@@ -146,18 +150,18 @@ class AbsensiSettingSingleton
 
     private static function dropGuard(): void
     {
-        if (!Schema::hasTable('absensi_setting') || !Schema::hasColumn('absensi_setting', self::GUARD_COLUMN)) {
+        if (! Schema::hasTable('absensi_setting') || ! Schema::hasColumn('absensi_setting', self::GUARD_COLUMN)) {
             return;
         }
 
         try {
             DB::statement(
                 'ALTER TABLE `absensi_setting`
-                    DROP INDEX `' . self::GUARD_KEY . '`,
-                    DROP COLUMN `' . self::GUARD_COLUMN . '`'
+                    DROP INDEX `'.self::GUARD_KEY.'`,
+                    DROP COLUMN `'.self::GUARD_COLUMN.'`'
             );
         } catch (\Throwable $e) {
-            Log::error('[absensi_setting] guard single-row gagal dilepas: ' . $e->getMessage());
+            Log::error('[absensi_setting] guard single-row gagal dilepas: '.$e->getMessage());
         }
     }
 }

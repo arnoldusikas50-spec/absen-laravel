@@ -22,6 +22,7 @@ class KelasModel extends Model
     ];
 
     public $timestamps = false;
+
     public function getCatatanMapelKelas($kelas, $mapel, $id_tp, $id_smt)
     {
         return DB::table('kelas_catatan_mapel')

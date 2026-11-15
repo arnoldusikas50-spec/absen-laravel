@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Schema;
 class QrToken
 {
     public const DEFAULT_INTERVAL = 60;
+
     public const ALLOWED_INTERVALS = [30, 60, 120];
 
     /**
@@ -36,10 +37,10 @@ class QrToken
     public static function forCounter(string $secret, int $counter): string
     {
         // 8-byte big-endian (high 32 bit nol — cukup untuk ratusan tahun)
-        $msg = "\0\0\0\0" . pack('N', $counter);
+        $msg = "\0\0\0\0".pack('N', $counter);
         $hash = hash_hmac('sha1', $msg, $secret, true);
-        $offset = ord($hash[19]) & 0x0f;
-        $code = ((ord($hash[$offset]) & 0x7f) << 24)
+        $offset = ord($hash[19]) & 0x0F;
+        $code = ((ord($hash[$offset]) & 0x7F) << 24)
             | (ord($hash[$offset + 1]) << 16)
             | (ord($hash[$offset + 2]) << 8)
             | ord($hash[$offset + 3]);
@@ -63,7 +64,7 @@ class QrToken
      */
     public static function verify(string $token, string $secret, int $interval = self::DEFAULT_INTERVAL, int $window = 1, ?int $time = null): bool
     {
-        if (!preg_match('/^\d{6}$/', $token) || $secret === '') {
+        if (! preg_match('/^\d{6}$/', $token) || $secret === '') {
             return false;
         }
         $interval = self::normalizeInterval($interval);
@@ -96,11 +97,11 @@ class QrToken
      * Cari event aktif pada tanggal tsb berdasarkan token yang disodorkan:
      * rotating (window ±1) atau static/legacy (samakan persis).
      *
-     * @param mixed $db Koneksi database pemanggil (diabaikan; dipakai DB facade).
+     * @param  mixed  $db  Koneksi database pemanggil (diabaikan; dipakai DB facade).
      */
     public static function findEvent($db, string $token, string $date): ?object
     {
-        if ($token === '' || !Schema::hasTable('absensi_qr')) {
+        if ($token === '' || ! Schema::hasTable('absensi_qr')) {
             return null;
         }
 
@@ -110,8 +111,8 @@ class QrToken
             ->get();
 
         foreach ($events as $e) {
-            $mode = $e->mode ?? (!empty($e->secret) ? 'rotating' : 'static');
-            if ($mode === 'rotating' && !empty($e->secret)) {
+            $mode = $e->mode ?? (! empty($e->secret) ? 'rotating' : 'static');
+            if ($mode === 'rotating' && ! empty($e->secret)) {
                 if (self::verify($token, (string) $e->secret, (int) ($e->interval_detik ?? self::DEFAULT_INTERVAL))) {
                     return $e;
                 }
@@ -129,8 +130,8 @@ class QrToken
      */
     public static function displayToken(object $event): string
     {
-        $mode = $event->mode ?? (!empty($event->secret) ? 'rotating' : 'static');
-        if ($mode === 'rotating' && !empty($event->secret)) {
+        $mode = $event->mode ?? (! empty($event->secret) ? 'rotating' : 'static');
+        if ($mode === 'rotating' && ! empty($event->secret)) {
             return self::current((string) $event->secret, (int) ($event->interval_detik ?? self::DEFAULT_INTERVAL));
         }
 

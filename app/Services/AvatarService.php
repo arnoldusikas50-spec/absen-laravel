@@ -64,9 +64,9 @@ class AvatarService
 
         $rel = ltrim(str_replace('\\', '/', $nilai), '/');
         foreach (self::kandidat($rel, $direktori) as $calon) {
-            if (is_file(public_path() . DIRECTORY_SEPARATOR . $calon)) {
+            if (is_file(public_path().DIRECTORY_SEPARATOR.$calon)) {
                 // ?v=<mtime>: ganti foto langsung tampil, tidak menunggu cache lama.
-                return url($calon) . '?v=' . (int) filemtime(public_path() . DIRECTORY_SEPARATOR . $calon);
+                return url($calon).'?v='.(int) filemtime(public_path().DIRECTORY_SEPARATOR.$calon);
             }
         }
 
@@ -81,19 +81,19 @@ class AvatarService
     public static function inisial(?string $nama, int $size = 128, ?string $warna = null): string
     {
         $inisial = self::hurufAwal($nama);
-        $warna   = self::safeColor($warna)
-            ?? self::WARNA[crc32(mb_strtolower($inisial . '|' . trim((string) $nama))) % count(self::WARNA)];
-        $teks    = htmlspecialchars($inisial, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        $warna = self::safeColor($warna)
+            ?? self::WARNA[crc32(mb_strtolower($inisial.'|'.trim((string) $nama))) % count(self::WARNA)];
+        $teks = htmlspecialchars($inisial, ENT_QUOTES | ENT_XML1, 'UTF-8');
         $fontSize = (int) round($size * ($inisial === '?' ? 0.5 : 0.4));
 
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $size . '" height="' . $size
-            . '" viewBox="0 0 ' . $size . ' ' . $size . '">'
-            . '<rect width="100%" height="100%" fill="' . $warna . '"/>'
-            . '<text x="50%" y="' . round($size / 2 + $fontSize * 0.35) . '" fill="#ffffff" font-family="Plus Jakarta Sans, Segoe UI, sans-serif"'
-            . ' font-size="' . $fontSize . '" font-weight="700" text-anchor="middle">' . $teks . '</text>'
-            . '</svg>';
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$size.'" height="'.$size
+            .'" viewBox="0 0 '.$size.' '.$size.'">'
+            .'<rect width="100%" height="100%" fill="'.$warna.'"/>'
+            .'<text x="50%" y="'.round($size / 2 + $fontSize * 0.35).'" fill="#ffffff" font-family="Plus Jakarta Sans, Segoe UI, sans-serif"'
+            .' font-size="'.$fontSize.'" font-weight="700" text-anchor="middle">'.$teks.'</text>'
+            .'</svg>';
 
-        return 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
+        return 'data:image/svg+xml;charset=utf-8,'.rawurlencode($svg);
     }
 
     /**
@@ -133,7 +133,7 @@ class AvatarService
     {
         $nama = trim((string) ($r->nama_guru ?? ''));
         if ($nama === '') {
-            $nama = trim(($r->first_name ?? '') . ' ' . ($r->last_name ?? ''));
+            $nama = trim(($r->first_name ?? '').' '.($r->last_name ?? ''));
         }
 
         return $nama !== '' ? $nama : (string) ($r->username ?? 'Guru');
@@ -162,7 +162,7 @@ class AvatarService
     private static function hurufAwal(?string $nama): string
     {
         $kata = preg_split('/\s+/u', trim((string) $nama), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        if (!$kata) {
+        if (! $kata) {
             return '?';
         }
         $inisial = mb_substr($kata[0], 0, 1);
@@ -183,14 +183,14 @@ class AvatarService
     private static function kandidat(string $rel, array $direktori): array
     {
         $udahRelatif = strpos($rel, 'uploads/') === 0;
-        $dasar       = $udahRelatif ? [$rel] : array_map(static fn($d) => $d . $rel, $direktori);
+        $dasar = $udahRelatif ? [$rel] : array_map(static fn ($d) => $d.$rel, $direktori);
 
         $out = [];
         foreach ($dasar as $path) {
             $out[] = $path;
             if (pathinfo($path, PATHINFO_EXTENSION) === '') {
                 foreach (['.jpg', '.jpeg', '.png', '.webp'] as $ext) {
-                    $out[] = $path . $ext;
+                    $out[] = $path.$ext;
                 }
             }
         }

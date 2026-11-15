@@ -43,8 +43,8 @@ class DapodikSyncCommand extends Command
             return self::SUCCESS;
         }
 
-        $client = new DapodikClient();
-        $service = new DapodikSyncService();
+        $client = new DapodikClient;
+        $service = new DapodikSyncService;
 
         $this->warn("=== Dapodik Sync: {$entitas} ===");
 

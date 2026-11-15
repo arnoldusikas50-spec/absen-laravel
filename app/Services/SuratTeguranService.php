@@ -64,7 +64,8 @@ use Illuminate\Support\Facades\Schema;
  */
 final class SuratTeguranService
 {
-    public const STATUS_AKTIF     = 'aktif';
+    public const STATUS_AKTIF = 'aktif';
+
     public const STATUS_DIBATALKAN = 'dibatalkan';
 
     private const TABEL = 'absensi_surat_teguran';
@@ -132,15 +133,15 @@ final class SuratTeguranService
             // PresensiAdmin memakai setting->nip untuk mengenali kepsek di
             // daftar guru (kepsekNip) — sumbernya sama di sini.
             if (Schema::hasTable('setting')) {
-                $row       = DB::table('setting')->select('nip')->first();
+                $row = DB::table('setting')->select('nip')->first();
                 $nipKepsek = strtolower(trim((string) ($row->nip ?? '')));
-                $nipGuru   = strtolower(trim((string) ($guru->nip ?? '')));
+                $nipGuru = strtolower(trim((string) ($guru->nip ?? '')));
                 if ($nipKepsek !== '' && $nipGuru !== '' && $nipGuru === $nipKepsek) {
                     return true;
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguran] deteksi kepala sekolah: ' . $e->getMessage());
+            Log::error('[SuratTeguran] deteksi kepala sekolah: '.$e->getMessage());
         }
 
         return false;
@@ -150,10 +151,9 @@ final class SuratTeguranService
      * Terbitkan surat teguran bila guru berhak dan periodenya belum punya
      * surat pada level itu.
      *
-     * @param int    $alpha Akumulasi alpha bulan ini (sudah kanonik)
-     * @param string $bulan '01'..'12' atau '1'..'12'
-     * @param string $tahun 'YYYY'
-     *
+     * @param  int  $alpha  Akumulasi alpha bulan ini (sudah kanonik)
+     * @param  string  $bulan  '01'..'12' atau '1'..'12'
+     * @param  string  $tahun  'YYYY'
      * @return array{id:int,level:int}|null Baris yang dibuat, null kalau tidak terbit
      */
     public function terbitkan(int $idGuru, int $alpha, string $bulan, string $tahun): ?array
@@ -168,7 +168,8 @@ final class SuratTeguranService
 
         // Kepala sekolah tidak pernah ditegur — penandatangan surat guru.
         if ($this->adalahKepalaSekolah($idGuru)) {
-            Log::info('[SuratTeguran] kepala sekolah id_guru ' . $idGuru . ' dikecualikan (tidak ditegur).');
+            Log::info('[SuratTeguran] kepala sekolah id_guru '.$idGuru.' dikecualikan (tidak ditegur).');
+
             return null;
         }
 
@@ -222,8 +223,7 @@ final class SuratTeguranService
      * dianggap keputusan final. Tanpa penanda `dibatalkan_otomatis`,
      * menghidupkan kembali surat yang sengaja dicabut akan sama saja.
      *
-     * @param string|null $reason Alasan pembatalan; null saat menghidupkan
-     *
+     * @param  string|null  $reason  Alasan pembatalan; null saat menghidupkan
      * @return array{batal:list<int>,hidup:list<int>} Id baris yang berubah
      */
     public function sinkronkan(int $idGuru, int $alpha, string $bulan, string $tahun, ?string $reason = null): array
@@ -265,10 +265,10 @@ final class SuratTeguranService
             ->where('bulan', $bulan)
             ->where('tahun', $tahun)
             ->get()
-            ->map(fn($r) => (array) $r)->all();
+            ->map(fn ($r) => (array) $r)->all();
 
         foreach ($rows as $row) {
-            $level    = (int) $row['level'];
+            $level = (int) $row['level'];
             $dibatalkan = ($row['status'] ?? self::STATUS_AKTIF) === self::STATUS_DIBATALKAN;
             $masihSah = SuratTeguranLevel::masihSah($level, $alpha);
 
@@ -279,9 +279,9 @@ final class SuratTeguranService
                 }
 
                 $update = [
-                    'status'           => self::STATUS_DIBATALKAN,
+                    'status' => self::STATUS_DIBATALKAN,
                     'keterangan_batal' => trim((string) ($reason ?? 'Alpha turun di bawah ambang surat'))
-                        . ' (sisa alpha: ' . $alpha . ' hari)',
+                        .' (sisa alpha: '.$alpha.' hari)',
                 ];
                 if ($punyaOtomatis) {
                     $update['dibatalkan_otomatis'] = 1;
@@ -304,7 +304,7 @@ final class SuratTeguranService
             }
 
             $update = [
-                'status'           => self::STATUS_AKTIF,
+                'status' => self::STATUS_AKTIF,
                 'keterangan_batal' => null,
             ];
             if ($punyaOtomatis) {
@@ -338,7 +338,7 @@ final class SuratTeguranService
                 ->where('id_user', $userId)
                 ->first();
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguranService] idGuruDariUser gagal: ' . $e->getMessage());
+            Log::error('[SuratTeguranService] idGuruDariUser gagal: '.$e->getMessage());
 
             return 0;
         }
@@ -372,13 +372,13 @@ final class SuratTeguranService
      */
     private function tulis(int $idGuru, int $bulan, int $tahun, int $level, int $alpha): ?int
     {
-        $kunci   = 'absen:teguran:nomor:' . $tahun;
+        $kunci = 'absen:teguran:nomor:'.$tahun;
         $dikunci = false;
         try {
-            $row      = DB::selectOne('SELECT GET_LOCK(?, 5) AS l', [$kunci]);
+            $row = DB::selectOne('SELECT GET_LOCK(?, 5) AS l', [$kunci]);
             $dikunci = (int) ($row->l ?? 0) === 1;
         } catch (\Throwable $e) {
-            Log::error('[SuratTeguranService] GET_LOCK gagal: ' . $e->getMessage());
+            Log::error('[SuratTeguranService] GET_LOCK gagal: '.$e->getMessage());
         }
 
         try {
@@ -388,12 +388,12 @@ final class SuratTeguranService
                 ->first();
 
             $row = [
-                'id_guru'     => $idGuru,
-                'level'       => $level,
-                'bulan'       => $bulan,
-                'tahun'       => $tahun,
-                'nomor_urut'  => (int) ($last->max_urut ?? 0) + 1,
-                'created_at'  => date('Y-m-d H:i:s'),
+                'id_guru' => $idGuru,
+                'level' => $level,
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'nomor_urut' => (int) ($last->max_urut ?? 0) + 1,
+                'created_at' => date('Y-m-d H:i:s'),
             ];
 
             // Snapshot alpha saat terbit. Minimal ambang surat: PDF tidak boleh
@@ -414,7 +414,7 @@ final class SuratTeguranService
                 // tanpa jejak: dulu cabang ini menelan SEMUA error diam-diam
                 // begitu kolom jumlah_alpha ada.
                 if (! $this->apakahDuplikatSlot($e)) {
-                    Log::error('[SuratTeguranService] tulis gagal: ' . $e->getMessage());
+                    Log::error('[SuratTeguranService] tulis gagal: '.$e->getMessage());
                 }
 
                 return null;

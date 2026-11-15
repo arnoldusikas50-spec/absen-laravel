@@ -2,7 +2,7 @@
 
 namespace App\Libraries;
 
-use Illuminate\Http\Client\Response;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -31,6 +31,7 @@ use Throwable;
 class SyncService
 {
     protected array $dbSettings = [];
+
     protected string $jobTable = 'sync_jobs';
 
     public function __construct()
@@ -67,7 +68,7 @@ class SyncService
         }
 
         // Fallback to config file (config/sync.php)
-        return config('sync.' . $key, $default);
+        return config('sync.'.$key, $default);
     }
 
     public function isPusat(): bool
@@ -88,7 +89,7 @@ class SyncService
     protected function getHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->getSetting('api_key', ''),
+            'Authorization' => 'Bearer '.$this->getSetting('api_key', ''),
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ];
@@ -97,7 +98,7 @@ class SyncService
     /**
      * HTTP client dengan header + timeout dari setting.
      */
-    protected function http(): \Illuminate\Http\Client\PendingRequest
+    protected function http(): PendingRequest
     {
         return Http::withHeaders($this->getHeaders())
             ->withOptions(['verify' => false])
@@ -113,18 +114,18 @@ class SyncService
      */
     public function pullJadwal(int $tpId, int $smtId): array
     {
-        if (!$this->isLokal()) {
+        if (! $this->isLokal()) {
             return ['success' => false, 'message' => 'Hanya server lokal yang bisa pull data'];
         }
 
         try {
             $response = $this->requestWithRetry(
-                fn() => $this->http()->get($this->getBaseUrl() . '/api/sync/jadwal', ['tp_id' => $tpId, 'smt_id' => $smtId]),
+                fn () => $this->http()->get($this->getBaseUrl().'/api/sync/jadwal', ['tp_id' => $tpId, 'smt_id' => $smtId]),
                 'pull_jadwal'
             );
 
             $data = $response->json();
-            if (!($data['success'] ?? false)) {
+            if (! ($data['success'] ?? false)) {
                 throw new \Exception($data['message'] ?? 'Unknown error');
             }
 
@@ -133,10 +134,12 @@ class SyncService
 
             foreach ($data['jadwal'] ?? [] as $jadwal) {
                 $result = $this->upsert('cbt_jadwal', $jadwal, 'id_jadwal');
-                if ($result === 'insert')
+                if ($result === 'insert') {
                     $inserted++;
-                if ($result === 'update')
+                }
+                if ($result === 'update') {
                     $updated++;
+                }
             }
 
             $this->logSync('pull_jadwal', ['inserted' => $inserted, 'updated' => $updated]);
@@ -149,6 +152,7 @@ class SyncService
             ];
         } catch (\Exception $e) {
             $this->logSync('pull_jadwal_error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'message' => 'Sinkronisasi gagal — periksa log aplikasi.'];
         }
     }
@@ -158,18 +162,18 @@ class SyncService
      */
     public function pullBankSoal(int $bankId): array
     {
-        if (!$this->isLokal()) {
+        if (! $this->isLokal()) {
             return ['success' => false, 'message' => 'Hanya server lokal yang bisa pull data'];
         }
 
         try {
             $response = $this->requestWithRetry(
-                fn() => $this->http()->get($this->getBaseUrl() . "/api/sync/bank-soal/{$bankId}"),
+                fn () => $this->http()->get($this->getBaseUrl()."/api/sync/bank-soal/{$bankId}"),
                 'pull_bank_soal'
             );
 
             $data = $response->json();
-            if (!($data['success'] ?? false)) {
+            if (! ($data['success'] ?? false)) {
                 throw new \Exception($data['message'] ?? 'Unknown error');
             }
 
@@ -188,8 +192,9 @@ class SyncService
             // Download files
             $filesCount = 0;
             foreach ($data['files'] ?? [] as $file) {
-                if ($this->downloadFile($file))
+                if ($this->downloadFile($file)) {
                     $filesCount++;
+                }
             }
 
             $this->logSync('pull_bank_soal', ['bank_id' => $bankId, 'soal' => $soalCount, 'files' => $filesCount]);
@@ -200,6 +205,7 @@ class SyncService
             ];
         } catch (\Exception $e) {
             $this->logSync('pull_bank_soal_error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'message' => 'Sinkronisasi gagal — periksa log aplikasi.'];
         }
     }
@@ -209,7 +215,7 @@ class SyncService
      */
     public function pullSiswa(array $kelasIds, int $tpId, int $smtId): array
     {
-        if (!$this->isLokal()) {
+        if (! $this->isLokal()) {
             return ['success' => false, 'message' => 'Hanya server lokal yang bisa pull data'];
         }
 
@@ -221,12 +227,12 @@ class SyncService
             $totalCount = 0;
             foreach ($chunks as $chunk) {
                 $response = $this->requestWithRetry(
-                    fn() => $this->http()->post($this->getBaseUrl() . '/api/sync/siswa', ['kelas_ids' => $chunk, 'tp_id' => $tpId, 'smt_id' => $smtId]),
+                    fn () => $this->http()->post($this->getBaseUrl().'/api/sync/siswa', ['kelas_ids' => $chunk, 'tp_id' => $tpId, 'smt_id' => $smtId]),
                     'pull_siswa'
                 );
 
                 $data = $response->json();
-                if (!($data['success'] ?? false)) {
+                if (! ($data['success'] ?? false)) {
                     throw new \Exception($data['message'] ?? 'Unknown error');
                 }
 
@@ -242,6 +248,7 @@ class SyncService
             ];
         } catch (\Exception $e) {
             $this->logSync('pull_siswa_error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'message' => 'Sinkronisasi gagal — periksa log aplikasi.'];
         }
     }
@@ -251,18 +258,18 @@ class SyncService
      */
     public function pullSesiSiswa(int $tpId, int $smtId): array
     {
-        if (!$this->isLokal()) {
+        if (! $this->isLokal()) {
             return ['success' => false, 'message' => 'Hanya server lokal yang bisa pull data'];
         }
 
         try {
             $response = $this->requestWithRetry(
-                fn() => $this->http()->get($this->getBaseUrl() . '/api/sync/sesi-siswa', ['tp_id' => $tpId, 'smt_id' => $smtId]),
+                fn () => $this->http()->get($this->getBaseUrl().'/api/sync/sesi-siswa', ['tp_id' => $tpId, 'smt_id' => $smtId]),
                 'pull_sesi_siswa'
             );
 
             $data = $response->json();
-            if (!($data['success'] ?? false)) {
+            if (! ($data['success'] ?? false)) {
                 throw new \Exception($data['message'] ?? 'Unknown error');
             }
 
@@ -288,6 +295,7 @@ class SyncService
             return ['success' => true, 'message' => "Sync {$count} alokasi sesi siswa"];
         } catch (\Exception $e) {
             $this->logSync('pull_sesi_siswa_error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'message' => 'Sinkronisasi gagal — periksa log aplikasi.'];
         }
     }
@@ -301,7 +309,7 @@ class SyncService
      */
     public function pushHasilUjian(int $jadwalId): array
     {
-        if (!$this->isLokal()) {
+        if (! $this->isLokal()) {
             return ['success' => false, 'message' => 'Hanya server lokal yang bisa push data'];
         }
 
@@ -329,7 +337,7 @@ class SyncService
 
             // Send to pusat
             $response = $this->requestWithRetry(
-                fn() => $this->http()->post($this->getBaseUrl() . '/api/sync/hasil', [
+                fn () => $this->http()->post($this->getBaseUrl().'/api/sync/hasil', [
                     'jadwal_id' => $jadwalId,
                     'cbt_siswa' => $cbtSiswa,
                     'cbt_jawaban' => $cbtJawaban,
@@ -340,7 +348,7 @@ class SyncService
             );
 
             $data = $response->json();
-            if (!($data['success'] ?? false)) {
+            if (! ($data['success'] ?? false)) {
                 throw new \Exception($data['message'] ?? 'Unknown error');
             }
 
@@ -357,10 +365,11 @@ class SyncService
 
             return [
                 'success' => true,
-                'message' => "Berhasil mengirim hasil " . count($cbtSiswa) . " siswa ke pusat",
+                'message' => 'Berhasil mengirim hasil '.count($cbtSiswa).' siswa ke pusat',
             ];
         } catch (\Exception $e) {
             $this->logSync('push_hasil_error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'message' => 'Sinkronisasi gagal — periksa log aplikasi.'];
         }
     }
@@ -382,9 +391,11 @@ class SyncService
             DB::table($table)
                 ->where($primaryKey, $data[$primaryKey])
                 ->update($data);
+
             return 'update';
         } else {
             DB::table($table)->insert($data);
+
             return 'insert';
         }
     }
@@ -397,25 +408,28 @@ class SyncService
         try {
             $localPath = public_path($fileInfo['path'] ?? '');
             $dir = dirname($localPath);
-            if (!is_dir($dir))
+            if (! is_dir($dir)) {
                 mkdir($dir, 0755, true);
+            }
 
             $response = $this->requestWithRetry(
-                fn() => Http::withHeaders($this->getHeaders())->get($fileInfo['url']),
+                fn () => Http::withHeaders($this->getHeaders())->get($fileInfo['url']),
                 'download_file'
             );
             file_put_contents($localPath, $response->body());
 
-            if ((bool) $this->getSetting('enable_checksum', true) && !empty($fileInfo['checksum'])) {
+            if ((bool) $this->getSetting('enable_checksum', true) && ! empty($fileInfo['checksum'])) {
                 $calculated = hash_file('sha256', $localPath);
-                if (!hash_equals($fileInfo['checksum'], $calculated)) {
+                if (! hash_equals($fileInfo['checksum'], $calculated)) {
                     @unlink($localPath);
-                    throw new \RuntimeException('Checksum mismatch for file ' . ($fileInfo['path'] ?? ''));
+                    throw new \RuntimeException('Checksum mismatch for file '.($fileInfo['path'] ?? ''));
                 }
             }
+
             return true;
         } catch (\Exception $e) {
-            Log::error('Download file failed: ' . $e->getMessage());
+            Log::error('Download file failed: '.$e->getMessage());
+
             return false;
         }
     }
@@ -425,8 +439,9 @@ class SyncService
      */
     protected function logSync(string $action, array $data): void
     {
-        if (!(bool) $this->getSetting('enable_logging', true))
+        if (! (bool) $this->getSetting('enable_logging', true)) {
             return;
+        }
 
         try {
             DB::table('sync_log')->insert([
@@ -435,7 +450,7 @@ class SyncService
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
         } catch (\Exception $e) {
-            Log::info("[SYNC] {$action}: " . json_encode($data));
+            Log::info("[SYNC] {$action}: ".json_encode($data));
         }
     }
 
@@ -461,7 +476,7 @@ class SyncService
                     throw $e;
                 }
 
-                $this->logSync($action . '_retry', [
+                $this->logSync($action.'_retry', [
                     'attempt' => $attempt,
                     'max' => $maxAttempts,
                     'error' => $e->getMessage(),
@@ -493,7 +508,7 @@ class SyncService
                 ->where('id_tp', $ks['id_tp'])
                 ->where('id_smt', $ks['id_smt'])
                 ->first();
-            if (!$existing) {
+            if (! $existing) {
                 DB::table('kelas_siswa')->insert($ks);
             }
         }
@@ -528,7 +543,7 @@ class SyncService
                 $table->index(['status', 'available_at'], 'status_available');
             });
         } catch (\Exception $e) {
-            Log::error('Failed creating sync_jobs table: ' . $e->getMessage());
+            Log::error('Failed creating sync_jobs table: '.$e->getMessage());
         }
     }
 
@@ -556,12 +571,14 @@ class SyncService
     public function getJob(int $jobId): ?object
     {
         $this->ensureJobTable();
+
         return DB::table($this->jobTable)->where('id', $jobId)->first();
     }
 
     public function getRecentJobs(int $limit = 50): array
     {
         $this->ensureJobTable();
+
         return DB::table($this->jobTable)
             ->orderBy('id', 'DESC')
             ->limit($limit)
@@ -603,7 +620,7 @@ class SyncService
             'finished_at' => date('Y-m-d H:i:s'),
         ];
 
-        if (!$success && $job->attempts < ($job->max_attempts ?? 1)) {
+        if (! $success && $job->attempts < ($job->max_attempts ?? 1)) {
             $delay = min(pow(2, $job->attempts), 60);
             $data['status'] = 'pending';
             $data['available_at'] = date('Y-m-d H:i:s', time() + $delay);
@@ -621,11 +638,12 @@ class SyncService
         do {
             $job = $this->fetchNextJob();
 
-            if (!$job) {
+            if (! $job) {
                 if ($once) {
                     return;
                 }
                 sleep($sleepSeconds);
+
                 continue;
             }
 
@@ -654,7 +672,7 @@ class SyncService
             case 'push_hasil':
                 return $this->pushHasilUjian((int) ($payload['jadwal_id'] ?? 0));
             default:
-                return ['success' => false, 'message' => 'Unknown job type: ' . $job->type];
+                return ['success' => false, 'message' => 'Unknown job type: '.$job->type];
         }
     }
 
@@ -685,11 +703,12 @@ class SyncService
 
         try {
             $response = $this->requestWithRetry(
-                fn() => $this->http()->get($this->getBaseUrl() . '/api/sync/ping'),
+                fn () => $this->http()->get($this->getBaseUrl().'/api/sync/ping'),
                 'test_connection'
             );
 
             $data = $response->json();
+
             return [
                 'success' => $data['success'] ?? false,
                 'message' => $data['message'] ?? 'Connected',

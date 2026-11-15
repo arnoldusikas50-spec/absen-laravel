@@ -145,6 +145,7 @@ class TmpF42uploadCommand extends Command
             $abs = app_path($rel);
             if (! is_file($abs) || ! class_exists($kelas) || ! method_exists($kelas, $metode)) {
                 $this->line('INFO  '.$rel.'::'.$metode.' belum di-port, dilewati', 'comment');
+
                 continue;
             }
             $ref = new \ReflectionMethod($kelas.'::'.$metode);
@@ -243,12 +244,14 @@ class TmpF42uploadCommand extends Command
             $abs = app_path($rel);
             if (! is_file($abs)) {
                 $this->line('INFO  '.$rel.'::'.$metode.' belum di-port, dilewati', 'comment');
+
                 continue;
             }
             $isi = (string) file_get_contents($abs);
             $awal = strpos($isi, 'function '.$metode);
             if ($awal === false) {
                 $this->no($rel.'::'.$metode.' masih ada');
+
                 continue;
             }
             $cuplik = substr($isi, $awal, 2500);
@@ -262,7 +265,7 @@ class TmpF42uploadCommand extends Command
         $routes = (string) @file_get_contents(base_path('routes/web.php'));
         if (! str_contains($routes, 'assets')) {
             $this->line('INFO  rute assets belum di-port, dilewati', 'comment');
-        } elseif (str_contains($routes, "!str_starts_with(\$file, \$root . DIRECTORY_SEPARATOR)")) {
+        } elseif (str_contains($routes, '!str_starts_with($file, $root . DIRECTORY_SEPARATOR)')) {
             $this->ok('rute assets/(:any) tetap terkurung di FCPATH/assets');
         } else {
             $this->no('rute assets/(:any) tetap terkurung di FCPATH/assets');

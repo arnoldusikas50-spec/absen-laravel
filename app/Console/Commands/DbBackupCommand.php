@@ -175,7 +175,7 @@ class DbBackupCommand extends Command
     {
         // Fallback WA bila TG mati: coba keduanya, jangan diam bila gagal.
         try {
-            $notif = new NotificationService();
+            $notif = new NotificationService;
             $sent = $notif->sendTelegram($msg);
             try {
                 $sent = $notif->sendWhatsApp($msg) || $sent;

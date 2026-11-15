@@ -35,5 +35,4 @@ class RewardModel extends Model
         'updated_at' => 'datetime',
         'nominal' => 'decimal:2',
     ];
-
 }

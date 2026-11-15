@@ -28,7 +28,7 @@ class SyncDendaSiswaCommand extends Command
         $bulan = $this->argument('bulan') !== null ? (int) $this->argument('bulan') : null;
         $tahun = $this->argument('tahun') !== null ? (int) $this->argument('tahun') : null;
 
-        $svc = new SiswaDendaService();
+        $svc = new SiswaDendaService;
         $hasil = $svc->recalcBulanBerjalan($bulan, $tahun);
 
         $this->info($hasil['message']);

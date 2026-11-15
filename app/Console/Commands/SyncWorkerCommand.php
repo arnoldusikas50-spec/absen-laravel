@@ -26,7 +26,7 @@ class SyncWorkerCommand extends Command
         $once = (bool) $this->option('once');
         $sleep = max(1, (int) ($this->option('sleep') ?? 5));
 
-        $service = new SyncService();
+        $service = new SyncService;
 
         $this->warn('=== Sync Worker ===');
         $this->line('Mode: '.($once ? 'single job' : 'daemon'));
