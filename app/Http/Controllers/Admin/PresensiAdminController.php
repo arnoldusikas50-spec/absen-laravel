@@ -7349,7 +7349,8 @@ class PresensiAdminController extends BaseController
         // Cegah nama shift kembar (case-insensitive, abaikan diri sendiri saat edit).
         $dupSql = 'SELECT COUNT(*) AS c FROM `absensi_shift` WHERE LOWER(nama) = ?'.($id > 0 ? ' AND id != ?' : '');
         $dupParams = $id > 0 ? [strtolower($nama), $id] : [strtolower($nama)];
-        $dupCount = (int) $db->select($dupSql, $dupParams)[0] ?? null->c;
+        $dupRow = $db->select($dupSql, $dupParams)[0] ?? null;
+        $dupCount = (int) ($dupRow->c ?? 0);
         if ($dupCount > 0) {
             return $this->respond(false, 'Nama shift "'.$nama.'" sudah dipakai. Gunakan nama lain.');
         }

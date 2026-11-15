@@ -508,15 +508,86 @@ class JurnalController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif.']);
         }
 
+        $tanggal = trim((string) ($this->request->query('tanggal') ?? $this->request->query('tgl') ?? date('Y-m-d')));
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
+            $tanggal = date('Y-m-d');
+        }
+
+        $siswaList = (new SiswaPresensiModel)->getSiswaByKelas($idKelas, $idTp, $idSmt);
+        $siswaIds = array_map(static fn ($s) => (int) $s->id_siswa, $siswaList);
+
+        $presensiMap = [];
+        if (! empty($siswaIds)) {
+            $presensiRows = $db->table('presensi_siswa')
+                ->whereIn('id_siswa', $siswaIds)
+                ->where('tgl', $tanggal)
+                ->select('id_siswa', 'status', 'jam_masuk', 'jam')
+                ->get();
+            foreach ($presensiRows as $p) {
+                $presensiMap[(int) $p->id_siswa] = (string) $p->status;
+            }
+        }
+
         $rows = [];
-        foreach ((new SiswaPresensiModel)->getSiswaByKelas($idKelas, $idTp, $idSmt) as $s) {
+        $totalHadir = 0;
+        $totalTidakHadir = 0;
+
+        foreach ($siswaList as $s) {
+            $rawStatus = $presensiMap[(int) $s->id_siswa] ?? null;
+            $status = 'TIDAK_ABSEN';
+            $label = 'Tidak Absen';
+            $isHadir = false;
+
+            if ($rawStatus !== null) {
+                $upper = strtoupper(trim($rawStatus));
+                if ($upper === 'HADIR') {
+                    $status = 'HADIR';
+                    $label = 'Hadir';
+                    $isHadir = true;
+                } elseif ($upper === 'SAKIT') {
+                    $status = 'SAKIT';
+                    $label = 'Sakit';
+                } elseif ($upper === 'IZIN') {
+                    $status = 'IZIN';
+                    $label = 'Izin';
+                } elseif ($upper === 'ALPA') {
+                    $status = 'ALPA';
+                    $label = 'Alpa';
+                } elseif ($upper === 'BDR') {
+                    $status = 'BDR';
+                    $label = 'BDR';
+                } else {
+                    $status = 'TANPA_KETERANGAN';
+                    $label = 'Tidak Absen';
+                }
+            }
+
+            if ($isHadir) {
+                $totalHadir++;
+            } else {
+                $totalTidakHadir++;
+            }
+
             $rows[] = [
                 'id_siswa' => (int) $s->id_siswa,
                 'nama' => (string) $s->nama,
+                'status_presensi' => $status,
+                'status_label' => $label,
+                'is_hadir' => $isHadir,
             ];
         }
 
-        return $this->response->setJSON(['status' => true, 'nama_kelas' => (string) ($kelas->nama_kelas ?? ''), 'data' => $rows]);
+        return $this->response->setJSON([
+            'status' => true,
+            'nama_kelas' => (string) ($kelas->nama_kelas ?? ''),
+            'tanggal' => $tanggal,
+            'summary' => [
+                'total' => count($rows),
+                'hadir' => $totalHadir,
+                'tidak_hadir' => $totalTidakHadir,
+            ],
+            'data' => $rows,
+        ]);
     }
 
     /**

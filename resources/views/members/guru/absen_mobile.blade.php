@@ -174,6 +174,26 @@
     .fs-foot i { margin-right:3px; }
     .fs-hideinput { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 
+    /* Panel opsi dinas / WFH di dalam modal FaceScan (tema terang) */
+    #facescan-modal .fs-more { margin:14px 0 0; width:100%; max-width:none; border-color:#e2e8f0; background:#f8fafc; }
+    #facescan-modal .fs-more:has(input:checked) { border-color:#bbf7d0; background:#f0fdf4; }
+    #facescan-modal .fs-more > summary { color:#334155; padding:11px 13px; }
+    #facescan-modal .fs-more > summary:active { color:#0f172a; }
+    #facescan-modal .fs-more > summary:focus-visible { outline:2px solid var(--brand-500); outline-offset:-2px; }
+    #facescan-modal .fs-more[open] > summary { color:#0f172a; border-bottom-color:#e2e8f0; }
+    #facescan-modal .mode-row { padding:9px; }
+    #facescan-modal .mode-row:has(input:checked) { background:#dcfce7; border-color:#86efac; }
+    #facescan-modal .mode-tt { color:#0f172a; }
+    #facescan-modal .mode-sub { color:#64748b; }
+    #facescan-modal .mode-ic.amber { background:#fef3c7; color:#b45309; }
+    #facescan-modal .mode-ic.sky { background:#e0f2fe; color:#0369a1; }
+    #facescan-modal .mode-toggle { background:#cbd5e1; border-color:#cbd5e1; }
+    #facescan-modal .mode-toggle::after { background:#fff; box-shadow:0 1px 3px rgba(15,23,42,.28); }
+    #facescan-modal input:checked + .mode-toggle { background:#22c55e; border-color:#22c55e; }
+    #facescan-modal input:focus-visible + .mode-toggle { outline:2px solid var(--brand-500); outline-offset:2px; }
+    #facescan-modal .fs-sep { border-top-color:#e2e8f0; }
+    #facescan-modal.is-success .fs-more { display:none; }
+
     /* ── Hero section ───────────────────────────────────────── */
     .hero-section {
         color: #fff; position: relative;
@@ -289,17 +309,42 @@
         border-top: 1px dashed #e2e8f0;
     }
     .mini-status-box {
-        padding: 12px 8px 10px; border-radius: 18px; text-align: center;
+        padding: 12px 10px 10px; border-radius: 18px; text-align: center;
         display: flex; flex-direction: column;
         justify-content: center; align-items: center;
         border: 1px solid;
-        transition: transform .15s ease;
+        transition: transform .2s ease, box-shadow .2s ease;
     }
-    .mini-status-box.box-masuk  { background: #f0fdf4; border-color: #dcfce7; }
-    .mini-status-box.box-pulang { background: #f8fafc; border-color: #eef2f7; }
-    .mini-status-box .box-title { font-weight: 800; text-transform: uppercase; margin-bottom: 4px; font-size: 10px; letter-spacing: .6px; display: inline-flex; align-items: center; gap: 4px; }
+    .mini-status-box:hover {
+        transform: translateY(-2px);
+    }
+    .mini-status-box.box-masuk {
+        background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+        border-color: #dcfce7;
+        box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.08);
+    }
+    .mini-status-box.box-pulang {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border-color: #e2e8f0;
+        box-shadow: 0 4px 12px -2px rgba(100, 116, 139, 0.06);
+    }
+    .mini-status-box .box-title {
+        font-weight: 800; text-transform: uppercase; margin-bottom: 5px; font-size: 10px; letter-spacing: .6px;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
     .mini-status-box.box-masuk  .box-title { color: #15803d; }
-    .mini-status-box.box-pulang .box-title { color: #64748b; }
+    .mini-status-box.box-pulang .box-title { color: #475569; }
+    .mini-status-box .box-title i {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 18px; height: 18px; border-radius: 6px;
+        font-size: 11px;
+    }
+    .mini-status-box.box-masuk .box-title i {
+        background: rgba(22, 163, 74, 0.15); color: #16a34a;
+    }
+    .mini-status-box.box-pulang .box-title i {
+        background: rgba(100, 116, 139, 0.15); color: #64748b;
+    }
     .mini-status-box .box-value  { font-weight: 900; color: #0f172a; font-size: 21px; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
     .box-pill {
         display: inline-flex; align-items: center; gap: 4px;
@@ -338,35 +383,194 @@
     @media (hover: hover) { .action-item:hover { transform: translateY(-2px); } }
     .action-item:focus-visible { outline: none; }
     .action-item:focus-visible .action-icon {
-        box-shadow: 0 0 0 3px rgb(var(--brand-600-rgb) / 0.35), 0 6px 16px rgba(0, 0, 0, 0.10);
+        box-shadow: 0 0 0 3px rgb(var(--brand-600-rgb) / 0.35), 0 8px 18px rgba(0, 0, 0, 0.12);
     }
     .action-icon {
         position: relative;
         display: flex; align-items: center; justify-content: center;
-        margin-bottom: 7px;
+        margin-bottom: 8px;
         width: 58px; height: 58px;
         border-radius: 20px;
         font-size: 24px;
-        color: #fff;
-        background-image: linear-gradient(180deg, rgba(255,255,255,.26) 0%, rgba(255,255,255,0) 62%);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 20px -10px rgba(15, 23, 42, 0.45);
-        border: none;
-        transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s ease;
+        transition: transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .28s ease, filter .2s ease;
+        overflow: hidden;
     }
-    .action-icon .bi { width: 1em; height: 1em; }
-    .action-item:active .action-icon { transform: scale(.90); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02); }
-    .action-label { font-weight: 700; color: #334155; text-align: center; line-height: 1.3; font-size: 12.5px; letter-spacing: -.1px; }
+    .action-icon i, .action-icon .bi {
+        width: 1em; height: 1em;
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .action-item:hover .action-icon i,
+    .action-item:hover .action-icon .bi {
+        transform: scale(1.12);
+    }
+    .action-item:active .action-icon {
+        transform: scale(.91);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+    .action-label {
+        font-weight: 700; color: #475569;
+        text-align: center; line-height: 1.25;
+        font-size: 12px; letter-spacing: -.15px;
+        transition: color .2s ease;
+    }
+    .action-item:hover .action-label { color: #0f172a; }
+
+    /* ── Primary Action Icons (Akses Pintar) ── */
+    .icon-absen {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        box-shadow: 0 8px 18px -4px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        animation: pulseAbsenGlow 3s ease-in-out infinite;
+    }
+    .icon-scan {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: #ffffff;
+        box-shadow: 0 8px 18px -4px rgba(5, 150, 105, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+    .icon-izin {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: #ffffff;
+        box-shadow: 0 8px 18px -4px rgba(245, 158, 11, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+    .icon-koreksi {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        color: #ffffff;
+        box-shadow: 0 8px 18px -4px rgba(139, 92, 246, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    /* ── Secondary Action Icons (Menu Lainnya) ── */
+    .icon-jurnal {
+        background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+        border: 1px solid #a5f3fc;
+        color: #0891b2;
+        box-shadow: 0 4px 12px -2px rgba(8, 145, 178, 0.16);
+    }
+    .icon-stats {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 1px solid #fde68a;
+        color: #d97706;
+        box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.16);
+    }
+    .icon-piket {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border: 1px solid #bbf7d0;
+        color: #16a34a;
+        box-shadow: 0 4px 12px -2px rgba(22, 163, 74, 0.16);
+    }
+    .icon-poin {
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+        border: 1px solid #e9d5ff;
+        color: #9333ea;
+        box-shadow: 0 4px 12px -2px rgba(147, 51, 234, 0.16);
+    }
+    .icon-lembur {
+        background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+        border: 1px solid #fed7aa;
+        color: #ea580c;
+        box-shadow: 0 4px 12px -2px rgba(234, 88, 12, 0.16);
+    }
+    .icon-kalender {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #bfdbfe;
+        color: #2563eb;
+        box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.16);
+    }
+    .icon-kartu-qr {
+        background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+        border: 1px solid #c7d2fe;
+        color: #4f46e5;
+        box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.16);
+    }
+    .icon-rekap-pdf {
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        box-shadow: 0 4px 12px -2px rgba(220, 38, 38, 0.16);
+    }
+
+    /* Hover elevation on pointer devices */
+    @media (hover: hover) {
+        .action-item:hover .action-icon {
+            transform: translateY(-3px) scale(1.03);
+        }
+        .action-item:hover .icon-absen {
+            box-shadow: 0 12px 24px -2px rgba(37, 99, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        }
+        .action-item:hover .icon-scan {
+            box-shadow: 0 12px 24px -2px rgba(5, 150, 105, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        }
+        .action-item:hover .icon-izin {
+            box-shadow: 0 12px 24px -2px rgba(245, 158, 11, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        }
+        .action-item:hover .icon-koreksi {
+            box-shadow: 0 12px 24px -2px rgba(139, 92, 246, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        }
+        .action-item:hover .icon-jurnal,
+        .action-item:hover .icon-stats,
+        .action-item:hover .icon-piket,
+        .action-item:hover .icon-poin,
+        .action-item:hover .icon-lembur,
+        .action-item:hover .icon-kalender,
+        .action-item:hover .icon-kartu-qr,
+        .action-item:hover .icon-rekap-pdf {
+            box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.12);
+        }
+    }
+
+    /* Keyframe animations */
+    @keyframes pulseAbsenGlow {
+        0%, 100% {
+            box-shadow: 0 8px 18px -4px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+        50% {
+            box-shadow: 0 12px 24px -2px rgba(37, 99, 235, 0.65), 0 0 0 3.5px rgba(37, 99, 235, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        }
+    }
+
+    @keyframes menuTileIn {
+        0% {
+            opacity: 0;
+            transform: translateY(14px) scale(0.92);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    #extraMenuContainer.is-open .action-item {
+        animation: menuTileIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    #extraMenuContainer.is-open .action-item:nth-child(1) { animation-delay: 0.02s; }
+    #extraMenuContainer.is-open .action-item:nth-child(2) { animation-delay: 0.05s; }
+    #extraMenuContainer.is-open .action-item:nth-child(3) { animation-delay: 0.08s; }
+    #extraMenuContainer.is-open .action-item:nth-child(4) { animation-delay: 0.11s; }
+    #extraMenuContainer.is-open .action-item:nth-child(5) { animation-delay: 0.14s; }
+    #extraMenuContainer.is-open .action-item:nth-child(6) { animation-delay: 0.17s; }
+    #extraMenuContainer.is-open .action-item:nth-child(7) { animation-delay: 0.20s; }
+    #extraMenuContainer.is-open .action-item:nth-child(8) { animation-delay: 0.23s; }
 
     .btn-toggle-menu {
-        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        display: inline-flex; align-items: center; justify-content: center; gap: 7px;
         font-weight: 700; background: #ffffff; border-radius: 9999px;
         cursor: pointer; border: 1px solid #e2e8f0;
-        min-height: 42px; padding: 9px 20px; font-size: 12.5px; color: #475569;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03); transition: all .2s ease;
+        min-height: 40px; padding: 8px 20px; font-size: 12px; color: #475569;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+        transition: all .25s cubic-bezier(.34,1.56,.64,1);
     }
-    .btn-toggle-menu:active { background: #f8fafc; color: var(--brand-600); border-color: #cbd5e1; }
-    @media (hover: hover) { .btn-toggle-menu:hover { background: #f8fafc; color: var(--brand-600); border-color: #cbd5e1; } }
-    .btn-toggle-menu i { font-size: 12px; transition: transform .3s ease; }
+    .btn-toggle-menu:hover {
+        background: #f8fafc; color: var(--brand-600); border-color: #cbd5e1;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    }
+    .btn-toggle-menu:active {
+        transform: scale(.96);
+    }
+    .btn-toggle-menu i {
+        font-size: 12px;
+        transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    }
     .btn-toggle-menu.active i { transform: rotate(180deg); }
 
     /* ── Koreksi Absensi ────────────────────────────────────── */
@@ -516,8 +720,7 @@
     #facescan-modal.is-success .fs-privacy,
     #facescan-modal.is-success .fs-step-pill,
     #facescan-modal.is-success .fs-viewport-actions,
-    #facescan-modal.is-success #facescan-gpsbar,
-    #facescan-modal.is-success #facescan-legacy { display: none; }
+    #facescan-modal.is-success #facescan-gpsbar { display: none; }
     #facescan-modal.is-success #facescan-viewport { border-color: transparent; }
     /* Saat ditolak, panel progres tidak perlu: status + alasan sudah tampil
        di viewport dan kotak error, jadi hilangkan duplikasi teks. */
@@ -789,13 +992,116 @@
         border-radius: 9999px;
         transition: width 0.5s ease;
     }
+    /* ── Action item active states with colors matching each icon ── */
+    .action-item:has(.icon-absen),
+    .action-item#btn-absen {
+        --active-color: #2563eb;
+        --active-glow: rgba(37, 99, 235, 0.45);
+    }
+    .action-item:has(.icon-scan) {
+        --active-color: #059669;
+        --active-glow: rgba(5, 150, 105, 0.45);
+    }
+    .action-item:has(.icon-izin),
+    .action-item[data-tab="izin"] {
+        --active-color: #d97706;
+        --active-glow: rgba(217, 119, 6, 0.45);
+    }
+    .action-item:has(.icon-koreksi),
+    .action-item[data-tab="koreksi"] {
+        --active-color: #7c3aed;
+        --active-glow: rgba(124, 58, 237, 0.45);
+    }
+    .action-item:has(.icon-stats),
+    .action-item[data-tab="history"] {
+        --active-color: #d97706;
+        --active-glow: rgba(217, 119, 6, 0.45);
+    }
+    .action-item:has(.icon-jurnal) {
+        --active-color: #0891b2;
+        --active-glow: rgba(8, 145, 178, 0.45);
+    }
+    .action-item:has(.icon-piket) {
+        --active-color: #16a34a;
+        --active-glow: rgba(22, 163, 74, 0.45);
+    }
+    .action-item:has(.icon-poin) {
+        --active-color: #9333ea;
+        --active-glow: rgba(147, 51, 234, 0.45);
+    }
+    .action-item:has(.icon-lembur) {
+        --active-color: #ea580c;
+        --active-glow: rgba(234, 88, 12, 0.45);
+    }
+    .action-item:has(.icon-kalender) {
+        --active-color: #2563eb;
+        --active-glow: rgba(37, 99, 235, 0.45);
+    }
+    .action-item:has(.icon-kartu-qr) {
+        --active-color: #4f46e5;
+        --active-glow: rgba(79, 70, 229, 0.45);
+    }
+    .action-item:has(.icon-rekap-pdf) {
+        --active-color: #dc2626;
+        --active-glow: rgba(220, 38, 38, 0.45);
+    }
+
     .action-item.active .action-icon {
-        box-shadow: 0 0 0 2.5px var(--brand-600), 0 4px 12px rgb(var(--brand-600-rgb) / 0.25);
-        transform: scale(1.06);
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px var(--active-color, var(--brand-600)), 0 8px 20px -4px var(--active-glow, rgb(var(--brand-600-rgb) / 0.45)) !important;
+        transform: scale(1.08);
     }
     .action-item.active .action-label {
-        color: var(--brand-600);
+        color: var(--active-color, var(--brand-600));
         font-weight: 800;
+        position: relative;
+    }
+    .action-item.active .action-label::after {
+        content: '';
+        display: block;
+        width: 14px;
+        height: 3px;
+        border-radius: 9999px;
+        background: var(--active-color, var(--brand-600));
+        margin: 3px auto 0;
+        animation: tabIn 0.25s ease;
+    }
+
+    /* Fallback selectors for broader browser engine compatibility */
+    .action-item.active .icon-absen {
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px #2563eb, 0 8px 20px -4px rgba(37, 99, 235, 0.45) !important;
+    }
+    .action-item.active .icon-scan {
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px #059669, 0 8px 20px -4px rgba(5, 150, 105, 0.45) !important;
+    }
+    .action-item.active .icon-izin,
+    .action-item[data-tab="izin"].active .action-icon {
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px #d97706, 0 8px 20px -4px rgba(217, 119, 6, 0.45) !important;
+    }
+    .action-item.active .icon-koreksi,
+    .action-item[data-tab="koreksi"].active .action-icon {
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px #7c3aed, 0 8px 20px -4px rgba(124, 58, 237, 0.45) !important;
+    }
+    .action-item.active .icon-stats,
+    .action-item[data-tab="history"].active .action-icon {
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 5.5px #d97706, 0 8px 20px -4px rgba(217, 119, 6, 0.45) !important;
+    }
+    .action-item[data-tab="izin"].active .action-label {
+        color: #d97706;
+    }
+    .action-item[data-tab="izin"].active .action-label::after {
+        background: #d97706;
+    }
+    .action-item[data-tab="koreksi"].active .action-label {
+        color: #7c3aed;
+    }
+    .action-item[data-tab="koreksi"].active .action-label::after {
+        background: #7c3aed;
+    }
+    .action-item[data-tab="history"].active .action-label {
+        color: #d97706;
+    }
+    .action-item[data-tab="history"].active .action-label::after {
+        background: #d97706;
     }
 
     /* ── Skeleton loading ───────────────────────────────────── */
@@ -940,14 +1246,18 @@
             <div id="digitalDate">Mendeteksi waktu...</div>
         </div>
         
+        <?php
+        $isHariLiburAtauMinggu = !empty($is_holiday) || ((int) date('N') === 7);
+        $jamMasukTampil = ($attendance && !empty($attendance->jam_masuk) && strpos((string) $attendance->jam_masuk, '0000-00-00') !== 0)
+            ? date('H:i', strtotime($attendance->jam_masuk)) : null;
+        $jamPulangTampil = ($attendance && !empty($attendance->jam_pulang) && strpos((string) $attendance->jam_pulang, '0000-00-00') !== 0)
+            ? date('H:i', strtotime($attendance->jam_pulang)) : null;
+        ?>
+
+        <?php if (!$isHariLiburAtauMinggu || $jamMasukTampil !== null): ?>
         <div class="mini-status-grid">
             <?php
             // Badge status masuk/pulang ala referensi
-            $jamMasukTampil = ($attendance && !empty($attendance->jam_masuk) && strpos((string) $attendance->jam_masuk, '0000-00-00') !== 0)
-                ? date('H:i', strtotime($attendance->jam_masuk)) : null;
-            $jamPulangTampil = ($attendance && !empty($attendance->jam_pulang) && strpos((string) $attendance->jam_pulang, '0000-00-00') !== 0)
-                ? date('H:i', strtotime($attendance->jam_pulang)) : null;
-
             $stMasuk = strtoupper(trim((string) ($attendance->status_masuk ?? '')));
             $telatMnt = (int) ($attendance->telat_menit ?? 0);
             if ($jamMasukTampil !== null) {
@@ -971,16 +1281,17 @@
             }
             ?>
             <div class="mini-status-box box-masuk">
-                <span class="box-title"><i class="bi bi-arrow-down-left"></i>Jam Masuk</span>
+                <span class="box-title"><i class="bi bi-box-arrow-in-right"></i>Jam Masuk</span>
                 <span class="box-value">{{ $jamMasukTampil ?? '--:--' }}</span>
                 {!! $masukBadge !!}
             </div>
             <div class="mini-status-box box-pulang">
-                <span class="box-title"><i class="bi bi-arrow-up-right"></i>Jam Pulang</span>
+                <span class="box-title"><i class="bi bi-box-arrow-right"></i>Jam Pulang</span>
                 <span class="box-value">{{ $jamPulangTampil ?? '--:--' }}</span>
                 {!! $pulangBadge !!}
             </div>
         </div>
+        <?php endif; ?>
     </div>
 
     <?php if (!$face_registered): ?>
@@ -993,28 +1304,31 @@
     <?php endif; ?>
 
     <!-- Action Grid: Utama -->
-    <div class="mini-section-title">Akses Pintar</div>
+    <div class="mini-section-title">
+        <span>Akses Pintar</span>
+        <span class="text-[10.5px] font-semibold text-slate-400 lowercase tracking-normal">menu utama</span>
+    </div>
     <div class="action-grid pb-1">
         <button type="button" class="action-item" id="btn-absen">
-            <span class="action-icon" style="background: #ef4444;">
+            <span class="action-icon icon-absen">
                 <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
             </span>
             <span class="action-label">Absen</span>
         </button>
         <a class="action-item" href="{{ url('guru/presensi-siswa' . (session('user_id') ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int)session('user_id')) : '')) }}">
-            <span class="action-icon" style="background: #16a34a;">
+            <span class="action-icon icon-scan">
                 <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
             </span>
             <span class="action-label">Scan QR</span>
         </a>
         <button type="button" class="action-item" data-tab="izin" aria-controls="content-izin">
-            <span class="action-icon" style="background: var(--brand-secondary);">
+            <span class="action-icon icon-izin">
                 <i class="bi bi-calendar-event" aria-hidden="true"></i>
             </span>
             <span class="action-label">Izin/Sakit</span>
         </button>
         <button type="button" class="action-item" data-tab="koreksi" aria-controls="content-koreksi">
-            <span class="action-icon" style="background: #22c55e;">
+            <span class="action-icon icon-koreksi">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </span>
             <span class="action-label">Koreksi</span>
@@ -1033,49 +1347,49 @@
     <div id="extraMenuContainer" style="display: none;">
         <div class="action-grid pt-2 pb-2">
             <a class="action-item" href="{{ url('guru/jurnal') }}">
-                <span class="action-icon" style="background: #ECFEFF; color: #0891b2;">
+                <span class="action-icon icon-jurnal">
                     <i class="bi bi-journal-text" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Jurnal</span>
             </a>
             <button type="button" class="action-item" data-tab="history" aria-controls="content-history">
-                <span class="action-icon" style="background: #f59e0b;">
-                    <i class="bi bi-graph-up" aria-hidden="true"></i>
+                <span class="action-icon icon-stats">
+                    <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Statistik</span>
             </button>
             <a class="action-item" href="{{ url('guru/piket') }}">
-                <span class="action-icon" style="background: #F0FDF4; color: #16a34a;">
-                    <i class="bi bi-people" aria-hidden="true"></i>
+                <span class="action-icon icon-piket">
+                    <i class="bi bi-people-fill" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Piket</span>
             </a>
             <a class="action-item" href="{{ url('guru/reward') }}">
-                <span class="action-icon" style="background: #F3E8FF; color: var(--accent-600);">
+                <span class="action-icon icon-poin">
                     <i class="bi bi-award-fill" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Poin</span>
             </a>
             <a class="action-item" href="{{ url('guru/lembur') }}">
-                <span class="action-icon" style="background: #FFFBEB; color: #d97706;">
-                    <i class="bi bi-clock-fill" aria-hidden="true"></i>
+                <span class="action-icon icon-lembur">
+                    <i class="bi bi-clock-history" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Lembur</span>
             </a>
             <a class="action-item" href="{{ url('guru/kalender') }}">
-                <span class="action-icon" style="background: var(--primary-50); color: var(--primary-600);">
+                <span class="action-icon icon-kalender">
                     <i class="bi bi-calendar-check-fill" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Kalender</span>
             </a>
             <button type="button" class="action-item" id="btn-teacher-qr">
-                <span class="action-icon" style="background: #FAF5FF; color: var(--accent-600);">
+                <span class="action-icon icon-kartu-qr">
                     <i class="bi bi-qr-code" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Kartu QR</span>
             </button>
             <button type="button" class="action-item" id="btn-rekap-pdf" onclick="openRekapModal()">
-                <span class="action-icon" style="background: #FEF2F2; color: #dc2626;">
+                <span class="action-icon icon-rekap-pdf">
                     <i class="bi bi-file-earmark-pdf-fill" aria-hidden="true"></i>
                 </span>
                 <span class="action-label">Rekap PDF</span>
@@ -1165,34 +1479,6 @@
     </div>
     <?php endif; ?>
 
-    <!-- Upcoming Events -->
-    <?php if (!empty($upcomingEvents)): ?>
-    <div class="px-4 mt-3">
-        <div class="section-header px-0">
-            <h5><i class="bi bi-megaphone me-2 text-amber-500"></i>Event Mendatang</h5>
-            <a href="{{ url('guru/kalender') }}" class="text-sm font-semibold text-brand-600 no-underline">Kalender</a>
-        </div>
-        <div class="space-y-2">
-            <?php foreach ($upcomingEvents as $ev): ?>
-            <div class="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-sm transition">
-                <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex flex-col items-center justify-center shrink-0">
-                    <div class="font-bold leading-none text-base">{{ date('d', strtotime($ev->tgl_mulai)) }}</div>
-                    <div class="text-[9.5px] uppercase font-bold text-amber-600/75 mt-0.5">{{ date('M', strtotime($ev->tgl_mulai)) }}</div>
-                </div>
-                <div class="min-w-0 grow">
-                    <div class="font-bold text-[13.5px] text-slate-800 truncate">{{ $ev->judul }}</div>
-                    <div class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                        <span class="badge-tw badge-secondary text-[10px] font-semibold text-slate-600 px-2 py-0.5 rounded-full">{{ $ev->tipe }}</span>
-                        <?php if ($ev->tgl_selesai): ?>
-                        <span>{{ date('d/m', strtotime($ev->tgl_mulai)) }} - {{ date('d/m', strtotime($ev->tgl_selesai)) }}</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-    <?php endif; ?>
 
     <!-- Content Sections -->
     <div class="main-content">
@@ -2516,42 +2802,6 @@
             <i class="bi bi-exclamation-triangle-fill"></i> Di luar area — buka opsi di bawah.
         </div>
 
-        <details class="fs-more">
-            <summary>
-                <span class="fs-more-l"><i class="bi bi-sliders2"></i> Opsi dinas / WFH</span>
-                <i class="bi bi-chevron-down fs-chev"></i>
-            </summary>
-            <div class="camera-options-card">
-            <label for="dinasCheck" class="mode-row">
-                <input type="checkbox" id="dinasCheck" class="fs-hideinput">
-                <span class="mode-toggle" aria-hidden="true"></span>
-                <span class="mode-ic amber"><i class="bi bi-briefcase"></i></span>
-                <span class="mode-tx">
-                    <span class="mode-tt">Mode Dinas</span>
-                    <span class="mode-sub">Tugas luar — tanpa batas radius</span>
-                </span>
-            </label>
-            <div id="wfhCheckContainer" class="fs-sep">
-                <label for="wfhCheck" class="mode-row">
-                    <input type="checkbox" id="wfhCheck" class="fs-hideinput">
-                    <span class="mode-toggle" aria-hidden="true"></span>
-                    <span class="mode-ic sky"><i class="bi bi-house-door"></i></span>
-                    <span class="mode-tx">
-                        <span class="mode-tt">WFH</span>
-                        <span id="wfhQuotaText" class="mode-sub">Work from home sesuai kuota</span>
-                    </span>
-                </label>
-            </div>
-            <div id="dinasKetContainer" class="hidden" style="padding:10px 2px 2px;">
-                <label for="dinasKeterangan" style="display:block;font-size:11px;font-weight:800;color:#334155;margin-bottom:6px;">
-                    Alasan tugas luar <span style="color:#b45309;">(wajib)</span>
-                </label>
-                <input type="text" id="dinasKeterangan" maxlength="200" autocomplete="off"
-                       placeholder="mis. Pendampingan lomba di Dinas Pendidikan"
-                       style="width:100%;padding:10px 12px;font-size:13px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#0f172a;">
-            </div>
-            </div>
-        </details>
     </div>
 </div>
 
@@ -2648,6 +2898,44 @@
             <i class="bi bi-exclamation-triangle-fill"></i><span id="facescan-error-text"></span>
         </div>
 
+        <!-- Opsi dinas / WFH — satu panel untuk absen biasa maupun dinas -->
+        <details class="fs-more" id="fsModePanel">
+            <summary>
+                <span class="fs-more-l"><i class="bi bi-sliders2"></i> Opsi dinas / WFH</span>
+                <i class="bi bi-chevron-down fs-chev"></i>
+            </summary>
+            <div class="camera-options-card">
+                <label for="dinasCheck" class="mode-row">
+                    <input type="checkbox" id="dinasCheck" class="fs-hideinput">
+                    <span class="mode-toggle" aria-hidden="true"></span>
+                    <span class="mode-ic amber"><i class="bi bi-briefcase"></i></span>
+                    <span class="mode-tx">
+                        <span class="mode-tt">Mode Dinas</span>
+                        <span class="mode-sub">Tugas luar — tanpa batas radius</span>
+                    </span>
+                </label>
+                <div id="wfhCheckContainer" class="fs-sep">
+                    <label for="wfhCheck" class="mode-row">
+                        <input type="checkbox" id="wfhCheck" class="fs-hideinput">
+                        <span class="mode-toggle" aria-hidden="true"></span>
+                        <span class="mode-ic sky"><i class="bi bi-house-door"></i></span>
+                        <span class="mode-tx">
+                            <span class="mode-tt">WFH</span>
+                            <span id="wfhQuotaText" class="mode-sub">Work from home sesuai kuota</span>
+                        </span>
+                    </label>
+                </div>
+                <div id="dinasKetContainer" class="hidden" style="padding:10px 2px 2px;">
+                    <label for="dinasKeterangan" style="display:block;font-size:11px;font-weight:800;color:#334155;margin-bottom:6px;">
+                        Alasan tugas luar <span style="color:#b45309;">(wajib)</span>
+                    </label>
+                    <input type="text" id="dinasKeterangan" maxlength="200" autocomplete="off"
+                           placeholder="mis. Pendampingan lomba di Dinas Pendidikan"
+                           style="width:100%;padding:10px 12px;font-size:13px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#0f172a;">
+                </div>
+            </div>
+        </details>
+
         <!-- Footer -->
         <div class="fs-actions">
             <button type="button" id="facescan-cancel" onclick="FaceScan.close()" class="fs-btn fs-btn-secondary">Batalkan</button>
@@ -2655,9 +2943,6 @@
                 <i class="bi bi-arrow-clockwise"></i> <span id="facescan-retry-label">Pindai Ulang</span>
             </button>
         </div>
-        <button type="button" id="facescan-legacy" onclick="FaceScan.legacy()" class="fs-legacy-btn hidden">
-            <i class="bi bi-shield-check"></i> Mode Dinas / WFH
-        </button>
         <p class="fs-privacy"><i class="bi bi-shield-lock-fill"></i> Foto hanya dipakai untuk verifikasi presensi.</p>
     </div>
 </div>
@@ -3189,13 +3474,18 @@
         const btn = $('#btnToggleMenu');
         const text = $('#toggleMenuText');
 
+        if (!container.is(':visible')) {
+            container.addClass('is-open');
+        }
         container.slideToggle(220, function() {
             const isVisible = container.is(':visible');
             btn.attr('aria-expanded', isVisible ? 'true' : 'false');
             if (isVisible) {
+                container.addClass('is-open');
                 btn.addClass('active');
                 text.text('Tutup Menu');
             } else {
+                container.removeClass('is-open');
                 btn.removeClass('active');
                 text.text('Menu Lainnya');
             }
@@ -3865,11 +4155,11 @@
             NO_FACE: 'Cari tempat lebih terang dan hadapkan wajah ke kamera.',
             NO_GPS: 'Aktifkan GPS dan izin lokasi, lalu coba lagi.',
             NO_LOC: 'Minta admin mengatur titik lokasi sekolah.',
-            OUT_OF_RANGE: 'Dekati area sekolah, atau gunakan Mode Dinas / WFH bila bertugas di luar.',
+            OUT_OF_RANGE: 'Bila bertugas di luar, buka "Opsi dinas / WFH" di bawah, pilih Mode Dinas, isi alasannya, lalu Pindai Ulang.',
             NO_MODEL: 'Periksa koneksi internet lalu tekan Pindai Ulang.',
             SESI: 'Muat ulang halaman lalu login kembali.',
             SERVER: 'Pemindaian wajah Anda berhasil — server yang menolak. Baca alasannya di atas.',
-            INPUT: 'Buka "Opsi dinas / WFH" di halaman utama, lengkapi isian, lalu ulangi.',
+            INPUT: 'Buka "Opsi dinas / WFH" di modal ini, lengkapi isian, lalu ulangi.',
             FACE_MISMATCH: 'Coba lagi di tempat terang, menghadap kamera, tanpa masker/kacamata hitam.',
             FACE_PROFILE: 'Buka menu Profil, daftarkan foto wajah Anda, lalu absen lagi.',
             GPS_MOCK: 'Matikan aplikasi lokasi palsu, gunakan GPS asli, lalu ulangi.',
@@ -4044,6 +4334,20 @@
                 .trim();
         }
 
+        // Buka panel Mode Dinas / WFH di dalam modal FaceScan dan sorot isiannya.
+        function bukaModePanel() {
+            const panel = $('fsModePanel');
+            if (panel) {
+                panel.open = true;
+                try { panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+            }
+            const dinas = $('dinasCheck');
+            const ket = $('dinasKeterangan');
+            if (ket && dinas && dinas.checked) {
+                try { ket.focus({ preventScroll: true }); } catch (e) {}
+            }
+        }
+
         function showError(msg, showLegacy, code) {
             const box = $('facescan-error');
             const teks = rapikanPesan(msg);
@@ -4052,16 +4356,21 @@
             if (ton === 'warn') box.classList.add('is-warn');
             if (ton === 'info') box.classList.add('is-info');
             const isRange = code === 'OUT_OF_RANGE';
+            // Mode Dinas yang dicentang tanpa alasan juga diberi pintu yang sama:
+            // "Pindai Ulang" akan gagal berulang sampai alasannya diisi.
+            const modeSekarang = (code === 'INPUT') ? modeAbsenDipilih() : null;
+            const isDinasKurang = !!(modeSekarang && modeSekarang.is_dinas && !modeSekarang.keterangan);
+            const kePanelMode = isRange || isDinasKurang;
             const cancel = $('facescan-cancel');
-            if (cancel) cancel.textContent = ton === 'info' ? 'Mengerti' : (isRange ? 'Tutup' : 'Batalkan');
+            if (cancel) cancel.textContent = ton === 'info' ? 'Mengerti' : (kePanelMode ? 'Tutup' : 'Batalkan');
             const retry = $('facescan-retry');
             if (retry) {
-                if (isRange) {
-                    // Di luar radius, memindai ulang tidak akan mengubah hasil.
-                    // Jadikan aksi utama sebagai pintu Mode Dinas / WFH.
+                if (kePanelMode) {
+                    // Memindai ulang tidak akan mengubah hasil sebelum mode/alasan
+                    // diisi, jadi aksi utama diarahkan ke panel opsi di modal ini.
                     retry.className = 'fs-btn fs-btn-brand';
-                    retry.innerHTML = '<i class="bi bi-shield-check"></i> Mode Dinas / WFH';
-                    retry.onclick = function () { closeModal(); if (window.handleScanClick) window.handleScanClick(); };
+                    retry.innerHTML = '<i class="bi bi-shield-check"></i> ' + (isRange ? 'Buka Mode Dinas / WFH' : 'Lengkapi Alasan Dinas');
+                    retry.onclick = function () { bukaModePanel(); };
                 } else {
                     retry.className = 'fs-btn fs-btn-primary';
                     retry.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Pindai Ulang';
@@ -4069,7 +4378,6 @@
                 }
             }
             $('facescan-error-text').textContent = teks;
-            $('facescan-legacy').classList.toggle('hidden', !showLegacy || isRange);
             setStatus(ERROR_STATUS[code] || 'Gagal memindai', ton === 'error' ? false : null);
             setHint(ERROR_HINTS[code] || 'Periksa izin perangkat dan koneksi, lalu coba lagi.');
             setViewportState(ton, ERROR_TITLES[code] || 'Pemindaian terhenti', ERROR_SUBS[code] || 'Silakan coba lagi.');
@@ -4102,7 +4410,6 @@
         }
         function hideError() {
             $('facescan-error').classList.add('hidden');
-            $('facescan-legacy').classList.add('hidden');
         }
         // Absen pulang ditolak karena sesi terjadwal belum selesai jurnalnya.
         // Dua kelompok dibedakan: "belum diisi" (tautan Isi) dan "menunggu
@@ -4347,10 +4654,25 @@
                     dd.style.color = S.inRange ? '#2dd4bf' : '#f87171';
                     setProgress(30);
                     if (!S.inRange) {
+                        // Mode Dinas / WFH membuat radius tidak lagi menjadi penghalang,
+                        // jadi mode dibaca di sini — bukan dengan melempar guru ke
+                        // pemindai lama seperti sebelumnya.
+                        const mode = modeAbsenDipilih();
+                        if (mode.is_dinas || mode.is_wfh) {
+                            if (mode.is_dinas && !mode.keterangan) {
+                                bukaModePanel();
+                                return reject({
+                                    code: 'INPUT',
+                                    msg: 'Mode Dinas wajib diisi alasannya. Isi kolom "Alasan tugas luar", lalu tekan Pindai Ulang.'
+                                });
+                            }
+                            setHint('Mode ' + (mode.is_dinas ? 'Dinas' : 'WFH') + ' aktif. Menyiapkan kamera...');
+                            return resolve();
+                        }
+                        bukaModePanel();
                         return reject({
                             code: 'OUT_OF_RANGE',
-                            msg: 'Jarak ' + formatJarak(S.locDist) + ' — melebihi batas ' + formatJarak(r) + '. Gunakan Mode Dinas / WFH bila bertugas di luar.',
-                            legacy: true
+                            msg: 'Jarak ' + formatJarak(S.locDist) + ' — melebihi batas ' + formatJarak(r) + '. Bila Anda bertugas di luar, pilih Mode Dinas di bawah, isi alasannya, lalu tekan Pindai Ulang.'
                         });
                     }
                     setHint('Lokasi sesuai. Menyiapkan kamera...');
@@ -4996,7 +5318,7 @@
             selesai: selesai,
             restart: () => { if (!S.busy) start(); },
             toggleSound: toggleSuara,
-            legacy: () => { closeModal(); if (window.handleScanClick) window.handleScanClick(); }
+            legacy: () => { bukaModePanel(); }
         };
     })();
 

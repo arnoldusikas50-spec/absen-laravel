@@ -393,15 +393,21 @@
                     <label class="block text-[11px] font-bold text-slate-600 m-0">
                         Siswa Tidak Hadir
                     </label>
-                    <button type="button" id="absen-toggle"
-                            class="text-[11px] font-bold text-brand-600 hover:text-brand-800 transition-colors">
-                        Pilih siswa
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="absen-select-unattended"
+                                class="hidden text-[11px] font-bold text-rose-600 hover:text-rose-800 transition-colors">
+                            Tandai tidak absen
+                        </button>
+                        <button type="button" id="absen-toggle"
+                                class="text-[11px] font-bold text-brand-600 hover:text-brand-800 transition-colors">
+                            Pilih siswa
+                        </button>
+                    </div>
                 </div>
                 <input type="hidden" name="siswa_absent" id="input_siswa_absent" value="{{ $val('siswa_absent') }}">
 
                 <div id="absen-badge-wrap" class="hidden flex-wrap gap-1.5 mb-2"></div>
-                <div id="absen-panel" class="hidden max-h-56 overflow-y-auto bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-0.5"></div>
+                <div id="absen-panel" class="hidden max-h-60 overflow-y-auto bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-1"></div>
                 <p id="absen-status" class="text-[10px] text-slate-400 font-medium m-0 mt-1">
                     Pilih kelas untuk menampilkan daftar siswa.
                 </p>
@@ -651,6 +657,7 @@
     const absenBadges = document.getElementById('absen-badge-wrap');
     const absenStatus = document.getElementById('absen-status');
     const absenToggle = document.getElementById('absen-toggle');
+    const absenSelectUnattended = document.getElementById('absen-select-unattended');
 
     const absenSelected = new Map(); // "id_siswa" → nama
     let absenTeksLama  = '';
@@ -725,19 +732,24 @@
             absenPanel.innerHTML = '';
             absenPanel.classList.add('hidden');
             absenStatus.textContent = 'Pilih kelas untuk menampilkan daftar siswa.';
+            if (absenSelectUnattended) absenSelectUnattended.classList.add('hidden');
             return;
         }
+
+        const tgl = todayEl?.value || '';
+        const cacheKey = idKelas + '_' + tgl;
 
         absenStatus.textContent = 'Memuat daftar siswa...';
         const token = ++absenLoading;
         try {
-            if (!absenCache[idKelas]) {
-                const res = await fetch(`{{ url('guru/jurnal/siswa') }}/${idKelas}`, {
+            if (!absenCache[cacheKey]) {
+                const url = `{{ url('guru/jurnal/siswa') }}/${idKelas}` + (tgl ? `?tanggal=${encodeURIComponent(tgl)}` : '');
+                const res = await fetch(url, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 const json = await res.json();
                 if (json.status && Array.isArray(json.data)) {
-                    absenCache[idKelas] = json.data;
+                    absenCache[cacheKey] = json;
                 } else {
                     // Gagal tidak di-cache agar mengubah kelas/kondisi bisa langsung mencoba lagi.
                     throw new Error(String(json.message || 'Gagal memuat daftar siswa.'));
@@ -745,7 +757,8 @@
             }
             if (token !== absenLoading) return;
 
-            const rows = absenCache[idKelas];
+            const payload = absenCache[cacheKey];
+            const rows = payload.data || [];
             rows.forEach(function (r) {
                 const id = String(r.id_siswa);
                 if (absenSelected.has(id)) absenSelected.set(id, r.nama); // lengkapi nama badge awal
@@ -756,20 +769,67 @@
             if (!rows.length) {
                 absenPanel.innerHTML = '';
                 absenStatus.textContent = 'Tidak ada siswa aktif pada kelas ini.';
+                if (absenSelectUnattended) absenSelectUnattended.classList.add('hidden');
                 return;
+            }
+
+            const unAttendedCount = rows.filter(r => !r.is_hadir).length;
+            if (absenSelectUnattended) {
+                if (unAttendedCount > 0) {
+                    absenSelectUnattended.textContent = `Tandai tidak absen (${unAttendedCount})`;
+                    absenSelectUnattended.classList.remove('hidden');
+                } else {
+                    absenSelectUnattended.classList.add('hidden');
+                }
             }
 
             absenPanel.innerHTML = rows.map(function (r) {
                 const id = String(r.id_siswa);
                 const ok = absenSelected.has(id);
-                return '<label class="absen-item flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer text-[11px] font-semibold '
-                    + (ok ? 'bg-white text-rose-700' : 'text-slate-700') + '"'
-                    + ' data-id="' + escAbsen(id) + '" data-nama="' + escAbsen(r.nama) + '">'
+                const isHadir = !!r.is_hadir;
+                const status = r.status_presensi || (isHadir ? 'HADIR' : 'TIDAK_ABSEN');
+
+                let badge = '';
+                if (isHadir) {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100">'
+                        + '<i class="bi bi-check2 text-[10px]"></i> Hadir</span>';
+                } else if (status === 'SAKIT') {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200">'
+                        + '<i class="bi bi-bandaid text-[9px]"></i> Sakit</span>';
+                } else if (status === 'IZIN') {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold text-sky-700 bg-sky-50 border border-sky-200">'
+                        + '<i class="bi bi-envelope text-[9px]"></i> Izin</span>';
+                } else if (status === 'ALPA') {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200">'
+                        + '<i class="bi bi-dash-circle text-[9px]"></i> Alpa</span>';
+                } else if (status === 'BDR') {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200">'
+                        + '<i class="bi bi-house text-[9px]"></i> BDR</span>';
+                } else {
+                    badge = '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200">'
+                        + '<i class="bi bi-exclamation-circle text-[9px]"></i> Tidak Absen</span>';
+                }
+
+                const itemClass = ok
+                    ? 'bg-white text-rose-700 shadow-2xs border-rose-200'
+                    : (!isHadir ? 'text-slate-800 bg-rose-50/40 hover:bg-white border-rose-100/60' : 'text-slate-700 hover:bg-white border-transparent');
+
+                return '<label class="absen-item flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer text-[11px] font-semibold transition-all '
+                    + itemClass + '"'
+                    + ' data-id="' + escAbsen(id) + '" data-nama="' + escAbsen(r.nama) + '" data-hadir="' + (isHadir ? '1' : '0') + '">'
+                    + '<div class="flex items-center gap-2 min-w-0 grow">'
                     + '<input type="checkbox" class="absen-check rounded border-slate-300 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 shrink-0" ' + (ok ? 'checked' : '') + '>'
-                    + '<span class="truncate">' + escAbsen(r.nama) + '</span></label>';
+                    + '<span class="truncate">' + escAbsen(r.nama) + '</span>'
+                    + '</div>'
+                    + badge
+                    + '</label>';
             }).join('');
+
             absenPanel.classList.remove('hidden');
-            absenStatus.textContent = 'Ketuk nama siswa yang tidak hadir. Kosongkan bila semua hadir.';
+            const summaryText = payload.summary
+                ? ` (${payload.summary.hadir} hadir di sekolah, ${payload.summary.tidak_hadir} belum/tidak absen)`
+                : '';
+            absenStatus.textContent = 'Ketuk nama siswa yang tidak hadir di kelas' + summaryText + '. Kosongkan bila semua hadir.';
         } catch (e) {
             if (token !== absenLoading) return;
             absenStatus.textContent = (e instanceof Error && e.message)
@@ -786,17 +846,52 @@
         absenPanel.classList.toggle('hidden');
     });
 
+    absenSelectUnattended?.addEventListener('click', function () {
+        if (!absenPanel) return;
+        if (absenPanel.classList.contains('hidden')) {
+            absenPanel.classList.remove('hidden');
+        }
+        const items = absenPanel.querySelectorAll('.absen-item[data-hadir="0"]');
+        let changed = false;
+        items.forEach(function (item) {
+            const cb = item.querySelector('.absen-check');
+            const id = String(item.dataset.id || '');
+            const nama = String(item.dataset.nama || '');
+            if (cb && !cb.checked && id) {
+                cb.checked = true;
+                absenSelected.set(id, nama);
+                item.classList.add('bg-white', 'text-rose-700', 'shadow-2xs', 'border-rose-200');
+                item.classList.remove('border-transparent', 'border-rose-100/60');
+                changed = true;
+            }
+        });
+        if (changed) {
+            absenTeksAktif = false;
+            renderAbsen();
+            syncAbsenHidden();
+        }
+    });
+
     absenPanel?.addEventListener('change', function (e) {
         const cb = e.target.closest('.absen-check');
         if (!cb) return;
         const item = cb.closest('.absen-item');
         const id = String(item?.dataset.id || '');
         if (!id) return;
+        const isHadir = item?.dataset.hadir === '1';
         if (cb.checked) {
             absenSelected.set(id, item.dataset.nama || id);
+            item?.classList.add('bg-white', 'text-rose-700', 'shadow-2xs', 'border-rose-200');
+            item?.classList.remove('border-transparent', 'border-rose-100/60');
             absenTeksAktif = false; // memilih siswa menggantikan teks manual lama
         } else {
             absenSelected.delete(id);
+            item?.classList.remove('bg-white', 'text-rose-700', 'shadow-2xs', 'border-rose-200');
+            if (!isHadir) {
+                item?.classList.add('border-rose-100/60');
+            } else {
+                item?.classList.add('border-transparent');
+            }
         }
         renderAbsen();
         syncAbsenHidden();
@@ -810,18 +905,28 @@
         } else {
             const id = String(x.dataset.id || '');
             absenSelected.delete(id);
-            const cb = absenPanel?.querySelector('.absen-item[data-id="' + id + '"] .absen-check');
-            if (cb) {
-                cb.checked = false;
-                cb.closest('.absen-item')?.classList.remove('bg-white', 'text-rose-700');
+            const item = absenPanel?.querySelector('.absen-item[data-id="' + id + '"]');
+            if (item) {
+                const cb = item.querySelector('.absen-check');
+                if (cb) cb.checked = false;
+                const isHadir = item.dataset.hadir === '1';
+                item.classList.remove('bg-white', 'text-rose-700', 'shadow-2xs', 'border-rose-200');
+                if (!isHadir) {
+                    item.classList.add('border-rose-100/60');
+                } else {
+                    item.classList.add('border-transparent');
+                }
             }
         }
         renderAbsen();
         syncAbsenHidden();
     });
 
-    // Daftar siswa berubah mengikuti pilihan kelas.
+    // Daftar siswa berubah mengikuti pilihan kelas dan tanggal.
     kelasEl?.addEventListener('change', loadAbsen);
+    todayEl?.addEventListener('change', function () {
+        if (absenKelasId() > 0) loadAbsen();
+    });
     if (absenKelasId() > 0) loadAbsen();
 
     // Gulir ke pesan error agar tidak terlewat di layar kecil.
