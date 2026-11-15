@@ -23,8 +23,9 @@ class TteQr
      */
     public static function verificationCode(string $nomorSurat, int $idGuru, int $level, int $bulan, int $tahun): string
     {
-        $raw  = strtoupper(substr(hash('sha256', implode('|', [$nomorSurat, $idGuru, $level, $bulan, $tahun])), 0, 12));
-        return substr($raw, 0, 4) . '-' . substr($raw, 4, 4) . '-' . substr($raw, 8, 4);
+        $raw = strtoupper(substr(hash('sha256', implode('|', [$nomorSurat, $idGuru, $level, $bulan, $tahun])), 0, 12));
+
+        return substr($raw, 0, 4).'-'.substr($raw, 4, 4).'-'.substr($raw, 8, 4);
     }
 
     /**
@@ -37,12 +38,12 @@ class TteQr
         return implode("\n", [
             'DOKUMEN ELEKTRONIK - SURAT TEGURAN',
             strtoupper($sekolah),
-            'Nomor: ' . $nomorSurat,
-            'Kepada: ' . $namaGuru . ' (NIP. ' . $nipGuru . ')',
-            'Teguran: ' . $tingkat . ' - Alpha ' . $jumlahAlpha . ' hari',
+            'Nomor: '.$nomorSurat,
+            'Kepada: '.$namaGuru.' (NIP. '.$nipGuru.')',
+            'Teguran: '.$tingkat.' - Alpha '.$jumlahAlpha.' hari',
             'Ditandatangani secara elektronik oleh:',
-            $kepsekNama . ' (NIP. ' . $kepsekNip . ')',
-            'Kode verifikasi: ' . $kode,
+            $kepsekNama.' (NIP. '.$kepsekNip.')',
+            'Kode verifikasi: '.$kode,
         ]);
     }
 
@@ -53,10 +54,17 @@ class TteQr
     public static function dataUri(string $text, int $size = 200): string
     {
         try {
-            $qr = QrCode::create($text)->setSize($size)->setMargin(8);
-            return (new PngWriter())->write($qr)->getDataUri();
+            if (method_exists(QrCode::class, 'create')) {
+                /** @phpstan-ignore-next-line */
+                $qr = QrCode::create($text)->setSize($size)->setMargin(8);
+            } else {
+                $qr = new QrCode(data: $text, size: $size, margin: 8);
+            }
+
+            return (new PngWriter)->write($qr)->getDataUri();
         } catch (\Throwable $e) {
-            Log::error('TteQr gagal: ' . $e->getMessage());
+            Log::error('TteQr gagal: '.$e->getMessage());
+
             return '';
         }
     }
