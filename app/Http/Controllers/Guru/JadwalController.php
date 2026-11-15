@@ -2,26 +2,27 @@
 
 namespace App\Http\Controllers\Guru;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\BaseController;
 use App\Models\DashboardModel;
 use App\Models\ElearningModel;
 use App\Models\GuruJadwalPribadiModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class JadwalController extends BaseController
 {
     protected $dashboardModel;
+
     protected $elearningModel;
+
     protected $jadwalPribadiModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->dashboardModel = new DashboardModel();
-        $this->elearningModel = new ElearningModel();
-        $this->jadwalPribadiModel = new GuruJadwalPribadiModel();
+        $this->dashboardModel = new DashboardModel;
+        $this->elearningModel = new ElearningModel;
+        $this->jadwalPribadiModel = new GuruJadwalPribadiModel;
         $this->jadwalPribadiModel->initialize();
     }
 
@@ -29,22 +30,26 @@ class JadwalController extends BaseController
     {
         try {
             $user = $this->getUser();
-            if (!$user)
+            if (! $user) {
                 return redirect()->to('auth');
+            }
 
             $tpSmt = $this->getTpSmt();
-            if (!$tpSmt->tp || !$tpSmt->smt) {
+            if (! $tpSmt->tp || ! $tpSmt->smt) {
                 return redirect()->to('dashboard')->with('error', 'Tahun Pelajaran atau Semester Aktif belum diset.');
             }
             $tp = $tpSmt->tp;
             $smt = $tpSmt->smt;
 
             $setting = $this->getSettingRow();
-            if (!$setting)
+            if (! $setting) {
                 $setting = (object) ['logo_kiri' => null, 'nama_sekolah' => 'absensi by ikasmedia', 'logo' => null];
+            }
 
             $today = date('N');
-            if ($today == 7) $today = 1;
+            if ($today == 7) {
+                $today = 1;
+            }
 
             $data = [
                 'judul' => 'Jadwal Pelajaran',
@@ -54,13 +59,13 @@ class JadwalController extends BaseController
                 'is_admin' => false,
                 'setting' => $setting,
                 'title' => 'Jadwal',
-                'today' => $today
+                'today' => $today,
             ];
 
             // Ambil Data Guru
             $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp->id_tp, $smt->id_smt);
 
-            if (!$guru) {
+            if (! $guru) {
                 return redirect()->back()->with('error', 'Data tahun pelajaran guru tidak ditemukan/tidak aktif.');
             }
 
@@ -96,11 +101,11 @@ class JadwalController extends BaseController
             }
 
             // Include classes from personal schedule as well
-            if (!empty($data['jadwal_pribadi'])) {
+            if (! empty($data['jadwal_pribadi'])) {
                 foreach ($data['jadwal_pribadi'] as $jp) {
-                    if (!empty($jp->id_kelas)) {
+                    if (! empty($jp->id_kelas)) {
                         $arrIdKelas[] = (int) $jp->id_kelas;
-                        if (!empty($jp->id_mapel) && !empty($jp->nama_mapel)) {
+                        if (! empty($jp->id_mapel) && ! empty($jp->nama_mapel)) {
                             $arrMapel[$jp->id_kelas][$jp->id_mapel] = $jp->nama_mapel;
                         }
                     }
@@ -110,7 +115,7 @@ class JadwalController extends BaseController
             // Remove duplicate kelas IDs
             $arrIdKelas = array_unique(array_filter($arrIdKelas));
 
-            if (!empty($arrIdKelas)) {
+            if (! empty($arrIdKelas)) {
                 $kelas = $this->elearningModel->getAllKelasByArrayId($tp->id_tp, $smt->id_smt, $arrIdKelas);
             } else {
                 $kelas = $this->elearningModel->getAllKelasSort($tp->id_tp, $smt->id_smt);
@@ -122,12 +127,14 @@ class JadwalController extends BaseController
             // KBM Setting (General)
             $jadk = $this->elearningModel->getJadwalKbm($tp->id_tp, $smt->id_smt);
 
-            if (!empty($jadk)) {
+            if (! empty($jadk)) {
                 $firstKbm = reset($jadk);
-                if (isset($firstKbm->istirahat) && is_string($firstKbm->istirahat))
+                if (isset($firstKbm->istirahat) && is_string($firstKbm->istirahat)) {
                     $firstKbm->istirahat = json_decode($firstKbm->istirahat);
-                if (isset($firstKbm->upacara) && is_string($firstKbm->upacara))
+                }
+                if (isset($firstKbm->upacara) && is_string($firstKbm->upacara)) {
                     $firstKbm->upacara = json_decode($firstKbm->upacara);
+                }
                 $data['setting_kbm'] = $firstKbm;
             } else {
                 $data['setting_kbm'] = (object) [
@@ -135,7 +142,7 @@ class JadwalController extends BaseController
                     'kbm_jam_mulai' => '07:00',
                     'kbm_jam_selesai' => '15:00',
                     'istirahat' => [],
-                    'upacara' => []
+                    'upacara' => [],
                 ];
             }
 
@@ -144,7 +151,8 @@ class JadwalController extends BaseController
         } catch (\Throwable $th) {
             // die($th->getMessage()) dulu membocorkan isi error ke peramban
             // dan tidak pernah masuk log server.
-            Log::error('[guru/jadwal] ' . $th->getMessage() . ' @ ' . $th->file() . ':' . $th->getLine());
+            Log::error('[guru/jadwal] '.$th->getMessage().' @ '.$th->file().':'.$th->getLine());
+
             return redirect()->back()->with('error', 'Jadwal mengajar gagal dimuat. Silakan muat ulang halaman, atau laporkan ke admin bila terus terjadi.');
         }
     }
@@ -152,12 +160,12 @@ class JadwalController extends BaseController
     public function get_jadwal(?string $hari = null)
     {
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
@@ -184,8 +192,8 @@ class JadwalController extends BaseController
         }
 
         // Helper to get time range
-        $minTime = "23:59";
-        $maxTime = "00:00";
+        $minTime = '23:59';
+        $maxTime = '00:00';
 
         $combinedList = [];
 
@@ -199,12 +207,18 @@ class JadwalController extends BaseController
                     $namaMapel = is_object($m) ? ($m->nama_mapel ?? '') : ($m['nama_mapel'] ?? '');
                     $jamKe = is_object($m) ? ($m->jam_ke ?? '') : ($m['jam_ke'] ?? '');
 
-                    if (!isset($myPairs[(int) $idKls . ':' . $idMapel])) continue;
+                    if (! isset($myPairs[(int) $idKls.':'.$idMapel])) {
+                        continue;
+                    }
 
                     $myJadwalMapel[(int) $idKls][] = $m;
 
-                    if ($sampai && $sampai > $maxTime) $maxTime = $sampai;
-                    if ($dari && $dari < $minTime) $minTime = $dari;
+                    if ($sampai && $sampai > $maxTime) {
+                        $maxTime = $sampai;
+                    }
+                    if ($dari && $dari < $minTime) {
+                        $minTime = $dari;
+                    }
 
                     $combinedList[] = [
                         'id' => is_object($m) ? ($m->id_jadwal ?? 0) : ($m['id_jadwal'] ?? 0),
@@ -214,44 +228,48 @@ class JadwalController extends BaseController
                         'mapelName' => $namaMapel,
                         'dari' => substr($dari, 0, 5),
                         'sampai' => substr($sampai, 0, 5),
-                        'timeLabel' => substr($dari, 0, 5) . '-' . substr($sampai, 0, 5),
+                        'timeLabel' => substr($dari, 0, 5).'-'.substr($sampai, 0, 5),
                         'jam_ke' => $jamKe,
                         'ruangan' => null,
-                        'is_pribadi' => 0
+                        'is_pribadi' => 0,
                     ];
                 }
             }
         }
 
         // 2. Process Teacher's Personal Schedule (guru_jadwal_pribadi)
-        if (!empty($pribadi)) {
+        if (! empty($pribadi)) {
             $autoJamKe = 1;
             foreach ($pribadi as $p) {
                 $dari = substr($p->jam_mulai ?? '', 0, 5);
                 $sampai = substr($p->jam_selesai ?? '', 0, 5);
-                if ($sampai && $sampai > $maxTime) $maxTime = $sampai;
-                if ($dari && $dari < $minTime) $minTime = $dari;
+                if ($sampai && $sampai > $maxTime) {
+                    $maxTime = $sampai;
+                }
+                if ($dari && $dari < $minTime) {
+                    $minTime = $dari;
+                }
 
                 $combinedList[] = [
                     'id' => (int) $p->id,
                     'id_kelas' => (string) $p->id_kelas,
-                    'kelasName' => $p->nama_kelas ?? ('Kelas ' . $p->id_kelas),
+                    'kelasName' => $p->nama_kelas ?? ('Kelas '.$p->id_kelas),
                     'id_mapel' => (int) $p->id_mapel,
                     'nama_mapel' => $p->nama_mapel ?? 'Mata Pelajaran',
                     'mapelName' => $p->nama_mapel ?? 'Mata Pelajaran',
                     'dari' => $dari,
                     'sampai' => $sampai,
-                    'timeLabel' => $dari . '-' . $sampai,
+                    'timeLabel' => $dari.'-'.$sampai,
                     'jam_ke' => $autoJamKe++,
                     'ruangan' => $p->ruangan ?? null,
-                    'is_pribadi' => 1
+                    'is_pribadi' => 1,
                 ];
             }
         }
 
-        if ($minTime == "23:59") {
-            $minTime = "07:00";
-            $maxTime = "15:00";
+        if ($minTime == '23:59') {
+            $minTime = '07:00';
+            $maxTime = '15:00';
         }
 
         // Generate Time Slots (5 mins interval)
@@ -270,21 +288,21 @@ class JadwalController extends BaseController
             'pribadi' => $pribadi,
             'list' => $combinedList,
             'min_time' => $minTime,
-            'max_time' => $maxTime
+            'max_time' => $maxTime,
         ];
 
         return $this->response->setJSON([
             'status' => true,
             'data' => $data,
-            'is_admin' => false
+            'is_admin' => false,
         ]);
     }
 
     protected function getTpSmt(): object
     {
         return (object) [
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first()
+            'tp' => DB::table('master_tp')->where('active', 1)->first(),
+            'smt' => DB::table('master_smt')->where('active', 1)->first(),
         ];
     }
 
@@ -296,19 +314,19 @@ class JadwalController extends BaseController
     public function save_pribadi()
     {
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp, $smt);
-        if (!$guru) {
+        if (! $guru) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
@@ -319,12 +337,14 @@ class JadwalController extends BaseController
         $idMapel = (int) ($this->request->input('id_mapel') ?? 0);
         $idKelas = (int) ($this->request->input('id_kelas') ?? 0);
         $ruangan = trim((string) ($this->request->input('ruangan') ?? ''));
-        if ($ruangan === '') $ruangan = null;
+        if ($ruangan === '') {
+            $ruangan = null;
+        }
 
         if ($hari < 1 || $hari > 7) {
             return $this->response->setJSON(['status' => false, 'message' => 'Hari tidak valid']);
         }
-        if (!$this->isValidTime($jamMulai) || !$this->isValidTime($jamSelesai)) {
+        if (! $this->isValidTime($jamMulai) || ! $this->isValidTime($jamSelesai)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid']);
         }
         if (strtotime($jamMulai) >= strtotime($jamSelesai)) {
@@ -339,18 +359,18 @@ class JadwalController extends BaseController
 
         if ($id) {
             $row = $this->jadwalPribadiModel->find($id);
-            if (!$row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
+            if (! $row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
             }
         }
 
         $conflictsGuru = $this->jadwalPribadiModel->findConflictsForGuru((int) $guru->id_guru, $tp, $smt, $hari, $jamMulai, $jamSelesai, $id ?: null);
-        if (!empty($conflictsGuru)) {
+        if (! empty($conflictsGuru)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jadwal bentrok: Anda sudah memiliki jadwal di jam tersebut']);
         }
 
         $conflictsKelas = $this->jadwalPribadiModel->findConflictsForKelas($idKelas, $tp, $smt, $hari, $jamMulai, $jamSelesai, $id ?: null);
-        if (!empty($conflictsKelas)) {
+        if (! empty($conflictsKelas)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jadwal bentrok: kelas sudah memiliki jadwal di jam tersebut']);
         }
 
@@ -368,29 +388,31 @@ class JadwalController extends BaseController
 
         if ($id) {
             $this->jadwalPribadiModel->where('id', $id)->update($payload);
+
             return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil diperbarui']);
         }
 
         $this->jadwalPribadiModel->insert($payload);
+
         return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil ditambahkan']);
     }
 
     public function delete_pribadi()
     {
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
-        if (!$tpSmt->tp || !$tpSmt->smt) {
+        if (! $tpSmt->tp || ! $tpSmt->smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp, $smt);
-        if (!$guru) {
+        if (! $guru) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
@@ -400,11 +422,12 @@ class JadwalController extends BaseController
         }
 
         $row = $this->jadwalPribadiModel->find($id);
-        if (!$row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
+        if (! $row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
         }
 
         $this->jadwalPribadiModel->where('id', $id)->delete();
+
         return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil dihapus']);
     }
 }

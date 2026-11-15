@@ -3,31 +3,33 @@
 namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\BaseController;
-
+use App\Models\LemburModel;
+use App\Services\AttendancePolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use App\Models\LemburModel;
 
 class LemburController extends BaseController
 {
     protected $lemburModel;
+
     protected $db;
 
     public function __construct()
     {
         parent::__construct();
-        $this->lemburModel = new LemburModel();
-        $this->db = \Illuminate\Support\Facades\DB::connection();
+        $this->lemburModel = new LemburModel;
+        $this->db = DB::connection();
     }
 
     public function index()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return redirect()->to('auth');
         }
 
@@ -68,17 +70,18 @@ class LemburController extends BaseController
                 'approved_count' => $approvedCount,
                 'pending_count' => $pendingCount,
                 'rejected_count' => $rejectedCount,
-            ]
+            ],
         ]);
     }
 
     public function create()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return redirect()->to('auth');
+        }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return redirect()->to('auth');
         }
 
@@ -96,7 +99,7 @@ class LemburController extends BaseController
     private function jamPulangKerja(int $userId): string
     {
         try {
-            $jadwal = \App\Services\AttendancePolicy::jadwalGuru($userId, date('Y-m-d'));
+            $jadwal = AttendancePolicy::jadwalGuru($userId, date('Y-m-d'));
             $pulang = substr(trim((string) ($jadwal['jam_pulang'] ?? '')), 0, 5);
 
             return ($pulang === '' || $pulang === '00:00') ? '16:00' : $pulang;
@@ -107,11 +110,12 @@ class LemburController extends BaseController
 
     public function save()
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return $this->respond(false, 'Sesi Anda sudah tidak aktif. Silakan masuk kembali.', null, null, 401);
         }
 
@@ -122,13 +126,13 @@ class LemburController extends BaseController
         $jamSelesai = $this->request->input('jam_selesai');
         $keterangan = trim((string) $this->request->input('keterangan'));
 
-        if (!$tgl || !$jamMulai || !$jamSelesai) {
+        if (! $tgl || ! $jamMulai || ! $jamSelesai) {
             return $this->respond(false, 'Tanggal, jam mulai, dan jam selesai wajib diisi');
         }
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl) || !strtotime($tgl)) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl) || ! strtotime($tgl)) {
             return $this->respond(false, 'Format tanggal tidak valid');
         }
-        if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $jamMulai) || !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $jamSelesai)) {
+        if (! preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $jamMulai) || ! preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $jamSelesai)) {
             return $this->respond(false, 'Format jam tidak valid (HH:MM)');
         }
         $jamMulai = substr($jamMulai, 0, 5);
@@ -147,12 +151,12 @@ class LemburController extends BaseController
             return $this->respond(false, 'Tidak bisa mengajukan lembur untuk tanggal di masa depan');
         }
 
-        $start = strtotime($tgl . ' ' . $jamMulai);
-        $end = strtotime($tgl . ' ' . $jamSelesai);
+        $start = strtotime($tgl.' '.$jamMulai);
+        $end = strtotime($tgl.' '.$jamSelesai);
 
         // Jika jam selesai <= jam mulai, anggap lembur melewati tengah malam
         if ($end <= $start) {
-            $end = strtotime($tgl . ' ' . $jamSelesai . ' +1 day');
+            $end = strtotime($tgl.' '.$jamSelesai.' +1 day');
         }
 
         $totalDetik = $end - $start;
@@ -173,16 +177,16 @@ class LemburController extends BaseController
         // justru di situ lembur paling sering terjadi, dan sebaliknya
         // membebaskan cek kehadiran pada Sabtu untuk sekolah yang Sabtu tetap
         // hari kerja.
-        if (!\App\Services\AttendancePolicy::isLibur($tgl)) {
+        if (! AttendancePolicy::isLibur($tgl)) {
             $attendance = $this->db->table('absensi_harian')
                 ->where('user_id', $user->id)
                 ->where('tgl', $tgl)
                 ->first();
 
-            if (!$attendance) {
+            if (! $attendance) {
                 return $this->respond(false, 'Anda belum absen pada tanggal tersebut. Lembur hanya bisa diajukan untuk hari di mana Anda hadir.');
             }
-            if (!\App\Services\AttendancePolicy::isHadir($attendance->status_masuk)) {
+            if (! AttendancePolicy::isHadir($attendance->status_masuk)) {
                 return $this->respond(false, 'Status absensi Anda pada tanggal tersebut tidak memungkinkan pengajuan lembur.');
             }
         }
@@ -190,13 +194,16 @@ class LemburController extends BaseController
         // Validasi: cek duplikat/jam tumpang tindih (mendukung rentang melewati tengah malam)
         $toMin = static function (string $hhmm): int {
             [$h, $m] = array_map('intval', explode(':', $hhmm));
+
             return $h * 60 + $m;
         };
         // Pecah rentang (yang bisa membungkus tengah malam) menjadi segmen linear agar
         // perbandingan tumpang tindih benar untuk lembur melewati tengah malam.
         $newS = $toMin($jamMulai);
         $newE = $toMin($jamSelesai);
-        if ($newE <= $newS) $newE += 24 * 60;
+        if ($newE <= $newS) {
+            $newE += 24 * 60;
+        }
         // Normalkan ke jangkar 0–1440 agar dapat dibandingkan dengan data tersimpan
         $newSegs = $newE > 24 * 60 ? [[$newS, 24 * 60], [0, $newE - 24 * 60]] : [[$newS, $newE]];
 
@@ -208,12 +215,12 @@ class LemburController extends BaseController
         // terserialisasi tanpa menyapu seluruh tabel presensi_lembur (tabel itu
         // tidak punya index pada user_id/tgl, FOR UPDATE di sana mengunci semua
         // baris dan ikut memblokir approval admin).
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+            if (Schema::hasTable('users')) {
                 try {
                     $this->db->select(
-                        'SELECT id FROM ' . 'users' . ' WHERE id = ? FOR UPDATE',
+                        'SELECT id FROM '.'users'.' WHERE id = ? FOR UPDATE',
                         [(int) $user->id]
                     );
                 } catch (\Throwable $e) {
@@ -235,7 +242,8 @@ class LemburController extends BaseController
                 foreach ($newSegs as $ns) {
                     foreach ($exSegs as $es) {
                         if ($ns[0] < $es[1] && $es[0] < $ns[1]) {
-                            \Illuminate\Support\Facades\DB::rollBack();
+                            DB::rollBack();
+
                             return $this->respond(false, 'Anda sudah memiliki pengajuan lembur di jam yang tumpang tindih pada tanggal ini');
                         }
                     }
@@ -254,14 +262,19 @@ class LemburController extends BaseController
             ]);
 
             if (empty($insertId)) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->respond(false, 'Pengajuan lembur gagal disimpan, silakan coba lagi');
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            try { \Illuminate\Support\Facades\DB::rollBack(); } catch (\Throwable $e2) {}
-            Log::error('[Guru\Lembur::save] ' . $e->getMessage());
+            try {
+                DB::rollBack();
+            } catch (\Throwable $e2) {
+            }
+            Log::error('[Guru\Lembur::save] '.$e->getMessage());
+
             return $this->respond(false, 'Pengajuan lembur gagal disimpan, silakan coba lagi');
         }
 
@@ -270,11 +283,12 @@ class LemburController extends BaseController
 
     public function delete($id = null)
     {
-        if (!$this->inGroup('guru'))
+        if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
+        }
 
         $user = $this->getUser();
-        if (!$user) {
+        if (! $user) {
             return $this->respond(false, 'Sesi Anda sudah tidak aktif. Silakan masuk kembali.', null, null, 401);
         }
         $id = (int) $id;
@@ -283,7 +297,7 @@ class LemburController extends BaseController
         }
 
         $lembur = $this->lemburModel->find($id);
-        if (!$lembur || (int) $lembur->user_id !== (int) $user->id) {
+        if (! $lembur || (int) $lembur->user_id !== (int) $user->id) {
             return $this->respond(false, 'Data lembur tidak ditemukan atau bukan milik Anda');
         }
 
@@ -292,7 +306,8 @@ class LemburController extends BaseController
         }
 
         if ($this->lemburModel->where('id', $id)->delete() === false) {
-            Log::error('[Guru\Lembur::delete] hapus ' . $id . ' gagal: ' . json_encode(['code' => 0, 'message' => '']));
+            Log::error('[Guru\Lembur::delete] hapus '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
+
             return $this->respond(false, 'Pengajuan lembur gagal dibatalkan, silakan coba lagi');
         }
 

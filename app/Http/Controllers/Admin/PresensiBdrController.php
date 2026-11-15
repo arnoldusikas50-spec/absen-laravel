@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use App\Models\DashboardModel;
 use App\Models\DropdownModel;
+use App\Models\PiketModel;
 use App\Models\PresensiBdrModel;
 use App\Services\PresensiBdrService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Admin Presensi BDR Controller
@@ -23,15 +22,17 @@ use App\Services\PresensiBdrService;
 class PresensiBdrController extends BaseController
 {
     protected PresensiBdrModel $bdrModel;
+
     protected DropdownModel $dropdownModel;
+
     protected DashboardModel $dashboardModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->bdrModel       = new PresensiBdrModel();
-        $this->dropdownModel  = new DropdownModel();
-        $this->dashboardModel = new DashboardModel();
+        $this->bdrModel = new PresensiBdrModel;
+        $this->dropdownModel = new DropdownModel;
+        $this->dashboardModel = new DashboardModel;
     }
 
     /** Admin penuh boleh mengelola; guru hanya melihat (monitoring/rekap). */
@@ -50,23 +51,23 @@ class PresensiBdrController extends BaseController
             return redirect()->to('auth');
         }
 
-        $tp  = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
 
         $kelass = ($tp && $smt) ? $this->dropdownModel->getAllKelas($tp->id_tp, $smt->id_smt) : [];
         $levels = $this->dropdownModel->getAllLevelKelas($this->getSettingRow()->jenjang ?? '3');
 
         return view('admin.presensi_bdr.index', [
-            'user'       => $this->getUser(),
-            'judul'      => 'Jadwal Belajar Dari Rumah (BDR)',
-            'subjudul'   => 'Tandai kelas yang tidak KBM di sekolah agar absennya BDR, bukan Alpha',
-            'daftar'     => $this->bdrModel->getDaftar(),
-            'hari_ini'   => $this->bdrModel->getRowsUntukTanggal(date('Y-m-d')),
-            'kelass'     => $kelass,
-            'levels'     => $levels,
-            'boleh'      => $this->bolehKelola(),
-            'setting'    => $this->getSettingRow(),
-            'tp_active'  => $tp,
+            'user' => $this->getUser(),
+            'judul' => 'Jadwal Belajar Dari Rumah (BDR)',
+            'subjudul' => 'Tandai kelas yang tidak KBM di sekolah agar absennya BDR, bukan Alpha',
+            'daftar' => $this->bdrModel->getDaftar(),
+            'hari_ini' => $this->bdrModel->getRowsUntukTanggal(date('Y-m-d')),
+            'kelass' => $kelass,
+            'levels' => $levels,
+            'boleh' => $this->bolehKelola(),
+            'setting' => $this->getSettingRow(),
+            'tp_active' => $tp,
             'smt_active' => $smt,
         ]);
     }
@@ -81,14 +82,14 @@ class PresensiBdrController extends BaseController
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
-        $id       = (int) ($this->request->input('id') ?? 0);
-        $lingkup  = strtoupper(trim((string) ($this->request->input('lingkup') ?? 'KELAS')));
-        $idKelas  = (int) ($this->request->input('id_kelas') ?? 0);
-        $levelId  = (int) ($this->request->input('level_id') ?? 0);
+        $id = (int) ($this->request->input('id') ?? 0);
+        $lingkup = strtoupper(trim((string) ($this->request->input('lingkup') ?? 'KELAS')));
+        $idKelas = (int) ($this->request->input('id_kelas') ?? 0);
+        $levelId = (int) ($this->request->input('level_id') ?? 0);
         $tglMulai = trim((string) $this->request->input('tgl_mulai'));
         $tglSelesai = trim((string) ($this->request->input('tgl_selesai') ?? ''));
-        $judul    = mb_substr(trim((string) ($this->request->input('judul') ?? '')), 0, 255);
-        $ket      = trim((string) ($this->request->input('keterangan') ?? ''));
+        $judul = mb_substr(trim((string) ($this->request->input('judul') ?? '')), 0, 255);
+        $ket = trim((string) ($this->request->input('keterangan') ?? ''));
 
         if (! in_array($lingkup, PresensiBdrModel::LINGKUP, true)) {
             return $this->respond(false, 'Lingkup tidak valid');
@@ -134,13 +135,13 @@ class PresensiBdrController extends BaseController
         }
 
         $data = [
-            'lingkup'     => $lingkup,
-            'id_kelas'    => $idKelas,
-            'level_id'    => $levelId,
-            'tgl_mulai'   => $tglMulai,
+            'lingkup' => $lingkup,
+            'id_kelas' => $idKelas,
+            'level_id' => $levelId,
+            'tgl_mulai' => $tglMulai,
             'tgl_selesai' => $tglSelesai,
-            'judul'       => $judul,
-            'keterangan'  => $ket !== '' ? $ket : null,
+            'judul' => $judul,
+            'keterangan' => $ket !== '' ? $ket : null,
         ];
 
         if ($id > 0) {
@@ -149,10 +150,12 @@ class PresensiBdrController extends BaseController
             }
             $tersimpan = $this->bdrModel->where('id', $id)->update($data);
             if ($tersimpan === false) {
-                Log::error('[PresensiBdr] update jadwal ' . $id . ' gagal: ' . json_encode($this->bdrModel[]));
+                Log::error('[PresensiBdr] update jadwal '.$id.' gagal: '.json_encode($this->bdrModel[]));
+
                 return $this->respond(false, 'Jadwal BDR gagal diperbarui. Perubahan belum tersimpan — coba lagi, dan bila berulang lapor ke pengembang.');
             }
             PresensiBdrService::resetCache();
+
             return $this->respond(true, 'Jadwal BDR diperbarui. Absensi yang sudah terlanjur Alpha diperbarui cron berikutnya.', $data);
         }
 
@@ -183,7 +186,7 @@ class PresensiBdrController extends BaseController
             return $this->respond(false, 'Jadwal tidak ditemukan');
         }
 
-        $piket = new \App\Models\PiketModel();
+        $piket = new PiketModel;
         $today = date('Y-m-d');
         $akhir = ((string) ($row->tgl_selesai ?? '') !== '' ? (string) $row->tgl_selesai : (string) $row->tgl_mulai);
         $akhir = min($akhir, $today);
@@ -205,6 +208,7 @@ class PresensiBdrController extends BaseController
         $msg = $ditandai > 0
             ? "{$ditandai} absensi siswa diubah menjadi BDR"
             : 'Tidak ada absensi Alpha yang perlu diubah (cron belum berjalan atau siswa sudah punya status lain)';
+
         return $this->respond(true, $msg, ['ditandai' => $ditandai]);
     }
 
@@ -230,6 +234,7 @@ class PresensiBdrController extends BaseController
             return false;
         }
         [$y, $m, $d] = array_map('intval', explode('-', $date));
+
         return checkdate($m, $d, $y);
     }
 }

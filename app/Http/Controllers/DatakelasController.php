@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use App\Models\MasterModel;
 use App\Models\DashboardModel;
+use App\Models\DropdownModel;
 use App\Models\JabatanGuruModel;
 use App\Models\KelasModel;
-use App\Models\DropdownModel;
 use App\Models\LogModel;
+use App\Models\MasterModel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Datakelas Controller - Migrated from CI3
@@ -19,21 +18,26 @@ use App\Models\LogModel;
 class DatakelasController extends BaseController
 {
     protected MasterModel $masterModel;
+
     protected DashboardModel $dashboardModel;
+
     protected KelasModel $kelasModel;
+
     protected DropdownModel $dropdownModel;
+
     protected JabatanGuruModel $jabatanModel;
+
     protected LogModel $logModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->masterModel = new MasterModel();
-        $this->dashboardModel = new DashboardModel();
-        $this->kelasModel = new KelasModel();
-        $this->dropdownModel = new DropdownModel();
-        $this->jabatanModel = new JabatanGuruModel();
-        $this->logModel = new LogModel();
+        $this->masterModel = new MasterModel;
+        $this->dashboardModel = new DashboardModel;
+        $this->kelasModel = new KelasModel;
+        $this->dropdownModel = new DropdownModel;
+        $this->jabatanModel = new JabatanGuruModel;
+        $this->logModel = new LogModel;
     }
 
     /**
@@ -41,14 +45,14 @@ class DatakelasController extends BaseController
      */
     public function index()
     {
-        if (!$this->isLoggedIn() || !$this->isAdmin()) {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return redirect()->to('auth');
         }
 
         $setting = $this->getSettingRow();
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return redirect()->to('dashboard')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
 
@@ -59,8 +63,8 @@ class DatakelasController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
         ];
 
         $kelas = [];
@@ -90,19 +94,19 @@ class DatakelasController extends BaseController
      */
     public function detail($id)
     {
-        if (!$this->isLoggedIn()) {
+        if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
 
         $kelas = $this->kelasModel->get_one($id);
-        if (!$kelas) {
+        if (! $kelas) {
             return redirect()->to('datakelas')->with('error', 'Kelas tidak ditemukan');
         }
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return redirect()->to('datakelas')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
         $kelas->siswa = $this->maybe_unserialize($kelas->jumlah_siswa ?? '[]');
@@ -114,8 +118,8 @@ class DatakelasController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'kelas' => $kelas,
             'jurusan' => $this->dropdownModel->getDataJurusan(),
             'level' => $this->dropdownModel->getAllLevelKelas($setting->jenjang ?? null),
@@ -132,13 +136,13 @@ class DatakelasController extends BaseController
      */
     public function add()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return redirect()->to('datakelas')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
         $setting = $this->getSettingRow();
@@ -164,7 +168,7 @@ class DatakelasController extends BaseController
      */
     public function edit($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard');
         }
 
@@ -173,15 +177,15 @@ class DatakelasController extends BaseController
             return redirect()->to('datakelas')->with('error', 'ID kelas tidak valid');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return redirect()->to('datakelas')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
         $setting = $this->getSettingRow();
 
         $kelas = $this->kelasModel->get_one($id);
-        if (!$kelas) {
+        if (! $kelas) {
             return redirect()->to('datakelas')->with('error', 'Kelas tidak ditemukan');
         }
         $kelas->jumlah_siswa = $this->maybe_unserialize($kelas->jumlah_siswa ?? '[]');
@@ -193,8 +197,8 @@ class DatakelasController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'id_kelas' => $id,
             'kelas' => $kelas,
             'jurusan' => $this->dropdownModel->getDataJurusan(),
@@ -212,19 +216,19 @@ class DatakelasController extends BaseController
      */
     public function save()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->response->setJSON(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
         $id_tp = $tp->id_tp;
         $id_smt = $smt->id_smt;
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $id_kelas = (int) ($this->request->input('id_kelas') ?? 0);
         $nama_kelas = mb_substr(trim((string) ($this->request->input('nama_kelas') ?? '')), 0, 30);
@@ -237,7 +241,7 @@ class DatakelasController extends BaseController
         if ($nama_kelas === '' || mb_strlen($nama_kelas) < 2) {
             return $this->response->setJSON(['status' => false, 'message' => 'Nama kelas minimal 2 karakter']);
         }
-        if ($id_kelas > 0 && !$db->table('master_kelas')->where('id_kelas', $id_kelas)->count()) {
+        if ($id_kelas > 0 && ! $db->table('master_kelas')->where('id_kelas', $id_kelas)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
@@ -247,7 +251,7 @@ class DatakelasController extends BaseController
             $seen = [];
             foreach ($siswasRaw as $sid) {
                 $sid = (int) $sid;
-                if ($sid > 0 && !isset($seen[$sid])) {
+                if ($sid > 0 && ! isset($seen[$sid])) {
                     $seen[$sid] = true;
                     $siswas[] = $sid;
                 }
@@ -258,11 +262,11 @@ class DatakelasController extends BaseController
             foreach ($db->table('master_siswa')->select('id_siswa')->whereIn('id_siswa', $siswas)->get() as $r) {
                 $validIds[(int) $r->id_siswa] = true;
             }
-            $siswas = array_values(array_filter($siswas, fn($sid) => isset($validIds[$sid])));
+            $siswas = array_values(array_filter($siswas, fn ($sid) => isset($validIds[$sid])));
         }
 
         // Validasi wali kelas: harus jabatan_guru valid pada TP/SMT ini
-        if ($guru_id > 0 && !$this->jabatanModel->findForGuru($guru_id, (int) $id_tp, (int) $id_smt)) {
+        if ($guru_id > 0 && ! $this->jabatanModel->findForGuru($guru_id, (int) $id_tp, (int) $id_smt)) {
             return $this->response->setJSON(['status' => false, 'message' => 'Data wali kelas tidak valid']);
         }
 
@@ -270,10 +274,10 @@ class DatakelasController extends BaseController
         // di-join ke master_jurusan. Nilainya datang dari dropdown, jadi nilai
         // lama/seretan bisa tidak dikenal lagi — tanpa cek di sini query-nya
         // gagal oleh FK (update) atau rombel diam-diam kehilangan level/jurusan.
-        if ($level_id <= 0 || !$db->table('level_kelas')->where('id_level', $level_id)->count()) {
+        if ($level_id <= 0 || ! $db->table('level_kelas')->where('id_level', $level_id)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Level kelas tidak valid — pilih level dari daftar']);
         }
-        if ($jurusan_id > 0 && !$db->table('master_jurusan')->where('id_jurusan', $jurusan_id)->count()) {
+        if ($jurusan_id > 0 && ! $db->table('master_jurusan')->where('id_jurusan', $jurusan_id)->count()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Jurusan tidak valid — pilih jurusan dari daftar']);
         }
 
@@ -297,23 +301,23 @@ class DatakelasController extends BaseController
 
         $id_new = null;
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             if ($id_kelas > 0) {
                 if ($this->updateMasterData('master_kelas', $insert, 'id_kelas', $id_kelas) === false) {
-                    throw new \RuntimeException('Update master_kelas gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                    throw new \RuntimeException('Update master_kelas gagal: '.json_encode(['code' => 0, 'message' => '']));
                 }
-                $this->saveAuditLog(2, 'Mengupdate kelas: ' . $nama_kelas);
+                $this->saveAuditLog(2, 'Mengupdate kelas: '.$nama_kelas);
             } else {
                 if ($this->masterModel->create('master_kelas', $insert) === false) {
-                    throw new \RuntimeException('Insert master_kelas gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                    throw new \RuntimeException('Insert master_kelas gagal: '.json_encode(['code' => 0, 'message' => '']));
                 }
-                $id_new = \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-                if (!$id_new) {
+                $id_new = DB::getPdo()->lastInsertId();
+                if (! $id_new) {
                     throw new \RuntimeException('Gagal membuat kelas');
                 }
                 $id_kelas = $id_new;
-                $this->saveAuditLog(1, 'Menambah kelas: ' . $nama_kelas);
+                $this->saveAuditLog(1, 'Menambah kelas: '.$nama_kelas);
             }
 
             // Status wali tersimpan di jabatan_guru (level 4 + id_kelas)
@@ -343,7 +347,7 @@ class DatakelasController extends BaseController
             // Pertama, siswa yang ada di rombel ini saat ini.
             $existing_siswa = $this->kelasModel->get_status_siswa_kelas($id_kelas, $id_tp, $id_smt);
 
-            if (!$id_new) {
+            if (! $id_new) {
                 // Yang tidak lagi dicentang dikeluarkan dari rombel (id_kelas = 0);
                 // barisnya tetap ada supaya PK dan riwayat tidak berubah.
                 foreach ($existing_siswa as $idSiswaLama => $barisLama) {
@@ -366,25 +370,27 @@ class DatakelasController extends BaseController
                 }
             }
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::save] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::save] '.$e->getMessage());
+
             return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan kelas']);
         }
 
         if ($gagal > 0) {
-            Log::error('[Datakelas::save] ' . $gagal . ' penempatan siswa gagal (terpasang ' . $terpasang . ')');
+            Log::error('[Datakelas::save] '.$gagal.' penempatan siswa gagal (terpasang '.$terpasang.')');
+
             return $this->response->setJSON([
                 'status' => false,
-                'message' => 'Kelas tersimpan, tetapi ' . $gagal . ' penempatan siswa gagal — periksa kembali daftar siswa rombel ini.'
+                'message' => 'Kelas tersimpan, tetapi '.$gagal.' penempatan siswa gagal — periksa kembali daftar siswa rombel ini.',
             ]);
         }
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => 'Kelas tersimpan (' . count($siswas) . ' siswa)',
-            'siswa' => $terpasang
+            'message' => 'Kelas tersimpan ('.count($siswas).' siswa)',
+            'siswa' => $terpasang,
         ]);
     }
 
@@ -408,7 +414,7 @@ class DatakelasController extends BaseController
                 ->where('id_tp', $idTp)
                 ->where('id_smt', $idSmt)
                 ->where('id_siswa', $idSiswa)
-                ->get()->map(fn($r) => (array) $r)->first();
+                ->get()->map(fn ($r) => (array) $r)->first();
             $idKelasSiswa = (int) ($baris['id_kelas_siswa'] ?? 0);
         }
 
@@ -426,8 +432,8 @@ class DatakelasController extends BaseController
             'id_kelas_siswa' => $this->masterModel->generateKelasSiswaId(),
             'id_siswa' => $idSiswa,
             'id_kelas' => $idKelas,
-            'id_tp'    => $idTp,
-            'id_smt'   => $idSmt,
+            'id_tp' => $idTp,
+            'id_smt' => $idSmt,
         ]) !== false;
     }
 
@@ -436,25 +442,25 @@ class DatakelasController extends BaseController
      */
     public function bulk_create()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['success' => false, 'message' => 'Unauthorized']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
-        if (!$tp || !$smt) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+        if (! $tp || ! $smt) {
             return $this->response->setJSON(['success' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
 
         $classes = json_decode($this->request->input('kelas') ?? '[]');
-        if (!is_array($classes) || empty($classes)) {
+        if (! is_array($classes) || empty($classes)) {
             return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada kelas yang dikirim']);
         }
         if (count($classes) > 50) {
             return $this->response->setJSON(['success' => false, 'message' => 'Maksimal 50 kelas sekaligus']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         // Nilai yang dipakai bersama: level valid + nama yang sudah ada di periode ini.
         $levelValid = [];
@@ -472,7 +478,7 @@ class DatakelasController extends BaseController
 
         // Satu transaksi: sebagian kelas terbentuk + sebagian gagal menyisakan
         // rombel rangkap yang membingutkan kenaikan kelas (target dicari by nama).
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             foreach ($classes as $c) {
                 $nama = mb_substr(trim((string) ($c->nama_kelas ?? '')), 0, 30);
@@ -481,14 +487,17 @@ class DatakelasController extends BaseController
 
                 if (mb_strlen($nama) < 2) {
                     $lewat[] = $nama !== '' ? $nama : '(tanpa nama)';
+
                     continue;
                 }
-                if (!isset($levelValid[$level])) {
-                    $lewat[] = $nama . ' (level tidak valid)';
+                if (! isset($levelValid[$level])) {
+                    $lewat[] = $nama.' (level tidak valid)';
+
                     continue;
                 }
                 if (isset($namaTerpakai[mb_strtolower($nama)])) {
-                    $lewat[] = $nama . ' (sudah ada)';
+                    $lewat[] = $nama.' (sudah ada)';
+
                     continue;
                 }
 
@@ -505,7 +514,7 @@ class DatakelasController extends BaseController
                     'jumlah_siswa' => '[]',
                 ]);
                 if ($tersimpan === false) {
-                    throw new \RuntimeException('Insert master_kelas gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                    throw new \RuntimeException('Insert master_kelas gagal: '.json_encode(['code' => 0, 'message' => '']));
                 }
 
                 $namaTerpakai[mb_strtolower($nama)] = true;
@@ -513,30 +522,32 @@ class DatakelasController extends BaseController
             }
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['success' => false, 'message' => 'Pembuatan kelas gagal disimpan — tidak ada yang dibuat.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::bulk_create] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::bulk_create] '.$e->getMessage());
+
             return $this->response->setJSON(['success' => false, 'message' => 'Pembuatan kelas gagal disimpan.']);
         }
 
-        $this->saveAuditLog(1, "Bulk create $insert_count kelas" . ($lewat ? ', ' . count($lewat) . ' dilewati' : ''));
+        $this->saveAuditLog(1, "Bulk create $insert_count kelas".($lewat ? ', '.count($lewat).' dilewati' : ''));
 
         if ($insert_count === 0) {
             return $this->response->setJSON([
                 'success' => false,
                 'insert' => 0,
-                'message' => 'Tidak ada kelas dibuat — ' . implode(', ', array_slice($lewat, 0, 5))
+                'message' => 'Tidak ada kelas dibuat — '.implode(', ', array_slice($lewat, 0, 5)),
             ]);
         }
 
         return $this->response->setJSON([
             'success' => true,
             'insert' => $insert_count,
-            'message' => $insert_count . ' kelas dibuat' . ($lewat ? '; ' . count($lewat) . ' dilewati' : '')
+            'message' => $insert_count.' kelas dibuat'.($lewat ? '; '.count($lewat).' dilewati' : ''),
         ]);
     }
 
@@ -545,7 +556,7 @@ class DatakelasController extends BaseController
      */
     public function hapus($id)
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['kelas' => false, 'message' => 'Unauthorized']);
         }
 
@@ -554,9 +565,9 @@ class DatakelasController extends BaseController
             return $this->response->setJSON(['kelas' => false, 'message' => 'ID kelas tidak valid']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
-        $kelas = $db->table('master_kelas')->where('id_kelas', $id)->get()->map(fn($r) => (array) $r)->first();
-        if (!$kelas) {
+        $db = DB::connection();
+        $kelas = $db->table('master_kelas')->where('id_kelas', $id)->get()->map(fn ($r) => (array) $r)->first();
+        if (! $kelas) {
             return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
@@ -564,47 +575,49 @@ class DatakelasController extends BaseController
         // periode itu". Dihapus, siswa hilang dari daftar periode & rekap.
         $tertaut = (int) $db->table('kelas_siswa')->where('id_kelas', $id)->count();
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             if ($tertaut > 0 && $db->table('kelas_siswa')->where('id_kelas', $id)->update(['id_kelas' => null]) === false) {
-                throw new \RuntimeException('Lepas enrollment gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                throw new \RuntimeException('Lepas enrollment gagal: '.json_encode(['code' => 0, 'message' => '']));
             }
 
             $this->jabatanModel->releaseWaliKelas((int) $kelas['id_tp'], (int) $kelas['id_smt'], $id);
 
             if ($this->masterModel->hapus('master_kelas', [$id], 'id_kelas') === false) {
-                throw new \RuntimeException('Hapus master_kelas gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                throw new \RuntimeException('Hapus master_kelas gagal: '.json_encode(['code' => 0, 'message' => '']));
             }
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas gagal dihapus — tidak ada yang diubah.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::hapus] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::hapus] '.$e->getMessage());
+
             return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas gagal dihapus.']);
         }
 
-        $this->saveAuditLog(3, 'Menghapus kelas ID: ' . $id . ' (' . $kelas['nama_kelas'] . ', ' . $tertaut . ' siswa dilepas)');
+        $this->saveAuditLog(3, 'Menghapus kelas ID: '.$id.' ('.$kelas['nama_kelas'].', '.$tertaut.' siswa dilepas)');
 
         return $this->response->setJSON([
             'kelas' => true,
-            'message' => 'Kelas terhapus' . ($tertaut > 0 ? '; ' . $tertaut . ' siswa dilepas dari rombel ini' : '')
+            'message' => 'Kelas terhapus'.($tertaut > 0 ? '; '.$tertaut.' siswa dilepas dari rombel ini' : ''),
         ]);
     }
 
     public function manage()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return redirect()->to('datakelas')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
 
@@ -615,8 +628,8 @@ class DatakelasController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
             'kelas' => $this->kelasModel->getNamaKelasByNama($tp->id_tp, '1'),
             'kelas2' => $this->kelasModel->getNamaKelasByNama($tp->id_tp, '2'),
         ];
@@ -626,33 +639,34 @@ class DatakelasController extends BaseController
 
     public function copyallfromsmt1()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['success' => false, 'message' => 'Unauthorized']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        if (!$tp) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        if (! $tp) {
             return $this->response->setJSON(['success' => false, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
 
         $id_kelas_smt1 = $this->request->input('kelas_satu');
-        if (!is_array($id_kelas_smt1) || empty($id_kelas_smt1)) {
+        if (! is_array($id_kelas_smt1) || empty($id_kelas_smt1)) {
             return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada kelas sumber yang dikirim']);
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
         $row_insert = 0;
         $dipakai = 0;
         $terproses = 0;
         $gagal = 0;
         $siswa_gagal = 0;
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             foreach ($id_kelas_smt1 as $id) {
                 $kls_smt1 = $db->table('master_kelas')->where('id_kelas', (int) $id)->first();
-                if (!$kls_smt1) {
+                if (! $kls_smt1) {
                     $gagal++;
+
                     continue;
                 }
 
@@ -664,8 +678,8 @@ class DatakelasController extends BaseController
                     ->where('nama_kelas', $kls_smt1->nama_kelas)
                     ->where('id_tp', (int) $tp->id_tp)
                     ->where('id_smt', '2')
-                    ->get()->map(fn($r) => (array) $r)->first();
-                $baru = !$sudah;
+                    ->get()->map(fn ($r) => (array) $r)->first();
+                $baru = ! $sudah;
                 $new_id = $sudah ? (int) $sudah['id_kelas'] : 0;
 
                 if ($baru) {
@@ -680,10 +694,10 @@ class DatakelasController extends BaseController
                         'jumlah_siswa' => $kls_smt1->jumlah_siswa,
                     ];
                     if ($db->table('master_kelas')->insert($insert_kelas) === false) {
-                        throw new \RuntimeException('Salin rombel ke semester 2 gagal: ' . json_encode(['code' => 0, 'message' => '']));
+                        throw new \RuntimeException('Salin rombel ke semester 2 gagal: '.json_encode(['code' => 0, 'message' => '']));
                     }
-                    $new_id = (int) \Illuminate\Support\Facades\DB::getPdo()->lastInsertId();
-                    if (!$new_id) {
+                    $new_id = (int) DB::getPdo()->lastInsertId();
+                    if (! $new_id) {
                         throw new \RuntimeException('Salin rombel gagal: id kelas tujuan tidak diperoleh');
                     }
                 }
@@ -711,7 +725,7 @@ class DatakelasController extends BaseController
                 // memindahkan rombel, tidak menabrak unique key dan tidak
                 // menyisakan duplikat.
                 foreach ($siswas as $siswa) {
-                    if (!$this->tempatkanSiswa($db, (int) $siswa->id_siswa, $new_id, (int) $tp->id_tp, 2)) {
+                    if (! $this->tempatkanSiswa($db, (int) $siswa->id_siswa, $new_id, (int) $tp->id_tp, 2)) {
                         $siswa_gagal++;
                     }
                 }
@@ -724,40 +738,42 @@ class DatakelasController extends BaseController
             }
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['success' => false, 'message' => 'Penyalinan kelas gagal disimpan — tidak ada yang diubah.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::copyallfromsmt1] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::copyallfromsmt1] '.$e->getMessage());
+
             return $this->response->setJSON(['success' => false, 'message' => 'Penyalinan kelas gagal disimpan.']);
         }
 
         if ($siswa_gagal > 0) {
-            Log::warning('[Datakelas::copyallfromsmt1] ' . $siswa_gagal . ' siswa gagal dipasangkan');
+            Log::warning('[Datakelas::copyallfromsmt1] '.$siswa_gagal.' siswa gagal dipasangkan');
         }
 
         return $this->response->setJSON([
             'success' => $terproses > 0,
             'insert' => $row_insert,
-            'message' => $row_insert . ' kelas dibuat di semester 2'
-                . ($dipakai ? '; ' . $dipakai . ' rombel tujuan sudah ada dan dipakai ulang' : '')
-                . ($gagal ? '; ' . $gagal . ' kelas sumber tidak ditemukan' : '')
-                . ($siswa_gagal ? '; ' . $siswa_gagal . ' siswa gagal dipasangkan' : '')
+            'message' => $row_insert.' kelas dibuat di semester 2'
+                .($dipakai ? '; '.$dipakai.' rombel tujuan sudah ada dan dipakai ulang' : '')
+                .($gagal ? '; '.$gagal.' kelas sumber tidak ditemukan' : '')
+                .($siswa_gagal ? '; '.$siswa_gagal.' siswa gagal dipasangkan' : ''),
         ]);
     }
 
     public function kenaikan()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard');
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $setting = $this->getSettingRow();
-        if (!$tp || !$smt) {
+        if (! $tp || ! $smt) {
             return redirect()->to('datakelas')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
         }
 
@@ -768,8 +784,8 @@ class DatakelasController extends BaseController
             'setting' => $setting,
             'tp_active' => $tp,
             'smt_active' => $smt,
-            'tp' => \Illuminate\Support\Facades\DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
-            'smt' => \Illuminate\Support\Facades\DB::table('master_smt')->get(),
+            'tp' => DB::table('master_tp')->orderBy('id_tp', 'DESC')->get(),
+            'smt' => DB::table('master_smt')->get(),
         ];
 
         $kelas_selected = $this->request->query('kelas');
@@ -814,17 +830,19 @@ class DatakelasController extends BaseController
         foreach ($kelases as $id => $nama) {
             $arr = explode(' ', $nama);
             $level = $arr[0];
-            if (!isset($ret[$level]))
+            if (! isset($ret[$level])) {
                 $ret[$level] = [];
+            }
             $ret[$level][$id] = $nama;
         }
+
         return $ret;
     }
 
     private function get_kelas_next($kelas_lama)
     {
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        $smt = \Illuminate\Support\Facades\DB::table('master_smt')->where('active', 1)->first();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
         $kelas_baru = $this->kelasModel->getNamaKelasByNama($tp->id_tp, $smt->id_smt);
 
         $ret = [];
@@ -833,6 +851,7 @@ class DatakelasController extends BaseController
             $id_baru = array_search($nama_baru, $kelas_baru);
             $ret[$id_lama] = $id_baru ? $id_baru : '0';
         }
+
         return $ret;
     }
 
@@ -844,6 +863,7 @@ class DatakelasController extends BaseController
             $next_level = $this->is_roman($level) ? $this->roman_to_int($level) + 1 : $level + 1;
             $arr[0] = $this->is_roman($level) ? $this->int_to_roman($next_level) : $next_level;
         }
+
         return implode(' ', $arr);
     }
 
@@ -876,6 +896,7 @@ class DatakelasController extends BaseController
                 $roman = substr($roman, strlen($key));
             }
         }
+
         return $result;
     }
 
@@ -906,17 +927,18 @@ class DatakelasController extends BaseController
                 }
             }
         }
+
         return $returnValue;
     }
 
     public function naikkelas()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Unauthorized']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        if (!$tp) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        if (! $tp) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
         $id_tp = (int) $tp->id_tp;
@@ -924,9 +946,9 @@ class DatakelasController extends BaseController
 
         $kelas_json = $this->request->input('kelas');
         $kelas = json_decode($kelas_json ?? '[]');
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        if (!is_array($kelas) || empty($kelas)) {
+        if (! is_array($kelas) || empty($kelas)) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Tidak ada data kelas yang dikirim']);
         }
 
@@ -953,14 +975,15 @@ class DatakelasController extends BaseController
 
         $row_insert = 0;
         $lewat = 0;
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             foreach ($kelas as $kls) {
                 $idSiswa = (int) ($kls->id_siswa ?? 0);
                 $namaBaru = (string) ($kls->nama_kls_baru ?? '');
                 $kls_id = $namaBaru === '' ? false : array_search($namaBaru, $petaNama, true);
-                if ($idSiswa <= 0 || !isset($siswaValid[$idSiswa]) || !$kls_id) {
+                if ($idSiswa <= 0 || ! isset($siswaValid[$idSiswa]) || ! $kls_id) {
                     $lewat++;
+
                     continue;
                 }
                 if ($this->tempatkanSiswa($db, $idSiswa, (int) $kls_id, $id_tp, $id_smt)) {
@@ -971,49 +994,51 @@ class DatakelasController extends BaseController
             }
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas gagal disimpan — tidak ada yang diubah.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::naikkelas] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::naikkelas] '.$e->getMessage());
+
             return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas gagal disimpan.']);
         }
 
         if ($lewat > 0) {
-            Log::warning('[Datakelas::naikkelas] ' . $lewat . ' siswa dilewati (rombel tujuan tidak ditemukan)');
+            Log::warning('[Datakelas::naikkelas] '.$lewat.' siswa dilewati (rombel tujuan tidak ditemukan)');
         }
 
         return $this->response->setJSON([
             'res' => $row_insert,
             'message' => $row_insert > 0
-                ? $row_insert . ' siswa dipindahkan' . ($lewat > 0 ? '; ' . $lewat . ' dilewati karena rombel tujuan tidak ada' : '')
-                : 'Tidak ada siswa yang dipindahkan — rombel tujuan tidak ditemukan di periode aktif.'
+                ? $row_insert.' siswa dipindahkan'.($lewat > 0 ? '; '.$lewat.' dilewati karena rombel tujuan tidak ada' : '')
+                : 'Tidak ada siswa yang dipindahkan — rombel tujuan tidak ditemukan di periode aktif.',
         ]);
     }
 
     public function naikkan_semua()
     {
-        if (!$this->isAdmin()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Unauthorized']);
         }
 
-        $tp = \Illuminate\Support\Facades\DB::table('master_tp')->where('active', 1)->first();
-        if (!$tp) {
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        if (! $tp) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
         $tpBefore = $this->dashboardModel->getTpBefore($tp->tahun);
-        if (!$tpBefore) {
+        if (! $tpBefore) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran sebelumnya tidak ditemukan — tidak ada yang bisa dinaikkan.']);
         }
         $id_tp = (int) $tp->id_tp;
         $id_smt = 1;
 
         $kelas_baru = $this->request->input('kelas_baru');
-        $db = \Illuminate\Support\Facades\DB::connection();
+        $db = DB::connection();
 
-        if (!is_array($kelas_baru) || empty($kelas_baru)) {
+        if (! is_array($kelas_baru) || empty($kelas_baru)) {
             return $this->response->setJSON(['res' => 0, 'message' => 'Tidak ada pemetaan rombel yang dikirim']);
         }
 
@@ -1023,15 +1048,16 @@ class DatakelasController extends BaseController
 
         $row_insert = 0;
         $lewat = [];
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             foreach ($kelas_baru as $id_lama => $id_baru) {
                 $id_baru = (int) $id_baru;
                 if ($id_baru <= 0) {
                     continue;
                 }
-                if (!isset($petaKelasAktif[$id_baru])) {
+                if (! isset($petaKelasAktif[$id_baru])) {
                     $lewat[] = (int) $id_baru;
+
                     continue;
                 }
 
@@ -1048,24 +1074,26 @@ class DatakelasController extends BaseController
             }
 
             if (true === false) {
-                \Illuminate\Support\Facades\DB::rollBack();
+                DB::rollBack();
+
                 return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas massal gagal disimpan — tidak ada yang diubah.']);
             }
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('[Datakelas::naikkan_semua] ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('[Datakelas::naikkan_semua] '.$e->getMessage());
+
             return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas massal gagal disimpan.']);
         }
 
         if ($lewat) {
-            Log::warning('[Datakelas::naikkan_semua] rombel tujuan dilewati: ' . implode(', ', $lewat));
+            Log::warning('[Datakelas::naikkan_semua] rombel tujuan dilewati: '.implode(', ', $lewat));
         }
 
         return $this->response->setJSON([
             'res' => $row_insert,
-            'message' => $row_insert . ' siswa dinaikkan'
-                . ($lewat ? '; ' . count($lewat) . ' rombel tujuan tidak ada di periode aktif dan dilewati' : '')
+            'message' => $row_insert.' siswa dinaikkan'
+                .($lewat ? '; '.count($lewat).' rombel tujuan tidak ada di periode aktif dan dilewati' : ''),
         ]);
     }
 }
