@@ -247,7 +247,7 @@ class DapodikSyncService
         if (Schema::hasTable('setting')) {
             $clean = [];
             foreach ($mapping as $column => $value) {
-                if (empty($value) || ! Schema::hasColumn($column, 'setting')) {
+                if (empty($value) || ! Schema::hasColumn('setting', $column)) {
                     continue;
                 }
                 $clean[$column] = $value;
@@ -788,7 +788,7 @@ class DapodikSyncService
                     $data['nik'] = ! empty($nik) ? $nik : '0';
                     $data['warga_negara'] = 'Indonesia';
                     $data['uid'] = $this->generateUid();
-                    if (Schema::hasColumn('kelas_awal', 'master_siswa')) {
+                    if (Schema::hasColumn('master_siswa', 'kelas_awal')) {
                         $data['kelas_awal'] = 1;
                     }
                     // Akun dibuat terpisah (Usersiswa) dan men-hash nilai ini,
@@ -1250,13 +1250,13 @@ class DapodikSyncService
                     if ($kelompok !== '' && $kelompok !== '-') {
                         $data['kelompok'] = $kelompok;
                     }
-                    if (Schema::hasColumn('urutan', 'master_mapel')) {
+                    if (Schema::hasColumn('master_mapel', 'urutan')) {
                         $data['urutan'] = DB::table('master_mapel')->count() + 1;
                     }
-                    if (Schema::hasColumn('status', 'master_mapel')) {
+                    if (Schema::hasColumn('master_mapel', 'status')) {
                         $data['status'] = 1;
                     }
-                    if (Schema::hasColumn('deletable', 'master_mapel')) {
+                    if (Schema::hasColumn('master_mapel', 'deletable')) {
                         $data['deletable'] = 1;
                     }
                     DB::table('master_mapel')->insert($data);
@@ -1567,14 +1567,14 @@ class DapodikSyncService
         $tp = 0;
         $smt = 0;
 
-        if (Schema::hasTable('master_tp') && Schema::hasColumn('active', 'master_tp')) {
+        if (Schema::hasTable('master_tp') && Schema::hasColumn('master_tp', 'active')) {
             $row = (array) DB::table('master_tp')->where('active', '1')->first();
             if ($row && ! empty($row['id_tp'])) {
                 $tp = (int) $row['id_tp'];
             }
         }
 
-        if (Schema::hasTable('master_smt') && Schema::hasColumn('active', 'master_smt')) {
+        if (Schema::hasTable('master_smt') && Schema::hasColumn('master_smt', 'active')) {
             $row = (array) DB::table('master_smt')->where('active', '1')->first();
             if ($row && ! empty($row['id_smt'])) {
                 $smt = (int) $row['id_smt'];
@@ -1878,7 +1878,7 @@ class DapodikSyncService
                         ['mapel_kelas' => $jsonMapelKelas]
                     );
                 }
-                if (Schema::hasColumn('mapel_kelas', 'master_guru')) {
+                if (Schema::hasColumn('master_guru', 'mapel_kelas')) {
                     DB::table('master_guru')->where('id_guru', $guru->id_guru)->update([
                         'mapel_kelas' => $jsonMapelKelas,
                     ]);
@@ -2006,7 +2006,7 @@ class DapodikSyncService
         $kolom = array_merge([$kolomPk, $kolomNama], $kolomIdentitas, $kolomLain);
         $kolom = array_values(array_unique(array_filter(
             $kolom,
-            fn ($k) => Schema::hasColumn($k, $tabel)
+            fn ($k) => Schema::hasColumn($tabel, $k)
         )));
         if ($kolom === []) {
             return $indeks;
@@ -2015,7 +2015,7 @@ class DapodikSyncService
         $rows = DB::table($tabel)->select($kolom)->get()->map(fn ($r) => (array) $r)->all();
         foreach ($rows as $baris) {
             foreach ($kolomIdentitas as $k) {
-                if ($k === $kolomNama || ! Schema::hasColumn($k, $tabel)) {
+                if ($k === $kolomNama || ! Schema::hasColumn($tabel, $k)) {
                     continue;
                 }
                 if (trim((string) ($baris[$k] ?? '')) !== '') {
