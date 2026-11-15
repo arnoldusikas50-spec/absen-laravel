@@ -74,6 +74,7 @@ class NotifChannelConfigModel extends Model
         'kehadiran_rendah' => ['label' => 'Kehadiran Rendah (Cron)', 'personal' => false, 'pref_key' => ''],
         'rekap_piket' => ['label' => 'Rekap Piket Harian (tombol kirim)', 'personal' => false, 'pref_key' => ''],
         'apel_kesadaran' => ['label' => 'Pengingat Apel Kesadaran KORPRI (Tgl 16, Cron)', 'personal' => false, 'pref_key' => ''],
+        'ulang_tahun' => ['label' => 'Ucapan Selamat Ulang Tahun Guru (Cron)', 'personal' => true, 'pref_key' => ''],
     ];
 
     /** @var array<string,object>|null Indexed by jenis, null = belum dimuat */

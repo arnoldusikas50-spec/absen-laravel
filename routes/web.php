@@ -514,6 +514,7 @@ Route::get('cron/monthly-pdf', [CronControllerController::class, 'monthlyPdf'])-
 Route::get('cron/ucapan-pagi', [CronControllerController::class, 'ucapanPagi'])->middleware(['auth'])->name('cron.ucapan-pagi.ucapan_pagi');
 Route::get('cron/ucapan-sore', [CronControllerController::class, 'ucapanSore'])->middleware(['auth'])->name('cron.ucapan-sore.ucapan_sore');
 Route::get('cron/apel-kesadaran', [CronControllerController::class, 'apelKesadaran'])->middleware(['auth'])->name('cron.apel-kesadaran.apel_kesadaran');
+Route::get('cron/ulang-tahun', [CronControllerController::class, 'ulangTahun'])->name('cron.ulang-tahun.ulang_tahun');
 Route::get('admin/jadwal/get_jadwal/{any}', [JadwalController::class, 'get_jadwal'])->middleware(['auth'])->name('admin.jadwal.get_jadwal');
 Route::post('admin/jadwal/save_setting', [JadwalController::class, 'save_setting'])->middleware(['auth'])->name('admin.jadwal.save_setting');
 Route::post('admin/jadwal/save_mapel_slot', [JadwalController::class, 'save_mapel_slot'])->middleware(['auth'])->name('admin.jadwal.save_mapel_slot');

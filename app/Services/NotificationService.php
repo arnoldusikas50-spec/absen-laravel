@@ -49,7 +49,7 @@ class NotificationService
      */
     protected function channelConfig(): NotifChannelConfigModel
     {
-        return $this->channelConfigModel ??= new NotifChannelConfigModel();
+        return $this->channelConfigModel ??= new NotifChannelConfigModel;
     }
 
     /**
@@ -70,7 +70,8 @@ class NotificationService
         try {
             return $this->channelConfig()->isEnabled($jenis, $channel);
         } catch (\Throwable $e) {
-            Log::error('[Notification] isChannelEnabled gagal: ' . $e->getMessage());
+            Log::error('[Notification] isChannelEnabled gagal: '.$e->getMessage());
+
             return true; // fail-open
         }
     }
@@ -82,8 +83,10 @@ class NotificationService
     {
         if (! $this->isChannelEnabled($jenis, 'wa_grup')) {
             Log::info("[Notification] WA Grup dinonaktifkan untuk jenis '{$jenis}', dilewati.");
+
             return false;
         }
+
         return $this->sendWhatsApp($message);
     }
 
@@ -108,11 +111,20 @@ class NotificationService
             && ! $this->isChannelEnabled($jenis, 'wa_grup');
     }
 
+    public function isAllChannelsDisabled(string $jenis): bool
+    {
+        return ! $this->isChannelEnabled($jenis, 'tg_grup')
+            && ! $this->isChannelEnabled($jenis, 'wa_grup')
+            && ! $this->isChannelEnabled($jenis, 'tg_personal')
+            && ! $this->isChannelEnabled($jenis, 'wa_personal');
+    }
+
     private function notifyGrup(string $jenis, string $message): bool
     {
         if ($this->isGrupDisabled($jenis)) {
             $this->lastError = "Notifikasi jenis '{$jenis}' dinonaktifkan di Pengaturan → Channel Notifikasi (TG Grup + WA Grup mati).";
-            Log::info('[Notification] ' . $this->lastError . ' Dilewati.');
+            Log::info('[Notification] '.$this->lastError.' Dilewati.');
+
             return false;
         }
 
@@ -122,23 +134,24 @@ class NotificationService
         $tgSent = false;
         $waSent = false;
         $telegramError = '';
-        $waError       = '';
+        $waError = '';
 
         if ($tgAktif) {
-            $tgSent        = $this->sendTelegram($message);
+            $tgSent = $this->sendTelegram($message);
             $telegramError = $this->lastError;
         }
 
         if ($waAktif) {
-            $waSent  = $this->sendWhatsAppGrup($jenis, $message);
+            $waSent = $this->sendWhatsAppGrup($jenis, $message);
             $waError = $this->lastError;
             if (! $waSent && $this->waMode() !== 'off' && $waError !== '') {
-                Log::error('[Notification] WA Grup gagal (' . $jenis . '): ' . $waError);
+                Log::error('[Notification] WA Grup gagal ('.$jenis.'): '.$waError);
             }
         }
 
         if ($tgSent || $waSent) {
             $this->lastError = '';
+
             return true;
         }
 
@@ -176,10 +189,10 @@ class NotificationService
         string $caption = ''
     ): array {
         $hasil = [
-            'telegram'        => false,
-            'whatsapp'        => false,
-            'telegram_error'  => '',
-            'whatsapp_error'  => '',
+            'telegram' => false,
+            'whatsapp' => false,
+            'telegram_error' => '',
+            'whatsapp_error' => '',
         ];
 
         // ── Telegram ────────────────────────────────────────────────
@@ -235,7 +248,8 @@ class NotificationService
 
         if ($chatId === '') {
             $this->lastError = 'Chat ID tujuan kosong.';
-            Log::error('[Notification] Dokumen DILEWATI: ' . $this->lastError);
+            Log::error('[Notification] Dokumen DILEWATI: '.$this->lastError);
+
             return false;
         }
 
@@ -253,21 +267,24 @@ class NotificationService
 
         if ($token === '' || $chatId === '') {
             $this->lastError = $token === ''
-                ? 'Bot Token kosong pada baris absensi_setting id=' . ($this->setting->id ?? '?') . '.'
+                ? 'Bot Token kosong pada baris absensi_setting id='.($this->setting->id ?? '?').'.'
                 : 'Chat ID tujuan kosong.';
-            Log::error('[Notification] Dokumen DILEWATI: ' . $this->lastError);
+            Log::error('[Notification] Dokumen DILEWATI: '.$this->lastError);
+
             return false;
         }
 
         if (! is_file($filePath) || ! is_readable($filePath)) {
-            $this->lastError = 'Berkas tidak bisa dibaca: ' . $filePath;
-            Log::error('[Notification] ' . $this->lastError);
+            $this->lastError = 'Berkas tidak bisa dibaca: '.$filePath;
+            Log::error('[Notification] '.$this->lastError);
+
             return false;
         }
 
         $isi = file_get_contents($filePath);
         if ($isi === false || $isi === '') {
             $this->lastError = 'Berkas kosong atau gagal dibaca.';
+
             return false;
         }
 
@@ -277,7 +294,8 @@ class NotificationService
         if (strlen($isi) > $batas) {
             $mb = round(strlen($isi) / 1048576, 1);
             $this->lastError = "Berkas terlalu besar untuk Telegram ({$mb} MB, batas {$batas} byte).";
-            Log::error('[Notification] ' . $this->lastError);
+            Log::error('[Notification] '.$this->lastError);
+
             return false;
         }
 
@@ -301,15 +319,18 @@ class NotificationService
             $code = $response->status();
             $body = $response->json();
             if (($body['ok'] ?? false) === true) {
-                Log::info('[Notification] Dokumen "' . $nama . '" terkirim ke Telegram.');
+                Log::info('[Notification] Dokumen "'.$nama.'" terkirim ke Telegram.');
+
                 return true;
             }
             $this->lastError = $this->translateTelegramError($code, (string) ($body['description'] ?? ''));
-            Log::error('Telegram sendDocument gagal (HTTP ' . $code . '): ' . ($body['description'] ?? 'tanpa keterangan'));
+            Log::error('Telegram sendDocument gagal (HTTP '.$code.'): '.($body['description'] ?? 'tanpa keterangan'));
+
             return false;
         } catch (\Throwable $e) {
-            $this->lastError = 'Server tidak bisa menghubungi api.telegram.org (' . $e->getMessage() . ')';
-            Log::error('Telegram sendDocument failed: ' . $e->getMessage());
+            $this->lastError = 'Server tidak bisa menghubungi api.telegram.org ('.$e->getMessage().')';
+            Log::error('Telegram sendDocument failed: '.$e->getMessage());
+
             return false;
         }
     }
@@ -329,25 +350,26 @@ class NotificationService
      *   3. Hanya wa_personal aktif      → coba WA saja
      *   4. Keduanya mati                → skip personal sama sekali
      *
-     * @param bool $bolehGrup Diteruskan ke notifyUser(). Hampir semua pemanggil
-     *                         di file ini sudah meng-broadcast pesan yang sama
-     *                         lewat notifyGrup() — untuk mereka WAJIB false:
-     *                         fallback grup akan menduplikasi broadcast dan
-     *                         melewati channel config jenis itu (notifyUser
-     *                         memakai sendWhatsApp/sendTelegram mentah).
+     * @param  bool  $bolehGrup  Diteruskan ke notifyUser(). Hampir semua pemanggil
+     *                           di file ini sudah meng-broadcast pesan yang sama
+     *                           lewat notifyGrup() — untuk mereka WAJIB false:
+     *                           fallback grup akan menduplikasi broadcast dan
+     *                           melewati channel config jenis itu (notifyUser
+     *                           memakai sendWhatsApp/sendTelegram mentah).
      */
     private function notifyPersonal(
         string $jenis,
-        int    $userId,
+        int $userId,
         string $message,
-        string $prefKey   = '',
-        bool   $bolehGrup = true
+        string $prefKey = '',
+        bool $bolehGrup = true
     ): bool {
         $tgOk = $this->isChannelEnabled($jenis, 'tg_personal');
         $waOk = $this->isChannelEnabled($jenis, 'wa_personal');
 
         if (! $tgOk && ! $waOk) {
             Log::info("[Notification] Kedua kanal personal dinonaktifkan untuk '{$jenis}', skip DM user {$userId}.");
+
             return false;
         }
 
@@ -359,14 +381,15 @@ class NotificationService
         // Salah satu kanal mati — kita perlu sedikit trik:
         // Override personalChannels() tidak elegan; sebagai gantinya kita
         // kirim langsung ke kanal yang masih aktif.
-        $model  = $this->notifModel();
+        $model = $this->notifModel();
 
         // Cek preferensi guru terlebih dahulu
         if ($prefKey !== '') {
             $prefs = $model->getPrefs($userId);
             if (empty($prefs[$prefKey])) {
-                $this->lastError   = 'Guru mematikan preferensi "' . $prefKey . '".';
+                $this->lastError = 'Guru mematikan preferensi "'.$prefKey.'".';
                 $this->lastChannel = 'preferensi-mati';
+
                 return false;
             }
         }
@@ -377,6 +400,7 @@ class NotificationService
                 $openwa = $this->openwaService();
                 if ($openwa->sendText($waNumber, $message)) {
                     $this->lastChannel = 'whatsapp';
+
                     return true;
                 }
                 $this->lastError = $openwa->lastError;
@@ -384,10 +408,11 @@ class NotificationService
         }
 
         if ($tgOk) {
-            $row    = $model->getByUserId($userId);
+            $row = $model->getByUserId($userId);
             $chatId = (string) ($row->telegram_chat_id ?? '');
             if ($chatId !== '' && $this->sendTelegramTo($chatId, $message)) {
                 $this->lastChannel = 'telegram';
+
                 return true;
             }
         }
@@ -396,11 +421,13 @@ class NotificationService
         if ($bolehGrup) {
             if ($this->sendWhatsApp($message) || $this->sendTelegram($message)) {
                 $this->lastChannel = 'grup';
+
                 return true;
             }
         }
 
         $this->lastChannel = 'tidak-terkirim';
+
         return false;
     }
 
@@ -418,17 +445,17 @@ class NotificationService
      * personal (tg_personal / wa_personal) dihormati.
      *
      * @return array{ok:bool, channel:string, error:string} channel:
-     *         'whatsapp' | 'telegram' | 'preferensi-mati' | 'tidak-terkirim'
+     *                                                      'whatsapp' | 'telegram' | 'preferensi-mati' | 'tidak-terkirim'
      */
     public function kirimDokumenPersonal(
         string $jenis,
-        int    $userId,
+        int $userId,
         string $filePath,
         string $filename = '',
         string $caption = '',
         string $prefKey = ''
     ): array {
-        $gagal = static fn(string $channel, string $error) => ['ok' => false, 'channel' => $channel, 'error' => $error];
+        $gagal = static fn (string $channel, string $error) => ['ok' => false, 'channel' => $channel, 'error' => $error];
 
         $this->lastChannel = '';
         $this->lastError = '';
@@ -440,6 +467,7 @@ class NotificationService
         if (! is_file($filePath) || ! is_readable($filePath)) {
             $this->lastError = 'Berkas tidak bisa dibaca.';
             $this->lastChannel = 'tidak-terkirim';
+
             return $gagal('tidak-terkirim', $this->lastError);
         }
 
@@ -449,8 +477,9 @@ class NotificationService
             if ($prefKey !== '') {
                 $prefs = $model->getPrefs($userId);
                 if (empty($prefs[$prefKey])) {
-                    $this->lastError   = 'Guru mematikan preferensi "' . $prefKey . '".';
+                    $this->lastError = 'Guru mematikan preferensi "'.$prefKey.'".';
                     $this->lastChannel = 'preferensi-mati';
+
                     return $gagal('preferensi-mati', $this->lastError);
                 }
             }
@@ -461,7 +490,8 @@ class NotificationService
             if (! $tgOk && ! $waOk) {
                 $this->lastError = "Kedua kanal personal dinonaktifkan untuk '{$jenis}'.";
                 $this->lastChannel = 'tidak-terkirim';
-                Log::info('[Notification] ' . $this->lastError);
+                Log::info('[Notification] '.$this->lastError);
+
                 return $gagal('tidak-terkirim', $this->lastError);
             }
 
@@ -474,11 +504,12 @@ class NotificationService
                     $openwa = $this->openwaService();
                     if ($openwa->sendDocument($waNumber, $filePath, $filename, $caption, 'application/pdf')) {
                         $this->lastChannel = 'whatsapp';
+
                         return ['ok' => true, 'channel' => 'whatsapp', 'error' => ''];
                     }
                     $this->lastError = $openwa->lastError;
-                    Log::error('[kirimDokumenPersonal] WA gagal, coba Telegram: ' . $openwa->lastError);
-                    $alasan[] = 'WhatsApp: ' . $openwa->lastError;
+                    Log::error('[kirimDokumenPersonal] WA gagal, coba Telegram: '.$openwa->lastError);
+                    $alasan[] = 'WhatsApp: '.$openwa->lastError;
                 } else {
                     $alasan[] = $waNumber === ''
                         ? 'Nomor WA guru belum terverifikasi.'
@@ -491,18 +522,19 @@ class NotificationService
             // 2. Telegram — cadangan.
             if ($tgOk) {
                 try {
-                    $row    = $model->getByUserId($userId);
+                    $row = $model->getByUserId($userId);
                     $chatId = (string) ($row->telegram_chat_id ?? '');
                 } catch (\Throwable $e) {
                     $chatId = '';
-                    Log::error('Gagal membaca chat id Telegram: ' . $e->getMessage());
+                    Log::error('Gagal membaca chat id Telegram: '.$e->getMessage());
                 }
                 if ($chatId !== '') {
                     if ($this->sendTelegramDocumentTo($chatId, $filePath, $filename, $caption)) {
                         $this->lastChannel = 'telegram';
+
                         return ['ok' => true, 'channel' => 'telegram', 'error' => ''];
                     }
-                    $alasan[] = 'Telegram: ' . ($this->lastError !== '' ? $this->lastError : 'ditolak tanpa keterangan');
+                    $alasan[] = 'Telegram: '.($this->lastError !== '' ? $this->lastError : 'ditolak tanpa keterangan');
                 } else {
                     $alasan[] = 'Chat Telegram guru belum tertaut (minta guru Start bot dan tautkan).';
                 }
@@ -516,19 +548,21 @@ class NotificationService
                 ? 'Tidak ada kanal personal yang tertaut.'
                 : implode(' | ', $alasan);
             $this->lastChannel = 'tidak-terkirim';
+
             return $gagal('tidak-terkirim', $this->lastError);
         } catch (\Throwable $e) {
-            Log::error('Kirim dokumen personal gagal: ' . $e->getMessage());
+            Log::error('Kirim dokumen personal gagal: '.$e->getMessage());
             $this->lastChannel = 'tidak-terkirim';
+
             return $gagal('tidak-terkirim', 'Kesalahan sistem — periksa log aplikasi.');
         }
     }
 
     public function __construct()
     {
-        $model = new AttendanceSettingModel();
+        $model = new AttendanceSettingModel;
         $this->setting = $model->first();
-        if (!$this->setting) {
+        if (! $this->setting) {
             $this->setting = (object) [];
         }
         // Baris utama (id terkecil) tetap dipakai untuk semua nilai pengaturan.
@@ -537,7 +571,7 @@ class NotificationService
         // yang semua kolom notifikasinya NULL, sehingga rekap tidak terkirim
         // tanpa satu pun pesan di log.
         foreach (self::NOTIFICATION_KEYS as $k) {
-            if (!empty($this->setting->$k)) {
+            if (! empty($this->setting->$k)) {
                 continue;
             }
             $fallback = $this->findNotificationValue($k);
@@ -573,16 +607,18 @@ class NotificationService
                     ->first();
 
                 if ($row !== null) {
-                    Log::debug('[Notification] ' . $key . ' diambil dari fallback tabel ' . $table . ' (id=' . ($row->id ?? '?') . ')');
+                    Log::debug('[Notification] '.$key.' diambil dari fallback tabel '.$table.' (id='.($row->id ?? '?').')');
+
                     return (string) $row->{$key};
                 }
             } catch (\Throwable $e) {
-                Log::error('[Notification] Gagal mencari ' . $key . ' di tabel ' . $table . ': ' . $e->getMessage());
+                Log::error('[Notification] Gagal mencari '.$key.' di tabel '.$table.': '.$e->getMessage());
             }
         }
 
         // Sumber terakhir: config/notifications.php (env, default kosong).
-        $cfg = config('notifications.' . $key);
+        $cfg = config('notifications.'.$key);
+
         return ($cfg !== null && $cfg !== '') ? (string) $cfg : null;
     }
 
@@ -590,16 +626,17 @@ class NotificationService
     {
         $this->lastError = '';
 
-        $token  = trim((string) ($this->setting->telegram_bot_token ?? ''));
+        $token = trim((string) ($this->setting->telegram_bot_token ?? ''));
         $chatId = trim((string) ($this->setting->telegram_chat_id ?? ''));
 
         if ($token === '' || $chatId === '') {
             $this->lastError = $token === ''
-                ? 'Bot Token kosong pada baris absensi_setting id=' . ($this->setting->id ?? '?')
-                  . ' — isi di Pengaturan > Presensi.'
-                : 'Chat ID kosong pada baris absensi_setting id=' . ($this->setting->id ?? '?')
-                  . ' — isi di Pengaturan > Presensi.';
-            Log::error('[Notification] Pesan DILEWATI, tidak ada kredensial Telegram: ' . $this->lastError);
+                ? 'Bot Token kosong pada baris absensi_setting id='.($this->setting->id ?? '?')
+                  .' — isi di Pengaturan > Presensi.'
+                : 'Chat ID kosong pada baris absensi_setting id='.($this->setting->id ?? '?')
+                  .' — isi di Pengaturan > Presensi.';
+            Log::error('[Notification] Pesan DILEWATI, tidak ada kredensial Telegram: '.$this->lastError);
+
             return false;
         }
 
@@ -616,9 +653,10 @@ class NotificationService
 
         if ($token === '' || $chatId === '') {
             $this->lastError = $token === ''
-                ? 'Bot Token kosong pada baris absensi_setting id=' . ($this->setting->id ?? '?') . '.'
+                ? 'Bot Token kosong pada baris absensi_setting id='.($this->setting->id ?? '?').'.'
                 : 'Chat ID tujuan kosong.';
-            Log::error('[Notification] Pesan DILEWATI: ' . $this->lastError);
+            Log::error('[Notification] Pesan DILEWATI: '.$this->lastError);
+
             return false;
         }
 
@@ -635,11 +673,13 @@ class NotificationService
                 return true;
             }
             $this->lastError = $this->translateTelegramError($code, (string) ($body['description'] ?? ''));
-            Log::error('Telegram send gagal (HTTP ' . $code . '): ' . ($body['description'] ?? 'tanpa keterangan'));
+            Log::error('Telegram send gagal (HTTP '.$code.'): '.($body['description'] ?? 'tanpa keterangan'));
+
             return false;
         } catch (\Throwable $e) {
-            $this->lastError = 'Server tidak bisa menghubungi api.telegram.org (' . $e->getMessage() . ')';
-            Log::error('Telegram notification failed: ' . $e->getMessage());
+            $this->lastError = 'Server tidak bisa menghubungi api.telegram.org ('.$e->getMessage().')';
+            Log::error('Telegram notification failed: '.$e->getMessage());
+
             return false;
         }
     }
@@ -666,9 +706,10 @@ class NotificationService
             return 'Pesan terlalu panjang untuk satu pengiriman Telegram.';
         }
         if ($description !== '') {
-            return 'Telegram menolak (HTTP ' . $code . '): ' . $description;
+            return 'Telegram menolak (HTTP '.$code.'): '.$description;
         }
-        return 'Telegram menolak pengiriman (HTTP ' . $code . ').';
+
+        return 'Telegram menolak pengiriman (HTTP '.$code.').';
     }
 
     /**
@@ -680,7 +721,7 @@ class NotificationService
      */
     protected function notifModel(): UserNotifikasiModel
     {
-        return new UserNotifikasiModel();
+        return new UserNotifikasiModel;
     }
 
     /**
@@ -690,9 +731,9 @@ class NotificationService
      * yang selalu menembak wa_target_number) karena tujuannya per-guru.
      * Pabriknya dipisah supaya test bisa menyuntikkan stub tanpa jaringan.
      */
-    protected function openwaService(): \App\Services\OpenWAService
+    protected function openwaService(): OpenWAService
     {
-        return new \App\Services\OpenWAService($this->setting);
+        return new OpenWAService($this->setting);
     }
 
     /**
@@ -724,7 +765,7 @@ class NotificationService
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('Gagal membaca nomor WA personal: ' . $e->getMessage());
+            Log::error('Gagal membaca nomor WA personal: '.$e->getMessage());
         }
 
         // 2. Telegram — cadangan.
@@ -735,7 +776,7 @@ class NotificationService
                 $try['telegram'] = ['nomor' => $chatId, 'aktif' => true];
             }
         } catch (\Throwable $e) {
-            Log::error('Gagal membaca chat id Telegram: ' . $e->getMessage());
+            Log::error('Gagal membaca chat id Telegram: '.$e->getMessage());
         }
 
         return $try;
@@ -762,11 +803,10 @@ class NotificationService
      * hanya untuk pemanggil luar yang memang tidak punya jalur broadcast
      * sendiri.
      *
-     * @param bool $bolehGrup true = boleh jatuh ke grup saat tidak ada
-     *                         kanal personal. False untuk pesan
-     *                         diagnostik (tombol "tes kirim") yang tidak
-     *                         boleh menyiarkan apa pun ke grup.
-     *
+     * @param  bool  $bolehGrup  true = boleh jatuh ke grup saat tidak ada
+     *                           kanal personal. False untuk pesan
+     *                           diagnostik (tombol "tes kirim") yang tidak
+     *                           boleh menyiarkan apa pun ke grup.
      * @return bool true bila terkirim ke kanal personal atau ke grup
      */
     public function notifyUser(int $userId, string $message, string $prefKey = '', bool $bolehGrup = true): bool
@@ -783,7 +823,7 @@ class NotificationService
             if ($prefKey !== '') {
                 $prefs = $model->getPrefs($userId);
                 if (empty($prefs[$prefKey])) {
-                    $this->lastError   = 'Guru mematikan preferensi "' . $prefKey . '".';
+                    $this->lastError = 'Guru mematikan preferensi "'.$prefKey.'".';
                     $this->lastChannel = 'preferensi-mati';
 
                     return false;
@@ -794,7 +834,8 @@ class NotificationService
 
             foreach ($this->personalChannels($userId) as $kanal => $info) {
                 if (! $info['aktif']) {
-                    $alasan[] = ($info['alasan'] ?? ($kanal . ' tidak terkonfigurasi'));
+                    $alasan[] = ($info['alasan'] ?? ($kanal.' tidak terkonfigurasi'));
+
                     continue;
                 }
 
@@ -806,8 +847,9 @@ class NotificationService
                         return true;
                     }
                     $this->lastError = $openwa->lastError;
-                    Log::error('[notifyUser] WA gagal, coba Telegram: ' . $openwa->lastError);
-                    $alasan[] = 'WhatsApp: ' . $openwa->lastError;
+                    Log::error('[notifyUser] WA gagal, coba Telegram: '.$openwa->lastError);
+                    $alasan[] = 'WhatsApp: '.$openwa->lastError;
+
                     continue;
                 }
 
@@ -816,13 +858,13 @@ class NotificationService
 
                     return true;
                 }
-                $alasan[] = 'Telegram: ' . ($this->lastError !== '' ? $this->lastError : 'ditolak tanpa keterangan');
-                Log::error('[notifyUser] Telegram gagal: ' . $this->lastError);
+                $alasan[] = 'Telegram: '.($this->lastError !== '' ? $this->lastError : 'ditolak tanpa keterangan');
+                Log::error('[notifyUser] Telegram gagal: '.$this->lastError);
             }
 
             // Tidak ada kanal personal yang berhasil — atau memang tidak ada.
             if (! $bolehGrup) {
-                $this->lastError   = $alasan === []
+                $this->lastError = $alasan === []
                     ? 'Tidak ada kanal personal yang tertaut.'
                     : implode(' | ', $alasan);
                 $this->lastChannel = 'tidak-terkirim';
@@ -830,29 +872,29 @@ class NotificationService
                 return false;
             }
 
-            Log::info('[notifyUser] user ' . $userId
-                . ' tidak punya kanal personal yang berhasil, pesan dialihkan ke grup.');
+            Log::info('[notifyUser] user '.$userId
+                .' tidak punya kanal personal yang berhasil, pesan dialihkan ke grup.');
 
             $grupWa = $this->sendWhatsApp($message);
-            $waErr  = $this->lastError;
+            $waErr = $this->lastError;
 
             if ($grupWa || $this->sendTelegram($message)) {
                 $this->lastChannel = 'grup';
-                $this->lastError   = '';
+                $this->lastError = '';
 
                 return true;
             }
 
             $this->lastError = implode(' | ', array_filter([
                 $alasan === [] ? 'Tidak ada kanal personal yang tertaut.' : implode(' | ', $alasan),
-                'WhatsApp grup: ' . ($waErr !== '' ? $waErr : 'ditolak'),
-                'Telegram grup: ' . ($this->lastError !== '' ? $this->lastError : 'ditolak'),
+                'WhatsApp grup: '.($waErr !== '' ? $waErr : 'ditolak'),
+                'Telegram grup: '.($this->lastError !== '' ? $this->lastError : 'ditolak'),
             ]));
             $this->lastChannel = 'tidak-terkirim';
 
             return false;
         } catch (\Throwable $e) {
-            Log::error('Notifikasi personal gagal: ' . $e->getMessage());
+            Log::error('Notifikasi personal gagal: '.$e->getMessage());
             $this->lastChannel = 'tidak-terkirim';
 
             return false;
@@ -889,6 +931,7 @@ class NotificationService
             if ($username !== '') {
                 Cache::put('tg_bot_username', $username, 86400);
             }
+
             return $username;
         } catch (\Throwable $e) {
             return '';
@@ -911,24 +954,25 @@ class NotificationService
             $response = Http::timeout(10)->get("https://api.telegram.org/bot{$token}/getWebhookInfo");
             $body = $response->json();
             if (($body['ok'] ?? false) !== true) {
-                return ['ok' => false, 'error' => 'Token ditolak Telegram: ' . ($body['description'] ?? 'Unauthorized')];
+                return ['ok' => false, 'error' => 'Token ditolak Telegram: '.($body['description'] ?? 'Unauthorized')];
             }
             $r = $body['result'] ?? [];
             $err = '';
-            if (!empty($r['last_error_message'])) {
+            if (! empty($r['last_error_message'])) {
                 $err = (string) $r['last_error_message'];
-                if (!empty($r['last_error_date'])) {
-                    $err .= ' (' . date('d/m/Y H:i', (int) $r['last_error_date']) . ')';
+                if (! empty($r['last_error_date'])) {
+                    $err .= ' ('.date('d/m/Y H:i', (int) $r['last_error_date']).')';
                 }
             }
+
             return [
-                'ok'        => true,
-                'url'       => (string) ($r['url'] ?? ''),
-                'pending'   => (int) ($r['pending_update_count'] ?? 0),
+                'ok' => true,
+                'url' => (string) ($r['url'] ?? ''),
+                'pending' => (int) ($r['pending_update_count'] ?? 0),
                 'last_error' => $err,
             ];
         } catch (\Throwable $e) {
-            return ['ok' => false, 'error' => 'Server tidak bisa menghubungi api.telegram.org (' . $e->getMessage() . ')'];
+            return ['ok' => false, 'error' => 'Server tidak bisa menghubungi api.telegram.org ('.$e->getMessage().')'];
         }
     }
 
@@ -974,7 +1018,8 @@ class NotificationService
             $target = trim((string) ($this->setting->wa_target_number ?? ''));
             if ($target === '') {
                 $this->lastError = 'Nomor/grup tujuan WhatsApp belum diisi di Pengaturan > Notifikasi.';
-                Log::error('[Notification] WhatsApp DILEWATI: ' . $this->lastError);
+                Log::error('[Notification] WhatsApp DILEWATI: '.$this->lastError);
+
                 return false;
             }
             $openwa = $this->openwaService();
@@ -982,6 +1027,7 @@ class NotificationService
             if (! $ok) {
                 $this->lastError = $openwa->lastError;
             }
+
             return $ok;
         }
 
@@ -994,13 +1040,14 @@ class NotificationService
      */
     private function sendFonnte(string $message): bool
     {
-        $url    = trim((string) ($this->setting->wa_gateway_url ?? ''));
-        $token  = trim((string) ($this->setting->wa_token ?? ''));
+        $url = trim((string) ($this->setting->wa_gateway_url ?? ''));
+        $token = trim((string) ($this->setting->wa_token ?? ''));
         $target = trim((string) ($this->setting->wa_target_number ?? ''));
 
         if ($url === '' || $token === '' || $target === '') {
             $this->lastError = 'Kredensial Fonnte (URL / token / nomor tujuan) belum lengkap.';
-            Log::error('[Notification] WhatsApp DILEWATI: ' . $this->lastError);
+            Log::error('[Notification] WhatsApp DILEWATI: '.$this->lastError);
+
             return false;
         }
 
@@ -1010,20 +1057,22 @@ class NotificationService
                 ->asJson()
                 ->timeout(10)
                 ->post($url, [
-                    'target'      => $target,
-                    'message'     => \App\Services\WhatsAppFormatter::toWhatsApp($message, false),
+                    'target' => $target,
+                    'message' => WhatsAppFormatter::toWhatsApp($message, false),
                     'countryCode' => '62',
                 ]);
             $body = $response->json();
             if (($body['status'] ?? false) === true) {
                 return true;
             }
-            $this->lastError = 'Fonnte menolak: ' . (string) ($body['reason'] ?? 'tanpa keterangan');
-            Log::error('WhatsApp notification failed: ' . $this->lastError);
+            $this->lastError = 'Fonnte menolak: '.(string) ($body['reason'] ?? 'tanpa keterangan');
+            Log::error('WhatsApp notification failed: '.$this->lastError);
+
             return false;
         } catch (\Throwable $e) {
-            $this->lastError = 'Tidak bisa menghubungi gateway Fonnte (' . $e->getMessage() . ')';
-            Log::error('WhatsApp notification failed: ' . $e->getMessage());
+            $this->lastError = 'Tidak bisa menghubungi gateway Fonnte ('.$e->getMessage().')';
+            Log::error('WhatsApp notification failed: '.$e->getMessage());
+
             return false;
         }
     }
@@ -1048,7 +1097,7 @@ class NotificationService
         if (! $waSent && $this->waMode() !== 'off' && $this->lastError !== '') {
             // Jangan timpa lastError Telegram — pemanggil membacanya sebagai
             // alasan kegagalan utama.
-            Log::error('[Notification] WhatsApp gagal: ' . $this->lastError);
+            Log::error('[Notification] WhatsApp gagal: '.$this->lastError);
         }
         $this->lastError = $telegramError;
 
@@ -1058,20 +1107,20 @@ class NotificationService
     /**
      * Guru check-in melewati batas toleransi.
      *
-     * @param int|null $userId Bila diisi, guru itu juga diberi tahu
-     *                      secara personal. Parameter ini pernah ada di
-     *                      signature tapi TIDAK pernah dipakai di badan
-     *                      method — jadi guru yang telat tidak pernah
-     *                      diberi tahu meski pemanggil sudah mengirim
-     *                      user_id-nya.
+     * @param  int|null  $userId  Bila diisi, guru itu juga diberi tahu
+     *                            secara personal. Parameter ini pernah ada di
+     *                            signature tapi TIDAK pernah dipakai di badan
+     *                            method — jadi guru yang telat tidak pernah
+     *                            diberi tahu meski pemanggil sudah mengirim
+     *                            user_id-nya.
      */
     public function notifyLateCheckin(string $namaGuru, string $jam, int $menitTelat, ?int $userId = null): void
     {
         $msg = "⚠️ <b>KETERLAMBATAN</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Jam: " . $this->plain($jam) . "\n"
-             . "Telat: {$menitTelat} menit\n"
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Jam: '.$this->plain($jam)."\n"
+             ."Telat: {$menitTelat} menit\n"
+             .'Waktu: '.date('d/m/Y H:i');
 
         $this->notifyGrup('keterlambatan', $msg);
 
@@ -1085,10 +1134,10 @@ class NotificationService
     public function notifyAlpha(string $namaGuru, int $hariAlpha, string $bulanTahun, ?int $userId = null): void
     {
         $msg = "🔴 <b>ALPA / TIDAK HADIR</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Hari: {$hariAlpha} hari\n"
-             . "Periode: " . $this->plain($bulanTahun) . "\n"
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             ."Hari: {$hariAlpha} hari\n"
+             .'Periode: '.$this->plain($bulanTahun)."\n"
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('alpha', $msg);
         if ($userId) {
             $this->notifyPersonal('alpha', $userId, $msg, 'alpha', false);
@@ -1104,23 +1153,23 @@ class NotificationService
     {
         $jenisLabel = match (strtolower($jenis)) {
             'sakit' => 'Sakit',
-            'cuti'  => 'Cuti',
+            'cuti' => 'Cuti',
             'dinas' => 'Dinas',
             default => 'Izin',
         };
 
         $msg = "📨 <b>PENGAJUAN BARU — {$jenisLabel}</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Jenis: {$jenisLabel}\n"
-             . "Tanggal: {$tglMulai} s/d {$tglSelesai} ({$hari} hari)\n";
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             ."Jenis: {$jenisLabel}\n"
+             ."Tanggal: {$tglMulai} s/d {$tglSelesai} ({$hari} hari)\n";
 
         $ket = trim((string) $keterangan);
         if ($ket !== '') {
-            $msg .= "Alasan: " . $this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…')) . "\n";
+            $msg .= 'Alasan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'))."\n";
         }
 
         $msg .= "─────────────────\n"
-             . "Menunggu persetujuan di aplikasi.";
+             .'Menunggu persetujuan di aplikasi.';
 
         $this->notifyGrup('izin', $msg);
 
@@ -1137,7 +1186,7 @@ class NotificationService
      * guru dan grup berisi banyak orang. Kegagalan kirim tidak menghentikan
      * penyimpanan jurnal (dipanggil dalam try/catch oleh pemanggil).
      *
-     * @param list<int> $idUserPiket
+     * @param  list<int>  $idUserPiket
      * @return int banyak notifikasi terkirim
      */
     public function notifyJurnalMenungguValidasi(
@@ -1148,11 +1197,11 @@ class NotificationService
         bool $validasiUlang = false
     ): int {
         $msg = ($validasiUlang ? "🔁 <b>JURNAL PERLU DIVALIDASI ULANG</b>\n" : "📕 <b>JURNAL MENUNGGU VALIDASI</b>\n")
-             . "Guru: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Menunggu validasi: " . $jumlahSesi . " sesi\n"
-             . "─────────────────\n"
-             . "Validasi di aplikasi: menu Piket → Laporan Harian.";
+             .'Guru: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .'Menunggu validasi: '.$jumlahSesi." sesi\n"
+             ."─────────────────\n"
+             .'Validasi di aplikasi: menu Piket → Laporan Harian.';
 
         $kirim = 0;
         foreach ($idUserPiket as $idUser) {
@@ -1174,19 +1223,19 @@ class NotificationService
     public function notifyKoreksiSubmitted(string $namaGuru, string $tanggal, string $fieldLabel, string $oldValue, string $newValue, ?string $reason = null, ?int $userId = null): void
     {
         $msg = "🛠 <b>PENGAJUAN KOREKSI BARU</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: {$tanggal}\n"
-             . "Field: {$fieldLabel}\n"
-             . "Sebelum: <code>" . $this->clip($this->plain($oldValue)) . "</code>\n"
-             . "Sesudah: <code>" . $this->clip($this->plain($newValue)) . "</code>\n";
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             ."Tanggal: {$tanggal}\n"
+             ."Field: {$fieldLabel}\n"
+             .'Sebelum: <code>'.$this->clip($this->plain($oldValue))."</code>\n"
+             .'Sesudah: <code>'.$this->clip($this->plain($newValue))."</code>\n";
 
         $ket = trim((string) $reason);
         if ($ket !== '') {
-            $msg .= "Alasan: " . $this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…')) . "\n";
+            $msg .= 'Alasan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'))."\n";
         }
 
         $msg .= "─────────────────\n"
-             . "Menunggu persetujuan di aplikasi.";
+             .'Menunggu persetujuan di aplikasi.';
 
         $this->notifyGrup('koreksi', $msg);
 
@@ -1206,8 +1255,9 @@ class NotificationService
         }
         // Ambil bagian jam saja bila formatnya datetime.
         if (preg_match('/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}(?::\d{2})?)/', $v, $m) === 1) {
-            return date('d/m/Y', strtotime($m[1])) . ' ' . substr($m[2], 0, 5);
+            return date('d/m/Y', strtotime($m[1])).' '.substr($m[2], 0, 5);
         }
+
         return $v;
     }
 
@@ -1217,9 +1267,9 @@ class NotificationService
     public function koreksiFieldLabel(string $field): string
     {
         return match ($field) {
-            'jam_masuk'  => 'Jam Masuk',
+            'jam_masuk' => 'Jam Masuk',
             'jam_pulang' => 'Jam Pulang',
-            default      => $field,
+            default => $field,
         };
     }
 
@@ -1238,7 +1288,8 @@ class NotificationService
         if (mb_strlen($text) <= $max) {
             return $text;
         }
-        return mb_substr($text, 0, $max) . '…';
+
+        return mb_substr($text, 0, $max).'…';
     }
 
     /**
@@ -1257,17 +1308,18 @@ class NotificationService
             return "{$m[3]}/{$m[2]}/{$m[1]}";
         }
         $ts = strtotime($t);
+
         return $ts !== false ? date('d/m/Y', $ts) : $this->plain($t);
     }
 
     public function notifyPermitApproved(string $namaGuru, string $jenis, string $tglMulai, string $tglSelesai, ?int $userId = null, ?string $catatan = null): void
     {
-        $msg = "✅ <b>" . $this->permitJudul($jenis) . " DISETUJUI</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Jenis: " . $this->permitJenisLabel($jenis) . "\n"
-             . "Tanggal: " . $this->tglLabel($tglMulai) . " s/d " . $this->tglLabel($tglSelesai) . "\n"
-             . $this->catatanBlock($catatan)
-             . "Waktu: " . date('d/m/Y H:i');
+        $msg = '✅ <b>'.$this->permitJudul($jenis)." DISETUJUI</b>\n"
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Jenis: '.$this->permitJenisLabel($jenis)."\n"
+             .'Tanggal: '.$this->tglLabel($tglMulai).' s/d '.$this->tglLabel($tglSelesai)."\n"
+             .$this->catatanBlock($catatan)
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('izin', $msg);
         if ($userId) {
             $this->notifyPersonal('izin', $userId, $msg, 'izin', false);
@@ -1276,11 +1328,11 @@ class NotificationService
 
     public function notifyPermitRejected(string $namaGuru, string $jenis, ?int $userId = null, ?string $catatan = null): void
     {
-        $msg = "❌ <b>" . $this->permitJudul($jenis) . " DITOLAK</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Jenis: " . $this->permitJenisLabel($jenis) . "\n"
-             . $this->catatanBlock($catatan, 'Alasan: ')
-             . "Waktu: " . date('d/m/Y H:i');
+        $msg = '❌ <b>'.$this->permitJudul($jenis)." DITOLAK</b>\n"
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Jenis: '.$this->permitJenisLabel($jenis)."\n"
+             .$this->catatanBlock($catatan, 'Alasan: ')
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('izin', $msg);
         if ($userId) {
             $this->notifyPersonal('izin', $userId, $msg, 'izin', false);
@@ -1293,13 +1345,13 @@ class NotificationService
     public function notifyKoreksiApproved(string $namaGuru, string $tanggal, string $fieldLabel, string $oldValue, string $newValue, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "✅ <b>KOREKSI DISETUJUI</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Field: " . $this->plain($fieldLabel) . "\n"
-             . "Sebelum: <code>" . $this->clip($this->plain($oldValue)) . "</code>\n"
-             . "Sesudah: <code>" . $this->clip($this->plain($newValue)) . "</code>\n"
-             . $this->catatanBlock($catatan)
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .'Field: '.$this->plain($fieldLabel)."\n"
+             .'Sebelum: <code>'.$this->clip($this->plain($oldValue))."</code>\n"
+             .'Sesudah: <code>'.$this->clip($this->plain($newValue))."</code>\n"
+             .$this->catatanBlock($catatan)
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('koreksi', $msg);
         if ($userId) {
             $this->notifyPersonal('koreksi', $userId, $msg, 'koreksi', false);
@@ -1312,11 +1364,11 @@ class NotificationService
     public function notifyKoreksiRejected(string $namaGuru, string $tanggal, string $fieldLabel, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "❌ <b>KOREKSI DITOLAK</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Field: " . $this->plain($fieldLabel) . "\n"
-             . $this->catatanBlock($catatan, 'Alasan: ')
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .'Field: '.$this->plain($fieldLabel)."\n"
+             .$this->catatanBlock($catatan, 'Alasan: ')
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('koreksi', $msg);
         if ($userId) {
             $this->notifyPersonal('koreksi', $userId, $msg, 'koreksi', false);
@@ -1329,11 +1381,11 @@ class NotificationService
     public function notifyVerifikasiDiterima(string $namaGuru, string $tanggal, string $statusBaru, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "✅ <b>VERIFIKASI KEHADIRAN DITERIMA</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Status: " . $this->plain($statusBaru) . "\n"
-             . $this->catatanBlock($catatan)
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .'Status: '.$this->plain($statusBaru)."\n"
+             .$this->catatanBlock($catatan)
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('koreksi', $msg);
         if ($userId) {
             $this->notifyPersonal('koreksi', $userId, $msg, 'koreksi', false);
@@ -1346,11 +1398,11 @@ class NotificationService
     public function notifyVerifikasiDitolak(string $namaGuru, string $tanggal, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "❌ <b>VERIFIKASI KEHADIRAN DITOLAK</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Status: ALPHA\n"
-             . $this->catatanBlock($catatan, 'Alasan: ')
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             ."Status: ALPHA\n"
+             .$this->catatanBlock($catatan, 'Alasan: ')
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('koreksi', $msg);
         if ($userId) {
             $this->notifyPersonal('koreksi', $userId, $msg, 'koreksi', false);
@@ -1366,11 +1418,11 @@ class NotificationService
     public function notifyVerifikasiKedaluwarsa(string $namaGuru, string $tanggal, int $hariTinjau, ?int $userId = null): void
     {
         $msg = "⏳ <b>VERIFIKASI KEHADIRAN LEWAT BATAS</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . "Status: ALPHA (otomatis)\n"
-             . "Alasan: tidak ditindak dalam " . $hariTinjau . " hari\n"
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             ."Status: ALPHA (otomatis)\n"
+             .'Alasan: tidak ditindak dalam '.$hariTinjau." hari\n"
+             .'Waktu: '.date('d/m/Y H:i');
         if ($userId) {
             $this->notifyPersonal('koreksi', $userId, $msg, 'koreksi', false);
         } else {
@@ -1386,7 +1438,7 @@ class NotificationService
     {
         return match (strtolower(trim($jenis))) {
             'sakit' => 'SAKIT',
-            'cuti'  => 'CUTI',
+            'cuti' => 'CUTI',
             'dinas' => 'DINAS',
             default => 'IZIN',
         };
@@ -1399,7 +1451,7 @@ class NotificationService
     {
         return match (strtolower(trim($jenis))) {
             'sakit' => 'Sakit',
-            'cuti'  => 'Cuti',
+            'cuti' => 'Cuti',
             'dinas' => 'Dinas',
             'ijin', 'izin' => 'Izin',
             default => $jenis,
@@ -1415,16 +1467,17 @@ class NotificationService
         if ($c === '') {
             return '';
         }
-        return $prefix . $this->clip(mb_strimwidth($this->plain($c), 0, 200, '…')) . "\n";
+
+        return $prefix.$this->clip(mb_strimwidth($this->plain($c), 0, 200, '…'))."\n";
     }
 
     public function notifyDinasApproved(string $namaGuru, string $tanggal, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "✅ <b>DINAS DISETUJUI</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . $this->catatanBlock($catatan)
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .$this->catatanBlock($catatan)
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('dinas', $msg);
         if ($userId) {
             $this->notifyPersonal('dinas', $userId, $msg, 'izin', false);
@@ -1433,12 +1486,14 @@ class NotificationService
 
     public function notifyWarningLetter(string $namaGuru, int $tingkat, string $bulan, string $tahun, ?int $userId = null): void
     {
-        $level = match($tingkat) { 10 => 'III', 7 => 'II', default => 'I' };
+        $level = match ($tingkat) {
+            10 => 'III', 7 => 'II', default => 'I'
+        };
         $msg = "📋 <b>SURAT TEGURAN</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tingkat: {$level} ({$tingkat} hari alpha)\n"
-             . "Periode: " . $this->plain($bulan) . "/{$tahun}\n"
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             ."Tingkat: {$level} ({$tingkat} hari alpha)\n"
+             .'Periode: '.$this->plain($bulan)."/{$tahun}\n"
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('teguran', $msg);
         if ($userId) {
             $this->notifyPersonal('teguran', $userId, $msg, 'teguran', false);
@@ -1449,7 +1504,7 @@ class NotificationService
      * Surat panggilan siswa terbit — kirim ke grup sekolah dan wali kelas
      * terkait secara personal.
      *
-     * @param array<int, array{id_siswa:int, level:int, alpha:int, terlambat:int, id_user_wali?:int}> $daftar
+     * @param  array<int, array{id_siswa:int, level:int, alpha:int, terlambat:int, id_user_wali?:int}>  $daftar
      * @return int banyak notifikasi personal (ke wali kelas) yang terkirim
      */
     public function notifySuratPanggilan(array $daftar, string $bulan, string $tahun): int
@@ -1458,15 +1513,15 @@ class NotificationService
 
         // ── Grup sekolah ──────────────────────────────────
         $count = count($daftar);
-        $msg   = "📋 <b>SURAT PANGGILAN ORANG TUA</b>\n"
-             . "Bulan: " . $this->plain($bulan) . "/{$tahun}\n"
-             . "Jumlah: {$count} siswa\n"
-             . "Waktu: " . date('d/m/Y H:i');
+        $msg = "📋 <b>SURAT PANGGILAN ORANG TUA</b>\n"
+             .'Bulan: '.$this->plain($bulan)."/{$tahun}\n"
+             ."Jumlah: {$count} siswa\n"
+             .'Waktu: '.date('d/m/Y H:i');
 
         foreach ($daftar as $d) {
-            $msg .= "\n• Tingkat " . (int) $d['level']
-                  . " — Alpha " . (int) $d['alpha']
-                  . ", Terlambat " . (int) $d['terlambat'];
+            $msg .= "\n• Tingkat ".(int) $d['level']
+                  .' — Alpha '.(int) $d['alpha']
+                  .', Terlambat '.(int) $d['terlambat'];
         }
 
         $this->notifyGrup('panggilan', $msg);
@@ -1484,18 +1539,18 @@ class NotificationService
 
         foreach ($perWali as $idUser => $items) {
             $msg = "📋 <b>SURAT PANGGILAN ORANG TUA — Wali Kelas</b>\n"
-                 . "Bulan: " . $this->plain($bulan) . "/{$tahun}\n"
-                 . "Berikut siswa di kelas Anda yang mendapat surat panggilan:\n\n";
+                 .'Bulan: '.$this->plain($bulan)."/{$tahun}\n"
+                 ."Berikut siswa di kelas Anda yang mendapat surat panggilan:\n\n";
 
             foreach ($items as $it) {
-                $msg .= "• Tingkat " . (int) $it['level']
-                      . " — Alpha " . (int) $it['alpha']
-                      . ", Terlambat " . (int) $it['terlambat']
-                      . " (siswa #" . (int) $it['id_siswa'] . ")\n";
+                $msg .= '• Tingkat '.(int) $it['level']
+                      .' — Alpha '.(int) $it['alpha']
+                      .', Terlambat '.(int) $it['terlambat']
+                      .' (siswa #'.(int) $it['id_siswa'].")\n";
             }
 
             $msg .= "\nSilakan hubungi orang tua/wali siswa terkait.\n"
-                 . "Waktu: " . date('d/m/Y H:i');
+                 .'Waktu: '.date('d/m/Y H:i');
 
             if ($this->notifyPersonal('panggilan', $idUser, $msg, 'panggilan', false)) {
                 $kirim++;
@@ -1520,8 +1575,8 @@ class NotificationService
         $poin = max(0, (int) ($this->setting->point_lupa_pulang ?? 5));
 
         $msg = "⚠️ <b>LUPA ABSEN PULANG</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n";
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n";
 
         if ($poin > 0) {
             $msg .= "Poin: -{$poin} bila jam pulang tetap kosong\n";
@@ -1534,7 +1589,7 @@ class NotificationService
             $msg .= "Segera absen pulang di aplikasi.\n";
         }
 
-        $msg .= "Waktu: " . date('d/m/Y H:i');
+        $msg .= 'Waktu: '.date('d/m/Y H:i');
 
         return $this->notifyGrup('lupa_checkout', $msg);
     }
@@ -1542,10 +1597,10 @@ class NotificationService
     public function notifyDenda(string $namaGuru, float $jumlah, string $keterangan, ?int $userId = null): void
     {
         $msg = "💰 <b>DENDA BARU</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Jumlah: Rp " . number_format($jumlah, 0, ',', '.') . "\n"
-             . "Keterangan: " . $this->plain($keterangan) . "\n"
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Jumlah: Rp '.number_format($jumlah, 0, ',', '.')."\n"
+             .'Keterangan: '.$this->plain($keterangan)."\n"
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('denda', $msg);
         if ($userId) {
             $this->notifyPersonal('denda', $userId, $msg, 'denda', false);
@@ -1555,10 +1610,10 @@ class NotificationService
     public function notifyDinasRejected(string $namaGuru, string $tanggal, ?int $userId = null, ?string $catatan = null): void
     {
         $msg = "❌ <b>DINAS DITOLAK</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n"
-             . $this->catatanBlock($catatan, 'Alasan: ')
-             . "Waktu: " . date('d/m/Y H:i');
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n"
+             .$this->catatanBlock($catatan, 'Alasan: ')
+             .'Waktu: '.date('d/m/Y H:i');
         $this->notifyGrup('dinas', $msg);
         if ($userId) {
             $this->notifyPersonal('dinas', $userId, $msg, 'izin', false);
@@ -1573,16 +1628,16 @@ class NotificationService
     public function notifyDinasSubmitted(string $namaGuru, string $tanggal, ?string $keterangan = null, ?int $userId = null): void
     {
         $msg = "🚗 <b>PENGAJUAN DINAS BARU</b>\n"
-             . "Nama: " . $this->plain($namaGuru) . "\n"
-             . "Tanggal: " . $this->tglLabel($tanggal) . "\n";
+             .'Nama: '.$this->plain($namaGuru)."\n"
+             .'Tanggal: '.$this->tglLabel($tanggal)."\n";
 
         $ket = trim((string) $keterangan);
         if ($ket !== '') {
-            $msg .= "Keterangan: " . $this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'), 200) . "\n";
+            $msg .= 'Keterangan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'), 200)."\n";
         }
 
         $msg .= "─────────────────\n"
-             . "Menunggu verifikasi admin.";
+             .'Menunggu verifikasi admin.';
 
         $this->notifyGrup('dinas', $msg);
         if ($userId) {
@@ -1600,13 +1655,13 @@ class NotificationService
         if (empty($guruList)) {
             return true;
         }
-        $lines = array_map(fn($g) => '• ' . $this->plain((string) $g), $guruList);
+        $lines = array_map(fn ($g) => '• '.$this->plain((string) $g), $guruList);
         $msg = "📉 <b>KEHADIRAN DI BAWAH STANDAR ({$minPersen}%)</b>\n"
-             . "Periode: " . $this->plain($periode) . "\n"
-             . "─────────────────\n"
-             . implode("\n", $lines) . "\n"
-             . "─────────────────\n"
-             . "Segera tindak lanjuti sesuai SOP sekolah.";
+             .'Periode: '.$this->plain($periode)."\n"
+             ."─────────────────\n"
+             .implode("\n", $lines)."\n"
+             ."─────────────────\n"
+             .'Segera tindak lanjuti sesuai SOP sekolah.';
 
         return $this->notifyGrup('kehadiran_rendah', $msg);
     }
@@ -1622,33 +1677,33 @@ class NotificationService
      * notifyUser(): pesan ini punya TEKS BERBEDA untuk grup dan personal,
      * sedangkan notify() mengirim string yang sama ke keduanya.
      *
-     * @param  object $peminat  Baris berisi user_id, nama_guru, sapaan, jam_masuk
-     * @param  string $chatId    Chat id personal guru, string kosong bila belum tertaut
+     * @param  object  $peminat  Baris berisi user_id, nama_guru, sapaan, jam_masuk
+     * @param  string  $chatId  Chat id personal guru, string kosong bila belum tertaut
      * @return array{grup:bool,dm:bool,alasan:string,alasan_dm:string}
      */
     public function notifyGuruTerawal(object $peminat, string $chatId = ''): array
     {
-        $nama  = $this->plain((string) ($peminat->nama_guru ?? 'Guru'));
+        $nama = $this->plain((string) ($peminat->nama_guru ?? 'Guru'));
         $sapaan = $this->plain((string) ($peminat->sapaan ?? 'Bapak atau Ibu'));
-        $jam   = substr((string) ($peminat->jam_masuk ?? ''), 11, 5);
-        $jam   = $this->plain($jam !== '' ? $jam : '-');
-        $tgl   = $this->plain($this->tglLabel(substr((string) ($peminat->jam_masuk ?? ''), 0, 10)));
+        $jam = substr((string) ($peminat->jam_masuk ?? ''), 11, 5);
+        $jam = $this->plain($jam !== '' ? $jam : '-');
+        $tgl = $this->plain($this->tglLabel(substr((string) ($peminat->jam_masuk ?? ''), 0, 10)));
 
-// --- Pesan personal (lebih hangat, langsung ke yang absen)
+        // --- Pesan personal (lebih hangat, langsung ke yang absen)
         $dmTeks = "⭐ <b>TERIMA KASIH SUDAH DATANG PALING AWAL!</b>\n\n"
-            . $sapaan . ' ' . $nama . ",\n"
-            . "Anda tercatat datang paling awal hari ini pukul <b>{$jam}</b>. "
-            . "Kehadiran Anda yang pertama menjadi semangat bagi semuanya. "
-            . "Semoga hari ini productive dan menyenangkan!\n\n"
-            . "Terima kasih sudah bersekolah hari ini. 🙏";
+            .$sapaan.' '.$nama.",\n"
+            ."Anda tercatat datang paling awal hari ini pukul <b>{$jam}</b>. "
+            .'Kehadiran Anda yang pertama menjadi semangat bagi semuanya. '
+            ."Semoga hari ini productive dan menyenangkan!\n\n"
+            .'Terima kasih sudah bersekolah hari ini. 🙏';
 
         // --- Pesan grup (menyebut nama, tanpa memakai sapaan pribadi)
         $grupTeks = "⭐ <b>GURU TERCEPAT HARI INI</b>\n"
-            . $this->plain($tgl) . "\n\n"
-            . "Selamat pagi, <b>{$nama}</b>!\n"
-            . "Anda datang paling awal pukul <b>{$jam}</b>. ⏰\n\n"
-            . "Terima kasih sudah menjadi yang pertama hadir hari ini. "
-            . "Semangat mengajar, semoga hari Anda menyenangkan! 👏";
+            .$this->plain($tgl)."\n\n"
+            ."Selamat pagi, <b>{$nama}</b>!\n"
+            ."Anda datang paling awal pukul <b>{$jam}</b>. ⏰\n\n"
+            .'Terima kasih sudah menjadi yang pertama hadir hari ini. '
+            .'Semangat mengajar, semoga hari Anda menyenangkan! 👏';
 
         // Grup: Telegram dulu, lalu WhatsApp ke wa_target_number.
         $grupTelegram = $this->isChannelEnabled('guru_terawal', 'tg_grup')
@@ -1663,10 +1718,10 @@ class NotificationService
         // Personal: WhatsApp jadi kanal utama, Telegram cadangan. Diurutkan
         // lewat personalChannels() supaya aturan prioritasnya sama dengan
         // notifyUser() — bukan terpisah di dua tempat.
-        $dm        = false;
-        $kanalDm   = '';
-        $alasanDm  = '';
-        $userId    = (int) ($peminat->user_id ?? 0);
+        $dm = false;
+        $kanalDm = '';
+        $alasanDm = '';
+        $userId = (int) ($peminat->user_id ?? 0);
         $alasanList = [];
 
         $kanalList = $this->personalChannels($userId);
@@ -1699,29 +1754,33 @@ class NotificationService
                 break;
             }
             if (! $info['aktif']) {
-                $alasanList[] = ($info['alasan'] ?? ($kanal . ' tidak aktif'));
+                $alasanList[] = ($info['alasan'] ?? ($kanal.' tidak aktif'));
+
                 continue;
             }
 
             if ($kanal === 'whatsapp') {
                 $openwa = $this->openwaService();
                 if ($openwa->sendText($info['nomor'], $dmTeks)) {
-                    $dm      = true;
+                    $dm = true;
                     $kanalDm = 'whatsapp';
+
                     continue;
                 }
-                $alasanList[] = 'WhatsApp: ' . $openwa->lastError;
-                Log::error('[GuruTerawal] DM WA gagal, coba Telegram: ' . $openwa->lastError
-                    . ' (user_id=' . $userId . ')');
+                $alasanList[] = 'WhatsApp: '.$openwa->lastError;
+                Log::error('[GuruTerawal] DM WA gagal, coba Telegram: '.$openwa->lastError
+                    .' (user_id='.$userId.')');
+
                 continue;
             }
 
             if ($this->sendTelegramTo($info['nomor'], $dmTeks)) {
-                $dm      = true;
+                $dm = true;
                 $kanalDm = 'telegram';
+
                 continue;
             }
-            $alasanList[] = 'Telegram: ' . ($this->lastError !== '' ? $this->lastError : 'ditolak');
+            $alasanList[] = 'Telegram: '.($this->lastError !== '' ? $this->lastError : 'ditolak');
         }
 
         // Aturan fallback ke-4 juga berlaku di sini: tanpa kanal personal,
@@ -1730,72 +1789,72 @@ class NotificationService
         // pengumuman umum, bukan kiriman pribadi.
         if (! $dm) {
             $teksGrup = $dmTeks
-                . "\n\n_(Dikirim ke grup karena belum ada kanal pribadi)_";
+                ."\n\n_(Dikirim ke grup karena belum ada kanal pribadi)_";
 
             if ($this->sendWhatsApp($teksGrup) || $this->sendTelegram($teksGrup)) {
-                $dm      = true;
+                $dm = true;
                 $kanalDm = 'grup';
                 $alasanDm = '';
-                Log::info('[GuruTerawal] DM guru ' . $userId
-                    . ' tidak ada kanal personal, turun ke grup.');
+                Log::info('[GuruTerawal] DM guru '.$userId
+                    .' tidak ada kanal personal, turun ke grup.');
             } elseif ($alasanDm === '') {
                 $alasanDm = $alasanList === [] ? 'tidak terkirim' : implode(' | ', $alasanList);
             }
         }
 
         if (! $dm) {
-            Log::info('[GuruTerawal] DM gagal: ' . $alasanDm
-                . ' (user_id=' . $userId . ')');
+            Log::info('[GuruTerawal] DM gagal: '.$alasanDm
+                .' (user_id='.$userId.')');
         }
 
         return [
-            'grup'       => $grup,
-            'dm'         => $dm,
+            'grup' => $grup,
+            'dm' => $dm,
             // Kanal yang benar-benar dipakai untuk DM. 'grup' berarti
             // pesan pribadi turun ke broadcast karena guru tidak punya
             // kanal personal — pemanggil perlu tahu supaya tidak melapork
             // an sebagai "DM berhasil".
-            'kanal_dm'   => $kanalDm,
-            'alasan'     => $alasanGrup,
-            'alasan_dm'  => $alasanDm,
+            'kanal_dm' => $kanalDm,
+            'alasan' => $alasanGrup,
+            'alasan_dm' => $alasanDm,
         ];
     }
 
     /**
      * Ucapan pagi pukul 06:00. Kalimatnya menyesuaikan status hari tersebut.
      *
-     * @param  array $info  ['status' => 'aktif'|'akhir_pekan'|'libur',
+     * @param  array  $info  ['status' => 'aktif'|'akhir_pekan'|'libur',
      *                       'keterangan' => mis. nama hari libur,
      *                       'tanggal_panjang' => "Rabu, 30 September 2026"]
      * @return bool true bila Telegram menerimanya
      */
     public function notifyUcapanPagi(array $info): bool
     {
-        $status     = (string) ($info['status'] ?? HariSekolahService::AKTIF);
+        $status = (string) ($info['status'] ?? HariSekolahService::AKTIF);
         $keterangan = trim((string) ($info['keterangan'] ?? ''));
-        $tanggal    = trim((string) ($info['tanggal_panjang'] ?? $this->tglLabel(null)));
-        $jamMasuk   = trim((string) ($info['jam_masuk'] ?? ''));
+        $tanggal = trim((string) ($info['tanggal_panjang'] ?? $this->tglLabel(null)));
+        $jamMasuk = trim((string) ($info['jam_masuk'] ?? ''));
 
-        $kepala = "🌅 <b>SELAMAT PAGI</b>\n" . $this->plain($tanggal);
+        $kepala = "🌅 <b>SELAMAT PAGI</b>\n".$this->plain($tanggal);
 
         if ($status === HariSekolahService::AKHIR_PEKAN) {
-            $isi = "Hari Minggu. Selamat beristirahat! Semoga akhir pekan Anda menyenangkan, "
-                 . "sehat, dan penuh semangat. 🛋️\n\n"
-                 . "🤲 Selamat beristirahat!";
+            $isi = 'Hari Minggu. Selamat beristirahat! Semoga akhir pekan Anda menyenangkan, '
+                 ."sehat, dan penuh semangat. 🛋️\n\n"
+                 .'🤲 Selamat beristirahat!';
         } elseif ($status === HariSekolahService::LIBUR) {
-            $isi = "Hari ini adalah <b>hari libur</b>"
-                 . ($keterangan !== '' ? ' — ' . $this->plain($keterangan) : '')
-                 . ". Selamat beristirahat! Semoga libur Anda menyenangkan, sehat, "
-                 . "dan penuh kegembiraan. 🌿\n\n"
-                 . "🤲 Selamat berlibur!";
+            $isi = 'Hari ini adalah <b>hari libur</b>'
+                 .($keterangan !== '' ? ' — '.$this->plain($keterangan) : '')
+                 .'. Selamat beristirahat! Semoga libur Anda menyenangkan, sehat, '
+                 ."dan penuh kegembiraan. 🌿\n\n"
+                 .'🤲 Selamat berlibur!';
         } else {
-            $isi = "Hari ini adalah <b>hari kerja sekolah</b>. Semoga aktivitas belajar mengajar "
-                 . "berjalan lancar, sehat, dan penuh semangat. 💪"
-                 . ($jamMasuk !== '' ? "\n\nJam masuk hari ini pukul " . $this->plain($jamMasuk) . '.' : '')
-                 . "\n\n🤲 Semoga hari Anda menyenangkan!";
+            $isi = 'Hari ini adalah <b>hari kerja sekolah</b>. Semoga aktivitas belajar mengajar '
+                 .'berjalan lancar, sehat, dan penuh semangat. 💪'
+                 .($jamMasuk !== '' ? "\n\nJam masuk hari ini pukul ".$this->plain($jamMasuk).'.' : '')
+                 ."\n\n🤲 Semoga hari Anda menyenangkan!";
         }
 
-        return $this->notifyGrup('ucapan_pagi', $kepala . "\n\n" . $isi);
+        return $this->notifyGrup('ucapan_pagi', $kepala."\n\n".$isi);
     }
 
     /**
@@ -1808,9 +1867,9 @@ class NotificationService
         $tanggal = trim((string) ($info['tanggal_panjang'] ?? $this->tglLabel(null)));
 
         $msg = "🌇 <b>SELAMAT JALAN</b>\n"
-             . $this->plain($tanggal) . "\n\n"
-             . "Kegiatan hari ini telah selesai. Hati-hati di perjalanan pulang, "
-             . "dan semoga Anda bertemu keluarga dalam keadaan sehat dan bahagia. 🤲";
+             .$this->plain($tanggal)."\n\n"
+             .'Kegiatan hari ini telah selesai. Hati-hati di perjalanan pulang, '
+             .'dan semoga Anda bertemu keluarga dalam keadaan sehat dan bahagia. 🤲';
 
         return $this->notifyGrup('ucapan_sore', $msg);
     }
@@ -1819,19 +1878,87 @@ class NotificationService
      * Pengingat Apel Kesadaran KORPRI setiap tanggal 17.
      * Dikirim ke grup pada tanggal 16 pukul 19:00 WITA.
      *
-     * @param array $info ['tanggal_17' => '17 November 2026', 'jam' => '07.15 WITA']
+     * @param  array  $info  ['tanggal_17' => '17 November 2026', 'jam' => '07.15 WITA']
      * @return bool true bila pesan berhasil diterima minimal salah satu kanal grup yang aktif
      */
     public function notifyApelKesadaran(array $info): bool
     {
         $tgl17 = trim((string) ($info['tanggal_17'] ?? '17'));
-        $jam   = trim((string) ($info['jam'] ?? '07.15 WITA'));
+        $jam = trim((string) ($info['jam'] ?? '07.15 WITA'));
 
         $msg = "🇮🇩 <b>INFO : Bpk/Ibu Guru</b>,\n"
-             . "Apel Kesadaran KORPRI besok pagi, tanggal " . $this->plain($tgl17) . " dilaksanakan " . $this->plain($jam) . ".\n\n"
-             . "Mohon kehadiran tepat waktu dengan mengenakan seragam KORPRI lengkap. Terima kasih. 🙏";
+             .'Apel Kesadaran KORPRI besok pagi, tanggal '.$this->plain($tgl17).' dilaksanakan '.$this->plain($jam).".\n\n"
+             .'Mohon kehadiran tepat waktu dengan mengenakan seragam KORPRI lengkap. Terima kasih. 🙏';
 
         return $this->notifyGrup('apel_kesadaran', $msg);
+    }
+
+    /**
+     * Ucapan Selamat Ulang Tahun untuk guru yang berulang tahun hari ini.
+     * Dikirim ke grup sekolah (TG Grup & WA Grup) dan/atau personal ke guru ybs.
+     *
+     * @param  array<int,object|array>  $guruList
+     * @return array{grup:bool, personal:int, total:int}
+     */
+    public function notifyUlangTahun(array $guruList, string $tanggalFormat = ''): array
+    {
+        if (empty($guruList)) {
+            return ['grup' => false, 'personal' => 0, 'total' => 0];
+        }
+
+        $namaSekolah = trim((string) ($this->setting->nama_sekolah ?? $this->setting->sekolah ?? 'Sekolah'));
+        if ($namaSekolah === '') {
+            $namaSekolah = 'Sekolah';
+        }
+
+        if ($tanggalFormat === '') {
+            $tanggalFormat = $this->tglLabel(date('Y-m-d'));
+        }
+
+        // 1. Susun Pesan Grup
+        $daftarGuruTeks = [];
+        foreach ($guruList as $guru) {
+            $nama = is_array($guru) ? ($guru['nama_guru'] ?? '-') : ($guru->nama_guru ?? '-');
+            $usia = is_array($guru) ? ($guru['usia'] ?? null) : ($guru->usia ?? null);
+            $usiaTeks = $usia ? ' (ke-'.$usia.' tahun)' : '';
+            $daftarGuruTeks[] = '• <b>'.$this->plain($nama).'</b>'.$usiaTeks;
+        }
+
+        $msgGrup = "🎂 <b>SELAMAT ULANG TAHUN!</b> 🎉\n"
+            .$this->plain($tanggalFormat)."\n\n"
+            .'Keluarga besar <b>'.$this->plain($namaSekolah)."</b> mengucapkan selamat ulang tahun kepada:\n\n"
+            .implode("\n", $daftarGuruTeks)."\n\n"
+            .'Semoga senantiasa diberikan kesehatan, panjang umur, kebahagiaan, keberkahan, serta kelancaran dan kemudahan dalam menjalankan tugas mulia mendidik tunas bangsa. 🤲✨';
+
+        $grupSent = $this->notifyGrup('ulang_tahun', $msgGrup);
+
+        // 2. Kirim Pesan Personal ke masing-masing guru (bila kanal personal aktif)
+        $personalSentCount = 0;
+        foreach ($guruList as $guru) {
+            $userId = is_array($guru) ? (int) ($guru['id_user'] ?? 0) : (int) ($guru->id_user ?? 0);
+            $nama = is_array($guru) ? ($guru['nama_guru'] ?? 'Bpk/Ibu Guru') : ($guru->nama_guru ?? 'Bpk/Ibu Guru');
+            $usia = is_array($guru) ? ($guru['usia'] ?? null) : ($guru->usia ?? null);
+            $keUsiaTeks = $usia ? ' yang ke-'.$usia : '';
+
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $msgPersonal = "🎂 <b>SELAMAT ULANG TAHUN!</b> 🎉\n\n"
+                .'Yth. <b>'.$this->plain($nama)."</b>,\n\n"
+                .'Keluarga besar <b>'.$this->plain($namaSekolah).'</b> mengucapkan selamat ulang tahun'.$keUsiaTeks.' pada hari ini ('.$this->plain($tanggalFormat).").\n\n"
+                .'Semoga di usia yang baru ini senantiasa dilimpahkan kesehatan, umur yang berkah, kebahagiaan bersama keluarga tercinta, serta kemudahan dalam setiap langkah dan pengabdian. 🤲✨';
+
+            if ($this->notifyPersonal('ulang_tahun', $userId, $msgPersonal, '', false)) {
+                $personalSentCount++;
+            }
+        }
+
+        return [
+            'grup' => $grupSent,
+            'personal' => $personalSentCount,
+            'total' => count($guruList),
+        ];
     }
 
     /**
@@ -1843,29 +1970,30 @@ class NotificationService
     {
         $hadir = $data['hadir'] ?? 0;
         $telat = $data['telat'] ?? 0;
-        $izin  = $data['izin']  ?? 0;
+        $izin = $data['izin'] ?? 0;
         $sakit = $data['sakit'] ?? 0;
         $alpha = $data['alpha'] ?? 0;
         $dinas = $data['dinas'] ?? 0;
         $total = $data['total'] ?? 0;
         // Baris WFH & antrean verifikasi dulu tidak punya baris sendiri, jadi
         // jumlah baris di rekap ini tidak sama dengan Total Guru.
-        $wfh   = $data['wfh'] ?? 0;
+        $wfh = $data['wfh'] ?? 0;
         $pending = $data['pending'] ?? 0;
 
         $msg = "📊 <b>REKAP PRESENSI HARIAN</b>\n"
-             . "Tanggal: " . date('d/m/Y') . "\n"
-             . "─────────────────\n"
-             . "Total Guru: {$total}\n"
-             . "✅ Hadir Tepat: {$hadir}\n"
-             . "⏰ Terlambat:  {$telat}\n"
-             . "📋 Izin:        {$izin}\n"
-             . "🏥 Sakit:       {$sakit}\n"
-             . "🚗 Dinas:       {$dinas}\n"
-             . ($wfh > 0 ? "🏠 WFH:         {$wfh}\n" : '')
-             . ($pending > 0 ? "⏳ Menunggu verifikasi: {$pending}\n" : '')
-             . "❌ Alpha:       {$alpha}\n"
-             . "─────────────────";
+             .'Tanggal: '.date('d/m/Y')."\n"
+             ."─────────────────\n"
+             ."Total Guru: {$total}\n"
+             ."✅ Hadir Tepat: {$hadir}\n"
+             ."⏰ Terlambat:  {$telat}\n"
+             ."📋 Izin:        {$izin}\n"
+             ."🏥 Sakit:       {$sakit}\n"
+             ."🚗 Dinas:       {$dinas}\n"
+             .($wfh > 0 ? "🏠 WFH:         {$wfh}\n" : '')
+             .($pending > 0 ? "⏳ Menunggu verifikasi: {$pending}\n" : '')
+             ."❌ Alpha:       {$alpha}\n"
+             .'─────────────────';
+
         return $this->notifyGrup('rekap_harian', $msg);
     }
 
@@ -1875,28 +2003,28 @@ class NotificationService
      * Rekap denda teks BULANAN sudah dihapus (diganti PDF tgl 1 via
      * monthlyPdf): method ini satu-satunya pengirim rekap denda teks.
      *
-     * @param array  $data     Ringkasan global: total_denda, total_dibayar, sisa
-     * @param array  $details  Detail per guru
-     * @param string $periode  Label periode, mis. "22/09/2026 – 28/09/2026"
+     * @param  array  $data  Ringkasan global: total_denda, total_dibayar, sisa
+     * @param  array  $details  Detail per guru
+     * @param  string  $periode  Label periode, mis. "22/09/2026 – 28/09/2026"
      * @return bool true bila Telegram menerimanya
      */
     public function notifyRekapDendaMingguan(array $data, array $details, string $periode): bool
     {
-        $totalDenda   = number_format((float) ($data['total_denda'] ?? 0), 0, ',', '.');
+        $totalDenda = number_format((float) ($data['total_denda'] ?? 0), 0, ',', '.');
         $totalDibayar = number_format((float) ($data['total_dibayar'] ?? 0), 0, ',', '.');
-        $totalCash    = number_format((float) ($data['total_cash'] ?? 0), 0, ',', '.');
-        $totalPoin    = number_format((float) ($data['total_poin'] ?? 0), 0, ',', '.');
-        $sisa         = number_format((float) ($data['sisa'] ?? 0), 0, ',', '.');
+        $totalCash = number_format((float) ($data['total_cash'] ?? 0), 0, ',', '.');
+        $totalPoin = number_format((float) ($data['total_poin'] ?? 0), 0, ',', '.');
+        $sisa = number_format((float) ($data['sisa'] ?? 0), 0, ',', '.');
 
         $msg = "💰 <b>REKAP DENDA MINGGUAN</b>\n"
-             . "Periode: " . $this->plain($periode) . "\n"
-             . "─────────────────\n"
-             . "Timbul minggu ini: Rp {$totalDenda}\n"
-             . "Dibayar minggu ini: Rp {$totalDibayar}\n"
-             . "  💵 Cash: Rp {$totalCash}\n"
-             . "  💳 Poin: Rp {$totalPoin}\n"
-             . "Sisa akumulasi: Rp {$sisa}\n"
-             . "─────────────────";
+             .'Periode: '.$this->plain($periode)."\n"
+             ."─────────────────\n"
+             ."Timbul minggu ini: Rp {$totalDenda}\n"
+             ."Dibayar minggu ini: Rp {$totalDibayar}\n"
+             ."  💵 Cash: Rp {$totalCash}\n"
+             ."  💳 Poin: Rp {$totalPoin}\n"
+             ."Sisa akumulasi: Rp {$sisa}\n"
+             .'─────────────────';
 
         return $this->notifyGrup('rekap_denda_mingguan', $msg);
     }
@@ -1905,22 +2033,24 @@ class NotificationService
      * Rekap piket harian. Dikirim manual dari tombol "Kirim ke Grup" di
      * /guru/piket/laporan oleh petugas piket hari itu.
      *
-     * @param array $data {
-     *   @var string $tanggal   Label tanggal, mis. "Jumat, 9 Oktober 2026"
-     *   @var string[] $petugas Nama petugas piket
-     *   @var array[] $siswa    Per kelas (angka REAL): nama_kelas,total,
-     *                          H(hadir tepat),T(telat),S,I,A,masuk,pulang,
-     *                          tanpa_pulang,belum
-     *   @var array   $siswa_total Subtotal dengan kunci yang sama
-     *   @var array[] $siswa_bolos [{nama, kelas, jam}] — tampil hanya bila
-     *                          bolos_resmi true (sudah lewat jam pulang)
-     *   @var bool    $bolos_resmi Gerbang label bolos
-     *   @var int    $guru_hadir_total Jumlah guru hadir
-     *   @var int    $guru_hadir_tepat Jumlah hadir tepat waktu
-     *   @var int    $guru_hadir_telat Jumlah hadir terlambat
-     *   @var array[] $guru_absen  [{nama, alasan, alpha}]
-     *   @var string $pengirim  Nama pengirim (petugas yang menekan tombol)
-     * }
+     * @param  array  $data  {
+     *
+     * @var string $tanggal   Label tanggal, mis. "Jumat, 9 Oktober 2026"
+     * @var string[] $petugas Nama petugas piket
+     * @var array[] $siswa    Per kelas (angka REAL): nama_kelas,total,
+     *              H(hadir tepat),T(telat),S,I,A,masuk,pulang,
+     *              tanpa_pulang,belum
+     * @var array $siswa_total Subtotal dengan kunci yang sama
+     * @var array[] $siswa_bolos [{nama, kelas, jam}] — tampil hanya bila
+     *              bolos_resmi true (sudah lewat jam pulang)
+     * @var bool $bolos_resmi Gerbang label bolos
+     * @var int $guru_hadir_total Jumlah guru hadir
+     * @var int $guru_hadir_tepat Jumlah hadir tepat waktu
+     * @var int $guru_hadir_telat Jumlah hadir terlambat
+     * @var array[] $guru_absen  [{nama, alasan, alpha}]
+     * @var string $pengirim  Nama pengirim (petugas yang menekan tombol)
+     *             }
+     *
      * @return bool true bila salah satu kanal grup berhasil
      */
     public function notifyRekapPiket(array $data): bool
@@ -1935,14 +2065,14 @@ class NotificationService
     public function renderRekapPiket(array $data): string
     {
         $msg = "📋 <b>REKAP PIKET HARIAN</b>\n"
-             . "🗓 " . $this->plain((string) ($data['tanggal'] ?? date('d/m/Y'))) . "\n";
+             .'🗓 '.$this->plain((string) ($data['tanggal'] ?? date('d/m/Y')))."\n";
 
         $petugas = array_values(array_filter(array_map('trim', (array) ($data['petugas'] ?? []))));
-        if (!empty($petugas)) {
-            $msg .= "👮 Petugas: " . $this->plain(implode(', ', array_slice($petugas, 0, 5))) . "\n";
+        if (! empty($petugas)) {
+            $msg .= '👮 Petugas: '.$this->plain(implode(', ', array_slice($petugas, 0, 5)))."\n";
         }
         $msg .= "─────────────────\n"
-             . "<b>🧑‍🎓 SISWA PER KELAS</b>\n";
+             ."<b>🧑‍🎓 SISWA PER KELAS</b>\n";
 
         $siswa = (array) ($data['siswa'] ?? []);
         if (empty($siswa)) {
@@ -1951,52 +2081,52 @@ class NotificationService
             foreach (array_slice($siswa, 0, 20) as $k) {
                 $blmPlg = (int) ($k['tanpa_pulang'] ?? 0);
                 $blm = (int) ($k['belum'] ?? 0);
-                $msg .= "• <b>" . $this->plain((string) ($k['nama_kelas'] ?? '-')) . "</b>"
-                     . " (" . (int) ($k['total'] ?? 0) . ")\n"
-                     . "  ✅" . (int) ($k['H'] ?? 0) . " ⏰" . (int) ($k['T'] ?? 0)
-                     . " 😷" . (int) ($k['S'] ?? 0)
-                     . " 📝" . (int) ($k['I'] ?? 0)
-                     . " ❌" . (int) ($k['A'] ?? 0) . "\n"
-                     . "  🏫 masuk " . (int) ($k['masuk'] ?? 0)
-                     . " • pulang " . (int) ($k['pulang'] ?? 0)
-                     . ($blmPlg > 0 ? " • blm plg {$blmPlg}" : "")
-                     . ($blm > 0 ? " • blm masuk {$blm}" : "") . "\n";
+                $msg .= '• <b>'.$this->plain((string) ($k['nama_kelas'] ?? '-')).'</b>'
+                     .' ('.(int) ($k['total'] ?? 0).")\n"
+                     .'  ✅'.(int) ($k['H'] ?? 0).' ⏰'.(int) ($k['T'] ?? 0)
+                     .' 😷'.(int) ($k['S'] ?? 0)
+                     .' 📝'.(int) ($k['I'] ?? 0)
+                     .' ❌'.(int) ($k['A'] ?? 0)."\n"
+                     .'  🏫 masuk '.(int) ($k['masuk'] ?? 0)
+                     .' • pulang '.(int) ($k['pulang'] ?? 0)
+                     .($blmPlg > 0 ? " • blm plg {$blmPlg}" : '')
+                     .($blm > 0 ? " • blm masuk {$blm}" : '')."\n";
             }
             if (count($siswa) > 20) {
-                $msg .= "… dan " . (count($siswa) - 20) . " kelas lainnya\n";
+                $msg .= '… dan '.(count($siswa) - 20)." kelas lainnya\n";
             }
             $t2 = (array) ($data['siswa_total'] ?? []);
-            if (!empty($t2)) {
+            if (! empty($t2)) {
                 $sBlmPlg = (int) ($t2['tanpa_pulang'] ?? 0);
                 $sBlm = (int) ($t2['belum'] ?? 0);
-                $msg .= "<b>Subtotal:</b> ✅" . (int) ($t2['H'] ?? 0)
-                     . " ⏰" . (int) ($t2['T'] ?? 0)
-                     . " 😷" . (int) ($t2['S'] ?? 0)
-                     . " 📝" . (int) ($t2['I'] ?? 0)
-                     . " ❌" . (int) ($t2['A'] ?? 0) . "\n"
-                     . "masuk " . (int) ($t2['masuk'] ?? 0) . "/" . (int) ($t2['total'] ?? 0)
-                     . " • pulang " . (int) ($t2['pulang'] ?? 0)
-                     . ($sBlmPlg > 0 ? " • blm plg {$sBlmPlg}" : "")
-                     . ($sBlm > 0 ? " • blm masuk {$sBlm}" : "") . "\n";
+                $msg .= '<b>Subtotal:</b> ✅'.(int) ($t2['H'] ?? 0)
+                     .' ⏰'.(int) ($t2['T'] ?? 0)
+                     .' 😷'.(int) ($t2['S'] ?? 0)
+                     .' 📝'.(int) ($t2['I'] ?? 0)
+                     .' ❌'.(int) ($t2['A'] ?? 0)."\n"
+                     .'masuk '.(int) ($t2['masuk'] ?? 0).'/'.(int) ($t2['total'] ?? 0)
+                     .' • pulang '.(int) ($t2['pulang'] ?? 0)
+                     .($sBlmPlg > 0 ? " • blm plg {$sBlmPlg}" : '')
+                     .($sBlm > 0 ? " • blm masuk {$sBlm}" : '')."\n";
             }
         }
 
         $bolos = array_values((array) ($data['siswa_bolos'] ?? []));
-        if (!empty($bolos) && !empty($data['bolos_resmi'])) {
+        if (! empty($bolos) && ! empty($data['bolos_resmi'])) {
             $msg .= "─────────────────\n"
-                 . "🏃 <b>BOLOS — MASUK TANPA PULANG (" . count($bolos) . ")</b>\n";
+                 .'🏃 <b>BOLOS — MASUK TANPA PULANG ('.count($bolos).")</b>\n";
             foreach (array_slice($bolos, 0, 20) as $s) {
-                $msg .= "• ❌ " . $this->plain((string) ($s['nama'] ?? 'Siswa'));
+                $msg .= '• ❌ '.$this->plain((string) ($s['nama'] ?? 'Siswa'));
                 if (trim((string) ($s['kelas'] ?? '')) !== '') {
-                    $msg .= " (" . $this->plain((string) $s['kelas']) . ")";
+                    $msg .= ' ('.$this->plain((string) $s['kelas']).')';
                 }
                 if (trim((string) ($s['jam'] ?? '')) !== '') {
-                    $msg .= " — masuk " . $this->plain(substr((string) $s['jam'], 0, 5));
+                    $msg .= ' — masuk '.$this->plain(substr((string) $s['jam'], 0, 5));
                 }
                 $msg .= "\n";
             }
             if (count($bolos) > 20) {
-                $msg .= "… dan " . (count($bolos) - 20) . " siswa lainnya\n";
+                $msg .= '… dan '.(count($bolos) - 20)." siswa lainnya\n";
             }
         }
 
@@ -2004,47 +2134,48 @@ class NotificationService
         $hadirTepat = (int) ($data['guru_hadir_tepat'] ?? 0);
         $hadirTelat = (int) ($data['guru_hadir_telat'] ?? 0);
         $msg .= "─────────────────\n"
-             . "<b>👨‍🏫 GURU HADIR (" . $hadirTotal . ")</b>\n"
-             . "✅ Tepat waktu: " . $hadirTepat . "\n"
-             . "⏰ Terlambat: " . $hadirTelat . "\n";
+             .'<b>👨‍🏫 GURU HADIR ('.$hadirTotal.")</b>\n"
+             .'✅ Tepat waktu: '.$hadirTepat."\n"
+             .'⏰ Terlambat: '.$hadirTelat."\n";
 
         $absen = array_values((array) ($data['guru_absen'] ?? []));
         $absenAlpha = [];
         $absenIzin = [];
         foreach ($absen as $g) {
-            if (!empty($g['alpha'])) {
+            if (! empty($g['alpha'])) {
                 $absenAlpha[] = $g;
             } else {
                 $absenIzin[] = $g;
             }
         }
         $msg .= "─────────────────\n"
-             . "<b>🚫 GURU TIDAK HADIR (" . count($absen) . ")</b>\n";
+             .'<b>🚫 GURU TIDAK HADIR ('.count($absen).")</b>\n";
         if (empty($absen)) {
             $msg .= "Nihil — semua guru hadir. ✅\n";
         } else {
-            if (!empty($absenAlpha)) {
-                $msg .= "⚠️ <b>ALPHA — PERLU TINDAK LANJUT (" . count($absenAlpha) . ")</b>\n";
+            if (! empty($absenAlpha)) {
+                $msg .= '⚠️ <b>ALPHA — PERLU TINDAK LANJUT ('.count($absenAlpha).")</b>\n";
                 foreach (array_slice($absenAlpha, 0, 30) as $g) {
-                    $msg .= "• ❌ <b>" . $this->plain((string) ($g['nama'] ?? 'Guru')) . "</b>\n";
+                    $msg .= '• ❌ <b>'.$this->plain((string) ($g['nama'] ?? 'Guru'))."</b>\n";
                 }
                 if (count($absenAlpha) > 30) {
-                    $msg .= "… dan " . (count($absenAlpha) - 30) . " guru lainnya\n";
+                    $msg .= '… dan '.(count($absenAlpha) - 30)." guru lainnya\n";
                 }
             }
             foreach (array_slice($absenIzin, 0, 30) as $g) {
-                $msg .= "• " . $this->plain((string) ($g['nama'] ?? 'Guru'))
-                     . " — " . $this->clip($this->plain((string) ($g['alasan'] ?? 'Tanpa keterangan')), 80) . "\n";
+                $msg .= '• '.$this->plain((string) ($g['nama'] ?? 'Guru'))
+                     .' — '.$this->clip($this->plain((string) ($g['alasan'] ?? 'Tanpa keterangan')), 80)."\n";
             }
             if (count($absenIzin) > 30) {
-                $msg .= "… dan " . (count($absenIzin) - 30) . " guru lainnya\n";
+                $msg .= '… dan '.(count($absenIzin) - 30)." guru lainnya\n";
             }
         }
 
-        $msg .= "─────────────────";
-        if (!empty($data['pengirim'])) {
-            $msg .= "\n<i>Dikirim oleh " . $this->plain((string) $data['pengirim']) . " via Laporan Piket</i>";
+        $msg .= '─────────────────';
+        if (! empty($data['pengirim'])) {
+            $msg .= "\n<i>Dikirim oleh ".$this->plain((string) $data['pengirim']).' via Laporan Piket</i>';
         }
+
         return $msg;
     }
 }

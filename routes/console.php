@@ -26,6 +26,9 @@ Schedule::command('db:backup')->dailyAt('02:00')->timezone('Asia/Makassar');
 // 03:30, setelah backup 02:00. (Tidak ada di crontab, hanya jadwal saran.)
 Schedule::command('logs:prune')->dailyAt('03:30')->timezone('Asia/Makassar');
 
+// Ucapan Selamat Ulang Tahun Guru — tiap hari 06:30 WITA
+Schedule::command('cron:ulang-tahun')->dailyAt('06:30')->timezone('Asia/Makassar');
+
 // ---------------------------------------------------------------------------
 // TIDAK dijadwalkan (sengaja — lihat laporan Tahap 1C):
 //  - dapodik:sync — auto-sync Dapodik NONAKTIF (CRONTAB.MD §5); aktifkan di

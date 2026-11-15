@@ -2652,6 +2652,152 @@ class CronControllerController extends BaseController
     }
 
     /**
+     * Ucapan selamat ulang tahun untuk guru yang berulang tahun.
+     * GET /cron/ulang-tahun?key=...
+     * Opsional: ?tanggal=YYYY-MM-DD (untuk testing/replay), ?force=1 (bypass idempotensi)
+     */
+    public function ulangTahun()
+    {
+        if (! $this->validateKey()) {
+            return $this->response->setStatusCode(403)->setBody('Invalid key');
+        }
+
+        $tanggal = $this->request->query('tanggal');
+        $tanggal = is_string($tanggal) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) === 1
+            ? $tanggal
+            : date('Y-m-d');
+
+        if ($this->notification->isAllChannelsDisabled('ulang_tahun')) {
+            return $this->response->setBody('Ucapan ulang tahun dilewati: seluruh channel (grup & personal) dinonaktifkan di Pengaturan → Channel Notifikasi.');
+        }
+
+        if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ulang_tahun', $tanggal)) {
+            return $this->response->setBody('Ucapan ulang tahun untuk '.$tanggal
+                .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
+        }
+
+        $guruList = $this->getGuruUlangTahun($tanggal);
+
+        if (empty($guruList)) {
+            return $this->response->setBody('Ucapan ulang tahun dilewati: tidak ada guru yang berulang tahun pada tanggal '.$tanggal.'.');
+        }
+
+        $svc = new HariSekolahService;
+        $tanggalPanjang = $svc->tanggalPanjang($tanggal);
+
+        try {
+            $hasil = $this->notification->notifyUlangTahun($guruList, $tanggalPanjang);
+        } catch (\Throwable $e) {
+            $this->logCronFailure('Ucapan ulang tahun', $e->getMessage());
+            $this->catatNotifikasiCron('ulang_tahun', $tanggal, false, $e->getMessage());
+
+            return $this->response->setStatusCode(500)->setBody('Ucapan ulang tahun GAGAL: '.$e->getMessage());
+        }
+
+        $daftarNama = array_map(static fn ($g) => $g->nama_guru, $guruList);
+        $namaStr = implode(', ', $daftarNama);
+
+        if (! $hasil['grup'] && $hasil['personal'] === 0) {
+            $reason = $this->notification->lastError !== ''
+                ? $this->notification->lastError
+                : 'Tidak ada pesan yang berhasil dikirim ke grup maupun personal';
+            $this->logCronFailure('Ucapan ulang tahun', $reason);
+            $this->catatNotifikasiCron('ulang_tahun', $tanggal, false, $reason);
+
+            return $this->response->setStatusCode(500)->setBody('Ucapan ulang tahun GAGAL: '.$reason);
+        }
+
+        $this->catatNotifikasiCron('ulang_tahun', $tanggal, true, 'Guru: '.$namaStr);
+
+        return $this->response->setBody(sprintf(
+            'Ucapan ulang tahun terkirim untuk %d guru (%s) — Grup: %s, Personal: %d terkirim',
+            count($guruList),
+            $namaStr,
+            $hasil['grup'] ? 'OK' : 'Dilewati/Gagal',
+            $hasil['personal']
+        ));
+    }
+
+    /**
+     * Cari daftar guru yang berulang tahun pada tanggal target.
+     *
+     * @return array<int,object>
+     */
+    public function getGuruUlangTahun(string $tanggal): array
+    {
+        $time = strtotime($tanggal);
+        if ($time === false) {
+            $time = time();
+            $tanggal = date('Y-m-d');
+        }
+
+        $bulan = (int) date('m', $time);
+        $hari = (int) date('d', $time);
+        $tahunSekarang = (int) date('Y', $time);
+
+        $db = DB::connection();
+
+        $rows = $db->table('master_guru as g')
+            ->leftJoin('users as u', 'u.id', '=', 'g.id_user')
+            ->whereNull('g.deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('u.active')->orWhere('u.active', 1);
+            })
+            ->whereNotNull('g.tgl_lahir')
+            ->where(function ($q) use ($bulan, $hari, $time) {
+                $q->where(function ($sub) use ($bulan, $hari) {
+                    $sub->whereMonth('g.tgl_lahir', $bulan)
+                        ->whereDay('g.tgl_lahir', $hari);
+                });
+
+                // Bila tahun ini bukan tahun kabisat, yang lahir 29 Februari dirayakan tanggal 28 Februari
+                $isLeap = (int) date('L', $time) === 1;
+                if ($bulan === 2 && $hari === 28 && ! $isLeap) {
+                    $q->orWhere(function ($sub) {
+                        $sub->whereMonth('g.tgl_lahir', 2)
+                            ->whereDay('g.tgl_lahir', 29);
+                    });
+                }
+            })
+            ->select([
+                'g.id_guru',
+                'g.id_user',
+                'g.nama_guru',
+                'g.nip',
+                'g.tgl_lahir',
+                'g.no_hp',
+                'g.wa_number',
+                'g.telegram_id',
+            ])
+            ->orderBy('g.nama_guru', 'asc')
+            ->get();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $usia = null;
+            if (! empty($row->tgl_lahir)) {
+                $birthYear = (int) date('Y', strtotime($row->tgl_lahir));
+                if ($birthYear > 1900 && $birthYear <= $tahunSekarang) {
+                    $usia = $tahunSekarang - $birthYear;
+                }
+            }
+
+            $result[] = (object) [
+                'id_guru' => $row->id_guru,
+                'id_user' => $row->id_user ? (int) $row->id_user : null,
+                'nama_guru' => $row->nama_guru,
+                'nip' => $row->nip,
+                'tgl_lahir' => $row->tgl_lahir,
+                'usia' => $usia,
+                'wa_number' => $row->wa_number,
+                'telegram_id' => $row->telegram_id,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Jam masuk efektif pada tanggal tertentu (dari jadwal per hari, atau
      * jam_masuk bawaan bila jadwal tidak ada).
      */

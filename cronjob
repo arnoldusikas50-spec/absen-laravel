@@ -31,6 +31,9 @@ CRON_KEY=9a60309b14be260788f29259cb8ed49b4391b47fe9ad0215885e555d
 # --- 1. Ucapan pagi 06:00 --------------------------------------------------
 0 6 * * * curl --silent --show-error "$BASE_URL/cron/ucapan-pagi?key=$CRON_KEY" >> "$LOG" 2>&1
 
+# --- 1b. Ucapan ulang tahun guru 06:30 --------------------------------------
+30 6 * * * curl --silent --show-error "$BASE_URL/cron/ulang-tahun?key=$CRON_KEY" >> "$LOG" 2>&1
+
 # --- 2. Ucapan pulang 15:00 (hari kerja saja) ------------------------------
 0 15 * * * curl --silent --show-error "$BASE_URL/cron/ucapan-sore?key=$CRON_KEY" >> "$LOG" 2>&1
 

@@ -227,6 +227,10 @@ CRON_KEY=<salin-dari-CRON_SECRET_KEY-di-.env-server>
 # Kalimat menyesuaikan status hari: hari kerja sekolah / Minggu / hari libur.
 0 7 * * * curl --silent --show-error "$BASE_URL/cron/ucapan-pagi?key=$CRON_KEY" >> "$LOG" 2>&1
 
+# --- 1b. Ucapan selamat ulang tahun guru 06:30 -----------------------------
+# Mengucapkan selamat ulang tahun ke grup dan DM personal untuk guru yang berulang tahun.
+30 6 * * * curl --silent --show-error "$BASE_URL/cron/ulang-tahun?key=$CRON_KEY" >> "$LOG" 2>&1
+
 # --- 2. Ucapan pulang 15:00 (hari kerja saja) --------------------------------
 # Dijadwalkan setelah jam pulang terakhir (Jumat & Sabtu pulang 12:00/12:30,
 # Senin-Kamis 14:00) sehingga tidak lebih dulu dari guru yang pulang.
