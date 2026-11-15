@@ -1164,6 +1164,19 @@
 
     <!-- Sheet Container -->
     <div class="sheet-container">
+        <?php if (! empty($catatan)): ?>
+            <div class="no-print" style="max-width:640px;margin:0 auto 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 16px;font-size:12px;color:#92400e;">
+                <strong>Perhatian:</strong> {{ $catatan }}
+            </div>
+        <?php endif; ?>
+
+        <?php if (! empty($terpotong)): ?>
+            <div class="no-print" style="max-width:640px;margin:0 auto 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:12px;color:#1e40af;">
+                Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama supaya halaman tidak macet.
+                Pilih satu kelas atau satu siswa untuk mencetak sisanya.
+            </div>
+        <?php endif; ?>
+
         <?php if (empty($siswa_list)): ?>
             <div class="no-print" style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;text-align:center;">
                 <p style="font-size:15px;font-weight:800;color:#0f172a;margin:0 0 6px 0;">Tidak ada kartu untuk dicetak</p>
@@ -1181,9 +1194,9 @@
             <?php foreach ($siswa_list as $s): ?>
                 <?php
                 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
-                $ttlClean = trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMMM Y') : '')) ?: '-';
-                $nisnClean = $s->nisn ?: ($s->nis ?: '-');
-                $barcodeVal = $s->nis ?: ($s->nisn ?: $s->qr_value);
+                $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
+                $nisnClean = \App\Services\KartuSiswaFormatter::nomorSiswa($s);
+                $barcodeVal = $s->qr_value;
                 ?>
                 <div class="duplex-row">
                     <!-- SISI DEPAN (FRONT) LANDSCAPE -->
@@ -1360,9 +1373,9 @@
             <?php foreach ($siswa_list as $s): ?>
                 <?php
                 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
-                $ttlClean = trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMMM Y') : '')) ?: '-';
-                $nisnClean = $s->nisn ?: ($s->nis ?: '-');
-                $barcodeVal = $s->nis ?: ($s->nisn ?: $s->qr_value);
+                $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
+                $nisnClean = \App\Services\KartuSiswaFormatter::nomorSiswa($s);
+                $barcodeVal = $s->qr_value;
                 ?>
                 <div class="duplex-row">
                     <!-- SISI DEPAN (FRONT) PORTRAIT -->

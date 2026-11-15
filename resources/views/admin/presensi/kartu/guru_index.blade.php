@@ -166,9 +166,9 @@
         <div id="cardGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 justify-items-center">
             <?php foreach ($guru_list as $g): ?>
                 <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs relative flex flex-col w-full max-w-[220px]"
-                     data-name="{{ strtolower(esc($g->nama_guru)) }}"
-                     data-nip="{{ strtolower(esc($g->nip ?? '')) }}"
-                     data-kode="{{ strtolower(esc($g->kode_guru ?? '')) }}">
+                     data-name="{{ strtolower($g->nama_guru) }}"
+                     data-nip="{{ strtolower($g->nip ?? '') }}"
+                     data-kode="{{ strtolower($g->kode_guru ?? '') }}">
                     <!-- Kop vertikal -->
                     <div class="card-header-gtk-portrait px-3 pt-3 pb-2.5 text-center" style="background:linear-gradient(180deg,var(--accent-900) 0%,var(--accent-600) 55%,#581c87 100%);color:#fff;">
                         <div class="w-9 h-9 rounded-xl p-1 mx-auto flex items-center justify-center bg-white shadow-xs">
@@ -214,9 +214,9 @@
         <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <?php foreach ($guru_list as $g): ?>
                 <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs relative flex flex-col"
-                     data-name="{{ strtolower(esc($g->nama_guru)) }}"
-                     data-nip="{{ strtolower(esc($g->nip ?? '')) }}"
-                     data-kode="{{ strtolower(esc($g->kode_guru ?? '')) }}">
+                     data-name="{{ strtolower($g->nama_guru) }}"
+                     data-nip="{{ strtolower($g->nip ?? '') }}"
+                     data-kode="{{ strtolower($g->kode_guru ?? '') }}">
 
                     <!-- Card Header (Kop Kartu) -->
                     <div class="card-header-gtk-landscape" style="background:linear-gradient(135deg,var(--accent-900) 0%,var(--purple-800) 50%,var(--indigo-700) 100%);color:#fff;">
@@ -359,9 +359,12 @@ $(document).ready(function() {
     $('#searchInput').on('keyup', function() {
         const query = $(this).val().toLowerCase().trim();
         $('.teacher-card-item').each(function() {
-            const name = $(this).data('name') || '';
-            const nip  = $(this).data('nip') || '';
-            const kode = $(this).data('kode') || '';
+            // jQuery .data() mengubah string angka jadi Number, jadi .includes()
+            // melempar TypeError dan membatalkan seluruh loop filter.
+            // String() memastikan nilainya tetap teks.
+            const name = String($(this).data('name') || '');
+            const nip  = String($(this).data('nip') || '');
+            const kode = String($(this).data('kode') || '');
 
             if (name.includes(query) || nip.includes(query) || kode.includes(query)) {
                 $(this).show();

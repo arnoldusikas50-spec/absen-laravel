@@ -12,6 +12,10 @@
     .qr-box canvas, .qr-box img {
         margin: 0 auto;
         display: block;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -872,6 +876,11 @@
 @endsection
 
 @section('content')
+<?php
+    // Di-set sekali di awal section lalu dipakai seluruh link & switcher desain.
+    $basePath = $base_path ?? 'admin/presensi/siswa/kartu';
+    $desainAktif = $desain ?? 'duplex';
+?>
 <div class="fade-in-up p-4 md:p-6 space-y-6">
 
     <!-- Header & Action -->
@@ -884,8 +893,6 @@
             <p class="text-xs text-slate-500 mt-1">Cetak kartu ID presensi siswa dengan QR Code standar untuk scan absensi harian & KBM.</p>
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
-            <?php $basePath = $base_path ?? 'admin/presensi/siswa/kartu'; ?>
-            <?php $desainAktif = $desain ?? 'duplex'; ?>
             <a id="btnCetakLembar"
                href="{{ url($basePath . '/cetak?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=' . $desainAktif . '&v=4') }}"
                target="_blank"
@@ -901,26 +908,25 @@
 
     <!-- Filter & Control Panel -->
     <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
-        <?php $desainAktif = $desain ?? 'duplex'; ?>
         <!-- Pilihan Desain Kartu -->
         <div class="mb-4">
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain & Format Kartu</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
-                <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex&v=4') }}"
+                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex&v=4') }}"
                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
                     <i class="bi bi-layers-fill"></i> Kartu Pelajar (Landscape)
                     <span class="hidden sm:inline font-semibold {{ $desainAktif === 'duplex' ? 'text-blue-500' : 'text-slate-400' }}"></span>
                 </a>
-                <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex_portrait&v=4') }}"
+                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex_portrait&v=4') }}"
                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex_portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
                     <i class="bi bi-card-heading"></i> Kartu Pelajar (Portrait)
                     <span class="hidden sm:inline font-semibold {{ $desainAktif === 'duplex_portrait' ? 'text-blue-500' : 'text-slate-400' }}"></span>
                 </a>
-                <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=landscape&v=4') }}"
+                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=landscape&v=4') }}"
                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
                     <i class="bi bi-credit-card-2-front"></i> Kartu Absen Landscape
                 </a>
-                <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=portrait&v=4') }}"
+                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=portrait&v=4') }}"
                    class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
                     <i class="bi bi-credit-card"></i> Kartu Absen Portrait
                 </a>
@@ -937,7 +943,7 @@
                 @endif
             </p>
         </div>
-        <form method="get" action="{{ url($base_path ?? 'admin/presensi/siswa/kartu') }}" id="filterForm" data-base="{{ url($base_path ?? 'admin/presensi/siswa/kartu') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <form method="get" action="{{ url($basePath) }}" id="filterForm" data-base="{{ url($basePath) }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <input type="hidden" name="desain" id="inputDesain" value="{{ $desainAktif }}">
             <!-- Pilih Kelas -->
             <div class="md:col-span-4">
@@ -959,7 +965,7 @@
                     <option value="0">-- Semua Siswa di Kelas Ini --</option>
                     <?php foreach ($siswa_options as $so): ?>
                         <option value="{{ $so->id_siswa }}" {{ ($id_siswa == $so->id_siswa) ? 'selected' : '' }}>
-                            {{ $so->nama }} (NIS: {{ $so->nis ?? '-' }})
+                            {{ $so->nama }} ({{ $so->id_label ?? 'ID' }}: {{ $so->id_value ?? '-' }})
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -1024,7 +1030,6 @@
             </p>
         </div>
     <?php else: ?>
-        <?php $desainAktif = $desain ?? 'duplex'; ?>
 
         {{-- ══════════════════════════════════════════════════════════════════
              1. DUPLEX LANDSCAPE PREVIEW (8.56 × 5.4 cm)
@@ -1034,21 +1039,21 @@
             <?php foreach ($siswa_list as $s): ?>
                 <?php
                 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
-                $ttlClean = trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMMM Y') : '')) ?: '-';
-                $nisnClean = $s->nisn ?: ($s->nis ?: '-');
-                $barcodeVal = $s->nis ?: ($s->nisn ?: $s->qr_value);
+                $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
+                $nisnClean = \App\Services\KartuSiswaFormatter::nomorSiswa($s);
+                $barcodeVal = $s->qr_value;
                 ?>
                 <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
-                     data-name="{{ strtolower(esc($s->nama)) }}"
-                     data-nis="{{ strtolower(esc($s->nis ?? '')) }}"
-                     data-nisn="{{ strtolower(esc($s->nisn ?? '')) }}">
+                     data-name="{{ strtolower($s->nama) }}"
+                     data-nis="{{ strtolower($s->nis ?? '') }}"
+                     data-nisn="{{ strtolower($s->nisn ?? '') }}">
                     <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                             <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $s->nama }}</h5>
                             <span class="text-[10px] font-semibold text-slate-400">({{ $s->nama_kelas }})</span>
                         </div>
-                        <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex&v=4') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
                             <i class="bi bi-printer"></i> Cetak Kartu
@@ -1233,21 +1238,21 @@
             <?php foreach ($siswa_list as $s): ?>
                 <?php
                 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
-                $ttlClean = trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMMM Y') : '')) ?: '-';
-                $nisnClean = $s->nisn ?: ($s->nis ?: '-');
-                $barcodeVal = $s->nis ?: ($s->nisn ?: $s->qr_value);
+                $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
+                $nisnClean = \App\Services\KartuSiswaFormatter::nomorSiswa($s);
+                $barcodeVal = $s->qr_value;
                 ?>
                 <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
-                     data-name="{{ strtolower(esc($s->nama)) }}"
-                     data-nis="{{ strtolower(esc($s->nis ?? '')) }}"
-                     data-nisn="{{ strtolower(esc($s->nisn ?? '')) }}">
+                     data-name="{{ strtolower($s->nama) }}"
+                     data-nis="{{ strtolower($s->nis ?? '') }}"
+                     data-nisn="{{ strtolower($s->nisn ?? '') }}">
                     <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                             <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $s->nama }}</h5>
                             <span class="text-[10px] font-semibold text-slate-400">({{ $s->nama_kelas }})</span>
                         </div>
-                        <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait&v=4') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
                             <i class="bi bi-printer"></i> Cetak
@@ -1424,9 +1429,9 @@
         <div id="cardGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 justify-items-center">
             <?php foreach ($siswa_list as $s): ?>
                 <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs relative flex flex-col w-full max-w-[220px]"
-                     data-name="{{ strtolower(esc($s->nama)) }}"
-                     data-nis="{{ strtolower(esc($s->nis ?? '')) }}"
-                     data-nisn="{{ strtolower(esc($s->nisn ?? '')) }}">
+                     data-name="{{ strtolower($s->nama) }}"
+                     data-nis="{{ strtolower($s->nis ?? '') }}"
+                     data-nisn="{{ strtolower($s->nisn ?? '') }}">
                     <!-- Kop vertikal -->
                     <div class="px-3 pt-3 pb-2.5 text-center" style="background:linear-gradient(180deg,var(--primary-700) 0%,var(--indigo-800) 55%,var(--primary-900) 100%);color:#fff;">
                         <div class="w-9 h-9 rounded-xl p-1 mx-auto flex items-center justify-center" style="background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);">
@@ -1451,13 +1456,13 @@
                         <h5 class="text-xs font-extrabold text-slate-900 leading-snug line-clamp-2" title="{{ $s->nama }}">
                             {{ $s->nama }}
                         </h5>
-                        <p class="text-[10px] text-slate-500 mt-0.5 font-mono">NISN {{ $s->nisn ?: '-' }}</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5 font-mono">NISN {{ \App\Services\KartuSiswaFormatter::nomorSiswa($s) }}</p>
                         <span class="inline-block mt-1 px-2 py-0.5 text-[9px] font-bold rounded-full {{ ($s->jenis_kelamin == 'L') ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700' }}">
                             {{ ($s->jenis_kelamin == 'L') ? 'LAKI-LAKI' : 'PEREMPUAN' }}
                         </span>
                     </div>
                     <div class="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-center">
-                        <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=portrait&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait&v=4') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 font-bold text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
                             <i class="bi bi-printer"></i> Cetak Kartu Ini
@@ -1480,9 +1485,9 @@
             <?php $isLaki = ($s->jenis_kelamin ?? 'L') === 'L'; ?>
             <div class="student-card-item card-preview overflow-hidden shadow-sm relative"
                  style="display:flex;flex-direction:row;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;min-height:155px;max-height:185px;min-width:0;"
-                 data-name="{{ strtolower(esc($s->nama)) }}"
-                 data-nis="{{ strtolower(esc($s->nis ?? '')) }}"
-                 data-nisn="{{ strtolower(esc($s->nisn ?? '')) }}">
+                 data-name="{{ strtolower($s->nama) }}"
+                 data-nis="{{ strtolower($s->nis ?? '') }}"
+                 data-nisn="{{ strtolower($s->nisn ?? '') }}">
 
                 <!-- ── Sisi Kiri: Strip header + Foto + Badge ── -->
                 <div class="shrink-0 flex flex-col" style="width:96px;background:linear-gradient(175deg,var(--primary-700,#4338ca) 0%,var(--primary-900,#1e1b4b) 100%);">
@@ -1557,7 +1562,7 @@
                             @if(!empty($s->tempat_lahir) || !empty($s->tanggal_lahir))
                             <div class="flex" style="gap:3px;">
                                 <span style="width:30px;font-weight:700;color:#94a3b8;font-size:8px;text-transform:uppercase;flex-shrink:0;">TTL</span>
-                                <span style="font-weight:600;color:#334155;font-size:8.5px;line-height:1.3;">{{ trim(($s->tempat_lahir ?? '') . ($s->tempat_lahir && $s->tanggal_lahir ? ', ' : '') . ($s->tanggal_lahir ? \Carbon\Carbon::parse($s->tanggal_lahir)->locale('id')->isoFormat('D MMM Y') : '')) ?: '-' }}</span>
+                                <span style="font-weight:600;color:#334155;font-size:8.5px;line-height:1.3;">{{ \App\Services\KartuSiswaFormatter::ttl($s, 'D MMM Y') }}</span>
                             </div>
                             @endif
                             @if(!empty($s->alamat))
@@ -1584,7 +1589,7 @@
                             <div style="width:52px;border-bottom:1px solid #cbd5e1;margin-bottom:2px;"></div>
                             <span style="font-weight:600;">Kepala Sekolah</span>
                         </div>
-                        <a href="{{ url(($base_path ?? 'admin/presensi/siswa/kartu') . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=landscape&v=3') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex&v=4') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 no-underline"
                            style="font-size:9px;font-weight:700;color:var(--primary-600,#4f46e5);background:var(--primary-50,#eef2ff);border:1px solid var(--primary-100,#e0e7ff);padding:3px 9px;border-radius:7px;transition:all .15s;">
@@ -1699,7 +1704,7 @@ $(document).ready(function() {
                 if (res && res.status && Array.isArray(res.data)) {
                     $siswa.empty().append('<option value="0">-- Semua Siswa di Kelas Ini --</option>');
                     res.data.forEach(function(row) {
-                        $siswa.append('<option value="' + row.id_siswa + '">' + $('<div>').text(row.nama).html() + ' (NIS: ' + $('<div>').text(row.nis || '-').html() + ')</option>');
+                        $siswa.append('<option value="' + row.id_siswa + '">' + $('<div>').text(row.nama).html() + ' (' + $('<div>').text((row.id_label || 'ID') + ': ' + (row.id_value || '-')).html() + ')</option>');
                     });
                     // Tetap submit agar grid kartu ikut terfilter server-side
                     $('#filterForm').submit();
@@ -1721,9 +1726,12 @@ $(document).ready(function() {
     $('#searchInput').on('keyup', function() {
         const query = $(this).val().toLowerCase().trim();
         $('.student-card-item').each(function() {
-            const name = $(this).data('name') || '';
-            const nis  = $(this).data('nis') || '';
-            const nisn = $(this).data('nisn') || '';
+            // jQuery .data() mengubah string angka jadi Number, jadi .includes()
+            // melempar TypeError dan membatalkan seluruh loop filter.
+            // String() memastikan nilainya tetap teks.
+            const name = String($(this).data('name') || '');
+            const nis  = String($(this).data('nis') || '');
+            const nisn = String($(this).data('nisn') || '');
 
             if (name.includes(query) || nis.includes(query) || nisn.includes(query)) {
                 $(this).show();

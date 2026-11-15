@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
+use App\Services\KartuSiswaFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -17,16 +17,15 @@ use Illuminate\Support\Facades\Schema;
  */
 class KartuSiswaController extends BaseController
 {
-    protected DashboardModel $dashboardModel;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->dashboardModel = new DashboardModel;
-    }
-
     /** Maksimal kartu yang muat di satu permintaan cetak tanpa membuat browser macet. */
     private const BATAS_CETAK = 500;
+
+    /**
+     * Desain yang bisa dirender halaman cetak (lihat view cetak).
+     *
+     * @var list<string>
+     */
+    private const DESAIN_CETAK = ['duplex', 'duplex_portrait'];
 
     /**
      * Filter ke siswa AKTIF saja (buku_induk.status = '1').
@@ -36,7 +35,6 @@ class KartuSiswaController extends BaseController
     private function filterSiswaAktif($builder, string $exprSiswa = 'ms.id_siswa'): void
     {
         try {
-            $db = DB::connection();
             if (! Schema::hasTable('buku_induk')) {
                 return;
             }
@@ -237,14 +235,19 @@ class KartuSiswaController extends BaseController
             if ($idKelas > 0) {
                 try {
                     $optQ = $db->table('master_siswa as ms')
-                        ->select('ms.id_siswa', 'ms.nama', 'ms.nis')
+                        ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn')
                         ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                         ->where('ks.id_kelas', $idKelas)
                         ->where('ks.id_tp', $idTp)
                         ->where('ks.id_smt', $idSmt);
-                    $this->filterSiswaAktif($optQ);
+                    if ($hasBukuInduk) {
+                        $this->filterSiswaAktif($optQ);
+                    }
                     $siswaOptions = $optQ->orderBy('ms.nama', 'ASC')
-                        ->get();
+                        ->get()
+                        ->each(function ($siswa) {
+                            [$siswa->id_label, $siswa->id_value] = KartuSiswaFormatter::identitas($siswa);
+                        });
                 } catch (\Throwable $e) {
                     Log::error('[KartuSiswa::index] dropdown siswa kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
                     $siswaOptions = [];
@@ -280,9 +283,11 @@ class KartuSiswaController extends BaseController
                     ->orderBy('ms.nama', 'ASC')
                     ->limit(self::BATAS_CETAK + 1)
                     ->get();
-                $terpotong = count($siswaList) > self::BATAS_CETAK;
+                $terpotong = $siswaList->count() > self::BATAS_CETAK;
                 if ($terpotong) {
-                    $siswaList = array_slice($siswaList, 0, self::BATAS_CETAK);
+                    // get() mengembalikan Collection — array_slice() menolak
+                    // Collection sebagai argumen #1, jadi pakai take().
+                    $siswaList = $siswaList->take(self::BATAS_CETAK);
                 }
             } catch (\Throwable $e) {
                 Log::error('[KartuSiswa::index] daftar kartu siswa gagal dibaca: '.$e->getMessage());
@@ -310,9 +315,7 @@ class KartuSiswaController extends BaseController
         }
 
         $data = [
-            'title' => 'Cetak Kartu Absen Siswa QR',
             'judul' => 'Cetak Kartu Absen Siswa',
-            'subjudul' => 'Cetak Kartu Berisi QR Code Presensi Siswa per Kelas / Individu',
             'user' => $user,
             'setting' => $setting,
             'tp_active' => $tp,
@@ -327,7 +330,6 @@ class KartuSiswaController extends BaseController
             'catatan' => $catatan,
             'logo_url' => self::resolveLogoUrl($setting),
             'base_path' => $basePath,
-            'is_guru' => $isGuru,
             'desain' => $desain,
         ];
 
@@ -403,9 +405,11 @@ class KartuSiswaController extends BaseController
                     ->orderBy('ms.nama', 'ASC')
                     ->limit(self::BATAS_CETAK + 1)
                     ->get();
-                $terpotong = count($siswaList) > self::BATAS_CETAK;
+                $terpotong = $siswaList->count() > self::BATAS_CETAK;
                 if ($terpotong) {
-                    $siswaList = array_slice($siswaList, 0, self::BATAS_CETAK);
+                    // get() mengembalikan Collection — array_slice() menolak
+                    // Collection sebagai argumen #1, jadi pakai take().
+                    $siswaList = $siswaList->take(self::BATAS_CETAK);
                 }
             } catch (\Throwable $e) {
                 Log::error('[KartuSiswa::cetak] daftar kartu siswa gagal dibaca: '.$e->getMessage());
@@ -423,7 +427,12 @@ class KartuSiswaController extends BaseController
 
         // Nama kelas untuk judul cetak
         $namaKelasPilih = 'Semua Kelas';
-        if ($idKelas > 0) {
+        // Satu siswa: kelas diambil dari row-nya sendiri, jadi akurat walau
+        // id_kelas tidak ikut dikirim (tanpa ini judulnya salah "Semua Kelas").
+        $namaKelasSiswa = count($siswaList) === 1 ? trim((string) ($siswaList[0]->nama_kelas ?? '')) : '';
+        if ($namaKelasSiswa !== '') {
+            $namaKelasPilih = 'Kelas '.$namaKelasSiswa;
+        } elseif ($idKelas > 0) {
             try {
                 $kRow = $db->table('master_kelas')->select('nama_kelas')->where('id_kelas', $idKelas)->first();
                 if ($kRow) {
@@ -441,6 +450,13 @@ class KartuSiswaController extends BaseController
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'duplex')));
         if (! in_array($desain, ['landscape', 'portrait', 'duplex', 'duplex_portrait'], true)) {
             $desain = 'duplex';
+        }
+
+        // Halaman cetak hanya merender desain duplex (2 sisi). Desain legacy
+        // 1-sisi hanya ada di preview, jadi dipetakan ke duplex terdekat —
+        // tanpa ini lembar cetak jadi kosong padahal "$siswa_list" terisi.
+        if (! in_array($desain, self::DESAIN_CETAK, true)) {
+            $desain = $desain === 'portrait' ? 'duplex_portrait' : 'duplex';
         }
 
         // Halaman cetak: jangan di-cache browser/proxy agar revisi desain langsung tampil
@@ -500,14 +516,17 @@ class KartuSiswaController extends BaseController
         try {
             $db = DB::connection();
             $sq = $db->table('master_siswa as ms')
-                ->select('ms.id_siswa', 'ms.nama', 'ms.nis')
+                ->select('ms.id_siswa', 'ms.nama', 'ms.nis', 'ms.nisn')
                 ->join('kelas_siswa as ks', 'ks.id_siswa', '=', 'ms.id_siswa')
                 ->where('ks.id_kelas', $idKelas)
                 ->where('ks.id_tp', $idTp)
                 ->where('ks.id_smt', $idSmt);
             $this->filterSiswaAktif($sq);
             $siswa = $sq->orderBy('ms.nama', 'ASC')
-                ->get();
+                ->get()
+                ->each(function ($row) {
+                    [$row->id_label, $row->id_value] = KartuSiswaFormatter::identitas($row);
+                });
         } catch (\Throwable $e) {
             Log::error('[KartuSiswa::getSiswaByKelas] kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
 

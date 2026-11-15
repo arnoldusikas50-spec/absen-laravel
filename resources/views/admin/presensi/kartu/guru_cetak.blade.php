@@ -628,7 +628,11 @@
                             correctLevel: QRCode.CorrectLevel.M
                         });
                     } catch (e) {
-                        box.innerHTML = '<span style="font-size:7px;font-weight:bold;">' + code + '</span>';
+                        // Jangan sisipkan nilai mentah ke innerHTML — kode kartu
+                        // berasal dari data guru dan bisa memuat karakter HTML.
+                        box.textContent = code;
+                        box.style.fontSize = '7px';
+                        box.style.fontWeight = 'bold';
                     }
                 }
             });

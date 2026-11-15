@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-use App\Models\DashboardModel;
 use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,14 +18,6 @@ use Illuminate\Support\Facades\Schema;
  */
 class KartuGuruController extends BaseController
 {
-    protected DashboardModel $dashboardModel;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->dashboardModel = new DashboardModel;
-    }
-
     /** Maksimal kartu yang muat di satu permintaan cetak tanpa membuat browser macet. */
     private const BATAS_CETAK = 500;
 
@@ -115,7 +106,6 @@ class KartuGuruController extends BaseController
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
 
-        $isGuru = $this->isGuru();
         $basePath = 'admin/presensi/guru/kartu';
 
         // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
@@ -125,9 +115,7 @@ class KartuGuruController extends BaseController
         }
 
         $data = [
-            'title' => 'Cetak Kartu Absen Guru QR',
             'judul' => 'Cetak Kartu Absen Guru / GTK',
-            'subjudul' => 'Cetak Kartu Berisi QR Code Presensi Guru / Tenaga Pendidik',
             'user' => $user,
             'setting' => $setting,
             'tp_active' => $tp,
@@ -140,7 +128,6 @@ class KartuGuruController extends BaseController
             'catatan' => $catatan,
             'logo_url' => self::resolveLogoUrl($setting),
             'base_path' => $basePath,
-            'is_guru' => $isGuru,
             'desain' => $desain,
         ];
 
