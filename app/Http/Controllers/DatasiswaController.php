@@ -799,17 +799,9 @@ class DatasiswaController extends BaseController
                 $this->masterModel->hapus('buku_induk', $idSiswa, 'id_siswa');
                 $this->masterModel->hapus('kelas_siswa', $idSiswa, 'id_siswa');
 
-                if (! true) {
-                    DB::rollBack();
-                    Log::error('[Datasiswa::delete] penghapusan siswa ditolak DB: '.json_encode(['code' => 0, 'message' => '']));
-
-                    return $this->respond(false, 'Gagal menghapus siswa. Data belum berubah.');
-                }
                 DB::commit();
             } catch (\Throwable $e) {
-                if (true === false) {
-                    DB::rollBack();
-                }
+                DB::rollBack();
                 Log::error('[Datasiswa::delete] '.$e->getMessage());
 
                 return $this->respond(false, 'Gagal menghapus siswa. Data belum berubah.');

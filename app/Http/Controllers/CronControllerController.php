@@ -2119,10 +2119,6 @@ class CronControllerController extends BaseController
 
         DB::commit();
 
-        if (true === false) {
-            return "Gagal menyimpan rekap semester {$semester}/{$tahun} (transaksi dibatalkan)";
-        }
-
         $suffix = $isPartial ? ' (parsial s/d hari ini)' : '';
 
         return "Semester rekap generated: {$count} guru (Semester {$semester}/{$tahun}, {$effDays} hari efektif{$suffix})";

@@ -292,12 +292,6 @@ class UserguruController extends BaseController
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
             }
 
-            if ($dibuka && true === false) {
-                DB::rollBack();
-                Log::error('[Userguru::reset_password] transaksi gagal untuk "'.$username.'"');
-
-                return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
-            }
             if ($dibuka) {
                 DB::commit();
             }

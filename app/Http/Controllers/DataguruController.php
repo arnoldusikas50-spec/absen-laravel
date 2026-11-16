@@ -321,10 +321,6 @@ class DataguruController extends BaseController
 
             DB::commit();
 
-            if (true === false) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan ke database']);
-            }
-
             // Tautan kanal notifikasi ditulis SESUDAH transaksi selesai.
             //
             // Sebelumnya jalur ini hanya menulis ke master_guru. Padahal
@@ -2208,16 +2204,6 @@ class DataguruController extends BaseController
                         'message' => 'Perubahan username gagal disimpan. Tidak ada data yang diubah — coba lagi.',
                     ]);
                 }
-            }
-
-            if (! true) {
-                DB::rollBack();
-                Log::error('[Dataguru::update_all] transaksi ditolak DB');
-
-                return $this->response->setJSON([
-                    'status' => false,
-                    'message' => 'Data guru gagal disimpan. Tidak ada yang diubah — coba lagi, dan bila berulang lapor ke pengembang.',
-                ]);
             }
 
             DB::commit();

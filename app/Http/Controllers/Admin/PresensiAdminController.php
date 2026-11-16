@@ -7064,11 +7064,6 @@ class PresensiAdminController extends BaseController
             }
 
             DB::commit();
-            if (true === false) {
-                Log::error('[syncHolidays] transCommit gagal: '.json_encode(['code' => 0, 'message' => '']));
-
-                return $this->respond(false, 'Penyimpanan data hari libur gagal, perubahan dibatalkan.');
-            }
 
             $msg = "Sinkronisasi libur nasional tahun {$year} selesai. Ditambahkan: {$addedCount}, Diperbarui: {$updatedCount}.";
             if ($dilewati > 0) {
@@ -10463,12 +10458,6 @@ class PresensiAdminController extends BaseController
 
             DB::commit();
 
-            if (true === false) {
-                Log::error('[restoreDataJson] transCommit gagal: '.json_encode(['code' => 0, 'message' => '']));
-
-                return $tolak('Gagal merestore database. Transaksi dibatalkan.');
-            }
-
             $msg = 'Restore berhasil. '.$ditulis.' baris data ditulis.';
 
             $this->auditLog('sistem_restore', null, 'restore_data_json', json_encode([
@@ -10587,7 +10576,7 @@ class PresensiAdminController extends BaseController
 
         DB::commit();
 
-        if (true === false || $gagalUpdate > 0) {
+        if ($gagalUpdate > 0) {
             return $this->respond(false, 'Gagal membersihkan foto: '.$gagalUpdate.' baris tidak bisa diperbarui, tidak ada file yang dihapus.');
         }
 

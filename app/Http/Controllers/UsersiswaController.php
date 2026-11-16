@@ -249,27 +249,20 @@ class UsersiswaController extends BaseController
         // lama (atau sebaliknya), dan admin tetap melihat pesan "berhasil".
         $dibuka = DB::beginTransaction();
         try {
-            $hasilUsers = $db->table('users')->where('id', (int) $account->id)->update([
-                'password' => password_hash($nisn, PASSWORD_BCRYPT),
-            ]);
-            $hasilMaster = $db->table('master_siswa')->where('username', $username)->update(['password' => $nisn]);
-
-            if ($hasilUsers === false || $hasilMaster === false) {
+            try {
+                $db->table('users')->where('id', (int) $account->id)->update([
+                    'password' => password_hash($nisn, PASSWORD_BCRYPT),
+                ]);
+                $db->table('master_siswa')->where('username', $username)->update(['password' => $nisn]);
+            } catch (\Throwable $e) {
                 if ($dibuka) {
                     DB::rollBack();
                 }
-                Log::error('[Usersiswa::reset_password] update gagal untuk "'.$username.'" (users='
-                    .var_export($hasilUsers, true).', master='.var_export($hasilMaster, true).')');
+                Log::error('[Usersiswa::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
 
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
             }
 
-            if ($dibuka && true === false) {
-                DB::rollBack();
-                Log::error('[Usersiswa::reset_password] transaksi gagal untuk "'.$username.'"');
-
-                return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
-            }
             if ($dibuka) {
                 DB::commit();
             }

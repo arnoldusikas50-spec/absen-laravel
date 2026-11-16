@@ -604,12 +604,6 @@ class DatamapelController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal dihapus. Tidak ada data yang berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
         $this->bersihkanPeminatan($db, $boleh);
-        if (! true) {
-            DB::rollBack();
-            Log::error('[Datamapel::delete] bersih-bersih peminatan gagal');
-
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal dihapus. Tidak ada data yang berubah — coba lagi.']);
-        }
         DB::commit();
 
         $dilewati = count($kunci) + count($terpakai) + $asing;

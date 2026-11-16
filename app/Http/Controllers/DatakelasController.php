@@ -521,11 +521,6 @@ class DatakelasController extends BaseController
                 $insert_count++;
             }
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['success' => false, 'message' => 'Pembuatan kelas gagal disimpan — tidak ada yang dibuat.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -587,11 +582,6 @@ class DatakelasController extends BaseController
                 throw new \RuntimeException('Hapus master_kelas gagal: '.json_encode(['code' => 0, 'message' => '']));
             }
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas gagal dihapus — tidak ada yang diubah.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -737,11 +727,6 @@ class DatakelasController extends BaseController
                 $terproses++;
             }
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['success' => false, 'message' => 'Penyalinan kelas gagal disimpan — tidak ada yang diubah.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -993,11 +978,6 @@ class DatakelasController extends BaseController
                 }
             }
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas gagal disimpan — tidak ada yang diubah.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1073,11 +1053,6 @@ class DatakelasController extends BaseController
                 }
             }
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas massal gagal disimpan — tidak ada yang diubah.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();

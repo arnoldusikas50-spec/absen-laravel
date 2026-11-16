@@ -3880,7 +3880,7 @@ class AttendanceController extends BaseController
                     $okLog = true;
                 }
 
-                if (! $okUpdate || ! $okLog || true === false) {
+                if (! $okUpdate || ! $okLog) {
                     DB::rollBack();
 
                     return $this->respond(false, 'Gagal mendaftarkan wajah. Silakan coba lagi.', null, null, 500);

@@ -333,10 +333,6 @@ class JadwalController extends BaseController
             if (! empty($updateKbm) && $this->elearningModel->updateBatchKbm($updateKbm) === false) {
                 $gagal[] = 'pengaturan '.count($updateKbm).' rombel lama';
             }
-            if (true === false) {
-                $gagal[] = 'penyimpanan batch ditolak database';
-            }
-
             if (! empty($gagal)) {
                 DB::rollBack();
                 Log::error('[save_setting] gagal menyimpan KBM: '.implode('; ', $gagal));
@@ -923,11 +919,6 @@ class JadwalController extends BaseController
             }
             $this->pruneAllUnusedPairAssignments($tp, $smt);
 
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['status' => false, 'message' => 'Jadwal gagal disalin — jadwal lama Anda tidak diubah.']);
-            }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1173,13 +1164,6 @@ class JadwalController extends BaseController
             }
 
             $this->reindexJamKe($tp, $smt, $idKelas, $hari);
-
-            if (true === false) {
-                DB::rollBack();
-                Log::error("[syncKbmLayout] susunan slot gagal untuk kelas {$idKelas} hari {$hari}");
-
-                return false;
-            }
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -1882,11 +1866,6 @@ class JadwalController extends BaseController
         try {
             if (! empty($insert)) {
                 $db->table('kelas_jadwal_mapel')->insert($insert);
-            }
-            if (true === false) {
-                DB::rollBack();
-
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan ke database']);
             }
             DB::commit();
         } catch (\Throwable $e) {
