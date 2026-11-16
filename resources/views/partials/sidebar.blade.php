@@ -65,6 +65,7 @@ if ($userRole == '1') {
                     'name' => 'Presensi Siswa',
                     'icon' => 'bi-people-fill',
                     'sub' => [
+                        ['name' => 'Kiosk RFID / NFC', 'link' => 'kiosk', 'icon' => 'bi-broadcast-pin'],
                         ['name' => 'Scanner QR',   'link' => 'scanner', 'icon' => 'bi-display'],
                         ['name' => 'Input Presensi Rombel', 'link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],
                         ['name' => 'Jadwal BDR (Belajar dari Rumah)', 'link' => 'admin/bdr',          'icon' => 'bi-house-door'],
@@ -213,6 +214,7 @@ if ($userRole == '1') {
                     'name' => 'Presensi Siswa',
                     'icon' => 'bi-people-fill',
                     'sub' => [
+                        ['name' => 'Kiosk RFID / NFC',     'link' => 'kiosk', 'icon' => 'bi-broadcast-pin'],
                         ['name' => 'Scanner QR Desktop',   'link' => 'scanner', 'icon' => 'bi-display'],
                         ['name' => 'Scan QR Siswa',        'link' => 'guru/presensi-siswa'.$hashParam, 'icon' => 'bi-qr-code-scan'],
                         ['name' => 'Presensi Harian',      'link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],

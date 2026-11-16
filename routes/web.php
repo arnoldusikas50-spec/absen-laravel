@@ -295,12 +295,21 @@ Route::get('guru/presensi-siswa/rekap', [PresensiSiswaController::class, 'rekapB
 Route::get('guru/presensi-siswa/rekap/export', [PresensiSiswaController::class, 'exportRekapExcel'])->middleware(['auth'])->name('guru.presensi-siswa.rekap.export.export_rekap_excel');
 Route::get('guru/presensi-siswa/rekap/pdf', [PresensiSiswaController::class, 'exportRekapPdf'])->middleware(['auth'])->name('guru.presensi-siswa.rekap.pdf.export_rekap_pdf');
 Route::get('guru/presensi-siswa/rekap/kelas', [PresensiSiswaController::class, 'kelasRekapOptions'])->middleware(['auth'])->name('guru.presensi-siswa.rekap.kelas.kelas_rekap_options');
+// Kiosk Khusus Absen RFID / NFC (Siswa & Guru)
+Route::get('kiosk', [PresensiSiswaQrController::class, 'kioskRfid'])->name('kiosk.rfid');
+Route::get('kiosk/{id}', [PresensiSiswaQrController::class, 'kioskRfid'])->whereNumber('id')->name('kiosk.rfid.kelas');
+Route::post('kiosk', [PresensiSiswaQrController::class, 'unlockKiosk'])->name('kiosk.unlock');
+Route::post('kiosk/{id}', [PresensiSiswaQrController::class, 'unlockKiosk'])->whereNumber('id')->name('kiosk.unlock.kelas');
+Route::get('scanner/rfid', [PresensiSiswaQrController::class, 'kioskRfid'])->name('scanner.rfid');
+Route::get('scanner/rfid/{id}', [PresensiSiswaQrController::class, 'kioskRfid'])->whereNumber('id')->name('scanner.rfid.kelas');
+Route::get('admin/presensi/kiosk', [PresensiSiswaQrController::class, 'kioskRfid'])->name('admin.presensi.kiosk');
+
 Route::get('scanner', [PresensiSiswaQrController::class, 'desktop'])->name('scanner.desktop');
-Route::get('scanner/{id}', [PresensiSiswaQrController::class, 'desktop'])->name('scanner.desktop.2');
+Route::get('scanner/{id}', [PresensiSiswaQrController::class, 'desktop'])->whereNumber('id')->name('scanner.desktop.2');
 Route::post('scanner/scan', [PresensiSiswaQrController::class, 'scanQr'])->withoutMiddleware([VerifyCsrfToken::class])->name('scanner.scan.scan_qr');
 Route::get('scanner/history', [PresensiSiswaQrController::class, 'getHistory'])->name('scanner.history.get_history');
 Route::post('scanner', [PresensiSiswaQrController::class, 'unlockKiosk'])->name('scanner.unlock_kiosk');
-Route::post('scanner/{id}', [PresensiSiswaQrController::class, 'unlockKiosk'])->name('scanner.unlock_kiosk.2');
+Route::post('scanner/{id}', [PresensiSiswaQrController::class, 'unlockKiosk'])->whereNumber('id')->name('scanner.unlock_kiosk.2');
 Route::get('admin/presensi/siswa/scanner', [PresensiSiswaQrController::class, 'desktop'])->name('admin.presensi.siswa.scanner.desktop');
 Route::get('admin/presensi/siswa/scanner/{id}', [PresensiSiswaQrController::class, 'desktop'])->name('admin.presensi.siswa.scanner.desktop.2');
 Route::post('admin/presensi/siswa/scanner/scan', [PresensiSiswaQrController::class, 'scanQr'])->withoutMiddleware([VerifyCsrfToken::class])->name('admin.presensi.siswa.scanner.scan.scan_qr');

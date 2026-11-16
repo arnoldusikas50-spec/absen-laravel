@@ -278,7 +278,7 @@ class PresensiSiswaQrController extends BaseController
     /** URL halaman kiosk untuk kelas ini (tanpa token di query string). */
     protected function urlKiosk($idKelas = null): string
     {
-        $path = 'scanner';
+        $path = str_contains(uri_string(), 'kiosk') ? 'kiosk' : 'scanner';
         $id = (int) ($idKelas ?? 0);
         if ($id > 0) {
             $path .= '/'.$id;
@@ -756,7 +756,7 @@ class PresensiSiswaQrController extends BaseController
         $stats = $this->getStatsHariIni($tanggal, $selectedKelasId ?: null);
 
         // Daftar kelas aktif untuk dropdown
-        $kelasList = [];
+        $kelasList = collect();
         try {
             $db = DB::connection();
             $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
@@ -764,21 +764,21 @@ class PresensiSiswaQrController extends BaseController
                 $builder->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt);
             }
             $kelasList = $builder->orderBy('nama_kelas', 'ASC')->get();
-            if (empty($kelasList)) {
+            if ($kelasList->isEmpty()) {
                 $kelasList = $db->table('master_kelas')
                     ->select('id_kelas', 'nama_kelas')
                     ->orderBy('nama_kelas', 'ASC')
                     ->get();
             }
         } catch (\Throwable $e) {
-            $kelasList = [];
+            $kelasList = collect();
         }
 
         // Wali kelas hanya melihat kelas perwaliannya di dropdown
         if ($isWali && ! empty($waliKelas)) {
-            $kelasList = array_values(array_filter($kelasList, static function ($k) use ($waliKelas) {
+            $kelasList = collect($kelasList)->filter(static function ($k) use ($waliKelas) {
                 return in_array((int) ($k->id_kelas ?? 0), $waliKelas, true);
-            }));
+            })->values();
         }
 
         $petugasLabel = $isAdmin ? 'Administrator' : ($isKepsek ? 'Kepala Sekolah' : ($isWali ? 'Wali Kelas' : 'Guru Piket'));
@@ -822,23 +822,32 @@ class PresensiSiswaQrController extends BaseController
     }
 
     /**
-     * Deteksi perangkat mobile via User-Agent.
+     * Deteksi perangkat mobile via User-Agent dan Client Hints.
      * Bisa dioverride paksa via ?view=desktop|mobile (misal untuk uji coba).
      */
     private function wantMobileView(): bool
     {
-        $force = strtolower(trim((string) ($this->request->query('view') ?? '')));
+        $req = request();
+        $force = strtolower(trim((string) ($req->input('view') ?? $req->query('view') ?? '')));
         if ($force === 'mobile') {
             return true;
         }
         if ($force === 'desktop') {
             return false;
         }
-        try {
-            return (bool) $this->request->userAgent()->isMobile();
-        } catch (\Throwable $e) {
+
+        // 1. Client Hints (Chrome/Edge/browser modern di Android/iOS mengirim ?1)
+        if ($req->header('sec-ch-ua-mobile') === '?1') {
+            return true;
+        }
+
+        // 2. Deteksi regex pada User-Agent string
+        $ua = (string) ($req->userAgent() ?? '');
+        if ($ua === '') {
             return false;
         }
+
+        return (bool) preg_match('/(android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini|webos)/i', $ua);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -909,7 +918,7 @@ class PresensiSiswaQrController extends BaseController
         $stats = $this->getStatsHariIni($tanggal, $selectedKelasId ?: null);
 
         // Daftar kelas aktif untuk filter dropdown
-        $kelasList = [];
+        $kelasList = collect();
         try {
             $db = DB::connection();
             $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
@@ -917,14 +926,14 @@ class PresensiSiswaQrController extends BaseController
                 $builder->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt);
             }
             $kelasList = $builder->orderBy('nama_kelas', 'ASC')->get();
-            if (empty($kelasList)) {
+            if ($kelasList->isEmpty()) {
                 $kelasList = $db->table('master_kelas')
                     ->select('id_kelas', 'nama_kelas')
                     ->orderBy('nama_kelas', 'ASC')
                     ->get();
             }
         } catch (\Throwable $e) {
-            $kelasList = [];
+            $kelasList = collect();
         }
 
         // Jendela operasional scan untuk badge kiosk (ringan, best-effort)
@@ -979,6 +988,127 @@ class PresensiSiswaQrController extends BaseController
             // Token datang lewat URL sekali untuk mendaftarkan perangkat.
             // Halaman view membuang ?k= dari address bar (lihat skripnya),
             // jadi token tidak tertinggal di riwayat browser kiosk.
+            $this->pasangKioskGate($response, trim((string) $this->request->query('k')));
+        }
+
+        return $response;
+    }
+
+    /**
+     * HALAMAN KIOSK KHUSUS RFID / NFC (SISWA & GURU)
+     * Didesain khusus untuk terminal / tablet kiosk RFID & USB reader tanpa kamera.
+     */
+    public function kioskRfid($idKelas = null)
+    {
+        $isLoggedIn = $this->isLoggedIn();
+
+        $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
+        $gateBaru = false;
+        if ($tokenKiosk !== '') {
+            $tokenUrl = trim((string) ($this->request->query('k') ?? ''));
+            if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
+                $gateBaru = true;
+            } elseif (! $this->kioskGateLolos($tokenKiosk)) {
+                return $this->response->setStatusCode(403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+                    'judul' => 'Kiosk RFID / NFC Terkunci',
+                    'action' => $this->urlKiosk($idKelas),
+                    'pesan' => (string) (session()->get('kiosk_kunci_gagal') ?? ''),
+                ]));
+            }
+        }
+
+        $user = $isLoggedIn ? $this->getUser() : null;
+        $setting = $this->getSettingRow();
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+
+        $namaGuru = '';
+        if ($user) {
+            try {
+                $db = DB::connection();
+                $guruRow = $db->table('master_guru')
+                    ->select('nama_guru')
+                    ->where('id_user', $user->id)
+                    ->first();
+                $namaGuru = $guruRow?->nama_guru ?? ($user->first_name ?? 'Administrator');
+            } catch (\Throwable $e) {
+                $namaGuru = $user->first_name ?? 'Administrator';
+            }
+        } else {
+            $namaGuru = 'Terminal Kiosk RFID';
+        }
+
+        $tanggal = date('Y-m-d');
+        $selectedKelasId = $idKelas !== null ? (int) $idKelas : 0;
+        if ($selectedKelasId > 0) {
+            try {
+                $exists = DB::connection()->table('master_kelas')
+                    ->where('id_kelas', $selectedKelasId)->count() > 0;
+                if (! $exists) {
+                    $selectedKelasId = 0;
+                }
+            } catch (\Throwable $e) {
+                $selectedKelasId = 0;
+            }
+        }
+        $stats = $this->getStatsHariIni($tanggal, $selectedKelasId ?: null);
+
+        $kelasList = collect();
+        try {
+            $db = DB::connection();
+            $builder = $db->table('master_kelas')->select('id_kelas', 'nama_kelas');
+            if ($tp && $smt) {
+                $builder->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt);
+            }
+            $kelasList = $builder->orderBy('nama_kelas', 'ASC')->get();
+            if ($kelasList->isEmpty()) {
+                $kelasList = $db->table('master_kelas')
+                    ->select('id_kelas', 'nama_kelas')
+                    ->orderBy('nama_kelas', 'ASC')
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            $kelasList = collect();
+        }
+
+        $qrWindow = null;
+        try {
+            $db = DB::connection();
+            if (Schema::hasTable('absensi_setting')) {
+                $ar = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
+                if ($ar && (int) ($ar->qr_scan_aktif ?? 0) === 1) {
+                    $qrWindow = substr((string) ($ar->qr_scan_mulai ?? '05:30:00'), 0, 5)
+                        .'–'.substr((string) ($ar->qr_scan_selesai ?? '18:00:00'), 0, 5);
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $data = [
+            'user' => $user,
+            'isLoggedIn' => $isLoggedIn,
+            'setting' => $setting,
+            'namaGuru' => $namaGuru,
+            'tp_active' => $tp,
+            'smt_active' => $smt,
+            'tanggal' => $tanggal,
+            'stats' => $stats,
+            'kelasList' => $kelasList,
+            'selectedKelas' => $selectedKelasId,
+            'qr_window' => $qrWindow,
+            'judul' => 'Kiosk Presensi RFID & NFC',
+            'subjudul' => 'Terminal Presensi Mandiri Kartu RFID & NFC Siswa & Guru',
+            'title' => 'Kiosk RFID & NFC | '.($setting->nama_sekolah ?? 'Presensi'),
+            'hash' => '',
+            'token' => '',
+            'scan_url' => url('scanner/scan'),
+            'history_url' => url('scanner/history'),
+            'mode_tab' => $this->getModeTabState($tanggal),
+        ];
+
+        $response = $this->response->setBody(view('admin.presensi.kiosk_rfid', $data));
+
+        if ($gateBaru) {
             $this->pasangKioskGate($response, trim((string) $this->request->query('k')));
         }
 
@@ -2424,9 +2554,10 @@ class PresensiSiswaQrController extends BaseController
 
             $builder = $db->table('presensi_siswa as ps')
                 ->selectRaw("COUNT(ps.id) as total,
-                          SUM(CASE WHEN ps.status = 'HADIR' THEN 1 ELSE 0 END) as hadir,
+                          SUM(CASE WHEN ps.status = 'HADIR' OR ps.status = 'LATE' THEN 1 ELSE 0 END) as hadir,
                           SUM(CASE WHEN ps.jam_masuk IS NOT NULL AND ps.jam_masuk != '' THEN 1 ELSE 0 END) as masuk,
-                          SUM(CASE WHEN ps.jam_keluar IS NOT NULL AND ps.jam_keluar != '' THEN 1 ELSE 0 END) as keluar")
+                          SUM(CASE WHEN ps.jam_keluar IS NOT NULL AND ps.jam_keluar != '' THEN 1 ELSE 0 END) as keluar,
+                          SUM(CASE WHEN ps.status = 'LATE' OR ps.keterangan LIKE '%terlambat%' THEN 1 ELSE 0 END) as terlambat")
                 ->leftJoin('buku_induk as bi', 'bi.id_siswa', '=', 'ps.id_siswa')
                 ->where(function ($q) {
                     $q->where('bi.status', '1')->orWhereNull('bi.id_siswa');
@@ -2443,17 +2574,20 @@ class PresensiSiswaQrController extends BaseController
             $hadirSiswa = (int) ($row->hadir ?? 0);
             $masukSiswa = (int) ($row->masuk ?? 0);
             $keluarSiswa = (int) ($row->keluar ?? 0);
+            $terlambatSiswa = (int) ($row->terlambat ?? 0);
 
             $guruHadir = 0;
             $guruMasuk = 0;
             $guruKeluar = 0;
+            $guruTerlambat = 0;
 
             if ($idKelas === null || $idKelas <= 0) {
                 if (Schema::hasTable('absensi_harian')) {
                     $gRow = $db->table('absensi_harian')
                         ->selectRaw("COUNT(id) as total,
                                   SUM(CASE WHEN jam_masuk IS NOT NULL AND jam_masuk != '' THEN 1 ELSE 0 END) as masuk,
-                                  SUM(CASE WHEN jam_pulang IS NOT NULL AND jam_pulang != '' THEN 1 ELSE 0 END) as keluar")
+                                  SUM(CASE WHEN jam_pulang IS NOT NULL AND jam_pulang != '' THEN 1 ELSE 0 END) as keluar,
+                                  SUM(CASE WHEN (telat_menit IS NOT NULL AND telat_menit > 0) OR status_masuk = 'LATE' THEN 1 ELSE 0 END) as terlambat")
                         ->where('tgl', $tanggal)
                         ->first();
                     if ($gRow) {
@@ -2461,6 +2595,7 @@ class PresensiSiswaQrController extends BaseController
                         $guruMasuk = (int) ($gRow->masuk ?? 0);
                         $guruHadir = $guruMasuk > 0 ? $guruMasuk : (int) ($gRow->total ?? 0);
                         $guruKeluar = (int) ($gRow->keluar ?? 0);
+                        $guruTerlambat = (int) ($gRow->terlambat ?? 0);
                     }
                 }
             }
@@ -2470,11 +2605,12 @@ class PresensiSiswaQrController extends BaseController
                 'hadir' => $hadirSiswa + $guruHadir,
                 'masuk' => $masukSiswa + $guruMasuk,
                 'keluar' => $keluarSiswa + $guruKeluar,
+                'terlambat' => $terlambatSiswa + $guruTerlambat,
                 'siswa_hadir' => $hadirSiswa,
                 'guru_hadir' => $guruHadir,
             ];
         } catch (\Throwable $e) {
-            return ['total' => 0, 'hadir' => 0, 'masuk' => 0, 'keluar' => 0, 'siswa_hadir' => 0, 'guru_hadir' => 0];
+            return ['total' => 0, 'hadir' => 0, 'masuk' => 0, 'keluar' => 0, 'terlambat' => 0, 'siswa_hadir' => 0, 'guru_hadir' => 0];
         }
     }
 

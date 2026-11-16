@@ -18,7 +18,10 @@ $judul    = (string) ($judul ?? 'Scanner QR Terkunci');
     <meta name="robots" content="noindex, nofollow">
     <title>{{ $judul }}</title>
     <style>
-        :root { color-scheme: light; }
+        /* Halaman ini tidak memuat layout utama, jadi variabel --primary-600
+           tidak pernah ada di sini. Nilainya dulu kosong sehingga tombol
+           berlatar transparan dan teks putihnya tidak terlihat. */
+        :root { color-scheme: light; --kiosk-accent: #0d9488; --kiosk-accent-hover: #0f766e; }
         * { box-sizing: border-box; }
         body {
             margin: 0; min-height: 100vh; display: grid; place-items: center;
@@ -41,12 +44,17 @@ $judul    = (string) ($judul ?? 'Scanner QR Terkunci');
             width: 100%; padding: 12px 14px; font-size: 15px; font-family: ui-monospace, monospace;
             border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;
         }
-        input[type=password]:focus { outline: 2px solid var(--primary-600); outline-offset: 1px; background: #fff; }
+        input[type=password]:focus {
+            outline: 3px solid rgba(13, 148, 136, .22); outline-offset: 1px;
+            background: #fff; border-color: var(--kiosk-accent);
+        }
         button {
             margin-top: 14px; width: 100%; padding: 12px 16px; font-size: 14px; font-weight: 700;
-            color: #fff; background: var(--primary-600); border: 0; border-radius: 12px; cursor: pointer;
+            color: #fff; background: var(--kiosk-accent); border: 0; border-radius: 12px; cursor: pointer;
+            transition: background-color .15s ease;
         }
-        button:hover { background: var(--primary-700); }
+        button:hover { background: var(--kiosk-accent-hover); }
+        button:focus-visible { outline: 3px solid rgba(13, 148, 136, .35); outline-offset: 2px; }
         .error {
             font-size: 13px; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca;
             border-radius: 12px; padding: 10px 12px; margin: 0 0 16px;
@@ -63,17 +71,17 @@ $judul    = (string) ($judul ?? 'Scanner QR Terkunci');
             perangkat ini; setelah tersimpan, kiosk langsung terbuka seperti biasa.</p>
 
         <?php if ($pesan !== ''): ?>
-            <div class="error">{{ $pesan }}</div>
+            <div class="error" role="alert">{{ $pesan }}</div>
         <?php endif; ?>
 
         <form method="post" action="{{ $action }}">
             @csrf
             <label for="k">Token kiosk</label>
-            <input type="password" id="k" name="k" autocomplete="off" spellcheck="false" maxlength="64" required>
+            <input type="password" id="k" name="k" autocomplete="off" spellcheck="false" maxlength="64" required autofocus aria-describedby="k-hint">
             <button type="submit">Daftarkan perangkat ini</button>
         </form>
 
-        <p class="hint">Alternatif: buka <code>{{ $action }}?k=TOKEN</code>.
+        <p class="hint" id="k-hint">Alternatif: buka <code>{{ $action }}?k=TOKEN</code>.
             Halaman akan membuang token dari address bar setelah perangkat terdaftar.</p>
     </main>
 </body>

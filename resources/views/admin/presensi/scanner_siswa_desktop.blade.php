@@ -11,23 +11,20 @@
     $setting->logo_kiri = $setting->logo_kiri ?? null;
     $logo_app = ($setting->logo_kiri == null) ? asset('assets/img/favicon.png') : url('' . $setting->logo_kiri);
     ?>
+
     <link rel="shortcut icon" href="{{ $logo_app }}" type="image/x-icon">
 
-    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <!-- Fonts: Inter, Plus Jakarta Sans & JetBrains Mono (sama dengan kiosk) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
-
-    <!-- Tailwind CSS -->
+    <!-- Font Awesome 6 Icons & SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
-
-    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="{{ asset('assets/app/css/kiosk-ui.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/kiosk-ui.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}">
 
-    <!-- jQuery -->
     <script src="{{ asset('assets/plugins/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
     <script src="{{ url('assets/js/wita-clock.js?v=' . (@filemtime(public_path() . '/' . 'assets/js/wita-clock.js') ?: time())) }}"></script>
@@ -42,137 +39,134 @@
                 if (!u.searchParams.has('k')) return;
                 u.searchParams.delete('k');
                 window.history.replaceState({}, document.title, u.pathname + u.search + u.hash);
-            } catch (e) {
-            }
+            } catch (e) {}
         })();
     </script>
 
     <style>
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #090e17;
-            color: #f1f5f9;
+            font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+            background-color: #060b13;
+            color: #f8fafc;
+            overflow-x: hidden;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        .font-outfit {
-            font-family: 'Outfit', sans-serif;
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
         }
 
-        /* Ambient Glow & Background Grid */
+        /* Ambient Cyber Lighting */
         .ambient-glow {
             position: fixed;
             inset: 0;
-            background-image: 
-                radial-gradient(circle at 10% 15%, rgb(var(--brand-600-rgb) / 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 85%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 60%);
             pointer-events: none;
             z-index: 0;
+            background:
+                radial-gradient(circle at 18% 22%, rgba(20, 184, 166, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 82% 18%, rgba(99, 102, 241, 0.09) 0%, transparent 45%),
+                radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+        }
+
+        .cyber-grid {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image: radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(13, 20, 36, 0.72);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Warna bingkai hasil scan (lihat juga halaman kiosk) */
+        #scannerContainer.state-success {
+            border-color: rgba(16, 185, 129, .75);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 1px rgba(16, 185, 129, .35), 0 0 45px rgba(16, 185, 129, .18);
+        }
+        #scannerContainer.state-warning {
+            border-color: rgba(245, 158, 11, .75);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 1px rgba(245, 158, 11, .35), 0 0 45px rgba(245, 158, 11, .18);
+        }
+        #scannerContainer.state-info {
+            border-color: rgba(59, 130, 246, .75);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 1px rgba(59, 130, 246, .35), 0 0 45px rgba(59, 130, 246, .18);
+        }
+        #scannerContainer.state-error {
+            border-color: rgba(244, 63, 94, .8);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .45), 0 0 0 1px rgba(244, 63, 94, .4), 0 0 45px rgba(244, 63, 94, .2);
+        }
+
+        /* Mode Button Active */
+        .mode-btn.active {
+            background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+            color: #02120d;
+            font-weight: 800;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.45);
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
         /* Custom Scrollbars */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); }
         ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 1); }
 
-        /* Card Modern Dark */
-        .kiosk-card {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Mode Switcher Tabs */
-        .mode-btn-tab {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 13px 20px;
-            border-radius: 14px;
-            font-weight: 800;
-            font-size: 14px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1.5px solid transparent;
-            background: rgba(30, 41, 59, 0.6);
-            color: #94a3b8;
-            cursor: pointer;
-        }
-        .mode-btn-tab:hover {
-            background: rgba(51, 65, 85, 0.8);
-            color: #ffffff;
-        }
-        .mode-btn-tab.active-masuk {
-            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-            color: #ffffff;
-            border-color: #34d399;
-            box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.5);
-        }
-        .mode-btn-tab.active-keluar {
-            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-            color: #ffffff;
-            border-color: #fbbf24;
-            box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.5);
-        }
-        .mode-btn-tab:disabled {
-            opacity: .4; cursor: not-allowed;
-        }
-        .mode-btn-tab:disabled:hover {
-            background: rgba(30, 41, 59, 0.6); color: #94a3b8;
-        }
-        .mode-schedule-hint {
-            font-size: 11px; color: #64748b; text-align: center;
-            margin: -8px 0 12px; font-weight: 600;
-        }
-
-        /* Camera Frame Viewport */
-        .camera-viewport-frame {
+        /* ── Viewport kamera ─────────────────────────────── */
+        .camera-frame {
             position: relative;
+            width: 100%;
             background: #020617;
             border-radius: 20px;
             overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(0, 0, 0, 0.8);
-            min-height: 380px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.85);
+            aspect-ratio: 16 / 9;
         }
+        @media (max-width: 640px) {
+            .camera-frame { aspect-ratio: 4 / 3; }
+        }
+        #qr-reader-desktop { width: 100% !important; border: none !important; }
         #qr-reader-desktop video {
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
-            border-radius: 18px;
-        }
-        #qr-reader-desktop {
-            border: none !important;
-            width: 100% !important;
         }
         #qr-reader-desktop img[alt="Info icon"] { display: none !important; }
         #qr-reader-desktop div[style*="text-align: center"] { display: none !important; }
+        #qr-reader-desktop__dashboard { display: none !important; }
 
-        /* Sci-Fi Corners */
         .scanner-corner {
             position: absolute;
-            width: 32px;
-            height: 32px;
+            width: 30px;
+            height: 30px;
             border-color: #10b981;
             border-style: solid;
             z-index: 15;
             pointer-events: none;
             transition: border-color 0.3s ease;
         }
-        .scanner-corner-tl { top: 16px; left: 16px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
-        .scanner-corner-tr { top: 16px; right: 16px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
-        .scanner-corner-bl { bottom: 16px; left: 16px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
-        .scanner-corner-br { bottom: 16px; right: 16px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+        .scanner-corner-tl { top: 14px; left: 14px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+        .scanner-corner-tr { top: 14px; right: 14px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+        .scanner-corner-bl { bottom: 14px; left: 14px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+        .scanner-corner-br { bottom: 14px; right: 14px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
 
-        /* Laser Animation */
         .scanner-laser-line {
             position: absolute;
             left: 20px;
@@ -191,88 +185,91 @@
             100% { top: 88%; opacity: 0; }
         }
 
-        /* Camera Top HUD */
         .camera-top-hud {
             position: absolute;
-            top: 14px;
-            left: 14px;
-            right: 14px;
+            top: 10px;
+            left: 10px;
+            right: 10px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 6px;
             z-index: 25;
             pointer-events: auto;
         }
-        .hud-action-pill {
-            height: 38px;
-            padding: 0 14px;
-            border-radius: 12px;
-            background: rgba(15, 23, 42, 0.85);
+        .camera-top-hud > div { min-width: 0; flex-wrap: wrap; gap: 6px; }
+
+        .hud-control {
+            height: 34px;
+            padding: 0 10px;
+            border-radius: 10px;
+            background: rgba(2, 6, 23, 0.78);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: #f8fafc;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            font-size: 12px;
+            gap: 6px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
         }
-        .hud-action-pill:hover {
-            background: rgba(30, 41, 59, 1);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: translateY(-1px);
-        }
-        .hud-action-pill.active {
-            background: #f59e0b;
-            border-color: #fbbf24;
-            color: #ffffff;
+        .hud-control:hover { background: rgba(15, 23, 42, 0.95); border-color: rgba(255, 255, 255, 0.45); }
+        .hud-control.active { background: #f59e0b; border-color: #fbbf24; color: #fff; }
+        #select-video-device { max-width: 150px; text-overflow: ellipsis; }
+        #select-video-device option { background-color: #0f172a; color: #f8fafc; }
+        @media (max-width: 640px) {
+            #select-video-device { max-width: 112px; }
         }
 
-        /* Hero Result Card */
-        .hero-result-card {
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(15, 23, 42, 0.9);
-            box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .hero-ring-masuk {
-            box-shadow: 0 0 0 4px #10b981, 0 10px 28px -4px rgba(16, 185, 129, 0.5);
-        }
-        .hero-ring-keluar {
-            box-shadow: 0 0 0 4px #f59e0b, 0 10px 28px -4px rgba(245, 158, 11, 0.5);
-        }
-        .hero-ring-warning {
-            box-shadow: 0 0 0 4px #f59e0b, 0 10px 28px -4px rgba(245, 158, 11, 0.5);
-        }
-        .hero-ring-error {
-            box-shadow: 0 0 0 4px var(--brand-600), 0 10px 28px -4px rgb(var(--brand-600-rgb) / 0.5);
-        }
-
-        /* Countdown Progress Bar */
-        .progress-countdown-bar {
-            height: 4px;
-            background: rgba(51, 65, 85, 0.5);
+        .camera-hint-pill {
+            position: absolute;
+            left: 50%;
+            bottom: 12px;
+            transform: translateX(-50%);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
             border-radius: 9999px;
+            background: rgba(2, 6, 23, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #e2e8f0;
+            font-size: 10.5px;
+            font-weight: 600;
+            z-index: 12;
+            pointer-events: none;
+            max-width: calc(100% - 28px);
+            white-space: nowrap;
             overflow: hidden;
-        }
-        .progress-countdown-fill {
-            height: 100%;
-            width: 100%;
-            background: #38bdf8;
-            transition: width 0.1s linear;
+            text-overflow: ellipsis;
         }
 
-        /* Modal Standalone Backdrop */
-        .kiosk-modal-backdrop {
+        /* ── Input gelap (selaras kiosk) ─────────────────── */
+        .dark-input {
+            background: rgba(2, 6, 23, 0.7);
+            border: 1px solid rgba(51, 65, 85, 0.9);
+            color: #f8fafc;
+            border-radius: 12px;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .dark-input::placeholder { color: #64748b; }
+        .dark-input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+        }
+
+        /* ── Modal pengaturan suara ──────────────────────── */
+        .modal-backdrop {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(2, 6, 23, 0.78);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             display: none;
@@ -281,511 +278,439 @@
             z-index: 100;
             padding: 16px;
         }
-        .kiosk-modal-backdrop.active {
-            display: flex;
-        }
-
-        /* RFID & Multi-Scanner Controls */
-        @keyframes rfidGlow {
-            0%, 100% { opacity: 0.85; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.06); filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)); }
-        }
-        .rfid-pulse { animation: rfidGlow 2.5s ease-in-out infinite; }
-        .active-scanner-tab {
-            background: #10b981 !important;
-            color: #ffffff !important;
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-        }
-        .badge-metode-rfid {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(52, 211, 153, 0.4);
-        }
-        .badge-metode-qr {
-            background: rgba(56, 189, 248, 0.2);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-        }
-        .badge-metode-fp {
-            background: rgba(168, 85, 247, 0.2);
-            color: #c084fc;
-            border: 1px solid rgba(192, 132, 252, 0.4);
-        }
+        .modal-backdrop.active { display: flex; }
     </style>
-    {!! \App\Libraries\Theme::styleTag() !!}
 </head>
-<body class="min-h-screen flex flex-col relative antialiased selection:bg-rose-500 selection:text-white">
+<body class="min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950 relative">
 
+    <!-- Ambient Glow & Cyber Grid -->
     <div class="ambient-glow"></div>
+    <div class="cyber-grid"></div>
 
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- 1. STANDALONE KIOSK TOPBAR                          -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <header class="relative z-20 shrink-0 border-b border-white/10 bg-slate-900/90 backdrop-blur-md px-4 lg:px-8 py-3.5">
-        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            
-            <!-- School Brand & Status -->
-            <div class="flex items-center gap-3.5">
-                <img src="{{ $logo_app }}" alt="Logo Sekolah" class="w-10 h-10 rounded-xl object-contain bg-white/10 p-1 border border-white/20 shadow-sm">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-base lg:text-lg font-black font-outfit text-white tracking-wide m-0">
-                            {{ $setting->nama_sekolah ?? 'Presensi Sekolah' }}
-                        </h1>
-                    </div>
-                    <p class="text-xs text-slate-400 m-0">
-                        Petugas: <span class="text-slate-200 font-bold">{{ $namaGuru }}</span>
-                        <?php if (!empty($qr_window)): ?>
-                            &middot; <span class="text-emerald-400 font-bold" title="Scan masuk di luar jam ini ditolak otomatis">Jam scan {{ $qr_window }} WITA</span>
-                        <?php endif; ?>
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- HEADER / TOP BAR (SAMA DENGAN KIOSK)                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <header class="bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 lg:px-8 py-3 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-x-2.5 gap-y-2.5 sm:gap-x-4">
+
+            <!-- Identitas Sekolah -->
+            <div class="order-1 flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <img src="{{ $logo_app }}" alt="Logo {{ $setting->nama_sekolah ?? 'sekolah' }}" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-slate-900/90 p-1 border border-slate-700/80 shadow-md shrink-0">
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
+                        {{ $setting->nama_sekolah ?? 'Scanner QR' }}
+                    </h1>
+                    <p id="header-status-badge" class="text-[11px] sm:text-xs text-slate-400 m-0 truncate">
+                        Scanner QR Siswa &amp; Guru
                     </p>
                 </div>
             </div>
 
-            <!-- Realtime Clock & Action Tools -->
-            <div class="flex items-center justify-between md:justify-end gap-3 flex-wrap">
-                <!-- Big Digital Clock -->
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-2 flex items-center gap-3 shadow-inner">
-                    <div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-base">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
-                    <div>
-                        <div id="desktop-digital-clock" class="text-lg lg:text-xl font-black font-mono tracking-wider text-white leading-none">
-                            --:--:--
-                        </div>
-                        <div id="desktop-calendar-date" class="text-[10px] font-medium text-slate-400 mt-0.5">
-                            Memuat tanggal...
-                        </div>
-                    </div>
+            <!-- Tombol Aksi -->
+            <div class="order-2 lg:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button type="button" id="btn-open-audio" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition-all hover:scale-105 active:scale-95" title="Pengaturan Suara" aria-label="Buka pengaturan suara">
+                    <i id="header-audio-icon" class="fa-solid fa-volume-high text-emerald-400 text-xs sm:text-sm"></i>
+                </button>
+
+                <button type="button" id="btn-fullscreen" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition-all hover:scale-105 active:scale-95" title="Layar Penuh" aria-label="Alihkan layar penuh">
+                    <i id="fullscreenIcon" class="fa-solid fa-expand text-xs sm:text-sm"></i>
+                </button>
+
+                <a href="{{ url('kiosk') }}" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 flex items-center justify-center transition-all hover:scale-105 active:scale-95" title="Buka Terminal Kiosk RFID / NFC" aria-label="Buka terminal kiosk RFID">
+                    <i class="fa-solid fa-wifi rotate-90 text-xs sm:text-sm"></i>
+                </a>
+
+                @if(!empty($isLoggedIn))
+                <a href="{{ url('admin/presensi') }}" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 flex items-center justify-center transition-all hover:scale-105 active:scale-95" title="Keluar" aria-label="Tutup scanner dan kembali ke panel admin">
+                    <i class="fa-solid fa-xmark text-xs sm:text-sm"></i>
+                </a>
+                @endif
+            </div>
+
+            <!-- Jam + Mode -->
+            <div class="order-3 lg:order-2 flex w-full lg:w-auto items-center justify-center lg:justify-end gap-2 sm:gap-4">
+
+                <div class="flex items-center justify-center gap-2 bg-slate-900/90 px-2.5 sm:px-5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl border border-slate-700/70 shadow-[0_0_20px_rgba(16,185,129,0.12)] shrink-0">
+                    <div id="liveTime" class="text-sm sm:text-lg font-mono-num font-extrabold text-emerald-400 tracking-widest drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">--:--:--</div>
+                    <div id="liveDate" class="hidden md:block text-[10px] font-medium text-slate-400 tracking-wide truncate max-w-[140px]">--</div>
                 </div>
 
-                <!-- Action Controls -->
-                <div class="flex items-center gap-2">
-                    <button type="button" id="btn-toggle-nfc-desktop" onclick="toggleNfcDesktop()"
-                        class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                        title="Aktifkan Web NFC (Tap Kartu RFID)">
-                        <i class="bi bi-broadcast text-sm" id="icon-nfc-desktop"></i>
-                        <span class="hidden md:inline">NFC</span>
+                <div class="inline-flex p-1 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs font-semibold" id="mode-group" role="group" aria-label="Mode presensi">
+                    <button type="button" class="mode-btn active px-2.5 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5" data-mode="auto" aria-pressed="true" title="Mode otomatis mengikuti jadwal">
+                        <i class="fa-solid fa-bolt text-xs" aria-hidden="true"></i> <span>Auto</span>
                     </button>
-
-                    <button type="button" id="btn-toggle-fullscreen"
-                        class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                        title="Mode Layar Penuh Kiosk">
-                        <i class="bi bi-arrows-fullscreen text-sm"></i>
+                    <button type="button" class="mode-btn px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center gap-1.5" data-mode="masuk" aria-pressed="false" title="Paksa absen masuk">
+                        <i class="fa-solid fa-arrow-right-to-bracket text-xs" aria-hidden="true"></i> <span>Masuk</span>
                     </button>
-
-                    <button type="button" id="btn-open-audio"
-                        class="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 active:scale-95 border border-emerald-400/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                        title="Pengaturan Suara Bel & Pengucapan Nama">
-                        <i class="bi bi-volume-up-fill text-sm" id="header-audio-icon"></i>
+                    <button type="button" class="mode-btn px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-400 hover:text-white transition-all flex items-center gap-1.5" data-mode="pulang" aria-pressed="false" title="Paksa absen pulang">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-xs" aria-hidden="true"></i> <span>Pulang</span>
                     </button>
-
-                    <?php if ($isLoggedIn): ?>
-                    <a href="{{ url('admin/presensi') }}"
-                        class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                        title="Kembali ke Dashboard Admin">
-                        <i class="bi bi-speedometer2 text-sm"></i>
-                        <span class="hidden sm:inline">Panel Admin</span>
-                    </a>
-                    <?php endif; ?>
                 </div>
             </div>
 
         </div>
     </header>
 
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- 2. MAIN ONE PAGE CONTENT CONTAINER                  -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-4 lg:px-8 py-5 flex flex-col gap-5">
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- MAIN CONTENT (7 KOLOM KIRI / 5 KOLOM KANAN)                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch relative z-10">
 
-        <!-- Metrics Row: 4 Metric Cards (selaras key backend: hadir/masuk/keluar/total) -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-            <!-- Total Hadir -->
-            <div class="kiosk-card p-4 flex items-center gap-3.5 border-l-4 border-l-emerald-500">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold shrink-0">
-                    <i class="bi bi-people-fill"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider m-0">Total Hadir Hari Ini</p>
-                    <h3 class="text-2xl font-black font-outfit text-white m-0" id="stat-total-hadir">{{ (int)($stats['hadir'] ?? 0) }}</h3>
-                </div>
-            </div>
+        <!-- ── KOLOM KIRI: KAMERA, HASIL SCAN & INPUT ── -->
+        <section class="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
 
-            <!-- Sudah Scan Masuk -->
-            <div class="kiosk-card p-4 flex items-center gap-3.5 border-l-4 border-l-teal-500">
-                <div class="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-2xl font-bold shrink-0">
-                    <i class="bi bi-check-circle-fill"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider m-0">Sudah Scan Masuk</p>
-                    <h3 class="text-2xl font-black font-outfit text-white m-0" id="stat-masuk">{{ (int)($stats['masuk'] ?? 0) }}</h3>
-                </div>
-            </div>
+            <div id="scannerContainer" class="flex-1 glass-panel rounded-3xl p-5 sm:p-6 md:p-7 flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 min-h-[400px] sm:min-h-[480px]">
 
-            <!-- Sudah Scan Pulang -->
-            <div class="kiosk-card p-4 flex items-center gap-3.5 border-l-4 border-l-amber-500">
-                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold shrink-0">
-                    <i class="bi bi-box-arrow-right"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider m-0">Sudah Scan Pulang</p>
-                    <h3 class="text-2xl font-black font-outfit text-white m-0" id="stat-pulang">{{ (int)($stats['keluar'] ?? 0) }}</h3>
-                </div>
-            </div>
+                <div id="glowEffect" class="absolute inset-0 bg-gradient-to-b from-teal-500/10 via-transparent to-transparent pointer-events-none transition-colors duration-500"></div>
 
-            <!-- Total Tercatat -->
-            <div class="kiosk-card p-4 flex items-center gap-3.5 border-l-4 border-l-sky-500">
-                <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl font-bold shrink-0">
-                    <i class="bi bi-clipboard-data"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider m-0">Total Tercatat</p>
-                    <h3 class="text-2xl font-black font-outfit text-white m-0" id="stat-tercatat">{{ (int)($stats['total'] ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- Split Grid Desktop: 7 Kolom Kiri / 5 Kolom Kanan -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-
-            <!-- ───────────────────────────────────────── -->
-            <!-- KOLOM KIRI (7/12): KAMERA & BARCODE GUN   -->
-            <!-- ───────────────────────────────────────── -->
-            <div class="lg:col-span-7 flex flex-col gap-4">
-                <div class="kiosk-card p-5">
-                    
-                    <!-- Mode Switcher Tabs (Absen Masuk vs Absen Pulang) -->
-                    <?php
-                    $modeTabD   = $mode_tab ?? ['masuk_open' => true, 'pulang_open' => true, 'default_mode' => 'masuk', 'buka_masuk' => '', 'tutup_masuk' => '', 'jam_pulang' => '', 'masuk_msg' => '', 'pulang_msg' => ''];
-                    $masukOpenD = (bool) ($modeTabD['masuk_open'] ?? true);
-                    $pulangOpenD = (bool) ($modeTabD['pulang_open'] ?? true);
-                    $defModeD   = ($modeTabD['default_mode'] ?? 'masuk') === 'keluar' ? 'keluar' : 'masuk';
-                    ?>
-                    <div class="flex items-center gap-2.5 mb-4 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
-                        <button id="btn-mode-masuk" type="button" data-scanmode="masuk"
-                            class="mode-btn-tab {{ $defModeD === 'masuk' ? 'active-masuk' : '' }}"
-                            {{ $masukOpenD ? '' : 'disabled title="' . e($modeTabD['masuk_msg'] ?? 'Di luar jadwal absen masuk') . '"' }}>
-                            <i class="bi bi-box-arrow-in-right text-lg"></i>
-                            <span>MODE ABSEN MASUK</span>
-                        </button>
-                        <button id="btn-mode-keluar" type="button" data-scanmode="keluar"
-                            class="mode-btn-tab {{ $defModeD === 'keluar' ? 'active-keluar' : '' }}"
-                            {{ $pulangOpenD ? '' : 'disabled title="' . e($modeTabD['pulang_msg'] ?? 'Belum waktunya pulang') . '"' }}>
-                            <i class="bi bi-box-arrow-right text-lg"></i>
-                            <span>MODE ABSEN PULANG</span>
-                        </button>
+                <!-- Status Atas Bar -->
+                <div class="absolute top-4 left-5 right-5 flex items-center justify-between gap-2 text-xs text-slate-400 z-10 pointer-events-none">
+                    <div>
+                        @if(!empty($qr_window))
+                        <span class="px-3 py-1 rounded-full bg-slate-900/70 border border-slate-800 text-slate-400 font-mono-num text-[11px] inline-flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-regular fa-clock text-[10px] text-teal-400"></i> {{ $qr_window }}
+                        </span>
+                        @endif
                     </div>
-                    <?php if (!empty($modeTabD['buka_masuk']) || !empty($modeTabD['jam_pulang'])): ?>
-                    <p class="mode-schedule-hint" id="mode-schedule-hint">
-                        Masuk {{ ($modeTabD['buka_masuk'] ?? '') . '–' . ($modeTabD['tutup_masuk'] ?? '') }}
-                        &middot; Pulang &ge;{{ ($modeTabD['buka_pulang'] ?? $modeTabD['jam_pulang'] ?? '') }} WITA
-                    </p>
-                    <?php endif; ?>
 
-                    <!-- Camera Viewport Box -->
-                    <div class="camera-viewport-frame mb-4" id="camera-frame-box">
+                    <div class="flex items-center gap-1.5 font-mono-num text-[11px] text-slate-400">
+                        <span id="gps-lock-pill" class="px-2.5 py-1 rounded-full bg-slate-900/80 text-slate-300 border border-slate-700/80 inline-flex items-center gap-1.5 shadow-sm" title="Status GPS untuk geofence">
+                            <i id="gps-lock-icon" class="fa-solid fa-location-dot text-[10px] text-slate-400"></i>
+                            <span id="gps-lock-text">GPS…</span>
+                        </span>
+                        <span id="reader-status-pill" class="px-3 py-1 rounded-full bg-slate-900/80 text-slate-300 border border-slate-700/80 flex items-center gap-1.5 shadow-sm">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="reader-status">Memuat…</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- ────────────────────────────────────────────── -->
+                <!-- TAMPILAN 1: KAMERA & INPUT SCANNER              -->
+                <!-- ────────────────────────────────────────────── -->
+                <div id="cameraView" class="w-full z-10 flex flex-col my-auto pt-7 sm:pt-8">
+
+                    <div class="camera-frame" id="camera-frame-box">
                         <div id="qr-reader-desktop"></div>
 
-                        <!-- Neon Corners & Laser Scan -->
+                        <!-- Neon Corners & Laser -->
                         <div class="scanner-corner scanner-corner-tl"></div>
                         <div class="scanner-corner scanner-corner-tr"></div>
                         <div class="scanner-corner scanner-corner-bl"></div>
                         <div class="scanner-corner scanner-corner-br"></div>
                         <div class="scanner-laser-line" id="scanner-laser"></div>
 
-                        <!-- Top HUD Controls Over Camera -->
+                        <!-- HUD atas -->
                         <div class="camera-top-hud">
-                            <div class="flex items-center gap-2">
-                                <!-- Device selector dropdown -->
+                            <div class="flex items-center">
                                 <div class="relative">
-                                    <select id="select-video-device"
-                                        class="hud-action-pill pr-8 appearance-none cursor-pointer border-white/20 text-white text-xs">
-                                        <option value="">Deteksi Kamera...</option>
+                                    <select id="select-video-device" class="hud-control pr-6 appearance-none cursor-pointer" aria-label="Pilih kamera">
+                                        <option value="">Deteksi kamera…</option>
                                     </select>
-                                    <i class="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-white/70 text-[10px] pointer-events-none"></i>
+                                    <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-white/60 text-[9px] pointer-events-none"></i>
                                 </div>
 
-                                <button type="button" id="btn-flip-cam" class="hud-action-pill" title="Flip Kamera Depan/Belakang">
-                                    <i class="bi bi-arrow-repeat text-sm"></i>
+                                <button type="button" id="btn-flip-cam" class="hud-control" title="Ganti kamera depan/belakang">
+                                    <i class="fa-solid fa-arrows-rotate text-xs"></i>
                                     <span class="hidden sm:inline">Flip</span>
                                 </button>
 
-                                <span id="gps-lock-pill" class="hud-action-pill" title="Status kunci GPS kiosk (wajib untuk scan)">
-                                    <i class="bi bi-geo-alt-fill text-sm text-slate-400" id="gps-lock-icon"></i>
-                                    <span class="hidden sm:inline" id="gps-lock-text">GPS: mencari...</span>
-                                </span>
+                                <button type="button" id="btn-desktop-torch" class="hud-control hidden" title="Lampu senter">
+                                    <i class="fa-solid fa-bolt text-xs text-amber-400"></i>
+                                    <span class="hidden sm:inline">Senter</span>
+                                </button>
                             </div>
 
-                            <div class="flex items-center gap-2">
-                                <button type="button" id="btn-desktop-torch" class="hud-action-pill hidden" title="Lampu Senter">
-                                    <i class="bi bi-lightning-charge-fill text-amber-400"></i>
-                                    <span>Senter</span>
-                                </button>
-
-                                <button type="button" id="btn-desktop-pause" class="hud-action-pill" title="Jeda Kamera">
-                                    <i class="bi bi-pause-fill" id="icon-pause-cam"></i>
+                            <div class="flex items-center">
+                                <button type="button" id="btn-desktop-pause" class="hud-control" title="Jeda kamera">
+                                    <i class="fa-solid fa-pause text-xs" id="icon-pause-cam"></i>
                                     <span class="hidden sm:inline" id="label-pause-cam">Jeda</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Bottom HUD: Status Web NFC -->
-                        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex items-center gap-2">
-                            <div id="desktop-nfc-status-pill" class="hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-600/95 text-white text-[11px] font-bold shadow-lg animate-pulse backdrop-blur-xs border border-emerald-400/40">
-                                <i class="bi bi-broadcast"></i>
-                                <span>NFC Aktif: Tempelkan kartu di belakang perangkat</span>
-                            </div>
+                        <!-- Hint bawah -->
+                        <div class="camera-hint-pill">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="scan-hint-text">Arahkan QR code ke kamera</span>
                         </div>
 
                         <!-- Loading Overlay -->
-                        <div id="camera-loading-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 text-white gap-3 p-4">
-                            <div class="w-10 h-10 rounded-full border-4 border-rose-500 border-t-transparent animate-spin"></div>
-                            <p class="text-sm font-bold m-0 text-slate-200">Menghubungkan Sensor Kamera...</p>
-                            <p class="text-xs text-slate-400 m-0">Pastikan izin kamera di browser telah diberikan</p>
+                        <div id="camera-loading-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 text-white gap-2 p-4">
+                            <div class="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
+                            <p class="text-xs text-slate-300 m-0">Menghubungkan kamera…</p>
                         </div>
 
                         <!-- Error Overlay -->
                         <div id="camera-error-overlay" class="absolute inset-0 z-20 hidden flex-col items-center justify-center bg-slate-950/95 text-white gap-3 p-6 text-center">
-                            <div class="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-2xl">
-                                <i class="bi bi-camera-video-off"></i>
+                            <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 text-xl">
+                                <i class="fa-solid fa-video-slash"></i>
                             </div>
                             <div>
-                                <h6 class="font-bold text-base m-0 text-white">Kamera Belum Terhubung</h6>
-                                <p class="text-xs text-slate-400 mt-1 m-0">Gunakan Barcode Scanner Gun USB di bawah atau coba muat ulang kamera.</p>
+                                <h6 class="font-semibold text-sm m-0 text-white">Kamera Belum Terhubung</h6>
+                                <p class="text-xs text-slate-400 mt-1 m-0">Gunakan scanner gun / input manual di bawah, atau muat ulang kamera.</p>
                             </div>
-                            <button type="button" id="btn-retry-cam" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs">
-                                <i class="bi bi-arrow-clockwise mr-1"></i> Coba Hubungkan Kamera
+                            <button type="button" id="btn-retry-cam" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs border border-slate-600 transition-colors">
+                                Muat Ulang Kamera
                             </button>
                         </div>
                     </div>
 
-                    <!-- Input Controls: USB Barcode Gun & Filter Kelas -->
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                        <!-- Barcode Scanner Gun USB Standby Input -->
-                        <div class="md:col-span-7">
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 m-0">
-                                    <i id="input-scanner-icon" class="bi bi-upc-scan text-rose-400"></i>
-                                    <span id="input-scanner-label">Barcode / NIS / RFID</span>
-                                    <span id="rfid-mode-badge" class="ml-2 px-2 py-0.5 rounded text-[9px] font-bold border hidden">RFID AKTIF</span>
-                                </label>
+                    <!-- Catatan jadwal mode -->
+                    <p id="mode-status-note" class="hidden text-[11px] font-semibold text-amber-400 text-center leading-snug mt-2 mb-0"></p>
+
+                    <!-- Input Scanner Gun & Filter Kelas -->
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 mt-3.5">
+                        <div class="sm:col-span-7">
+                            <label for="input-barcode-scanner" class="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5 mb-1.5">
+                                <i class="fa-solid fa-barcode text-slate-500"></i>
+                                <span>Scanner Gun QR / Input Manual</span>
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-keyboard absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs pointer-events-none"></i>
+                                <input type="text" id="input-barcode-scanner" autocomplete="off" autofocus
+                                    placeholder="Scan QR atau ketik NIS…"
+                                    class="dark-input w-full pl-9 pr-24 py-2.5 text-xs font-medium">
+                                <button type="button" id="btn-barcode-proses"
+                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold transition-colors">
+                                    Proses
+                                </button>
                             </div>
-                            <div class="relative flex items-center">
-                                <input type="text" id="input-barcode-scanner" autofocus autocomplete="off"
-                                    placeholder="Tembak Barcode / Ketik NIS / Tempel RFID..."
-                                    class="w-full pl-9 pr-48 py-2.5 bg-slate-950/80 border border-slate-700 focus:bg-slate-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/30 rounded-xl text-xs font-semibold text-white placeholder:text-slate-500 transition-all">
-                                <i class="bi bi-keyboard absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none"></i>
-                                
-                                <div class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                    <!-- Toggle Web NFC (Tap HP / Tablet Android) -->
-                                    <button type="button" id="btn-input-nfc-toggle" onclick="toggleNfcDesktop()"
-                                        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs border border-slate-600 shadow-xs transition-all flex items-center gap-1"
-                                        title="Aktifkan Web NFC (Tap Kartu RFID)">
-                                        <i class="bi bi-broadcast"></i> <span class="hidden sm:inline">NFC</span>
-                                    </button>
+                        </div>
 
-                                    <!-- Toggle Mode RFID (kartu RFID via keyboard wedge / Wiegand) -->
-                                    <button type="button" id="btn-toggle-rfid-mode"
-                                        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs border border-slate-600 shadow-xs transition-all flex items-center gap-1"
-                                        title="Aktifkan mode khusus kartu RFID">
-                                        <i class="bi bi-credit-card-2-front"></i> <span>RFID</span>
-                                    </button>
+                        <div class="sm:col-span-5">
+                            <label for="select-kelas-filter" class="block text-[11px] font-semibold text-slate-400 mb-1.5">Filter Kategori</label>
+                            <select id="select-kelas-filter" class="dark-input w-full px-3 py-2.5 text-xs font-medium">
+                                <option value="">Semua (Siswa &amp; Guru)</option>
+                                <option value="guru">Khusus Guru / GTK</option>
+                                @if(!empty($kelasList))
+                                    <optgroup label="Filter Per Kelas Siswa">
+                                        @foreach($kelasList as $k)
+                                            <option value="{{ (int) $k->id_kelas }}" {{ ((int) $selectedKelas === (int) $k->id_kelas) ? 'selected' : '' }}>
+                                                {{ $k->nama_kelas }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-                                    <!-- Toggle Mode Fingerprint -->
-                                    <button type="button" id="btn-toggle-fp-mode"
-                                        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs border border-slate-600 shadow-xs transition-all flex items-center gap-1"
-                                        title="Aktifkan mode khusus sidik jari">
-                                        <i class="bi bi-fingerprint"></i> <span>FP</span>
-                                    </button>
+                <!-- ────────────────────────────────────────────── -->
+                <!-- TAMPILAN 2: HASIL SCAN SISWA / GURU            -->
+                <!-- ────────────────────────────────────────────── -->
+                <div id="resultView" class="hidden w-full z-10 flex-col justify-between my-auto py-2">
 
-                                    <button type="button" id="btn-barcode-proses"
-                                        class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-all">
-                                        Proses
-                                    </button>
+                    <div id="statusBanner" class="w-full py-3.5 px-5 rounded-2xl mb-5 flex items-center justify-between gap-2 font-bold text-sm sm:text-base transition-colors shadow-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                            <i id="statusIcon" class="fa-solid fa-circle-check text-xl shrink-0"></i>
+                            <span id="statusText" class="truncate">ABSEN MASUK BERHASIL</span>
+                        </div>
+                        <span id="scanTimestamp" class="font-mono-num text-xs sm:text-sm px-2.5 py-1 rounded-lg bg-black/20 shrink-0">--:--:-- WITA</span>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 bg-slate-950/70 p-5 sm:p-6 rounded-2xl border border-slate-800">
+                        <div class="relative shrink-0">
+                            <img id="personPhoto" src="{{ asset('assets/img/siswa.png') }}" alt="Foto"
+                                 class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover border-2 border-slate-700 shadow-xl bg-slate-800">
+                            <div id="photoBadge" class="absolute -bottom-2 -right-2 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-slate-900">
+                                <i id="photoBadgeIcon" class="fa-solid fa-check text-sm"></i>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 text-center sm:text-left space-y-2.5 w-full min-w-0">
+                            <div>
+                                <div class="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                                    <span id="roleBadge" class="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        SISWA
+                                    </span>
+                                    <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">Terverifikasi</span>
+                                </div>
+                                <h3 id="personName" class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-tight truncate">
+                                    Nama Lengkap
+                                </h3>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 sm:gap-3 pt-2.5 border-t border-slate-800/80">
+                                <div>
+                                    <p id="idNumberLabel" class="text-[11px] text-slate-400 m-0">NIS / NISN</p>
+                                    <p id="personIdNumber" class="font-mono-num font-semibold text-slate-200 text-xs sm:text-sm m-0 truncate">-</p>
+                                </div>
+                                <div>
+                                    <p id="departmentLabel" class="text-[11px] text-slate-400 m-0">Kelas</p>
+                                    <p id="personDepartment" class="font-semibold text-emerald-400 text-xs sm:text-sm m-0 truncate">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] text-slate-400 m-0">Metode Scan</p>
+                                    <p id="personMethod" class="font-mono-num text-xs text-slate-400 m-0 truncate">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] text-slate-400 m-0">Keterangan</p>
+                                    <p id="personNote" class="font-semibold text-emerald-400 text-xs sm:text-sm m-0 truncate">Tepat Waktu</p>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Filter Kelas -->
-                        <div class="md:col-span-5">
-                            <label class="block text-[11px] font-extrabold text-slate-300 uppercase tracking-wider mb-1">
-                                <i class="bi bi-filter text-slate-400 mr-1"></i>Filter Kategori (Opsional)
-                            </label>
-                            <div class="relative">
-                                <select id="select-kelas-filter" class="w-full py-2.5 px-3 bg-slate-950/80 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/30">
-                                    <option value="">Semua (Siswa & Guru)</option>
-                                    <option value="guru">Khusus Guru / GTK</option>
-                                    <?php if (!empty($kelasList)): ?>
-                                        <optgroup label="Filter Per Kelas Siswa">
-                                            <?php foreach ($kelasList as $k): ?>
-                                                <option value="{{ (int)$k->id_kelas }}" {{ ($selectedKelas == $k->id_kelas) ? 'selected' : '' }}>
-                                                    {{ $k->nama_kelas }}
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </optgroup>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-                        </div>
                     </div>
 
-                </div>
-            </div>
-
-            <!-- ───────────────────────────────────────── -->
-            <!-- KOLOM KANAN (5/12): HERO LIVE & REALTIME  -->
-            <!-- ───────────────────────────────────────── -->
-            <div class="lg:col-span-5 flex flex-col gap-4">
-
-                <!-- 1. Hero Live Card (Hasil Scan Terakhir) -->
-                <div class="hero-result-card" id="hero-result-container">
-                    <!-- Header Banner -->
-                    <div id="hero-header-banner" class="p-3.5 bg-gradient-to-r from-slate-900 to-slate-950 text-white text-center transition-colors duration-300 border-b border-white/10">
-                        <div class="flex items-center justify-center gap-2 mb-1">
-                            <span id="hero-badge-title" class="inline-block px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-white/15 text-slate-200">
-                                STANDBY SCANNER
-                            </span>
-                            <span id="hero-metode-badge" class="hidden px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase"></span>
+                    <div class="mt-5">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1.5">
+                            <span class="text-[11px]">Kembali ke kamera otomatis…</span>
+                            <span id="countdownText" class="font-mono-num font-bold text-xs text-slate-300">4 dtk</span>
                         </div>
-                        <h5 id="hero-main-message" class="text-sm lg:text-base font-black font-outfit m-0 text-white">
-                            Silakan Scan QR / RFID / Sidik Jari
-                        </h5>
-                    </div>
-
-                    <!-- Body Siswa/Guru Info -->
-                    <div class="p-4 lg:p-5 flex items-center gap-4">
-                        <div class="relative shrink-0">
-                            <img id="hero-siswa-foto" src="{{ \App\Services\AvatarService::inisial('Scan', 128, '#0f172a') }}"
-                                alt="Foto"
-                                class="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl object-cover border-2 border-slate-700 shadow-md hero-ring-masuk transition-all">
-                            <span id="hero-status-pill" class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-sm border border-white/20 bg-slate-800 whitespace-nowrap">
-                                STANDBY
-                            </span>
-                        </div>
-
-                        <div class="min-w-0 flex-1">
-                            <h4 id="hero-siswa-nama" class="text-base lg:text-lg font-black font-outfit text-white m-0 leading-tight truncate">
-                                Menunggu Scan...
-                            </h4>
-                            <div class="flex flex-wrap items-center gap-2 mt-2">
-                                <span id="hero-siswa-kelas" class="inline-flex items-center gap-1 text-xs font-bold text-slate-300 bg-slate-800/90 px-2.5 py-0.5 rounded-lg border border-slate-700">
-                                    <i class="bi bi-person-badge text-slate-400"></i> Kategori
-                                </span>
-                                <span id="hero-siswa-nis" class="inline-flex items-center gap-1 text-xs font-bold text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700">
-                                    NIS: -
-                                </span>
-                            </div>
-
-                            <div class="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-slate-800">
-                                <span class="text-slate-400 font-medium">Waktu Absen:</span>
-                                <span id="hero-time-text" class="font-bold font-mono text-slate-200">--:-- WITA</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Auto-reset Progress Bar -->
-                    <div class="px-4 pb-3.5">
-                        <div class="progress-countdown-bar">
-                            <div class="progress-countdown-fill" id="hero-countdown-bar" style="width: 100%;"></div>
+                        <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="resetProgressBar" class="h-full bg-emerald-500 transition-all duration-100 ease-linear" style="width: 100%"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2. Realtime Live Feed Riwayat Presensi Hari Ini -->
-                <div class="kiosk-card p-4 flex-1 flex flex-col">
-                    <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <h6 class="font-bold font-outfit text-white text-sm m-0">Riwayat Presensi Hari Ini</h6>
-                        </div>
-                        <button type="button" id="btn-refresh-feed" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all border border-slate-700 flex items-center gap-1">
-                            <i class="bi bi-arrow-clockwise text-xs"></i> Refresh
-                        </button>
+                <!-- ────────────────────────────────────────────── -->
+                <!-- TAMPILAN 3: GAGAL / DI LUAR JADWAL             -->
+                <!-- ────────────────────────────────────────────── -->
+                <div id="errorView" class="hidden flex-col items-center text-center z-10 max-w-md mx-auto my-auto py-4">
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center text-4xl sm:text-5xl mb-4 shadow-lg shadow-rose-500/15">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
-
-                    <!-- Feed List Container -->
-                    <div class="overflow-y-auto max-h-[340px] pr-1 divide-y divide-slate-800" id="live-history-feed">
-                        <div class="py-8 text-center text-slate-500 text-xs">
-                            <div class="w-7 h-7 rounded-full border-2 border-rose-500 border-t-transparent animate-spin mx-auto mb-2"></div>
-                            Memuat riwayat presensi hari ini...
-                        </div>
-                    </div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Presensi Tidak Dapat Diproses</h2>
+                    <p id="errorMessage" class="text-slate-400 text-xs sm:text-sm mb-2">Terjadi kesalahan.</p>
+                    <p class="text-[11px] text-slate-500 m-0">Periksa kartu/QR, jadwal presensi, atau hubungi admin sekolah.</p>
                 </div>
 
             </div>
 
-        </div>
+        </section>
+
+        <!-- ── KOLOM KANAN: STATISTIK & LOG AKTIVITAS ── -->
+        <aside class="lg:col-span-5 flex flex-col gap-4 sm:gap-5">
+
+            <div class="grid grid-cols-2 gap-3 sm:gap-4">
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-lg">
+                    <div class="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-400 mb-2">
+                        <span>TOTAL HADIR</span>
+                        <i class="fa-solid fa-users text-emerald-400 text-sm"></i>
+                    </div>
+                    <div id="statTotalHadir" class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white font-mono-num">{{ (int) ($stats['hadir'] ?? 0) }}</div>
+                    <div class="text-[11px] text-emerald-400/80 mt-1 font-medium">Siswa &amp; Guru</div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-lg">
+                    <div class="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-400 mb-2">
+                        <span>TEPAT WAKTU</span>
+                        <i class="fa-solid fa-square-check text-teal-400 text-sm"></i>
+                    </div>
+                    <div id="statTepatWaktu" class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-teal-400 font-mono-num">{{ max(0, (int) ($stats['hadir'] ?? 0) - (int) ($stats['terlambat'] ?? 0)) }}</div>
+                    <div class="text-[11px] text-teal-400/80 mt-1 font-medium">Tepat Waktu</div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-lg">
+                    <div class="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-400 mb-2">
+                        <span>TERLAMBAT</span>
+                        <i class="fa-solid fa-clock-rotate-left text-amber-400 text-sm"></i>
+                    </div>
+                    <div id="statTerlambat" class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-mono-num">{{ (int) ($stats['terlambat'] ?? 0) }}</div>
+                    <div class="text-[11px] text-amber-400/80 mt-1 font-medium">Terlambat</div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-lg">
+                    <div class="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-400 mb-2">
+                        <span>SUDAH PULANG</span>
+                        <i class="fa-solid fa-arrow-right-from-bracket text-blue-400 text-sm"></i>
+                    </div>
+                    <div id="statSudahPulang" class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-blue-400 font-mono-num">{{ (int) ($stats['keluar'] ?? 0) }}</div>
+                    <div class="text-[11px] text-blue-400/80 mt-1 font-medium">Sudah Pulang</div>
+                </div>
+
+            </div>
+
+            <div class="flex-1 glass-card rounded-3xl p-4 sm:p-5 flex flex-col min-h-[360px] sm:min-h-[400px]">
+                <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-tower-broadcast text-emerald-400 text-sm" aria-hidden="true"></i>
+                        <h3 class="font-bold text-white text-sm sm:text-base m-0">Aktivitas Scan Terkini</h3>
+                    </div>
+                    <span class="text-[11px] font-semibold bg-slate-800/80 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/80 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        Live Feed
+                    </span>
+                </div>
+
+                <div id="attendanceLogList" class="flex-1 overflow-y-auto space-y-2.5 pt-3.5 pr-1 max-h-[380px] sm:max-h-[420px]">
+                    <div id="empty-feed-placeholder" class="py-12 text-center text-xs text-slate-500">
+                        <i class="fa-solid fa-inbox text-2xl mb-1.5 block text-slate-600"></i>
+                        Belum ada aktivitas presensi hari ini
+                    </div>
+                </div>
+            </div>
+
+        </aside>
 
     </main>
 
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- 3. MODAL PENGATURAN SUARA (STANDALONE)             -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <div id="modal-audio-settings-desktop" class="kiosk-modal-backdrop">
-        <div class="kiosk-card w-full max-w-md p-6 border border-white/15 shadow-2xl relative overflow-hidden" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl font-bold">
-                        <i class="bi bi-soundwave"></i>
-                    </div>
-                    <div>
-                        <h5 class="font-bold font-outfit text-white text-base m-0">Pengaturan Suara</h5>
-                        <p class="text-[11px] text-slate-400 m-0">Bel audio melodi &amp; sebut nama siswa</p>
-                    </div>
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- FOOTER INFORMASI                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <footer class="bg-slate-950/60 border-t border-slate-800/80 py-3 px-4 sm:px-8 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 relative z-10">
+        <div>
+            &copy; {{ date('Y') }} {{ $setting->nama_sekolah ?? 'Sistem Presensi' }}
+        </div>
+        <div class="flex items-center gap-3 text-[11px]">
+            <span class="hidden lg:inline-flex items-center gap-1.5 text-slate-500">
+                <i class="fa-solid fa-keyboard"></i> F layar penuh &middot; M mode &middot; S suara
+            </span>
+            <span class="flex items-center gap-1.5 text-emerald-400">
+                <i class="fa-solid fa-wifi"></i> Online
+            </span>
+        </div>
+    </footer>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- MODAL PENGATURAN SUARA                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="modal-audio" class="modal-backdrop">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-5" role="dialog" aria-modal="true" aria-labelledby="modal-audio-title">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-volume-high text-emerald-400 text-sm"></i>
+                    <h3 id="modal-audio-title" class="font-bold text-white text-sm m-0">Pengaturan Suara</h3>
                 </div>
-                <button type="button" id="btn-close-audio" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all">
-                    <i class="bi bi-x-lg text-sm"></i>
+                <button type="button" id="btn-close-audio" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors" aria-label="Tutup pengaturan suara">
+                    <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
             </div>
 
-            <div class="space-y-3 mb-5">
-                <!-- Chime Bel Bel -->
-                <label class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-all">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base">
-                            <i class="bi bi-bell-fill"></i>
-                        </div>
-                        <div>
-                            <div class="text-xs font-bold text-white">Suara Bel / Melodi Notifikasi</div>
-                            <div class="text-[11px] text-slate-400">Melodi nada saat presensi tercatat</div>
-                        </div>
-                    </div>
-                    <input type="checkbox" id="setting-sound-chime" class="w-5 h-5 accent-rose-600 rounded cursor-pointer">
+            <div class="space-y-2.5 mb-4">
+                <label class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/70 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-colors">
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-white">Nada Notifikasi</span>
+                        <span class="block text-[11px] text-slate-400">Bunyi saat presensi tercatat</span>
+                    </span>
+                    <input type="checkbox" id="setting-sound-chime" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0">
                 </label>
 
-                <!-- Voice TTS -->
-                <label class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-all">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-base">
-                            <i class="bi bi-megaphone-fill"></i>
-                        </div>
-                        <div>
-                            <div class="text-xs font-bold text-white">Sebut Nama Siswa (Voice TTS)</div>
-                            <div class="text-[11px] text-slate-400">Pengucapan nama alami bahasa Indonesia (id-ID)</div>
-                        </div>
-                    </div>
-                    <input type="checkbox" id="setting-voice-tts" class="w-5 h-5 accent-rose-600 rounded cursor-pointer">
+                <label class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/70 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-colors">
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-white">Sebut Nama Siswa</span>
+                        <span class="block text-[11px] text-slate-400">Pengucapan nama via Text-to-Speech</span>
+                    </span>
+                    <input type="checkbox" id="setting-voice-tts" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0">
                 </label>
             </div>
 
-            <div class="pt-4 border-t border-white/10">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Uji Coba Suara:</span>
-                <div class="grid grid-cols-2 gap-2.5">
-                    <button type="button" data-soundtest="in" class="py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
-                        <i class="bi bi-play-circle-fill text-sm"></i> Tes Masuk
+            <div class="pt-3 border-t border-slate-800">
+                <span class="text-[11px] text-slate-400 block mb-2">Uji Suara</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" data-soundtest="in" class="py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                        <i class="fa-solid fa-play text-[10px]"></i> Masuk
                     </button>
-                    <button type="button" data-soundtest="out" class="py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 font-bold text-xs flex items-center justify-center gap-1.5 transition-all">
-                        <i class="bi bi-play-circle-fill text-sm"></i> Tes Pulang
+                    <button type="button" data-soundtest="out" class="py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
+                        <i class="fa-solid fa-play text-[10px]"></i> Pulang
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- 4. JAVASCRIPT LOGIC & LIBRARIES                     -->
-    <!-- ═══════════════════════════════════════════════════ -->
     <!-- html5-qrcode library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -793,84 +718,73 @@
     (function () {
         'use strict';
 
-        // ── Avatar cadangan: semuanya lokal, tidak bergantung server eksternal ──
-        const FOTO_CADANGAN = {!! json_encode(\App\Services\AvatarService::cadangan(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
-        const FOTO_STANDBY = {!! json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
-        const FOTO_PERINGATAN = {!! json_encode(\App\Services\AvatarService::inisial('Alert', 128, \App\Libraries\Theme::metaColor('primary')), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)!!};
-
-        // ── STATE VARIABLES ──────────────────────────
+        const SCAN_URL = '{{ $scan_url }}';
+        const HISTORY_URL = '{{ $history_url }}';
+        const CSRF_TOKEN = '{{ csrf_token() }}';
+        const DEFAULT_PHOTO = {!! json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
         const MODE_TAB = {
-            masukOpen:  {{ !empty($modeTabD['masuk_open']) ? 'true' : 'false' }},
-            pulangOpen: {{ !empty($modeTabD['pulang_open']) ? 'true' : 'false' }},
-            masukMsg:   {!! json_encode($modeTabD['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            pulangMsg:  {!! json_encode($modeTabD['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            jamMasuk:   {!! json_encode($modeTabD['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            bukaMasuk:  {!! json_encode($modeTabD['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            tutupMasuk: {!! json_encode($modeTabD['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            jamPulang:  {!! json_encode($modeTabD['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            bukaPulang: {!! json_encode($modeTabD['buka_pulang'] ?? ($modeTabD['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE)!!},
-            qrAktif:    {{ !empty($modeTabD['qr_aktif']) ? 'true' : 'false' }},
-            qrMulai:    {!! json_encode($modeTabD['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
-            qrSelesai:  {!! json_encode($modeTabD['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE)!!},
+            masukOpen:  {{ !empty($mode_tab['masuk_open']) ? 'true' : 'false' }},
+            pulangOpen: {{ !empty($mode_tab['pulang_open']) ? 'true' : 'false' }},
+            defaultMode: {!! json_encode(($mode_tab['default_mode'] ?? 'masuk') === 'keluar' ? 'keluar' : 'masuk') !!},
+            masukMsg:   {!! json_encode($mode_tab['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            pulangMsg:  {!! json_encode($mode_tab['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            jamMasuk:   {!! json_encode($mode_tab['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            bukaMasuk:  {!! json_encode($mode_tab['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            tutupMasuk: {!! json_encode($mode_tab['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            jamPulang:  {!! json_encode($mode_tab['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            bukaPulang: {!! json_encode($mode_tab['buka_pulang'] ?? ($mode_tab['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE) !!},
+            qrAktif:    {{ !empty($mode_tab['qr_aktif']) ? 'true' : 'false' }},
+            qrMulai:    {!! json_encode($mode_tab['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            qrSelesai:  {!! json_encode($mode_tab['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE) !!}
         };
-        let scanMode        = {!! json_encode($defModeD ?? 'masuk')!!}; // bawaan mengikuti jadwal
-        let html5QrCode     = null;
-        let isScanning      = false;
-        let isProcessing    = false;
-        let isCameraPaused  = false;
-        let isTorchOn       = false;
-        let cameraDevices   = [];
-        let currentCameraId = null;
-        let facingModeIndex = 0; // 0: environment, 1: user
-        const facingModes   = ['environment', 'user'];
 
-        let soundEnabled    = localStorage.getItem('presensi_qr_sound') !== '0';
-        let voiceEnabled    = localStorage.getItem('presensi_qr_voice') !== '0';
-        let rfidMode        = localStorage.getItem('presensi_qr_rfid') === '1';
-        let audioCtx        = null;
+        let activeMode       = 'auto';
+        let soundEnabled     = localStorage.getItem('presensi_qr_sound') !== '0';
+        let voiceEnabled     = localStorage.getItem('presensi_qr_voice') !== '0';
+        let isProcessing     = false;
+        let isScanning       = false;
+        let isCameraPaused   = false;
+        let isTorchOn        = false;
+        let cameraDevices    = [];
+        let currentCameraId  = null;
+        let facingModeIndex  = 0;
+        const facingModes    = ['environment', 'user'];
 
-        let heroResetTimer  = null;
-        let heroInterval    = null;
+        let html5QrCode      = null;
+        let cameraOverlayGuard = null;
+        let countdownTimer   = null;
+        let countdownInterval = null;
+        let modeRefreshTimer = null;
 
-        // ── GPS kiosk untuk geofence server ──────
-        let kioskLoc = { lat: null, lng: null, accuracy: null, at: 0 };
-        let geoWatchId = null;
+        let audioCtx         = null;
+        let indonesianVoice  = null;
+        let lastScanMethod   = 'QR Code';
 
-        // Jam acuan = jam server (WITA). Tanpa ini jendela buka/tutup scan dan
-        // label "WITA" ikut zona waktu perangkat: kiosk WIB membuka scan
-        // satu jam lebih awal. Cukup sekali: stamp dibekukan saat render, jadi
-        // witaInit() ulang dengan stamp identik akan membekukan jam di waktu
-        // load, bukan membuatnya mengikuti server.
+        let kioskLoc = { lat: null, lng: null, accuracy: null };
+        const modeState = { masukOpen: MODE_TAB.masukOpen, pulangOpen: MODE_TAB.pulangOpen, masukMsg: MODE_TAB.masukMsg, pulangMsg: MODE_TAB.pulangMsg };
+
+        // Jam acuan = jam server (WITA), bukan jam perangkat.
         witaInit('{{ date('Y-m-d H:i:s') }}');
 
-        // ── 1. REALTIME DIGITAL CLOCK & CALENDAR ─────
-        function updateDigitalClock() {
+        // ── 1. JAM & TANGGAL ─────────────────────────────
+        function updateClock() {
             const now = witaNow();
-            const hrs = String(now.getHours()).padStart(2, '0');
-            const min = String(now.getMinutes()).padStart(2, '0');
-            const sec = String(now.getSeconds()).padStart(2, '0');
-            $('#desktop-digital-clock').text(`${hrs}:${min}:${sec} WITA`);
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-            const hariList  = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const bulanList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            const hari  = hariList[now.getDay()];
-            const tgl   = now.getDate();
-            const bln   = bulanList[now.getMonth()];
-            const thn   = now.getFullYear();
-            $('#desktop-calendar-date').text(`${hari}, ${tgl} ${bln} ${thn}`);
+            $('#liveDate').text(`${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`);
+            $('#liveTime').text(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`);
         }
-        setInterval(updateDigitalClock, 1000);
-        updateDigitalClock();
+        setInterval(updateClock, 1000);
+        updateClock();
 
-        // ── 2. WEB AUDIO SYNTHESIZER & INDONESIAN TTS 
+        // ── 2. AUDIO (CHIME & TTS) ───────────────────────
         function unlockAudio() {
             if (!audioCtx) {
                 const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
                 if (AudioCtxClass) audioCtx = new AudioCtxClass();
             }
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         }
         $(document).one('click keydown touchstart', unlockAudio);
 
@@ -883,38 +797,22 @@
                 const ctx = audioCtx;
                 const now = ctx.currentTime;
 
-                if (type === 'success_in') {
-                    // Rising 3-tone chime (E5 -> G#5 -> B5)
-                    [659.25, 830.61, 987.77].forEach((freq, i) => {
+                if (type === 'success_in' || type === 'success_out') {
+                    const notes = type === 'success_in' ? [659.25, 830.61, 987.77] : [987.77, 830.61, 659.25];
+                    notes.forEach((freq, i) => {
                         const t = now + (i * 0.08);
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(freq, t);
-                        gain.gain.setValueAtTime(0.24, t);
-                        gain.gain.exponentialRampToValueAtTime(0.001, t + (i === 2 ? 0.6 : 0.25));
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.start(t);
-                        osc.stop(t + (i === 2 ? 0.6 : 0.25));
-                    });
-                } else if (type === 'success_out') {
-                    // Warm descending 3-tone chime (B5 -> G#5 -> E5)
-                    [987.77, 830.61, 659.25].forEach((freq, i) => {
-                        const t = now + (i * 0.09);
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(freq, t);
                         gain.gain.setValueAtTime(0.22, t);
-                        gain.gain.exponentialRampToValueAtTime(0.001, t + (i === 2 ? 0.55 : 0.22));
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + (i === 2 ? 0.55 : 0.24));
                         osc.connect(gain);
                         gain.connect(ctx.destination);
                         osc.start(t);
-                        osc.stop(t + (i === 2 ? 0.55 : 0.22));
+                        osc.stop(t + (i === 2 ? 0.55 : 0.24));
                     });
                 } else if (type === 'warning') {
-                    // Double warning ping
                     [440, 349.23].forEach((freq, i) => {
                         const t = now + (i * 0.12);
                         const osc = ctx.createOscillator();
@@ -929,46 +827,40 @@
                         osc.stop(t + 0.18);
                     });
                 } else {
-                    // Error tone
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(220, now);
                     osc.frequency.exponentialRampToValueAtTime(130, now + 0.28);
-                    gain.gain.setValueAtTime(0.24, now);
+                    gain.gain.setValueAtTime(0.22, now);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
                     osc.connect(gain);
                     gain.connect(ctx.destination);
                     osc.start(now);
                     osc.stop(now + 0.28);
                 }
-            } catch (e) {
-                console.warn('playChime error:', e);
-            }
+            } catch (e) {}
         }
 
-        // Format nama siswa agar diucapkan secara fonetik alami oleh TTS (tidak dieja per huruf)
         function formatSpeechName(fullName) {
             if (!fullName) return '';
-            let clean = String(fullName).replace(/['"`]/g, '').replace(/[^\w\s]/gi, ' ').trim();
-            let words = clean.toLowerCase().split(/\s+/).filter(Boolean);
-            if (words.length === 0) return '';
+            const clean = String(fullName).replace(/['"`]/g, '').replace(/[^\w\s]/gi, ' ').trim();
+            const words = clean.toLowerCase().split(/\s+/).filter(Boolean);
+            if (!words.length) return '';
             const maxWords = (words[0].length <= 2 && words.length > 2) ? 3 : 2;
-            const picked = words.slice(0, Math.min(words.length, maxWords));
-            return picked.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            return words.slice(0, Math.min(words.length, maxWords))
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
         }
 
-        // Cache voice bahasa Indonesia
-        let indonesianVoice = null;
         function getIndonesianVoice() {
             if (!('speechSynthesis' in window)) return null;
             if (indonesianVoice) return indonesianVoice;
             const voices = window.speechSynthesis.getVoices();
-            if (!voices || voices.length === 0) return null;
-
+            if (!voices || !voices.length) return null;
             indonesianVoice = voices.find(v => v.lang === 'id-ID' || v.lang === 'id_ID')
                 || voices.find(v => v.lang && v.lang.toLowerCase().startsWith('id'))
-                || voices.find(v => v.name && (v.name.toLowerCase().includes('indonesia') || v.name.toLowerCase().includes('indonesian')))
+                || voices.find(v => v.name && /indonesia|indonesian/i.test(v.name))
                 || null;
             return indonesianVoice;
         }
@@ -978,7 +870,7 @@
                 indonesianVoice = null;
                 getIndonesianVoice();
             };
-            try { window.speechSynthesis.getVoices(); } catch(e) {}
+            try { window.speechSynthesis.getVoices(); } catch (e) {}
         }
 
         function speakText(rawText) {
@@ -986,165 +878,61 @@
             try {
                 window.speechSynthesis.cancel();
                 let text = String(rawText).replace(/['"`]/g, '').trim();
-                text = text.replace(/\b[A-Z]{2,}\b/g, match => match.charAt(0) + match.slice(1).toLowerCase());
+                text = text.replace(/\b[A-Z]{2,}\b/g, m => m.charAt(0) + m.slice(1).toLowerCase());
 
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID';
                 utterance.rate = 1.0;
                 utterance.pitch = 1.0;
-
                 const voice = getIndonesianVoice();
                 if (voice) utterance.voice = voice;
 
-                setTimeout(() => {
-                    try { window.speechSynthesis.speak(utterance); } catch (e) {}
-                }, 60);
-            } catch (e) {
-                console.warn('speakText error:', e);
-            }
+                setTimeout(() => { try { window.speechSynthesis.speak(utterance); } catch (e) {} }, 60);
+            } catch (e) {}
         }
 
-        // ── 3. AUDIO SETTINGS MODAL ──────────────────
-        window.openAudioSettings = function () {
-            $('#setting-sound-chime').prop('checked', soundEnabled);
-            $('#setting-voice-tts').prop('checked', voiceEnabled);
-            $('#modal-audio-settings-desktop').addClass('active');
-        };
-
-        window.closeAudioSettings = function () {
-            $('#modal-audio-settings-desktop').removeClass('active');
-            focusBarcodeGunInput();
-        };
-
-        $('#modal-audio-settings-desktop').on('click', function (e) {
-            if (e.target === this) window.closeAudioSettings();
-        });
-
-        window.toggleSoundSetting = function (checked) {
-            soundEnabled = !!checked;
-            localStorage.setItem('presensi_qr_sound', soundEnabled ? '1' : '0');
-            updateAudioIcons();
-            if (soundEnabled) playChime('success_in');
-        };
-
-        // ── RFID & FINGERPRINT MODE CONTROLS ──────────
-        function updateScannerModeControls() {
-            const $badge      = $('#rfid-mode-badge');
-            const $btnRfid    = $('#btn-toggle-rfid-mode');
-            const $btnFp      = $('#btn-toggle-fp-mode');
-            const $input      = $('#input-barcode-scanner');
-            const $lblText    = $('#input-scanner-label');
-            const $lblIcon    = $('#input-scanner-icon');
-
-            if (rfidMode) {
-                $badge.removeClass('hidden bg-purple-900/60 text-purple-200 border-purple-500/30')
-                      .addClass('bg-emerald-900/60 text-emerald-200 border-emerald-500/30')
-                      .html('<i class="bi bi-credit-card-2-front mr-1"></i> RFID AKTIF');
-                $btnRfid.addClass('active-scanner-tab').removeClass('bg-slate-800 text-slate-300 border-slate-600');
-                $btnFp.removeClass('active-scanner-tab').addClass('bg-slate-800 text-slate-300 border-slate-600');
-                $lblText.text('Kartu RFID / Nomor Kartu');
-                $lblIcon.attr('class', 'bi bi-credit-card-2-front text-emerald-400');
-                $input.attr('placeholder', 'Tempel kartu RFID, tembak QR, atau ketik NIS…');
-            } else if (fpMode) {
-                $badge.removeClass('hidden bg-emerald-900/60 text-emerald-200 border-emerald-500/30')
-                      .addClass('bg-purple-900/60 text-purple-200 border-purple-500/30')
-                      .html('<i class="bi bi-fingerprint mr-1"></i> FP AKTIF');
-                $btnFp.addClass('active-scanner-tab').removeClass('bg-slate-800 text-slate-300 border-slate-600');
-                $btnRfid.removeClass('active-scanner-tab').addClass('bg-slate-800 text-slate-300 border-slate-600');
-                $lblText.text('UserID Fingerprint');
-                $lblIcon.attr('class', 'bi bi-fingerprint text-purple-400');
-                $input.attr('placeholder', 'Tembak / ketik UserID sidik jari lalu Enter…');
-            } else {
-                $badge.addClass('hidden');
-                $btnRfid.removeClass('active-scanner-tab').addClass('bg-slate-800 text-slate-300 border-slate-600');
-                $btnFp.removeClass('active-scanner-tab').addClass('bg-slate-800 text-slate-300 border-slate-600');
-                $lblText.text('Barcode / NIS / RFID');
-                $lblIcon.attr('class', 'bi bi-upc-scan text-rose-400');
-                $input.attr('placeholder', 'Tembak Barcode / Ketik NIS / Tempel RFID…');
-            }
-        }
-
-        window.toggleRfidMode = function () {
-            rfidMode = !rfidMode;
-            if (rfidMode) fpMode = false; // saling eksklusif untuk input teks
-            localStorage.setItem('presensi_qr_rfid', rfidMode ? '1' : '0');
-            localStorage.setItem('presensi_qr_fp', fpMode ? '1' : '0');
-            updateScannerModeControls();
-            focusBarcodeGunInput();
-            if (rfidMode) {
-                showHeroResult({ status: true, message: 'Mode Kartu RFID diaktifkan. Tempelkan kartu pada reader.' }, scanMode);
-                setTimeout(resetHeroStandby, 1500);
-            }
-        };
-
-        let fpMode = localStorage.getItem('presensi_qr_fp') === '1';
-
-        window.toggleFpMode = function () {
-            fpMode = !fpMode;
-            if (fpMode) rfidMode = false;
-            localStorage.setItem('presensi_qr_fp', fpMode ? '1' : '0');
-            localStorage.setItem('presensi_qr_rfid', rfidMode ? '1' : '0');
-            updateScannerModeControls();
-            focusBarcodeGunInput();
-            if (fpMode) {
-                showHeroResult({ status: true, message: 'Mode Sidik Jari diaktifkan. Masukkan ID fingerprint.' }, scanMode);
-                setTimeout(resetHeroStandby, 1500);
-            }
-        };
-
-        // Inisialisasi awal UI scanner mode
-        updateScannerModeControls();
-
-        window.toggleVoiceSetting = function (checked) {
-            voiceEnabled = !!checked;
-            localStorage.setItem('presensi_qr_voice', voiceEnabled ? '1' : '0');
-            if (voiceEnabled) speakText('Suara aktif');
-        };
-
-        window.testDesktopSound = function (type) {
-            unlockAudio();
-            if (type === 'in') {
-                playChime('success_in');
-                setTimeout(() => speakText('Tes suara. Absen masuk.'), 300);
-            } else {
-                playChime('success_out');
-                setTimeout(() => speakText('Tes suara. Absen pulang.'), 300);
-            }
-        };
-
-        function updateAudioIcons() {
+        function syncAudioUi() {
             const icon = document.getElementById('header-audio-icon');
             if (icon) {
-                icon.className = (soundEnabled || voiceEnabled) ? 'bi bi-volume-up-fill text-sm' : 'bi bi-volume-mute-fill text-sm text-rose-400';
+                icon.className = (soundEnabled || voiceEnabled)
+                    ? 'fa-solid fa-volume-high text-emerald-400 text-xs sm:text-sm'
+                    : 'fa-solid fa-volume-xmark text-slate-500 text-xs sm:text-sm';
             }
+            $('#setting-sound-chime').prop('checked', soundEnabled);
+            $('#setting-voice-tts').prop('checked', voiceEnabled);
         }
-        updateAudioIcons();
 
-        // ── 4. MODE SWITCHER (MASUK / PULANG, mengikuti jadwal otomatis) ──
-        function normHMS(s) { s = String(s || ''); return s.length === 5 ? s + ':00' : s; }
-        function nowHMS() {
-            return witaHMS();
+        function openAudioSettings() {
+            syncAudioUi();
+            $('#modal-audio').addClass('active');
         }
+
+        function closeAudioSettings() {
+            $('#modal-audio').removeClass('active');
+            focusBarcodeInput();
+        }
+
+        // ── 3. MODE PRESENSI ─────────────────────────────
+        function normHMS(s) { s = String(s || ''); return s.length === 5 ? s + ':00' : s; }
+
         function computeModeOpen(now) {
             let mOpen = true, mMsg = '';
             if (MODE_TAB.bukaMasuk && MODE_TAB.tutupMasuk) {
                 const b = normHMS(MODE_TAB.bukaMasuk), t = normHMS(MODE_TAB.tutupMasuk);
-                if (now < b)      { mOpen = false; mMsg = 'Absen Masuk belum dibuka. Jadwal: ' + MODE_TAB.jamMasuk + ' (Dibuka ' + MODE_TAB.bukaMasuk + ')'; }
-                else if (now > t) { mOpen = false; mMsg = 'Waktu Absen Masuk habis. Batas: ' + MODE_TAB.tutupMasuk; }
+                if (now < b) { mOpen = false; mMsg = 'Absen masuk belum dibuka. Jadwal: ' + MODE_TAB.jamMasuk + ' (dibuka ' + MODE_TAB.bukaMasuk + ').'; }
+                else if (now > t) { mOpen = false; mMsg = 'Waktu absen masuk habis. Batas: ' + MODE_TAB.tutupMasuk + '.'; }
             }
             if (mOpen && MODE_TAB.qrAktif && MODE_TAB.qrMulai && MODE_TAB.qrSelesai) {
                 const qs = normHMS(MODE_TAB.qrMulai), qe = normHMS(MODE_TAB.qrSelesai);
                 if (now < qs || now > qe) { mOpen = false; mMsg = 'Di luar jam operasional scan (' + MODE_TAB.qrMulai + '–' + MODE_TAB.qrSelesai + ').'; }
             }
+
             let pOpen = true, pMsg = '';
-            // Pulang langsung dibuka begitu jendela masuk ditutup (bukaPulang
-            // = min(tutup_masuk, jam_pulang) dari server).
             const bp = MODE_TAB.bukaPulang || MODE_TAB.jamPulang;
             if (bp && now < normHMS(bp)) {
-                pOpen = false; pMsg = 'Belum waktunya pulang. Pulang dibuka pukul ' + bp + '.';
+                pOpen = false;
+                pMsg = 'Belum waktunya pulang. Pulang dibuka pukul ' + bp + '.';
             }
-            // Jendela operasional yang sama menutup tab pulang — dulu tab ini
-            // tetap terbuka sampai lewat tengah malam.
             if (pOpen && MODE_TAB.qrAktif && MODE_TAB.qrMulai && MODE_TAB.qrSelesai) {
                 const qs = normHMS(MODE_TAB.qrMulai), qe = normHMS(MODE_TAB.qrSelesai);
                 if (now < qs || now > qe) {
@@ -1152,287 +940,98 @@
                     pMsg = 'Di luar jam operasional scan (' + MODE_TAB.qrMulai + '–' + MODE_TAB.qrSelesai + '). Scan pulang ditutup pukul ' + MODE_TAB.qrSelesai + '.';
                 }
             }
+
             return { mOpen, mMsg, pOpen, pMsg };
         }
-        function modeBlockedMsg(m) {
-            if (m === 'masuk' && !MODE_TAB.masukOpen)   return MODE_TAB.masukMsg || 'Di luar jadwal absen masuk.';
-            if (m === 'keluar' && !MODE_TAB.pulangOpen) return MODE_TAB.pulangMsg || 'Belum waktunya pulang.';
-            return '';
-        }
-        function paintModeTabs() {
-            const btnMasuk  = document.getElementById('btn-mode-masuk');
-            const btnKeluar = document.getElementById('btn-mode-keluar');
-            if (btnMasuk) {
-                btnMasuk.disabled = !MODE_TAB.masukOpen;
-                btnMasuk.title = MODE_TAB.masukOpen ? '' : (MODE_TAB.masukMsg || 'Di luar jadwal absen masuk');
-            }
-            if (btnKeluar) {
-                btnKeluar.disabled = !MODE_TAB.pulangOpen;
-                btnKeluar.title = MODE_TAB.pulangOpen ? '' : (MODE_TAB.pulangMsg || 'Belum waktunya pulang');
-            }
-        }
-        function applyScanMode(m) {
-            scanMode = m;
-            const btnMasuk  = document.getElementById('btn-mode-masuk');
-            const btnKeluar = document.getElementById('btn-mode-keluar');
-            if (btnMasuk) btnMasuk.classList.remove('active-masuk', 'active-keluar');
-            if (btnKeluar) btnKeluar.classList.remove('active-masuk', 'active-keluar');
-            if (m === 'masuk') {
-                if (btnMasuk) btnMasuk.classList.add('active-masuk');
-                $('#scanner-laser').css({
-                    'background': 'linear-gradient(90deg, transparent, #34d399, #10b981, #34d399, transparent)',
-                    'box-shadow': '0 0 16px #10b981, 0 0 24px rgba(16, 185, 129, 0.6)'
-                });
-                $('.scanner-corner').css('border-color', '#10b981');
-            } else {
-                if (btnKeluar) btnKeluar.classList.add('active-keluar');
-                $('#scanner-laser').css({
-                    'background': 'linear-gradient(90deg, transparent, #fbbf24, #f59e0b, #fbbf24, transparent)',
-                    'box-shadow': '0 0 16px #f59e0b, 0 0 24px rgba(245, 158, 11, 0.6)'
-                });
-                $('.scanner-corner').css('border-color', '#f59e0b');
-            }
-            focusBarcodeGunInput();
-        }
-        // Hitung ulang + pindah tab otomatis (diam-diam) saat melewati batas waktu.
-        function refreshModeTabs() {
-            try {
-                const st = computeModeOpen(nowHMS());
-                MODE_TAB.masukOpen = st.mOpen;   MODE_TAB.masukMsg = st.mMsg;
-                MODE_TAB.pulangOpen = st.pOpen;  MODE_TAB.pulangMsg = st.pMsg;
-                paintModeTabs();
-                const curOpen = (scanMode === 'masuk') ? st.mOpen : st.pOpen;
-                if (!curOpen) {
-                    if (st.mOpen) applyScanMode('masuk');
-                    else if (st.pOpen) applyScanMode('keluar');
-                }
-                scheduleNextSwitch();
-            } catch (e) {}
-        }
-        // Refresh tepat pada detik batas berikutnya (presisi detik); interval hanya pengaman.
-        function scheduleNextSwitch() {
-            try {
-                if (scheduleNextSwitch._t) clearTimeout(scheduleNextSwitch._t);
-                const cands = [MODE_TAB.bukaMasuk, MODE_TAB.tutupMasuk, MODE_TAB.bukaPulang || MODE_TAB.jamPulang];
-                if (MODE_TAB.qrAktif) cands.push(MODE_TAB.qrMulai, MODE_TAB.qrSelesai);
-                let best = null;
-                // Selisih dihitung dalam detik-jam-WITA, bukan Date lokal:
-                // batas '07:30' adalah jam server, jadi di kiosk WIB timer lama
-                // meleset satu jam.
-                const detikHari = (hms) => { const q = String(hms).split(':'); return (+q[0] || 0) * 3600 + (+q[1] || 0) * 60 + (+q[2] || 0); };
-                const nowSec = detikHari(witaHMS());
-                cands.filter(Boolean).map(normHMS).forEach(h => {
-                    const delta = detikHari(h) - nowSec;
-                    if (delta > 0) {
-                        const ms = delta * 1000;
-                        if (best === null || ms < best) best = ms;
-                    }
-                });
-                if (best !== null) scheduleNextSwitch._t = setTimeout(refreshModeTabs, best + 400);
-            } catch (e) {}
-        }
-        window.setScanMode = function (m) {
-            const msg = modeBlockedMsg(m);
-            if (msg) {
-                if (typeof showHeroResult === 'function') showHeroResult({ status: false, message: msg }, m);
-                else alert(msg);
-                return;
-            }
-            applyScanMode(m);
-        };
-        // Inisialisasi senyap (tanpa popup): pastikan mode yang tampil sedang terbuka
-        refreshModeTabs();
-        setInterval(refreshModeTabs, 15000);
-        document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshModeTabs(); });
 
-        // ── 5. FULLSCREEN KIOSK TOGGLE ───────────────
-        window.toggleKioskFullscreen = function () {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().then(() => {
-                    $('#label-fullscreen').text('Keluar Fullscreen');
-                }).catch(err => {
-                    console.warn('Fullscreen error:', err);
-                });
-            } else {
-                document.exitFullscreen().then(() => {
-                    $('#label-fullscreen').text('Layar Penuh');
-                });
-            }
-        };
-
-        document.addEventListener('fullscreenchange', function () {
-            if (!document.fullscreenElement) {
-                $('#label-fullscreen').text('Layar Penuh');
-            }
-        });
-
-        // ── 6. CAMERA INITIALIZATION (HTML5-QRCODE) ──
-        function initDesktopCamera() {
-            $('#camera-loading-overlay').show();
-            $('#camera-error-overlay').hide();
-
-            if (html5QrCode) {
-                html5QrCode.stop().catch(() => {}).then(startNewScanner);
-            } else {
-                startNewScanner();
-            }
+        function effectiveMode() {
+            if (activeMode !== 'auto') return activeMode;
+            const preferred = MODE_TAB.defaultMode === 'keluar' ? 'pulang' : 'masuk';
+            if (modeState[preferred + 'Open']) return preferred;
+            const other = preferred === 'masuk' ? 'pulang' : 'masuk';
+            if (modeState[other + 'Open']) return other;
+            return preferred;
         }
 
-        function startNewScanner() {
-            html5QrCode = new Html5Qrcode('qr-reader-desktop');
+        function updateModeIndicator() {
+            const mode = effectiveMode();
+            const isPulang = mode === 'pulang';
+            const prefix = activeMode === 'auto' ? 'Mode otomatis' : 'Mode manual';
 
-            // Enumerasi kamera input
-            Html5Qrcode.getCameras().then(devices => {
-                cameraDevices = devices || [];
-                const $select = $('#select-video-device');
-                $select.empty();
+            $('#scan-hint-text').text(`${prefix} · ${isPulang ? 'Pulang' : 'Masuk'} — arahkan QR code ke kamera`);
 
-                if (devices && devices.length > 0) {
-                    devices.forEach((dev, idx) => {
-                        const label = dev.label || `Kamera ${idx + 1}`;
-                        $select.append(`<option value="${dev.id}">${label}</option>`);
-                    });
-                    currentCameraId = devices[0].id;
-                    startCameraWithConfig({ deviceId: { exact: currentCameraId } });
-                } else {
-                    startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
-                }
-            }).catch(err => {
-                console.warn('getCameras error, fallback to facingMode:', err);
-                startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
+            $('#scanner-laser').css({
+                'background': isPulang
+                    ? 'linear-gradient(90deg, transparent, #fbbf24, #f59e0b, #fbbf24, transparent)'
+                    : 'linear-gradient(90deg, transparent, #34d399, #10b981, #34d399, transparent)',
+                'box-shadow': isPulang
+                    ? '0 0 16px #f59e0b, 0 0 24px rgba(245, 158, 11, 0.6)'
+                    : '0 0 16px #10b981, 0 0 24px rgba(16, 185, 129, 0.6)'
             });
+            $('.scanner-corner').css('border-color', isPulang ? '#f59e0b' : '#10b981');
+
+            const notes = [];
+            if (!modeState.masukOpen) notes.push(modeState.masukMsg || 'Absen masuk sedang ditutup.');
+            if (!modeState.pulangOpen) notes.push(modeState.pulangMsg || 'Absen pulang sedang ditutup.');
+            $('#mode-status-note').text(notes.join(' ')).toggleClass('hidden', notes.length === 0);
         }
 
-        function startCameraWithConfig(cameraConfig) {
-            const config = {
-                fps: 20,
-                qrbox: function (viewfinderWidth, viewfinderHeight) {
-                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    const qrEdge  = Math.floor(minEdge * 0.75);
-                    return { width: qrEdge, height: qrEdge };
-                },
-                aspectRatio: 1.777778, // 16:9 widescreen
-            };
-
-            html5QrCode.start(
-                cameraConfig,
-                config,
-                onScanSuccess,
-                onScanFailure
-            ).then(() => {
-                $('#camera-loading-overlay').hide();
-                $('#camera-error-overlay').hide();
-                isScanning = true;
-                isCameraPaused = false;
-                $('#label-pause-cam').text('Jeda');
-                $('#icon-pause-cam').attr('class', 'bi bi-pause-fill');
-                checkTorchDesktopSupport();
-                focusBarcodeGunInput();
-            }).catch(err => {
-                console.error('Camera start error:', err);
-                $('#camera-loading-overlay').hide();
-                $('#camera-error-overlay').show();
-                isScanning = false;
-            });
+        function setMode(mode) {
+            activeMode = mode;
+            $('#mode-group button').removeClass('active text-white').addClass('text-slate-400').attr('aria-pressed', 'false');
+            $(`#mode-group button[data-mode="${mode}"]`).addClass('active text-white').removeClass('text-slate-400').attr('aria-pressed', 'true');
+            updateModeIndicator();
+            focusBarcodeInput();
         }
 
-        window.switchCameraDevice = function (deviceId) {
-            if (!deviceId || deviceId === currentCameraId) return;
-            if (!html5QrCode) { currentCameraId = deviceId; initDesktopCamera(); return; }
-            currentCameraId = deviceId;
-            $('#camera-loading-overlay').show();
-            html5QrCode.stop().then(() => {
-                startCameraWithConfig({ deviceId: { exact: deviceId } });
-            }).catch(() => initDesktopCamera());
-        };
+        function refreshModes() {
+            const st = computeModeOpen(witaHMS());
+            modeState.masukOpen = st.mOpen;
+            modeState.pulangOpen = st.pOpen;
+            modeState.masukMsg = st.mMsg;
+            modeState.pulangMsg = st.pMsg;
+            updateModeIndicator();
+            scheduleNextModeRefresh();
+        }
 
-        window.cycleFacingMode = function () {
-            if (!html5QrCode) { initDesktopCamera(); return; }
-            facingModeIndex = (facingModeIndex + 1) % facingModes.length;
-            $('#camera-loading-overlay').show();
-            html5QrCode.stop().then(() => {
-                startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
-            }).catch(() => initDesktopCamera());
-        };
+        function scheduleNextModeRefresh() {
+            clearTimeout(modeRefreshTimer);
+            const toSec = h => { const p = String(h || '').split(':'); return (+p[0] || 0) * 3600 + (+p[1] || 0) * 60 + (+p[2] || 0); };
+            const nowSec = toSec(witaHMS());
+            const marks = [MODE_TAB.bukaMasuk, MODE_TAB.tutupMasuk, MODE_TAB.bukaPulang || MODE_TAB.jamPulang];
+            if (MODE_TAB.qrAktif) marks.push(MODE_TAB.qrMulai, MODE_TAB.qrSelesai);
 
-        window.toggleCameraPause = function () {
-            if (!html5QrCode || !isScanning) return;
-            if (!isCameraPaused) {
-                html5QrCode.pause();
-                isCameraPaused = true;
-                $('#label-pause-cam').text('Lanjut');
-                $('#icon-pause-cam').attr('class', 'bi bi-play-fill');
-            } else {
-                html5QrCode.resume();
-                isCameraPaused = false;
-                $('#label-pause-cam').text('Jeda');
-                $('#icon-pause-cam').attr('class', 'bi bi-pause-fill');
-            }
-        };
-
-        function checkTorchDesktopSupport() {
-            try {
-                const video = document.querySelector('#qr-reader-desktop video');
-                if (video && video.srcObject) {
-                    const track = video.srcObject.getVideoTracks()[0];
-                    const caps  = track.getCapabilities ? track.getCapabilities() : {};
-                    if (caps.torch) {
-                        $('#btn-desktop-torch').show();
-                    } else {
-                        $('#btn-desktop-torch').hide();
-                    }
+            let best = null;
+            marks.filter(Boolean).map(normHMS).forEach(h => {
+                const delta = toSec(h) - nowSec;
+                if (delta > 0) {
+                    const ms = delta * 1000;
+                    if (best === null || ms < best) best = ms;
                 }
-            } catch (e) {}
+            });
+            modeRefreshTimer = setTimeout(refreshModes, best !== null ? best + 400 : 60000);
         }
 
-        window.toggleTorchDesktop = function () {
-            try {
-                const video = document.querySelector('#qr-reader-desktop video');
-                if (!video || !video.srcObject) return;
-                const track = video.srcObject.getVideoTracks()[0];
-                isTorchOn = !isTorchOn;
-                track.applyConstraints({ advanced: [{ torch: isTorchOn }] }).then(() => {
-                    $('#btn-desktop-torch').toggleClass('active', isTorchOn);
-                }).catch(e => console.warn('Torch error:', e));
-            } catch (e) {}
-        };
-
-        function onScanSuccess(decodedText) {
-            if (isProcessing || !decodedText) return;
-            processAttendanceScan(decodedText);
-        }
-
-        function onScanFailure(error) {
-            // Frame tanpa QR
-        }
-
-        // ── 6b. GPS KIOSK (wajib untuk geofence server) ──
+        // ── 4. GPS ──────────────────────────────────────
         function updateGpsPill() {
-            const $icon = $('#gps-lock-icon');
-            const $text = $('#gps-lock-text');
             if (kioskLoc.lat === null) {
-                $icon.attr('class', 'bi bi-geo-alt-fill text-sm text-slate-400');
-                $text.text('GPS: mencari...');
+                $('#gps-lock-icon').attr('class', 'fa-solid fa-location-dot text-[10px] text-slate-400');
+                $('#gps-lock-text').text('GPS…');
             } else {
-                $icon.attr('class', 'bi bi-geo-alt-fill text-sm text-emerald-400');
-                $text.text('GPS lock ±' + Math.round(kioskLoc.accuracy || 0) + 'm');
+                $('#gps-lock-icon').attr('class', 'fa-solid fa-location-dot text-[10px] text-emerald-400');
+                $('#gps-lock-text').text('GPS ±' + Math.round(kioskLoc.accuracy || 0) + 'm');
             }
         }
 
-        function startKioskGpsWatch() {
+        function startGpsWatch() {
             if (!('geolocation' in navigator)) {
-                $('#gps-lock-text').text('GPS: tak didukung');
+                $('#gps-lock-text').text('Tanpa GPS');
                 return;
             }
             try {
-                geoWatchId = navigator.geolocation.watchPosition(
+                navigator.geolocation.watchPosition(
                     function (pos) {
-                        kioskLoc = {
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
-                            accuracy: pos.coords.accuracy,
-                            at: Date.now()
-                        };
+                        kioskLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
                         updateGpsPill();
                     },
                     function () { updateGpsPill(); },
@@ -1442,32 +1041,190 @@
             updateGpsPill();
         }
 
-        // ── 7. PROSES ABSENSI KE BACKEND ─────────────
-        function processAttendanceScan(qrValue) {
-            if (isProcessing || !qrValue) return;
-            // Segarkan status tab dulu (kios bisa idle melewati batas jadwal),
-            // tolak langsung bila mode sudah tertutup — tanpa request sia-sia.
-            refreshModeTabs();
-            const gateMsg = modeBlockedMsg(scanMode);
-            if (gateMsg) {
-                showHeroResult({ status: false, message: gateMsg }, scanMode);
+        // ── 5. KAMERA ───────────────────────────────────
+        function setCameraOverlay(state) {
+            clearTimeout(cameraOverlayGuard);
+
+            $('#camera-loading-overlay')
+                .toggleClass('hidden', state !== 'loading')
+                .toggleClass('flex', state === 'loading');
+            $('#camera-error-overlay')
+                .toggleClass('hidden', state !== 'error')
+                .toggleClass('flex', state === 'error');
+
+            // Izin kamera bisa menggantung tanpa resolve/reject.
+            if (state === 'loading') {
+                cameraOverlayGuard = setTimeout(function () {
+                    if (!isScanning) setCameraOverlay('error');
+                }, 12000);
+            }
+        }
+
+        function setReaderStatus(text) {
+            $('#reader-status').text(text);
+        }
+
+        function initCamera() {
+            setCameraOverlay('loading');
+            setReaderStatus('Memuat…');
+
+            if (html5QrCode) {
+                html5QrCode.stop().catch(function () {}).then(startNewScanner);
+            } else {
+                startNewScanner();
+            }
+        }
+
+        function startNewScanner() {
+            html5QrCode = new Html5Qrcode('qr-reader-desktop');
+
+            Html5Qrcode.getCameras().then(function (devices) {
+                cameraDevices = devices || [];
+                const $select = $('#select-video-device');
+                $select.empty();
+
+                if (cameraDevices.length > 0) {
+                    cameraDevices.forEach(function (dev, idx) {
+                        const label = dev.label || ('Kamera ' + (idx + 1));
+                        $select.append(`<option value="${dev.id}">${label}</option>`);
+                    });
+                    currentCameraId = cameraDevices[0].id;
+                    startCameraWithConfig({ deviceId: { exact: currentCameraId } });
+                } else {
+                    startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
+                }
+            }).catch(function () {
+                startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
+            });
+        }
+
+        function startCameraWithConfig(cameraConfig) {
+            const config = {
+                fps: 20,
+                qrbox: function (w, h) {
+                    const minEdge = Math.min(w, h);
+                    const edge = Math.floor(minEdge * 0.75);
+                    return { width: edge, height: edge };
+                },
+                aspectRatio: 1.777778
+            };
+
+            html5QrCode.start(cameraConfig, config, onScanSuccess, function () { })
+                .then(function () {
+                    setCameraOverlay('none');
+                    setReaderStatus('Kamera aktif');
+                    isScanning = true;
+                    isCameraPaused = false;
+                    $('#label-pause-cam').text('Jeda');
+                    $('#icon-pause-cam').attr('class', 'fa-solid fa-pause text-xs');
+                    checkTorchSupport();
+                    focusBarcodeInput();
+                })
+                .catch(function (err) {
+                    console.warn('Camera start error:', err);
+                    setCameraOverlay('error');
+                    setReaderStatus('Kamera offline');
+                    isScanning = false;
+                });
+        }
+
+        function switchCameraDevice(deviceId) {
+            if (!deviceId || deviceId === currentCameraId) return;
+            currentCameraId = deviceId;
+            setCameraOverlay('loading');
+            if (!html5QrCode) { initCamera(); return; }
+            html5QrCode.stop().then(function () {
+                startCameraWithConfig({ deviceId: { exact: deviceId } });
+            }).catch(function () { initCamera(); });
+        }
+
+        function cycleFacingMode() {
+            facingModeIndex = (facingModeIndex + 1) % facingModes.length;
+            setCameraOverlay('loading');
+            if (!html5QrCode) { initCamera(); return; }
+            html5QrCode.stop().then(function () {
+                startCameraWithConfig({ facingMode: facingModes[facingModeIndex] });
+            }).catch(function () { initCamera(); });
+        }
+
+        function toggleCameraPause() {
+            if (!html5QrCode || !isScanning) return;
+            if (!isCameraPaused) {
+                html5QrCode.pause();
+                isCameraPaused = true;
+                $('#label-pause-cam').text('Lanjut');
+                $('#icon-pause-cam').attr('class', 'fa-solid fa-play text-xs');
+                setReaderStatus('Dijeda');
+            } else {
+                html5QrCode.resume();
+                isCameraPaused = false;
+                $('#label-pause-cam').text('Jeda');
+                $('#icon-pause-cam').attr('class', 'fa-solid fa-pause text-xs');
+                setReaderStatus('Kamera aktif');
+            }
+        }
+
+        function checkTorchSupport() {
+            try {
+                const video = document.querySelector('#qr-reader-desktop video');
+                if (video && video.srcObject) {
+                    const track = video.srcObject.getVideoTracks()[0];
+                    const caps = track.getCapabilities ? track.getCapabilities() : {};
+                    $('#btn-desktop-torch').toggleClass('hidden', !caps.torch);
+                }
+            } catch (e) {}
+        }
+
+        function toggleTorch() {
+            try {
+                const video = document.querySelector('#qr-reader-desktop video');
+                if (!video || !video.srcObject) return;
+                const track = video.srcObject.getVideoTracks()[0];
+                isTorchOn = !isTorchOn;
+                track.applyConstraints({ advanced: [{ torch: isTorchOn }] })
+                    .then(function () { $('#btn-desktop-torch').toggleClass('active', isTorchOn); })
+                    .catch(function () {});
+            } catch (e) {}
+        }
+
+        function onScanSuccess(decodedText) {
+            if (isProcessing || !decodedText) return;
+            lastScanMethod = 'QR Code';
+            processScan(decodedText);
+        }
+
+        // ── 6. PROSES PRESENSI ──────────────────────────
+        function processScan(value) {
+            const raw = String(value == null ? '' : value).trim();
+            if (!raw || isProcessing) return;
+
+            refreshModes();
+            const mode = effectiveMode();
+
+            if (!modeState[mode + 'Open']) {
+                renderError(modeState[mode + 'Msg'] || 'Di luar jadwal presensi untuk mode ini.');
                 return;
             }
+
             isProcessing = true;
             unlockAudio();
+            setReaderStatus('Memproses…');
+            clearTimeout(countdownTimer);
+            clearInterval(countdownInterval);
 
             const filterVal = $('#select-kelas-filter').val();
-            const idKelas   = (filterVal === 'guru') ? 0 : (filterVal || 0);
-
+            const idKelas = (filterVal === 'guru') ? 0 : (filterVal || 0);
             const kioskToken = (function () { try { return localStorage.getItem('qr_kiosk_token') || ''; } catch (e) { return ''; } })();
+
             $.ajax({
-                url: '{{ url('scanner/scan') }}',
+                url: SCAN_URL,
                 type: 'POST',
                 dataType: 'json',
                 headers: kioskToken ? { 'X-Kiosk-Token': kioskToken } : {},
                 data: {
-                    qr_value: qrValue,
-                    mode: scanMode,
+                    _token: CSRF_TOKEN,
+                    qr_value: raw,
+                    mode: mode === 'pulang' ? 'keluar' : 'masuk',
                     id_kelas: idKelas,
                     lat: kioskLoc.lat,
                     lng: kioskLoc.lng,
@@ -1475,598 +1232,379 @@
                     k: kioskToken || undefined
                 }
             }).done(function (res) {
-                showHeroResult(res, scanMode);
-                loadHistoryFeed();
+                renderResult(res, mode);
+                loadFeed();
             }).fail(function (xhr) {
                 let msg = 'Gagal memproses presensi.';
                 try {
-                    const r = JSON.parse(xhr.responseText);
-                    if (r.message) msg = r.message;
-                } catch(e) {}
-                showHeroResult({ status: false, message: msg }, scanMode);
+                    const parsed = JSON.parse(xhr.responseText);
+                    if (parsed && parsed.message) msg = parsed.message;
+                } catch (e) {}
+                renderError(msg);
             }).always(function () {
-                setTimeout(() => {
+                setReaderStatus(isScanning ? 'Kamera aktif' : 'Kamera offline');
+                setTimeout(function () {
                     isProcessing = false;
-                    focusBarcodeGunInput();
+                    focusBarcodeInput();
                 }, 1200);
             });
         }
 
-        // ── 7b. PROSES SCAN KARTU RFID ─────────────────
-        // Kirim UID kartu sebagai rfid_value (bukan qr_value) agar backend
-        // melakukan lookup di kolom nomor_rfid master_siswa / master_guru.
-        function processRfidScan(rfidValue) {
-            if (isProcessing || !rfidValue) return;
-            refreshModeTabs();
-            const gateMsg = modeBlockedMsg(scanMode);
-            if (gateMsg) {
-                showHeroResult({ status: false, message: gateMsg }, scanMode);
+        // ── 7. TAMPILAN HASIL ───────────────────────────
+        function showView(name) {
+            $('#cameraView').toggleClass('hidden', name !== 'camera').toggleClass('flex', name === 'camera');
+            $('#resultView').toggleClass('hidden', name !== 'result').toggleClass('flex', name === 'result');
+            $('#errorView').toggleClass('hidden', name !== 'error').toggleClass('flex', name === 'error');
+        }
+
+        function setContainerState(tone) {
+            const $c = $('#scannerContainer');
+            $c.removeClass('state-success state-warning state-info state-error');
+            if (tone) $c.addClass('state-' + tone);
+        }
+
+        function renderResult(res, mode) {
+            const ok = res && res.status === true;
+            const person = (res && (res.siswa || res.guru)) || null;
+            const isGuru = !!(res && (res.role === 'guru' || res.guru));
+            const type = (res && res.type) || (ok ? (mode === 'pulang' ? 'check_out' : 'check_in') : 'error');
+
+            if (!ok && !person) {
+                renderError((res && res.message) || 'Presensi tidak berhasil diproses.');
                 return;
             }
-            isProcessing = true;
-            unlockAudio();
-
-            const filterVal = $('#select-kelas-filter').val();
-            const idKelas   = (filterVal === 'guru') ? 0 : (filterVal || 0);
-
-            const kioskToken = (function () { try { return localStorage.getItem('qr_kiosk_token') || ''; } catch (e) { return ''; } })();
-            $.ajax({
-                url: '{{ url('scanner/scan') }}',
-                type: 'POST',
-                dataType: 'json',
-                headers: kioskToken ? { 'X-Kiosk-Token': kioskToken } : {},
-                data: {
-                    rfid_value: rfidValue,
-                    mode: scanMode,
-                    id_kelas: idKelas,
-                    lat: kioskLoc.lat,
-                    lng: kioskLoc.lng,
-                    accuracy: kioskLoc.accuracy,
-                    k: kioskToken || undefined
-                }
-            }).done(function (res) {
-                showHeroResult(res, scanMode);
-                loadHistoryFeed();
-            }).fail(function (xhr) {
-                let msg = 'Gagal memproses kartu RFID.';
-                try {
-                    const r = JSON.parse(xhr.responseText);
-                    if (r.message) msg = r.message;
-                } catch(e) {}
-                showHeroResult({ status: false, message: msg }, scanMode);
-            }).always(function () {
-                setTimeout(() => {
-                    isProcessing = false;
-                    focusBarcodeGunInput();
-                }, 1200);
-            });
-        }
-
-        // ── 7b.1 WEB NFC SCANNER (Untuk Tablet / HP Kiosk) ──
-        let desktopNfcReader = null;
-        let desktopNfcController = null;
-        let desktopNfcActive = false;
-
-        function updateDesktopNfcUI(active) {
-            const $btnHeader = $('#btn-toggle-nfc-desktop');
-            const $btnInput  = $('#btn-input-nfc-toggle');
-            const $pill      = $('#desktop-nfc-status-pill');
-
-            if (active) {
-                $btnHeader.addClass('bg-emerald-500 text-white border-emerald-400 shadow-emerald-500/30 animate-pulse');
-                $btnInput.addClass('bg-emerald-600 text-white border-emerald-400');
-                $pill.removeClass('hidden').addClass('inline-flex');
-            } else {
-                $btnHeader.removeClass('bg-emerald-500 text-white border-emerald-400 shadow-emerald-500/30 animate-pulse');
-                $btnInput.removeClass('bg-emerald-600 text-white border-emerald-400');
-                $pill.addClass('hidden').removeClass('inline-flex');
-            }
-        }
-
-        window.toggleNfcDesktop = async function () {
-            if (!('NDEFReader' in window)) {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Web NFC',
-                    html: `<div class="text-left text-xs space-y-2 text-slate-300">
-                        <p>Fitur Web NFC browser memerlukan perangkat Android dengan sensor NFC aktif, Chrome 89+, dan koneksi HTTPS / localhost.</p>
-                        <p class="text-slate-400">Untuk PC desktop / laptop, gunakan <strong>USB RFID Reader</strong> (cukup colokkan reader, nomor kartu otomatis terdeteksi tanpa driver).</p>
-                    </div>`,
-                    confirmButtonText: 'Tutup'
-                });
-                return;
-            }
-
-            if (desktopNfcActive) {
-                if (desktopNfcController) {
-                    desktopNfcController.abort();
-                    desktopNfcController = null;
-                }
-                desktopNfcActive = false;
-                updateDesktopNfcUI(false);
-            } else {
-                try {
-                    desktopNfcController = new AbortController();
-                    desktopNfcReader = new NDEFReader();
-                    await desktopNfcReader.scan({ signal: desktopNfcController.signal });
-                    desktopNfcActive = true;
-                    updateDesktopNfcUI(true);
-
-                    desktopNfcReader.onreading = (event) => {
-                        const rawSerial = event.serialNumber;
-                        if (rawSerial) {
-                            if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
-                            const cleanUid = rawSerial.replace(/[: -]/g, '').toUpperCase();
-                            $('#desktop-nfc-status-pill span').text('Membaca: ' + cleanUid);
-                            setTimeout(() => {
-                                if (desktopNfcActive) {
-                                    $('#desktop-nfc-status-pill span').text('NFC Aktif: Tempelkan kartu di belakang perangkat');
-                                }
-                            }, 1500);
-                            processRfidScan(rawSerial);
-                        }
-                    };
-
-                    desktopNfcReader.onreadingerror = () => {
-                        if (navigator.vibrate) navigator.vibrate(200);
-                        $('#desktop-nfc-status-pill span').text('Gagal membaca kartu. Tempelkan kembali.');
-                        setTimeout(() => {
-                            if (desktopNfcActive) {
-                                $('#desktop-nfc-status-pill span').text('NFC Aktif: Tempelkan kartu di belakang perangkat');
-                            }
-                        }, 1500);
-                    };
-                } catch (err) {
-                    desktopNfcActive = false;
-                    updateDesktopNfcUI(false);
-                    if (err.name === 'NotAllowedError') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Izin NFC Ditolak',
-                            text: 'Izinkan akses NFC pada notifikasi Chrome untuk mulai membaca kartu.',
-                            confirmButtonText: 'OK'
-                        });
-                    } else if (err.name === 'NotSupportedError') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'NFC Tidak Aktif',
-                            text: 'Pastikan sensor NFC sudah dinyalakan di Pengaturan perangkat Android Anda.',
-                            confirmButtonText: 'OK'
-                        });
-                    } else {
-                        Swal.fire('NFC Error', err.message || 'Gagal memulai sensor NFC.', 'error');
-                    }
-                }
-            }
-        };
-
-        if ('NDEFReader' in window) {
-            $('#btn-toggle-nfc-desktop, #btn-input-nfc-toggle').addClass('border-emerald-400/80');
-        }
-
-        // ── 7c. PROSES SCAN FINGERPRINT ─────────────────
-        // Kirim UID/UserID fingerprint sebagai fingerprint_uid (bukan qr_value)
-        // agar backend melakukan lookup di kolom fingerprint_uid.
-        function processFpScan(fpUid) {
-            if (isProcessing || !fpUid) return;
-            refreshModeTabs();
-            const gateMsg = modeBlockedMsg(scanMode);
-            if (gateMsg) {
-                showHeroResult({ status: false, message: gateMsg }, scanMode);
-                return;
-            }
-            isProcessing = true;
-            unlockAudio();
-
-            const filterVal = $('#select-kelas-filter').val();
-            const idKelas   = (filterVal === 'guru') ? 0 : (filterVal || 0);
-
-            const kioskToken = (function () { try { return localStorage.getItem('qr_kiosk_token') || ''; } catch (e) { return ''; } })();
-            $.ajax({
-                url: '{{ url('scanner/scan') }}',
-                type: 'POST',
-                dataType: 'json',
-                headers: kioskToken ? { 'X-Kiosk-Token': kioskToken } : {},
-                data: {
-                    fingerprint_uid: fpUid,
-                    mode: scanMode,
-                    id_kelas: idKelas,
-                    lat: kioskLoc.lat,
-                    lng: kioskLoc.lng,
-                    accuracy: kioskLoc.accuracy,
-                    k: kioskToken || undefined
-                }
-            }).done(function (res) {
-                showHeroResult(res, scanMode);
-                loadHistoryFeed();
-            }).fail(function (xhr) {
-                let msg = 'Gagal memproses fingerprint.';
-                try {
-                    const r = JSON.parse(xhr.responseText);
-                    if (r.message) msg = r.message;
-                } catch(e) {}
-                showHeroResult({ status: false, message: msg }, scanMode);
-            }).always(function () {
-                setTimeout(() => {
-                    isProcessing = false;
-                    focusBarcodeGunInput();
-                }, 1200);
-            });
-        }
-
-        // ── 8. HERO RESULT LIVE CARD ─────────────────
-        function showHeroResult(res, currentMode) {
-            const ok   = res.status === true;
-            const type = res.type || (ok ? (currentMode === 'masuk' ? 'check_in' : 'check_out') : 'error');
-            const s    = res.siswa || res.guru || null;
-            const isGuru = res.role === 'guru' || !!res.guru;
-            const nowTimeStr = witaHM() + ' WITA';
-
-            clearTimeout(heroResetTimer);
-            clearInterval(heroInterval);
-
-            // Gerbang jurnal bisa menahan karena sesi belum diisi ATAU jurnalnya
-            // sudah ada tapi belum disetujui piket — layarnya harus bedakan.
-            const menungguValidasi = !!(res.data && Array.isArray(res.data.sesi_menunggu_validasi) && res.data.sesi_menunggu_validasi.length > 0);
 
             const configs = {
-                check_in: {
-                    headerBg: 'bg-gradient-to-r from-emerald-600 to-teal-600',
-                    badgeBg: 'bg-emerald-700/60 text-white',
-                    badgeTitle: isGuru ? 'ABSEN MASUK GURU BERHASIL' : 'ABSEN MASUK BERHASIL',
-                    ringClass: 'hero-ring-masuk',
-                    statusBadgeBg: 'bg-emerald-600',
-                    statusText: 'Hadir Tepat Waktu',
-                    soundType: 'success_in',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Absen masuk.` : 'Absen masuk.',
-                },
-                check_out: {
-                    headerBg: 'bg-gradient-to-r from-amber-500 to-orange-500',
-                    badgeBg: 'bg-amber-700/60 text-white',
-                    badgeTitle: isGuru ? 'ABSEN PULANG GURU BERHASIL' : 'ABSEN PULANG BERHASIL',
-                    ringClass: 'hero-ring-keluar',
-                    statusBadgeBg: 'bg-amber-500',
-                    statusText: 'Absen Pulang Selesai',
-                    soundType: 'success_out',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Absen pulang.` : 'Absen pulang.',
-                },
-                already_in: {
-                    headerBg: 'bg-gradient-to-r from-amber-500 to-yellow-500',
-                    badgeBg: 'bg-amber-700/60 text-white',
-                    badgeTitle: 'SUDAH ABSEN MASUK',
-                    ringClass: 'hero-ring-warning',
-                    statusBadgeBg: 'bg-amber-500',
-                    statusText: 'Sudah Absen Hari Ini',
-                    soundType: 'warning',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Sudah absen masuk.` : 'Sudah absen masuk.',
-                },
-                already_out: {
-                    headerBg: 'bg-gradient-to-r from-amber-500 to-yellow-500',
-                    badgeBg: 'bg-amber-700/60 text-white',
-                    badgeTitle: 'SUDAH ABSEN PULANG',
-                    ringClass: 'hero-ring-warning',
-                    statusBadgeBg: 'bg-amber-500',
-                    statusText: 'Sudah Absen Keluar',
-                    soundType: 'warning',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Sudah absen keluar.` : 'Sudah absen keluar.',
-                },
-                not_in: {
-                    headerBg: 'bg-gradient-to-r from-orange-500 to-orange-600',
-                    badgeBg: 'bg-orange-700/60 text-white',
-                    badgeTitle: 'BELUM ABSEN MASUK',
-                    ringClass: 'hero-ring-warning',
-                    statusBadgeBg: 'bg-orange-500',
-                    statusText: 'Belum Ada Absen Masuk',
-                    soundType: 'warning',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Belum absen masuk.` : 'Belum absen masuk.',
-                },
-                izin: {
-                    headerBg: 'bg-gradient-to-r from-purple-600 to-indigo-600',
-                    badgeBg: 'bg-purple-800/60 text-white',
-                    badgeTitle: 'STATUS IZIN / SAKIT',
-                    ringClass: 'hero-ring-warning',
-                    statusBadgeBg: 'bg-purple-600',
-                    statusText: 'Izin Resmi',
-                    soundType: 'warning',
-                    ttsText: s ? `${formatSpeechName(s.nama)}. Berstatus izin.` : 'Status izin.',
-                },
-                jurnal_kurang: {
-                    headerBg: 'bg-gradient-to-r from-rose-600 to-orange-600',
-                    badgeBg: 'bg-rose-800/60 text-white',
-                    badgeTitle: menungguValidasi ? 'JURNAL MENUNGGU VALIDASI PIKET' : 'JURNAL MENGAJAR BELUM LENGKAP',
-                    ringClass: 'hero-ring-error',
-                    statusBadgeBg: 'bg-rose-600',
-                    statusText: 'Absen Pulang Ditolak',
-                    soundType: 'warning',
-                    // Sengaja ringkas: res.message memuat daftar sesi yang
-                    // panjang dan tidak habis dibacakan lewat TTS.
-                    ttsText: s
-                        ? `${formatSpeechName(s.nama)}. ${menungguValidasi ? 'Jurnal menunggu validasi piket.' : 'Jurnal mengajar belum lengkap.'}`
-                        : (menungguValidasi ? 'Jurnal menunggu validasi piket.' : 'Jurnal mengajar belum lengkap.'),
-                },
-                error: {
-                    headerBg: 'bg-gradient-to-r from-red-600 to-red-700',
-                    badgeBg: 'bg-red-800/60 text-white',
-                    badgeTitle: 'PRESENSI GAGAL',
-                    ringClass: 'hero-ring-error',
-                    statusBadgeBg: 'bg-red-600',
-                    statusText: 'Data Gagal Diproses',
-                    soundType: 'error',
-                    ttsText: res.message ? res.message : 'Presensi tidak berhasil.',
-                }
+                check_in:  { tone: 'success', icon: 'fa-circle-check',    label: 'ABSEN MASUK',          note: 'Hadir Tepat Waktu',      sound: 'success_in',  tts: 'Hadir.' },
+                check_out: { tone: 'info',    icon: 'fa-house-circle-check', label: 'ABSEN PULANG',       note: 'Absen pulang selesai',   sound: 'success_out', tts: 'Pulang.' },
+                already_in: { tone: 'warning', icon: 'fa-clock',           label: 'SUDAH ABSEN MASUK',    note: 'Sudah tercatat masuk',   sound: 'warning', tts: 'Sudah absen masuk.' },
+                already_out: { tone: 'warning', icon: 'fa-clock',          label: 'SUDAH ABSEN PULANG',   note: 'Sudah tercatat pulang',  sound: 'warning', tts: 'Sudah absen pulang.' },
+                not_in:    { tone: 'warning', icon: 'fa-triangle-exclamation', label: 'BELUM ABSEN MASUK', note: 'Silakan absen masuk dulu', sound: 'warning', tts: 'Belum absen masuk.' },
+                izin:      { tone: 'warning', icon: 'fa-file-medical',     label: 'IZIN / SAKIT',         note: 'Berstatus izin',         sound: 'warning', tts: 'Berstatus izin.' },
+                jurnal_kurang: { tone: 'error', icon: 'fa-triangle-exclamation', label: 'JURNAL BELUM LENGKAP', note: 'Lengkapi jurnal mengajar', sound: 'warning', tts: 'Jurnal mengajar belum lengkap.' },
+                error:     { tone: 'error',   icon: 'fa-triangle-exclamation', label: 'GAGAL',            note: 'Presensi gagal',         sound: 'error',   tts: 'Presensi tidak berhasil.' }
             };
+            const cfg = Object.assign({}, configs[type] || configs.error, { label: (configs[type] || configs.error).label + (isGuru ? ' (GURU)' : '') });
 
-            const cfg = configs[type] || configs.error;
-
-            // Siswa telat: jangan tampilkan "Hadir Tepat Waktu" — server
-            // mengirim flag telat + menit untuk check_in.
             if (type === 'check_in' && res.telat) {
-                cfg.statusText = 'Telat ' + (res.telat_menit || 0) + ' Menit';
-                cfg.statusBadgeBg = 'bg-orange-500';
-                cfg.badgeTitle = isGuru ? 'ABSEN MASUK GURU (TELAT)' : 'ABSEN MASUK (TELAT)';
+                cfg.tone = 'warning';
+                cfg.icon = 'fa-clock';
+                cfg.label = 'ABSEN MASUK TERLAMBAT' + (isGuru ? ' (GURU)' : '');
+                cfg.note = 'Terlambat (' + (res.telat_menit || 0) + ' menit)';
+                cfg.sound = 'warning';
             }
 
-            playChime(cfg.soundType);
-            speakText(cfg.ttsText);
+            const timeStr = witaHMS();
+            const $banner = $('#statusBanner');
 
-            const $banner = $('#hero-header-banner');
-            $banner.attr('class', `p-3.5 text-white text-center transition-colors duration-300 border-b border-white/10 ${cfg.headerBg}`);
-            $('#hero-badge-title').attr('class', `inline-block px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-1 ${cfg.badgeBg}`).text(cfg.badgeTitle);
-            $('#hero-main-message').text(res.message || 'Presensi berhasil dicatat');
+            $('#statusBanner').attr('class', 'w-full py-3.5 px-5 rounded-2xl mb-5 flex items-center justify-between gap-2 font-bold text-sm sm:text-base transition-colors shadow-lg ' + ({
+                success: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+                info: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
+                warning: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+                error: 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+            }[cfg.tone] || 'bg-slate-800 text-slate-300 border border-slate-700'));
 
-            const $foto = $('#hero-siswa-foto');
-            $foto.removeClass('hero-ring-masuk hero-ring-keluar hero-ring-warning hero-ring-error rfid-pulse').addClass(cfg.ringClass);
-            $('#hero-status-pill').attr('class', `absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-sm border border-white/20 whitespace-nowrap ${cfg.statusBadgeBg}`);
+            const iconColor = { success: 'text-emerald-400', info: 'text-blue-400', warning: 'text-amber-400', error: 'text-rose-400' }[cfg.tone];
+            $('#statusIcon').attr('class', 'fa-solid ' + cfg.icon + ' text-xl ' + iconColor);
+            $('#statusText').text(res.message ? String(res.message).toUpperCase() : cfg.label);
+            $('#scanTimestamp').text(timeStr + ' WITA');
 
-            // Tampilkan Badge Metode (RFID, QR, FP) jika scan berhasil atau dikenali
-            const $metodeBadge = $('#hero-metode-badge');
-            const metode = res.metode || (rfidMode ? 'rfid' : (fpMode ? 'fp' : 'qr'));
-            if (ok && metode) {
-                if (metode === 'rfid') {
-                    $metodeBadge.removeClass('hidden badge-metode-qr badge-metode-fp')
-                                .addClass('badge-metode-rfid')
-                                .html('<i class="bi bi-credit-card-2-front mr-1"></i> RFID').show();
-                    $foto.addClass('rfid-pulse');
-                } else if (metode === 'fp' || metode === 'fingerprint') {
-                    $metodeBadge.removeClass('hidden badge-metode-rfid badge-metode-qr')
-                                .addClass('badge-metode-fp')
-                                .html('<i class="bi bi-fingerprint mr-1"></i> FINGERPRINT').show();
-                } else {
-                    $metodeBadge.removeClass('hidden badge-metode-rfid badge-metode-fp')
-                                .addClass('badge-metode-qr')
-                                .html('<i class="bi bi-qr-code mr-1"></i> QR CODE').show();
-                }
+            const photoBadgeBg = { success: 'bg-emerald-500', info: 'bg-blue-500', warning: 'bg-amber-500', error: 'bg-rose-500' }[cfg.tone];
+            $('#photoBadge').attr('class', 'absolute -bottom-2 -right-2 w-8 h-8 sm:w-9 sm:h-9 rounded-xl ' + photoBadgeBg + ' text-white flex items-center justify-center shadow-lg border-2 border-slate-900');
+            $('#photoBadgeIcon').attr('class', 'fa-solid ' + cfg.icon + ' text-sm');
+            $('#personNote').attr('class', 'font-semibold ' + iconColor + ' text-xs sm:text-sm m-0 truncate').text(cfg.note);
+
+            $('#personPhoto').attr('src', (person && person.foto) ? person.foto : DEFAULT_PHOTO)
+                .off('error').on('error', function () { this.src = DEFAULT_PHOTO; });
+
+            if (person) {
+                $('#roleBadge')
+                    .text(isGuru ? 'GURU & GTK' : 'SISWA')
+                    .attr('class', 'px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ' + (isGuru
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'));
+                $('#idNumberLabel').text(isGuru ? 'NIP / NUPTK' : 'NIS / NISN');
+                $('#departmentLabel').text(isGuru ? 'Jabatan / Mapel' : 'Kelas');
+
+                $('#personName').text(person.nama || '-');
+                $('#personIdNumber').text(isGuru ? (person.nip || person.nuptk || person.kode_guru || '-') : (person.nis || person.nisn || '-'));
+                $('#personDepartment').text(isGuru ? (person.jabatan || 'Guru / GTK') : (person.nama_kelas || person.kelas || '-'));
+                $('#personMethod').text(lastScanMethod);
             } else {
-                $metodeBadge.addClass('hidden').hide();
+                $('#personName').text('Perhatian');
+                $('#personIdNumber').text('-');
+                $('#personDepartment').text('-');
+                $('#personMethod').text(lastScanMethod);
             }
 
-            if (s) {
-                $foto.attr('src', s.foto || FOTO_CADANGAN);
-                $('#hero-siswa-nama').text(s.nama);
-                if (isGuru) {
-                    $('#hero-siswa-kelas').empty()
-                        .append('<i class="bi bi-person-badge text-purple-400"></i> ')
-                        .append(document.createTextNode(s.jabatan || 'GURU / GTK')).show();
-                    $('#hero-siswa-nis').text(s.nip ? `NIP: ${s.nip}` : (s.kode_guru ? `Kode: ${s.kode_guru}` : 'GURU')).show();
-                } else {
-                    $('#hero-siswa-kelas').empty()
-                        .append('<i class="bi bi-building text-slate-400"></i> ')
-                        .append(document.createTextNode(s.nama_kelas || 'Kelas')).show();
-                    $('#hero-siswa-nis').text(s.nis ? `NIS: ${s.nis}` : (s.nisn ? `NISN: ${s.nisn}` : '-')).show();
-                }
-                $('#hero-status-pill').text(s.status || (currentMode === 'masuk' ? 'HADIR' : 'PULANG'));
+            setContainerState(cfg.tone);
+            showView('result');
+            playChime(cfg.sound);
 
-                const recordedTime = (currentMode === 'keluar' ? s.jam_keluar : s.jam_masuk) || nowTimeStr;
-                $('#hero-time-text').text(recordedTime);
-            } else {
-                $foto.attr('src', FOTO_PERINGATAN);
-                $('#hero-siswa-nama').text('Peringatan Presensi');
-                $('#hero-siswa-kelas').hide();
-                $('#hero-siswa-nis').hide();
-                $('#hero-status-pill').text('PERHATIAN');
-                $('#hero-time-text').text(nowTimeStr);
-            }
+            const spoken = person
+                ? formatSpeechName(person.nama) + '. ' + cfg.tts
+                : (res.message || cfg.tts);
+            speakText(spoken);
 
-            // Countdown timer animation (3 detik)
-            const totalDuration = 3000;
-            const intervalStep  = 50;
-            let elapsed = 0;
-            $('#hero-countdown-bar').css('width', '100%');
+            if (res.stats) updateStats(res.stats);
 
-            heroInterval = setInterval(() => {
-                elapsed += intervalStep;
-                const remainingPct = Math.max(0, 100 - ((elapsed / totalDuration) * 100));
-                $('#hero-countdown-bar').css('width', `${remainingPct}%`);
-                if (elapsed >= totalDuration) {
-                    clearInterval(heroInterval);
-                }
-            }, intervalStep);
-
-            heroResetTimer = setTimeout(() => {
-                resetHeroStandby();
-            }, totalDuration);
+            startCountdown(4000);
         }
 
-        function resetHeroStandby() {
-            $('#hero-header-banner').attr('class', 'p-3.5 bg-gradient-to-r from-slate-900 to-slate-950 text-white text-center transition-colors duration-300 border-b border-white/10');
-            $('#hero-badge-title').attr('class', 'inline-block px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-white/15 text-slate-200').text('STANDBY SCANNER');
-            $('#hero-metode-badge').addClass('hidden').hide();
-            $('#hero-main-message').text('Silakan Scan QR / RFID / Sidik Jari');
+        function renderError(message) {
+            clearTimeout(countdownTimer);
+            clearInterval(countdownInterval);
 
-            $('#hero-siswa-foto').attr('src', FOTO_STANDBY)
-                .removeClass('hero-ring-masuk hero-ring-keluar hero-ring-warning hero-ring-error rfid-pulse').addClass('hero-ring-masuk');
-            $('#hero-status-pill').attr('class', 'absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-sm border border-white/20 bg-slate-800 whitespace-nowrap').text('STANDBY');
-            $('#hero-siswa-nama').text('Menunggu Scan...');
-            $('#hero-siswa-kelas').html('<i class="bi bi-person-badge text-slate-400"></i> Kategori').show();
-            $('#hero-siswa-nis').text('ID: -').show();
-            $('#hero-time-text').text('--:-- WITA');
-            $('#hero-countdown-bar').css('width', '100%');
+            $('#errorMessage').text(message || 'Terjadi kesalahan.');
+            setContainerState('error');
+            showView('error');
+            playChime('error');
+            startCountdown(4000);
         }
 
-        // ── 9. USB BARCODE SCANNER GUN & AUTO-FOCUS ──
-        function focusBarcodeGunInput() {
-            setTimeout(() => {
-                $('#input-barcode-scanner').focus();
-            }, 100);
+        function startCountdown(durationMs) {
+            const $bar = $('#resetProgressBar');
+            const $text = $('#countdownText');
+            const start = Date.now();
+
+            $bar.css('width', '100%');
+            $text.text(Math.ceil(durationMs / 1000) + ' dtk');
+
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(function () {
+                const remaining = Math.max(0, durationMs - (Date.now() - start));
+                $bar.css('width', ((remaining / durationMs) * 100) + '%');
+                $text.text(Math.ceil(remaining / 1000) + ' dtk');
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    backToCamera();
+                }
+            }, 50);
         }
 
-        window.submitBarcodeGunInput = function () {
-            const val = $('#input-barcode-scanner').val().trim();
-            if (!val) return;
-            $('#input-barcode-scanner').val('');
-            // Mode Fingerprint: kirim sebagai fingerprint_uid agar backend
-            // melakukan lookup di kolom fingerprint_uid master_siswa / master_guru.
-            if (fpMode) {
-                processFpScan(val);
-            }
-            // Mode RFID: kirim sebagai rfid_value.
-            else if (rfidMode) {
-                processRfidScan(val);
-            } else {
-                processAttendanceScan(val);
-            }
-        };
+        function backToCamera() {
+            clearInterval(countdownInterval);
+            clearTimeout(countdownTimer);
 
-        $('#input-barcode-scanner').on('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                window.submitBarcodeGunInput();
-            }
-        });
-
-        // ── 10. REALTIME ATTENDANCE FEED & STATS ─────
-        window.loadHistoryFeed = function () {
-            const filterVal  = $('#select-kelas-filter').val();
-            const idKelas    = (filterVal === 'guru') ? 0 : (filterVal || 0);
-            const filterRole = (filterVal === 'guru') ? 'guru' : '';
-
-            const kioskTokenH = (function () { try { return localStorage.getItem('qr_kiosk_token') || ''; } catch (e) { return ''; } })();
-            $.ajax({
-                url: '{{ url('scanner/history') }}',
-                type: 'GET',
-                dataType: 'json',
-                headers: kioskTokenH ? { 'X-Kiosk-Token': kioskTokenH } : {},
-                data: {
-                    id_kelas: idKelas,
-                    filter_role: filterRole,
-                    limit: 30,
-                    k: kioskTokenH || undefined
-                }
-            }).done(function (res) {
-                if (res.status && res.data) {
-                    renderHistoryRows(res.data);
-                }
-                if (res.stats) {
-                    $('#stat-total-hadir').text(res.stats.hadir || 0);
-                    $('#stat-masuk').text(res.stats.masuk || 0);
-                    $('#stat-pulang').text(res.stats.keluar || 0);
-                    $('#stat-tercatat').text(res.stats.total || 0);
-                }
-            });
-        };
-
-        // Escape HTML untuk data server (nama siswa/guru bisa mengandung karakter khusus)
-        function escHtml(s) {
-            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-            });
+            $('#resetProgressBar').css('width', '100%');
+            setContainerState(null);
+            showView('camera');
+            updateModeIndicator();
+            focusBarcodeInput();
         }
 
-        function renderHistoryRows(list) {
-            const $container = $('#live-history-feed');
-            if (!list || list.length === 0) {
+        // ── 8. STATISTIK & FEED ─────────────────────────
+        function updateStats(stats) {
+            if (!stats) return;
+            const hadir = parseInt(stats.hadir || 0, 10) || 0;
+            const terlambat = parseInt(stats.terlambat || 0, 10) || 0;
+            const pulang = parseInt(stats.keluar || 0, 10) || 0;
+
+            $('#statTotalHadir').text(hadir);
+            $('#statTerlambat').text(terlambat);
+            $('#statTepatWaktu').text(Math.max(0, hadir - terlambat));
+            $('#statSudahPulang').text(pulang);
+        }
+
+        function getInitials(name) {
+            if (!name) return '??';
+            const parts = String(name).trim().split(/\s+/);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+
+        function renderFeed(rows) {
+            const $container = $('#attendanceLogList');
+
+            if (!rows || rows.length === 0) {
                 $container.html(`
-                    <div class="py-8 text-center text-slate-500 text-xs">
-                        <i class="bi bi-inbox text-2xl text-slate-600 block mb-1"></i>
-                        Belum ada yang melakukan absensi hari ini.
+                    <div id="empty-feed-placeholder" class="py-12 text-center text-xs text-slate-500">
+                        <i class="fa-solid fa-inbox text-2xl mb-1.5 block text-slate-600"></i>
+                        Belum ada aktivitas presensi hari ini
                     </div>
                 `);
                 return;
             }
 
-            const statusCls = function (st) {
-                if (st === 'HADIR' || st === 'ONTIME') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-                if (st === 'SAKIT' || st === 'IZIN') return 'bg-sky-500/20 text-sky-300 border-sky-500/30';
-                if (st === 'LATE') return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-                if (st === 'ALPA') return 'bg-rose-500/20 text-rose-300 border-rose-500/30';
-                if (st === 'BDR') return 'bg-teal-500/20 text-teal-300 border-teal-500/30';
-                return 'bg-slate-800 text-slate-300 border-slate-700';
-            };
+            $container.html(rows.map(function (log, index) {
+                let badge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Masuk</span>`;
+                if (log.status === 'PULANG') {
+                    badge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">Pulang</span>`;
+                } else if (log.isLate || log.status === 'TERLAMBAT') {
+                    badge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">Terlambat</span>`;
+                }
 
-            let html = '';
-            list.forEach(item => {
-                const nama    = escHtml(item.nama || '-');
-                const isGuru  = (item.role === 'guru') || (item.nama_kelas === 'GURU / GTK');
-                const idLabel = isGuru ? 'NIP' : 'NIS';
-                const idVal   = escHtml(item.nis || '-');
-                const kelas   = isGuru ? 'GURU / GTK' : escHtml(item.nama_kelas || 'Kelas');
-                const st      = escHtml(item.status || '-');
-                const foto    = escHtml(item.foto || '');
-                const jm      = escHtml(item.jam_masuk ? String(item.jam_masuk).substr(0, 5) : '--:--');
-                const jk      = item.jam_keluar ? ' &rarr; ' + escHtml(String(item.jam_keluar).substr(0, 5)) : '';
-                const badgeClass = isGuru
-                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                    : statusCls(item.status);
+                const highlight = index === 0 ? 'bg-slate-900/90 border-emerald-500/40 shadow-md' : 'bg-slate-950/60 border-slate-800/80';
+                const gradient = log.role === 'GURU' ? 'from-purple-500 to-indigo-600' : 'from-rose-500 to-pink-600';
 
-                html += `
-                    <div class="py-2.5 flex items-center justify-between gap-3 transition-colors hover:bg-slate-800 px-1 rounded-xl">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <img src="${foto}" class="w-9 h-9 rounded-xl object-cover border border-slate-700 shrink-0" alt="Avatar" loading="lazy" onerror="this.style.visibility='hidden'">
+                return `
+                    <div class="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl border ${highlight} transition-all hover:border-slate-700">
+                        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr ${gradient} flex items-center justify-center font-bold text-white text-xs sm:text-sm shadow-md shrink-0">${getInitials(log.name)}</div>
                             <div class="min-w-0">
-                                <p class="font-bold text-xs text-white m-0 truncate">${nama}</p>
-                                <p class="text-[10px] text-slate-400 m-0 truncate">
-                                    <span class="${isGuru ? 'text-purple-400 font-bold' : ''}">${kelas}</span> &middot; ${idLabel}: ${idVal}
-                                </p>
+                                <h4 class="text-xs sm:text-sm font-bold text-white truncate m-0">${log.name}</h4>
+                                <p class="text-[11px] text-slate-400 truncate m-0">${log.department}</p>
                             </div>
                         </div>
-                        <div class="text-right shrink-0">
-                            <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}">
-                                ${isGuru ? 'GURU' : st}
-                            </span>
-                            <div class="text-[10px] text-slate-400 font-mono mt-0.5">
-                                ${jm}${jk}
-                            </div>
+                        <div class="text-right shrink-0 ml-2 flex flex-col items-end gap-1">
+                            ${badge}
+                            <span class="font-mono-num text-[11px] text-slate-400 font-medium">${log.time}</span>
                         </div>
                     </div>
                 `;
-            });
-
-            $container.html(html);
+            }).join(''));
         }
 
-        // Auto-refresh feed & stats setiap 30 detik
-        setInterval(loadHistoryFeed, 30000);
+        function loadFeed() {
+            const filterVal = $('#select-kelas-filter').val();
+            const idKelas = (filterVal === 'guru') ? 0 : (filterVal || 0);
+            const filterRole = (filterVal === 'guru') ? 'guru' : '';
+            const kioskToken = (function () { try { return localStorage.getItem('qr_kiosk_token') || ''; } catch (e) { return ''; } })();
 
-        // Delegated/static bindings (ganti onclick inline)
-        $('#select-kelas-filter').on('change', loadHistoryFeed);
-        $('#btn-toggle-fullscreen').on('click', toggleKioskFullscreen);
+            $.ajax({
+                url: HISTORY_URL,
+                type: 'GET',
+                dataType: 'json',
+                headers: kioskToken ? { 'X-Kiosk-Token': kioskToken } : {},
+                data: {
+                    id_kelas: idKelas,
+                    filter_role: filterRole,
+                    limit: 12,
+                    k: kioskToken || undefined
+                }
+            }).done(function (res) {
+                if (res && res.status && Array.isArray(res.data)) {
+                    renderFeed(res.data.map(function (r) {
+                        const isGuru = (r.role === 'guru') || (r.nama_kelas === 'GURU / GTK') || !!r.nip;
+                        const isLate = !!(r.terlambat && r.terlambat > 0) || r.status === 'LATE';
+                        const timeRaw = r.jam_keluar || r.jam_masuk || '';
+                        return {
+                            role: isGuru ? 'GURU' : 'SISWA',
+                            name: r.nama_siswa || r.nama_guru || r.nama || '-',
+                            department: isGuru ? (r.jabatan || 'Guru / GTK') : (r.nama_kelas || 'Kelas'),
+                            time: timeRaw ? String(timeRaw).substr(0, 5) : '--:--',
+                            status: r.jam_keluar ? 'PULANG' : (isLate ? 'TERLAMBAT' : 'MASUK'),
+                            isLate: isLate
+                        };
+                    }));
+                }
+                if (res && res.stats) updateStats(res.stats);
+            });
+        }
+
+        // ── 9. UTILITAS INPUT & FULLSCREEN ──────────────
+        function focusBarcodeInput() {
+            setTimeout(function () {
+                if ($('#modal-audio').hasClass('active')) return;
+                $('#input-barcode-scanner').trigger('focus');
+            }, 80);
+        }
+
+        function submitBarcodeInput() {
+            const val = ($('#input-barcode-scanner').val() || '').trim();
+            if (!val) return;
+            $('#input-barcode-scanner').val('');
+            lastScanMethod = 'Input Manual';
+            processScan(val);
+        }
+
+        function toggleFullscreen() {
+            const icon = document.getElementById('fullscreenIcon');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(function () {});
+                if (icon) icon.className = 'fa-solid fa-compress text-xs sm:text-sm';
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+                if (icon) icon.className = 'fa-solid fa-expand text-xs sm:text-sm';
+            }
+        }
+
+        function testSound(kind) {
+            unlockAudio();
+            if (kind === 'in') {
+                playChime('success_in');
+                setTimeout(function () { speakText('Tes suara. Absen masuk.'); }, 280);
+            } else {
+                playChime('success_out');
+                setTimeout(function () { speakText('Tes suara. Absen pulang.'); }, 280);
+            }
+        }
+
+        // ── 10. EVENT BINDING ───────────────────────────
+        $('#mode-group button').on('click', function () { setMode($(this).data('mode')); });
+
         $('#btn-open-audio').on('click', openAudioSettings);
         $('#btn-close-audio').on('click', closeAudioSettings);
-        $('[data-scanmode]').on('click', function () { setScanMode($(this).data('scanmode')); });
-        $('#select-video-device').on('change', function () { switchCameraDevice(this.value); });
+        $('#modal-audio').on('click', function (e) { if (e.target === this) closeAudioSettings(); });
+
+        $('#setting-sound-chime').on('change', function () {
+            soundEnabled = !!this.checked;
+            localStorage.setItem('presensi_qr_sound', soundEnabled ? '1' : '0');
+            syncAudioUi();
+            if (soundEnabled) playChime('success_in');
+        });
+
+        $('#setting-voice-tts').on('change', function () {
+            voiceEnabled = !!this.checked;
+            localStorage.setItem('presensi_qr_voice', voiceEnabled ? '1' : '0');
+            syncAudioUi();
+            if (voiceEnabled) speakText('Suara aktif');
+        });
+
+        $('[data-soundtest]').on('click', function () { testSound($(this).data('soundtest')); });
+
+        $('#btn-fullscreen').on('click', toggleFullscreen);
         $('#btn-flip-cam').on('click', cycleFacingMode);
-        $('#btn-desktop-torch').on('click', toggleTorchDesktop);
+        $('#btn-desktop-torch').on('click', toggleTorch);
         $('#btn-desktop-pause').on('click', toggleCameraPause);
-        $('#btn-retry-cam').on('click', initDesktopCamera);
-        $('#btn-barcode-proses').on('click', submitBarcodeGunInput);
-        $('#btn-toggle-rfid-mode').on('click', toggleRfidMode);
-        $('#btn-toggle-fp-mode').on('click', toggleFpMode);
-        $('#btn-refresh-feed').on('click', loadHistoryFeed);
-        $('#setting-sound-chime').on('change', function () { toggleSoundSetting(this.checked); });
-        $('#setting-voice-tts').on('change', function () { toggleVoiceSetting(this.checked); });
-        $('[data-soundtest]').on('click', function () { testDesktopSound($(this).data('soundtest')); });
-        $(document).on('keydown', function (e) {
-            if (e.key === 'Escape') closeAudioSettings();
+        $('#btn-retry-cam').on('click', initCamera);
+        $('#btn-barcode-proses').on('click', submitBarcodeInput);
+        $('#select-video-device').on('change', function () { switchCameraDevice(this.value); });
+        $('#select-kelas-filter').on('change', function () { loadFeed(); focusBarcodeInput(); });
+
+        $('#input-barcode-scanner').on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitBarcodeInput();
+            }
         });
 
-        // Initial launch
+        $(window).on('keydown', function (e) {
+            if ($('#modal-audio').hasClass('active')) {
+                if (e.key === 'Escape') closeAudioSettings();
+                return;
+            }
+
+            const tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+            if (e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleFullscreen(); return; }
+            if (e.key === 's' || e.key === 'S') { e.preventDefault(); openAudioSettings(); return; }
+            if (e.key === 'm' || e.key === 'M') {
+                e.preventDefault();
+                const modes = ['auto', 'masuk', 'pulang'];
+                setMode(modes[(modes.indexOf(activeMode) + 1) % modes.length]);
+            }
+        });
+
+        $(document).on('click', function (e) {
+            if ($(e.target).closest('button, a, input, select, label, .modal-backdrop').length) return;
+            focusBarcodeInput();
+        });
+
+        // ── 11. INISIALISASI ────────────────────────────
         $(document).ready(function () {
-            initDesktopCamera();
-            startKioskGpsWatch();
-            loadHistoryFeed();
-            focusBarcodeGunInput();
-        });
+            syncAudioUi();
+            refreshModes();
+            startGpsWatch();
+            initCamera();
+            loadFeed();
+            focusBarcodeInput();
 
+            setInterval(loadFeed, 25000);
+            setInterval(refreshModes, 15000);
+            setInterval(updateModeIndicator, 60000);
+        });
     })();
     </script>
 </body>

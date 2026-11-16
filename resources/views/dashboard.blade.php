@@ -518,6 +518,7 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                     ['url' => 'admin/jurnal',                'icon' => 'bi-journal-check',      'ic' => 'text-purple-600', 'icbg' => 'bg-purple-50',  'label' => 'Jurnal Mengajar'],
                     ['url' => 'admin/piket',                 'icon' => 'bi-shield-check',       'ic' => 'text-amber-600',  'icbg' => 'bg-amber-50',   'label' => 'Piket Guru'],
                     ['url' => 'scanner',                     'icon' => 'bi-display',            'ic' => 'text-teal-600',   'icbg' => 'bg-teal-50',    'label' => 'Scanner QR Siswa'],
+                    ['url' => 'kiosk',                       'icon' => 'bi-broadcast-pin',      'ic' => 'text-emerald-600','icbg' => 'bg-emerald-50', 'label' => 'Kiosk RFID/NFC'],
                     ['url' => 'admin/presensi/rekap',        'icon' => 'bi-file-earmark-spreadsheet', 'ic' => 'text-rose-600', 'icbg' => 'bg-rose-50', 'label' => 'Rekap Presensi'],
                 ];
                 foreach ($qaLinks as $qa): ?>
