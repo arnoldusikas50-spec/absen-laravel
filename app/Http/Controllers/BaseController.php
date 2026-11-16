@@ -323,6 +323,11 @@ class BaseController extends Controller
      */
     protected function updateSettingRow(array $data): bool
     {
+        if (empty($data)) {
+            // Tidak ada kolom yang perlu diperbarui — tidak ada yang bisa gagal.
+            return true;
+        }
+
         try {
             if (! Schema::hasTable('setting')) {
                 return false;
@@ -330,8 +335,12 @@ class BaseController extends Controller
             $setting = DB::table('setting')->first();
             if ($setting) {
                 $idCol = isset($setting->id_setting) ? 'id_setting' : 'id';
+                // update() mengembalikan jumlah baris yang benar-benar berubah.
+                // Nilai 0 terjadi ketika semua nilai yang dikirim identik dengan
+                // yang sudah ada di database — bukan kegagalan, bukan error.
+                DB::table('setting')->where($idCol, $setting->{$idCol})->update($data);
 
-                return (bool) DB::table('setting')->where($idCol, $setting->{$idCol})->update($data);
+                return true;
             }
 
             return DB::table('setting')->insert($data);
