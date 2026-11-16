@@ -65,11 +65,6 @@ class DashboardController extends BaseController
 
         $role = $this->getUserRole();
 
-        // Panitia membantu verifikasi via monitoring (tanpa dashboard khusus)
-        if (strtolower($role ?? '') === 'panitia') {
-            return redirect()->to('admin/presensi');
-        }
-
         // Siswa memiliki halaman presensi mandiri
         if (strtolower($role ?? '') === 'siswa') {
             $redirect = redirect()->to('siswa/presensi');
@@ -642,72 +637,6 @@ class DashboardController extends BaseController
     }
 
     /**
-     * Get panitia info boxes
-     */
-    private function getPanitiaBox(int $tp, int $smt)
-    {
-        $db = DB::connection();
-
-        // Kehadiran hari ini (presensi; modul ujian sudah dilepas)
-        $hadirHariIni = 0;
-        $pendingVerifikasi = 0;
-        try {
-            if (Schema::hasTable('absensi_harian')) {
-                $today = date('Y-m-d');
-                $rows = $db->table('absensi_harian')->select('status_masuk')->where('tgl', $today)->get();
-                foreach ($rows as $r) {
-                    $st = strtoupper($r->status_masuk ?? '');
-                    if ($st === 'DINAS_REJECTED') {
-                        continue;
-                    }
-                    if (in_array($st, ['ONTIME', 'LATE', 'WFH']) || strpos($st, 'DINAS') !== false) {
-                        $hadirHariIni++;
-                    }
-                }
-                $pendingVerifikasi = (int) $db->table('absensi_harian')->where('status_masuk', 'DINAS_PENDING')->count();
-                $pendingVerifikasi += (int) $db->table('absensi_harian')->where('status_masuk', 'PENDING_VERIFICATION')->count();
-                if (Schema::hasTable('absensi_koreksi')) {
-                    $pendingVerifikasi += (int) $db->table('absensi_koreksi')->where('status', 'pending')->count();
-                }
-            }
-        } catch (\Throwable $e) {
-        }
-
-        $box = [
-            [
-                'box' => 'blue',
-                'total' => $this->dashboardModel->total('master_guru'),
-                'title' => 'Guru',
-                'url' => 'dataguru',
-                'icon' => 'chalkboard-teacher',
-            ],
-            [
-                'box' => 'cyan',
-                'total' => $this->dashboardModel->getTotalSiswa($tp, $smt),
-                'title' => 'Siswa',
-                'url' => 'datasiswa',
-                'icon' => 'users',
-            ],
-            [
-                'box' => 'teal',
-                'total' => $hadirHariIni,
-                'title' => 'Hadir Hari Ini',
-                'url' => 'admin/presensi',
-                'icon' => 'user-clock',
-            ],
-            [
-                'box' => 'fuchsia',
-                'total' => $pendingVerifikasi,
-                'title' => 'Pending Verifikasi',
-                'url' => 'admin/presensi/dinas',
-                'icon' => 'clock',
-            ],
-        ];
-
-        return $box;
-    }
-
-    /**
      * Get siswa menu items
      */
 
@@ -746,19 +675,10 @@ class DashboardController extends BaseController
             return $this->response->setJSON(['info_box' => [], 'ujian_box' => []]);
         }
 
-        $role = $this->getUserRole();
-
-        if (strtolower($role) === 'panitia') {
-            $data = [
-                'info_box' => $this->getPanitiaBox($tp->id_tp, $smt->id_smt),
-                'ujian_box' => [],
-            ];
-        } else {
-            $data = [
-                'info_box' => $this->getAdminBox($setting, $tp->id_tp, $smt->id_smt),
-                'ujian_box' => $this->getUjianBox($tp->id_tp, $smt->id_smt),
-            ];
-        }
+        $data = [
+            'info_box' => $this->getAdminBox($setting, $tp->id_tp, $smt->id_smt),
+            'ujian_box' => $this->getUjianBox($tp->id_tp, $smt->id_smt),
+        ];
 
         return $this->response->setJSON($data);
     }

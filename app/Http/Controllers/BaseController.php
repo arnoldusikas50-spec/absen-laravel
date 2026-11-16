@@ -92,13 +92,8 @@ class BaseController extends Controller
     protected function inGroup(string|array $group): bool
     {
         $role = strtolower((string) (session()->get('role_name') ?? ''));
-        if ($role === 'pengawas') {
-            $role = 'panitia';
-        }
         $norm = static function ($g): string {
-            $g = strtolower((string) $g);
-
-            return $g === 'pengawas' ? 'panitia' : $g;
+            return strtolower((string) $g);
         };
         if (is_array($group)) {
             $group = array_map($norm, $group);
@@ -125,14 +120,13 @@ class BaseController extends Controller
         return (string) $role === '2' || $roleName === 'guru' || $this->inGroup('guru');
     }
 
+    /**
+     * Role 'panitia' dihapus dari sistem RBAC. Tetap disediakan sebagai stub
+     * (selalu false) agar pemanggilan di controller lain tidak fatal.
+     */
     protected function isPanitia(): bool
     {
-        $role = session()->get('role');
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
-
-        return (string) $role === '4'
-            || in_array($roleName, ['panitia', 'pengawas'], true)
-            || $this->inGroup(['panitia', 'pengawas']);
+        return false;
     }
 
     protected function isKepsek(): bool
@@ -172,13 +166,10 @@ class BaseController extends Controller
         if ($this->inGroup($roles)) {
             return null;
         }
-        $idMap = ['admin' => '1', 'guru' => '2', 'siswa' => '3', 'panitia' => '4', 'pengawas' => '4'];
+        $idMap = ['admin' => '1', 'guru' => '2', 'siswa' => '3'];
         $roleId = (string) (session()->get('role') ?? '');
         foreach ($roles as $r) {
             $key = strtolower((string) $r);
-            if ($key === 'pengawas') {
-                $key = 'panitia';
-            }
             if (isset($idMap[$key]) && $roleId === $idMap[$key]) {
                 return null;
             }
@@ -224,6 +215,19 @@ class BaseController extends Controller
         if ($user) {
             $user->role = session()->get('role');
             $user->role_name = session()->get('role_name');
+
+            // Hitung nama_lengkap dari first_name + last_name.
+            // Jika first_name sudah berisi spasi (nama lengkap tersimpan di
+            // salah field), jangan tambahkan last_name agar nama tidak ganda.
+            $first = trim((string) ($user->first_name ?? ''));
+            $last  = trim((string) ($user->last_name ?? ''));
+            if (!empty($first) && strpos($first, ' ') !== false) {
+                $user->nama_lengkap = $first;
+            } elseif ($first === $last) {
+                $user->nama_lengkap = $first;
+            } else {
+                $user->nama_lengkap = trim($first.' '.$last);
+            }
         }
 
         return $user;

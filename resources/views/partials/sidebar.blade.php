@@ -218,7 +218,7 @@ if ($userRole == '1') {
                         ['name' => 'Scanner QR Desktop',   'link' => 'scanner', 'icon' => 'bi-display'],
                         ['name' => 'Scan QR Siswa',        'link' => 'guru/presensi-siswa'.$hashParam, 'icon' => 'bi-qr-code-scan'],
                         ['name' => 'Presensi Harian',      'link' => 'presensisiswa',              'icon' => 'bi-person-lines-fill'],
-                        ['name' => 'Rekap Presensi Siswa', 'link' => 'admin/presensi/siswa/rekap', 'icon' => 'bi-file-earmark-spreadsheet-fill'],
+                        ['name' => 'Rekap Presensi Siswa', 'link' => 'guru/presensi-siswa/rekap',  'icon' => 'bi-file-earmark-spreadsheet-fill'],
                         ['name' => 'Cetak Kartu QR',       'link' => 'guru/presensi-siswa/kartu',  'icon' => 'bi-card-heading'],
                     ],
                 ],
@@ -262,21 +262,6 @@ if ($userRole == '1') {
             ],
         ];
     }
-} elseif ($userRole == '4') {
-    $menus = [
-        [
-            'header' => 'MONITORING & PENGAWASAN',
-            'items' => [
-                ['name' => 'Dashboard',           'link' => 'dashboard',                  'icon' => 'bi-grid-1x2-fill'],
-                ['name' => 'Presensi Guru',       'link' => 'admin/presensi',             'icon' => 'bi-speedometer2'],
-                ['name' => 'Presensi Siswa',      'link' => 'admin/presensi/siswa/harian', 'icon' => 'bi-people-fill'],
-                ['name' => 'Jurnal Mengajar Guru', 'link' => 'admin/jurnal',               'icon' => 'bi-journal-check'],
-                ['name' => 'Piket & Tamu',        'link' => 'guru/piket/laporan',      'icon' => 'bi-shield-check'],
-                ['name' => 'Rekap Presensi Guru', 'link' => 'admin/presensi/rekap',       'icon' => 'bi-file-earmark-spreadsheet-fill'],
-                ['name' => 'Rekap Presensi Siswa', 'link' => 'admin/presensi/siswa/rekap', 'icon' => 'bi-file-earmark-spreadsheet'],
-            ],
-        ],
-    ];
 } elseif ($userRole == '3') {
     $menus = [
         [
@@ -318,7 +303,11 @@ $userFoto = trim((string) ($user->foto ?? ''));
 $avatar = ($userFoto !== '' && strpos($userFoto, '..') === false && file_exists(public_path().'/'.ltrim($userFoto, '/')))
     ? url(ltrim($userFoto, '/'))
     : $defaultAvatar;
-$userName = ! empty($user->nama_lengkap) ? $user->nama_lengkap : 'User';
+$userName = ! empty(session('username'))
+    ? session('username')
+    : (! empty(session('nama'))
+        ? session('nama')
+        : (! empty($user->nama_lengkap) ? $user->nama_lengkap : 'User'));
 $userRoleName = session('role_name') ?? 'Admin';
 
 // Badge notifikasi pending untuk menu verifikasi (khusus admin).

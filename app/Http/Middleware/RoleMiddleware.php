@@ -10,11 +10,11 @@ use Symfony\Component\HttpFoundation\Response;
  * RoleMiddleware — port AdminFilter (CI4) ke Laravel 13.
  *
  * Pemakaian: ->middleware('role:admin') atau ->middleware('role:guru,admin').
- * Role dikenali: admin, guru, siswa, panitia (alias 'pengawas' -> 'panitia').
+ * Role dikenali: admin, guru, siswa.
  *
  * Sumber role (mengikuti AuthFilter/AdminFilter CI4):
  *   1. session('role_name') — string, dibanding lowercase.
- *   2. session('role') — id grup (1=admin, 2=guru, 3=siswa, 4=panitia).
+ *   2. session('role') — id grup (1=admin, 2=guru, 3=siswa).
  *   3. Bila session kosong, fallback ke atribut user yang login
  *      ($user->role_name / $user->role).
  * Belum login -> 401 JSON untuk AJAX, else redirect route 'auth'.
@@ -27,7 +27,6 @@ class RoleMiddleware
         1 => 'admin',
         2 => 'guru',
         3 => 'siswa',
-        4 => 'panitia',
     ];
 
     public function handle(Request $request, Closure $next, string ...$roles): Response
@@ -61,7 +60,7 @@ class RoleMiddleware
     }
 
     /**
-     * Normalisasi daftar role yang diizinkan: lowercase + alias pengawas.
+     * Normalisasi daftar role yang diizinkan: lowercase.
      * Tanpa parameter -> default ['admin'] (perilaku AdminFilter CI4).
      */
     protected function normalizeRoles(array $roles): array
@@ -71,15 +70,12 @@ class RoleMiddleware
             $roles = ['admin'];
         }
 
-        return array_map(fn ($r) => $r === 'pengawas' ? 'panitia' : $r, $roles);
+        return $roles;
     }
 
     protected function userHasRole(Request $request, array $allowed): bool
     {
         $roleName = strtolower(trim((string) (session('role_name') ?? '')));
-        if ($roleName === 'pengawas') {
-            $roleName = 'panitia';
-        }
         if ($roleName !== '' && in_array($roleName, $allowed, true)) {
             return true;
         }
@@ -93,9 +89,6 @@ class RoleMiddleware
         $user = $request->user();
         if ($user) {
             $userRole = strtolower(trim((string) ($user->role_name ?? '')));
-            if ($userRole === 'pengawas') {
-                $userRole = 'panitia';
-            }
             if ($userRole !== '' && in_array($userRole, $allowed, true)) {
                 return true;
             }

@@ -305,8 +305,8 @@ class AuthController extends BaseController
             return url('presensi');
         }
 
-        // Admin & Panitia → dashboard
-        if (in_array($roleName, ['admin', 'panitia'])) {
+        // Admin → dashboard
+        if ($roleName === 'admin') {
             return url('dashboard');
         }
 
