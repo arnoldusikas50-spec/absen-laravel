@@ -301,7 +301,7 @@
                         {{ $setting->nama_sekolah ?? 'Scanner QR' }}
                     </h1>
                     <p id="header-status-badge" class="text-[11px] sm:text-xs text-slate-400 m-0 truncate">
-                        Scanner QR Siswa &amp; Guru
+                        Absensi - Mode Scanner QRcode
                     </p>
                 </div>
             </div>

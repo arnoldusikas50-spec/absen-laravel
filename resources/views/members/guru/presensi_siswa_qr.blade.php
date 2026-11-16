@@ -2475,18 +2475,11 @@ $csrfHash  = csrf_token();
         if (!('NDEFReader' in window)) {
             Swal.fire({
                 icon: 'info',
-                title: 'Web NFC Belum Tersedia',
+                title: 'NFC Belum Tersedia',
                 html: `
                     <div class="text-left text-xs space-y-2 text-slate-600">
-                        <p>Fitur Web NFC langsung dari web browser memerlukan:</p>
-                        <ol class="list-decimal pl-4 space-y-1">
-                            <li>HP <strong>Android</strong> dengan chip NFC aktif.</li>
-                            <li>Browser <strong>Google Chrome</strong> Android (versi 89+).</li>
-                            <li>Koneksi web menggunakan <strong>HTTPS</strong> aman (atau localhost).</li>
-                        </ol>
                         <div class="mt-3 p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-[11px]">
-                            <strong>💡 Alternatif Sangat Mudah (Tanpa HTTPS):</strong><br>
-                            Gunakan aplikasi <em>"NFC to Keyboard"</em> atau <em>"NFC Keyboard"</em> dari Google Play Store. Saat kartu ditempelkan ke belakang HP, nomor UID kartu langsung terketik otomatis ke form input seperti keyboard USB.
+                            <strong>💡 Fitur NFC memerlukan </strong> HP <strong>Android</strong> dengan chip NFC aktif.
                         </div>
                     </div>
                 `,
