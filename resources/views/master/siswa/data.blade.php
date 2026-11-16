@@ -163,6 +163,11 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-xs">
                             <i class="bi bi-upload"></i> Import
                         </a>
+                        <button type="button" onclick="openQuickNfcModal()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"
+                            title="Scan & Tautkan Kartu RFID/NFC ke Siswa">
+                            <i class="bi bi-broadcast"></i> Scan NFC Siswa
+                        </button>
                         <button type="button" data-ui-toggle="modal" data-ui-target="#createSiswaModal"
                             class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs shadow-blue-500/20">
                             <i class="bi bi-plus-lg"></i> Tambah Siswa
@@ -264,7 +269,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                                 <th class="py-3 px-4 font-bold">Kelas</th>
                                 <th class="py-3 px-4 text-center font-bold">Status</th>
                                 <?php if ($isAdmin): ?>
-                                    <th class="py-3 px-4 text-center font-bold w-24">Aksi</th>
+                                    <th class="py-3 px-4 text-center font-bold w-28">Aksi</th>
                                 <?php endif; ?>
                             </tr>
                         </thead>
@@ -409,6 +414,23 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                         </section>
 
                         <section>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Kartu RFID / NFC</p>
+                            <div>
+                                <label for="modal_nomor_rfid" class="{{ $labelClass }}">Nomor Kartu RFID</label>
+                                <div class="relative">
+                                    <input id="modal_nomor_rfid" type="text" class="{{ $inputClass }} pr-24 font-mono uppercase" name="nomor_rfid"
+                                        placeholder="Contoh: 04A1B2C3" autocomplete="off" maxlength="64">
+                                    <button type="button" onclick="scanNfcToField('#modal_nomor_rfid')"
+                                        class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1 transition-all"
+                                        title="Tempelkan kartu RFID ke HP">
+                                        <i class="bi bi-broadcast"></i> Tap NFC
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1 mb-0">Opsional. Boleh dikosongkan jika belum memiliki kartu RFID.</p>
+                            </div>
+                        </section>
+
+                        <section>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Akun Login</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
@@ -446,6 +468,120 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
             </div>
         </div>
     </div>
+
+    <!-- Modal Registrasi Cepat Kartu RFID / NFC Siswa -->
+    <div id="quickNfcModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-3 sm:p-4" tabindex="-1" aria-labelledby="quickNfcLabel" aria-hidden="true">
+        <div class="modal-box-tw w-full max-w-lg">
+            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+                <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 shrink-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0 backdrop-blur-xs">
+                            <i class="bi bi-broadcast"></i>
+                        </span>
+                        <div class="min-w-0">
+                            <h5 class="font-bold text-white text-base mb-0.5" id="quickNfcLabel">Scan & Tautkan Kartu NFC Siswa</h5>
+                            <p class="text-[11px] text-emerald-100 mb-0">Tempelkan kartu RFID ke HP untuk menyimpan langsung ke database.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors shrink-0"
+                        onclick="closeQuickNfcModal()" aria-label="Tutup">
+                        <i class="bi bi-x-lg text-sm"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+                    <!-- Filter Kelas & Pemilihan Siswa -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Filter Kelas</label>
+                            <select id="nfc-filter-kelas" onchange="onNfcFilterKelasChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden">
+                                <option value="">Semua Kelas</option>
+                                <?php foreach (($kelass ?? []) as $id => $name): ?>
+                                    <option value="{{ (int) $id }}">{{ $name }}</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Siswa Target <span class="text-rose-500">*</span></label>
+                            <select id="nfc-select-siswa" onchange="onNfcSelectSiswaChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium">
+                                <option value="">-- Memuat Siswa --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Preview Siswa Terpilih -->
+                    <div id="nfc-siswa-card" class="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 flex items-center gap-3.5 transition-all">
+                        <img id="nfc-siswa-foto" src="{{ asset('assets/img/siswa_sm.png') }}" alt="Foto" class="w-12 h-12 rounded-xl object-cover border border-slate-200 bg-white shadow-xs shrink-0">
+                        <div class="min-w-0 flex-1">
+                            <h5 id="nfc-siswa-nama" class="font-bold text-slate-800 text-sm leading-tight truncate">Pilih siswa terlebih dahulu</h5>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">
+                                <span id="nfc-siswa-nis">NIS: -</span>
+                                <span>&bull;</span>
+                                <span id="nfc-siswa-kelas" class="font-semibold text-emerald-700">-</span>
+                            </div>
+                            <div class="mt-1 flex items-center gap-2">
+                                <span class="text-[10px] text-slate-400">Status Kartu:</span>
+                                <span id="nfc-siswa-rfid-status" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600">
+                                    Belum Ada RFID
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sensor NFC & Tap Area -->
+                    <div class="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-5 text-center relative overflow-hidden">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 animate-pulse">
+                            <i class="bi bi-broadcast"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-sm mt-3 mb-1">Siap Membaca Kartu RFID / NFC</h4>
+                        <p id="nfc-modal-status-text" class="text-xs text-slate-500 max-w-xs mx-auto mb-3">
+                            Tempelkan kartu RFID siswa ke <strong>bagian belakang HP Android</strong> Anda sekarang.
+                        </p>
+
+                        <!-- Input Manual / USB Reader fallback -->
+                        <div class="max-w-xs mx-auto">
+                            <div class="relative">
+                                <input type="text" id="nfc-manual-rfid-input" placeholder="Atau scan via USB Reader / ketik UID" class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden" autocomplete="off">
+                                <i class="bi bi-upc-scan absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <button type="button" onclick="submitManualRfid()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                    Simpan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Checkbox Auto Advance -->
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <label for="nfc-auto-next" class="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-700">
+                            <input type="checkbox" id="nfc-auto-next" checked class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                            <span>Otomatis lanjut ke siswa berikutnya</span>
+                        </label>
+                        <span class="text-[10px] text-slate-400 font-medium">Bagus untuk registrasi massal</span>
+                    </div>
+
+                    <!-- Log Aktivitas Scan Terbaru -->
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                            <span>Riwayat Taut Kartu Sesi Ini</span>
+                            <span id="nfc-session-count" class="text-emerald-600 font-bold">0 tersimpan</span>
+                        </p>
+                        <div id="nfc-scan-history" class="space-y-1.5 max-h-28 overflow-y-auto text-xs">
+                            <p class="text-[11px] text-slate-400 italic text-center py-2 mb-0">Belum ada kartu yang ditautkan pada sesi ini.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
+                    <button type="button" id="btn-hapus-rfid-siswa" onclick="hapusRfidSiswaTerpilih()" class="hidden px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors">
+                        <i class="bi bi-trash3 mr-1"></i> Lepas Kartu Siswa Ini
+                    </button>
+                    <div class="ml-auto">
+                        <button type="button" onclick="closeQuickNfcModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 <?php endif; ?>
 
 @endsection
@@ -461,6 +597,8 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
         const URL_CREATE  = '{{ url('datasiswa/create') }}';
         const URL_ADD     = '{{ url('datasiswa/add') }}';
         const URL_EDIT    = '{{ route('datasiswa.edit', ['id' => '__ID__']) }}';
+        const URL_ASSIGN_RFID = '{{ url('datasiswa/assign_rfid') }}';
+        const URL_SISWA_BY_KELAS = '{{ url('datasiswa/siswa_by_kelas') }}';
         const DEFAULT_FOTO = '{{ asset('assets/img/siswa_sm.png') }}';
 
         let currentPage = 1;
@@ -641,6 +779,11 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                     akunChip = '<div class="mt-1"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-semibold"><i class="bi bi-person-x"></i>Tanpa akun</span></div>';
                 }
 
+                const rfidVal = escapeHtml(siswa.nomor_rfid || '');
+                const rfidBadge = rfidVal
+                    ? '<div class="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 font-mono bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md inline-flex" title="Nomor Kartu RFID: ' + rfidVal + '"><i class="bi bi-broadcast text-emerald-600"></i>' + rfidVal + '</div>'
+                    : '<div class="text-[10px] text-slate-400 mt-1 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>Tanpa RFID</div>';
+
                 const checkbox = IS_ADMIN
                     ? '<td class="text-center align-middle py-3 px-3">' +
                         '<input name="checked[]" class="check rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="' + idSiswa + '" type="checkbox" aria-label="Pilih ' + nama + '">' +
@@ -649,9 +792,14 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
 
                 const aksi = IS_ADMIN
                     ? '<td class="text-center align-middle py-3 px-4">' +
-                        '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT.replace('__ID__', idSiswa) + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
-                            '<i class="bi bi-pencil-square text-xs"></i>' +
-                        '</a>' +
+                        '<div class="flex items-center justify-center gap-1.5">' +
+                            '<button type="button" class="btn-tap-nfc-row inline-flex items-center justify-center w-8 h-8 rounded-lg ' + (rfidVal ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200') + ' transition-colors shadow-xs" data-id="' + idSiswa + '" data-nama="' + nama + '" data-rfid="' + rfidVal + '" data-nis="' + nis + '" data-kelas="' + escapeHtml(siswa.nama_kelas || '-') + '" data-foto="' + foto + '" title="' + (rfidVal ? 'RFID: ' + rfidVal + ' (Klik untuk ganti)' : 'Tap NFC untuk daftarkan kartu') + '">' +
+                                '<i class="bi bi-broadcast text-xs"></i>' +
+                            '</button>' +
+                            '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT.replace('__ID__', idSiswa) + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
+                                '<i class="bi bi-pencil-square text-xs"></i>' +
+                            '</a>' +
+                        '</div>' +
                       '</td>'
                     : '';
 
@@ -672,6 +820,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                     '<td class="align-middle py-3 px-4">' +
                         '<div class="text-[11px] text-slate-400 font-medium">NIS <span class="font-bold text-slate-700 font-mono">' + nis + '</span></div>' +
                         '<div class="text-[11px] text-slate-400 font-medium mt-0.5">NISN <span class="font-bold text-slate-700 font-mono">' + nisn + '</span></div>' +
+                        rfidBadge +
                     '</td>' +
                     '<td class="align-middle py-3 px-4">' + kelas + '</td>' +
                     '<td class="text-center align-middle py-3 px-4">' +
@@ -999,6 +1148,423 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
 
         $('#createSiswaModal').on('app:modal-shown', function () {
             setTimeout(function () { $('#nama_siswa').trigger('focus'); }, 60);
+        });
+
+        // ── NFC INTEGRATION (Web NFC untuk Input & Quick Modal) ──
+        let modalNfcReader = null;
+        let modalNfcController = null;
+        let modalNfcActive = false;
+        let nfcSiswaList = [];
+        let nfcSessionCount = 0;
+
+        window.scanNfcToField = async function (fieldSelector) {
+            if (!('NDEFReader' in window)) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Web NFC',
+                    html: `<div class="text-left text-xs space-y-1.5 text-slate-600">
+                        <p>Fitur Tap NFC langsung di browser membutuhkan:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                            <li>Smartphone <strong>Android</strong> ber-NFC.</li>
+                            <li>Browser <strong>Google Chrome</strong> Android.</li>
+                            <li>Akses melalui protokol <strong>HTTPS</strong>.</li>
+                        </ul>
+                        <p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual atau menggunakan USB RFID reader.</p>
+                    </div>`,
+                    confirmButtonText: 'Tutup'
+                });
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                Swal.fire({
+                    title: 'Tempelkan Kartu NFC',
+                    text: 'Dekatkan kartu RFID siswa ke bagian belakang HP Anda sekarang...',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                ndef.onreading = (event) => {
+                    const rawSerial = event.serialNumber || '';
+                    if (rawSerial) {
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                        const clean = rawSerial.replace(/[: -]/g, '').toUpperCase();
+                        $(fieldSelector).val(clean).trigger('input');
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Kartu Terbaca!',
+                            text: 'UID Kartu: ' + clean,
+                            timer: 1800,
+                            showConfirmButton: false
+                        });
+                    }
+                };
+            } catch (err) {
+                Swal.fire('Gagal', err.message || 'Tidak dapat membaca NFC.', 'error');
+            }
+        };
+
+        window.openQuickNfcModal = function (preselectIdSiswa = null) {
+            $('#quickNfcModal').removeClass('hidden').addClass('flex');
+            const currentKelas = $('#users-kelas').val() || '';
+            $('#nfc-filter-kelas').val(currentKelas === 'tanpa' ? '' : currentKelas);
+            loadSiswaForNfc($('#nfc-filter-kelas').val(), preselectIdSiswa);
+            startModalNfcScan();
+        };
+
+        window.closeQuickNfcModal = function () {
+            stopModalNfcScan();
+            $('#quickNfcModal').addClass('hidden').removeClass('flex');
+            loadSiswa();
+        };
+
+        async function startModalNfcScan() {
+            if (!('NDEFReader' in window)) {
+                $('#nfc-modal-status-text').html(
+                    '<span class="text-amber-700">Web NFC tidak didukung di browser ini. Gunakan HP Android + Chrome (HTTPS), atau scan menggunakan USB RFID Reader / ketik UID di bawah.</span>'
+                );
+                return;
+            }
+
+            try {
+                if (modalNfcController) {
+                    modalNfcController.abort();
+                }
+                modalNfcController = new AbortController();
+                modalNfcReader = new NDEFReader();
+                await modalNfcReader.scan({ signal: modalNfcController.signal });
+                modalNfcActive = true;
+
+                $('#nfc-modal-status-text').html(
+                    '<span class="text-emerald-700 font-semibold">Sensor NFC HP Aktif! Tempelkan kartu RFID siswa ke belakang HP...</span>'
+                );
+
+                modalNfcReader.onreading = (event) => {
+                    const rawSerial = event.serialNumber;
+                    if (!rawSerial) return;
+
+                    const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
+                    if (selectedId <= 0) {
+                        if (navigator.vibrate) navigator.vibrate(200);
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Pilih Siswa',
+                            text: 'Pilih siswa target terlebih dahulu sebelum menempelkan kartu.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        return;
+                    }
+
+                    const cleanUid = rawSerial.replace(/[: -]/g, '').toUpperCase();
+                    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+
+                    saveRfidToDatabase(selectedId, cleanUid);
+                };
+
+                modalNfcReader.onreadingerror = () => {
+                    if (navigator.vibrate) navigator.vibrate(200);
+                    $('#nfc-modal-status-text').html(
+                        '<span class="text-rose-600 font-semibold">Gagal membaca kartu. Pastikan kartu tetap menempel sejenak.</span>'
+                    );
+                    setTimeout(() => {
+                        if (modalNfcActive) {
+                            $('#nfc-modal-status-text').html(
+                                '<span class="text-emerald-700 font-semibold">Sensor NFC HP Aktif! Tempelkan kartu RFID siswa ke belakang HP...</span>'
+                            );
+                        }
+                    }, 1800);
+                };
+
+            } catch (err) {
+                console.warn('Modal NFC Error:', err);
+                modalNfcActive = false;
+                $('#nfc-modal-status-text').html(
+                    '<span class="text-slate-500">NFC belum aktif (' + (err.message || err.name) + '). Pastikan sensor NFC diaktifkan di Pengaturan HP Anda.</span>'
+                );
+            }
+        }
+
+        function stopModalNfcScan() {
+            if (modalNfcController) {
+                modalNfcController.abort();
+                modalNfcController = null;
+            }
+            modalNfcActive = false;
+        }
+
+        function loadSiswaForNfc(idKelas = '', selectId = null) {
+            $('#nfc-select-siswa').html('<option value="">-- Memuat Siswa --</option>');
+            $.ajax({
+                url: URL_SISWA_BY_KELAS + (idKelas ? '/' + idKelas : ''),
+                type: 'GET',
+                dataType: 'json',
+                success: function (res) {
+                    nfcSiswaList = (res && res.lists) ? res.lists : [];
+                    let options = '<option value="">-- Pilih Siswa (' + nfcSiswaList.length + ' siswa) --</option>';
+                    let preselectFound = false;
+
+                    nfcSiswaList.forEach(function (s) {
+                        const hasRfid = !!s.nomor_rfid;
+                        const label = s.nama + ' (' + (s.nis || '-') + ')' + (hasRfid ? ' [✓ ' + s.nomor_rfid + ']' : ' [Belum ada RFID]');
+                        const isSel = selectId && parseInt(s.id_siswa, 10) === parseInt(selectId, 10);
+                        if (isSel) preselectFound = true;
+                        options += '<option value="' + s.id_siswa + '" ' + (isSel ? 'selected' : '') + '>' + escapeHtml(label) + '</option>';
+                    });
+
+                    $('#nfc-select-siswa').html(options);
+
+                    if (selectId && preselectFound) {
+                        onNfcSelectSiswaChange(selectId);
+                    } else if (nfcSiswaList.length) {
+                        const firstWithoutRfid = nfcSiswaList.find(s => !s.nomor_rfid);
+                        const target = firstWithoutRfid || nfcSiswaList[0];
+                        $('#nfc-select-siswa').val(target.id_siswa);
+                        onNfcSelectSiswaChange(target.id_siswa);
+                    } else {
+                        onNfcSelectSiswaChange('');
+                    }
+                },
+                error: function () {
+                    $('#nfc-select-siswa').html('<option value="">Gagal memuat siswa</option>');
+                }
+            });
+        }
+
+        window.onNfcFilterKelasChange = function (idKelas) {
+            loadSiswaForNfc(idKelas);
+        };
+
+        window.onNfcSelectSiswaChange = function (idSiswa) {
+            const sid = parseInt(idSiswa, 10) || 0;
+            const siswa = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === sid);
+
+            if (!siswa) {
+                $('#nfc-siswa-nama').text('Pilih siswa terlebih dahulu');
+                $('#nfc-siswa-nis').text('NIS: -');
+                $('#nfc-siswa-kelas').text('-');
+                $('#nfc-siswa-foto').attr('src', DEFAULT_FOTO);
+                $('#nfc-siswa-rfid-status').removeClass('bg-emerald-100 text-emerald-800').addClass('bg-slate-200/80 text-slate-600').text('Belum Ada RFID');
+                $('#btn-hapus-rfid-siswa').addClass('hidden');
+                return;
+            }
+
+            $('#nfc-siswa-nama').text(siswa.nama);
+            $('#nfc-siswa-nis').text('NIS: ' + (siswa.nis || '-') + ' / NISN: ' + (siswa.nisn || '-'));
+            $('#nfc-siswa-kelas').text(siswa.nama_kelas || 'Kelas -');
+            $('#nfc-siswa-foto').attr('src', siswa.foto || DEFAULT_FOTO);
+
+            if (siswa.nomor_rfid) {
+                $('#nfc-siswa-rfid-status')
+                    .removeClass('bg-slate-200/80 text-slate-600')
+                    .addClass('bg-emerald-100 text-emerald-800')
+                    .html('<i class="bi bi-check-circle-fill text-emerald-600"></i> RFID: ' + escapeHtml(siswa.nomor_rfid));
+                $('#btn-hapus-rfid-siswa').removeClass('hidden');
+            } else {
+                $('#nfc-siswa-rfid-status')
+                    .removeClass('bg-emerald-100 text-emerald-800')
+                    .addClass('bg-slate-200/80 text-slate-600')
+                    .text('Belum Ada RFID');
+                $('#btn-hapus-rfid-siswa').addClass('hidden');
+            }
+        };
+
+        function saveRfidToDatabase(idSiswa, rfidNumber) {
+            if (!idSiswa) return;
+            const cleanUid = String(rfidNumber || '').replace(/[: -]/g, '').toUpperCase();
+            if (!cleanUid) return;
+
+            $('#nfc-modal-status-text').html(
+                '<span class="text-blue-700 font-semibold inline-flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span> Menyimpan kartu ' + cleanUid + ' ke database...</span>'
+            );
+
+            const payload = {
+                id_siswa: idSiswa,
+                nomor_rfid: cleanUid
+            };
+            payload[CSRF_NAME] = CSRF_HASH;
+
+            $.ajax({
+                url: URL_ASSIGN_RFID,
+                type: 'POST',
+                dataType: 'json',
+                data: payload,
+                success: function (res) {
+                    if (res && res.status) {
+                        nfcSessionCount++;
+                        $('#nfc-session-count').text(nfcSessionCount + ' tersimpan');
+
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(880, ctx.currentTime);
+                            osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+                            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.2);
+                        } catch(e) {}
+
+                        const currentItem = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === parseInt(idSiswa, 10));
+                        if (currentItem) {
+                            currentItem.nomor_rfid = cleanUid;
+                        }
+
+                        const timeStr = (new Date()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const logItem = `
+                            <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between text-[11px]">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold"><i class="bi bi-check-lg"></i></span>
+                                    <div class="truncate">
+                                        <span class="font-bold text-slate-800">${escapeHtml(res.nama || 'Siswa')}</span>
+                                        <span class="text-slate-400 text-[10px]">&bull; RFID: <strong class="font-mono text-emerald-700">${cleanUid}</strong></span>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-slate-400 shrink-0">${timeStr}</span>
+                            </div>
+                        `;
+                        if ($('#nfc-scan-history p.italic').length) {
+                            $('#nfc-scan-history').empty();
+                        }
+                        $('#nfc-scan-history').prepend(logItem);
+
+                        $('#nfc-siswa-rfid-status')
+                            .removeClass('bg-slate-200/80 text-slate-600')
+                            .addClass('bg-emerald-100 text-emerald-800')
+                            .html('<i class="bi bi-check-circle-fill text-emerald-600"></i> RFID: ' + cleanUid);
+                        $('#btn-hapus-rfid-siswa').removeClass('hidden');
+
+                        if ($('#nfc-auto-next').is(':checked')) {
+                            const currentIndex = nfcSiswaList.findIndex(s => parseInt(s.id_siswa, 10) === parseInt(idSiswa, 10));
+                            let nextStudent = null;
+                            for (let i = currentIndex + 1; i < nfcSiswaList.length; i++) {
+                                if (!nfcSiswaList[i].nomor_rfid) {
+                                    nextStudent = nfcSiswaList[i];
+                                    break;
+                                }
+                            }
+                            if (!nextStudent) {
+                                for (let i = 0; i < currentIndex; i++) {
+                                    if (!nfcSiswaList[i].nomor_rfid) {
+                                        nextStudent = nfcSiswaList[i];
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (nextStudent) {
+                                $('#nfc-select-siswa').val(nextStudent.id_siswa);
+                                onNfcSelectSiswaChange(nextStudent.id_siswa);
+                                $('#nfc-modal-status-text').html(
+                                    '<span class="text-emerald-700 font-bold">✓ Tersimpan! Siap scan kartu untuk: ' + escapeHtml(nextStudent.nama) + '</span>'
+                                );
+                            } else {
+                                $('#nfc-modal-status-text').html(
+                                    '<span class="text-emerald-700 font-bold">✓ Kartu ' + cleanUid + ' tersimpan! Semua siswa di kelas ini sudah memiliki kartu RFID.</span>'
+                                );
+                            }
+                        } else {
+                            $('#nfc-modal-status-text').html(
+                                '<span class="text-emerald-700 font-bold">✓ Kartu ' + cleanUid + ' berhasil disimpan!</span>'
+                            );
+                        }
+
+                        loadSiswa();
+
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal Menyimpan Kartu',
+                            text: res.message || 'Terjadi kesalahan saat menyimpan nomor RFID.'
+                        });
+                        $('#nfc-modal-status-text').html(
+                            '<span class="text-rose-600 font-semibold">' + (res.message || 'Gagal menyimpan kartu.') + '</span>'
+                        );
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'Terjadi kesalahan server.';
+                    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+                    Swal.fire('Error', msg, 'error');
+                    $('#nfc-modal-status-text').html('<span class="text-rose-600">' + msg + '</span>');
+                }
+            });
+        }
+
+        window.submitManualRfid = function () {
+            const rawVal = $('#nfc-manual-rfid-input').val().trim();
+            if (!rawVal) {
+                Swal.fire('Peringatan', 'Ketik nomor UID kartu terlebih dahulu.', 'warning');
+                return;
+            }
+            const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
+            if (selectedId <= 0) {
+                Swal.fire('Peringatan', 'Pilih siswa target terlebih dahulu.', 'warning');
+                return;
+            }
+            saveRfidToDatabase(selectedId, rawVal);
+            $('#nfc-manual-rfid-input').val('');
+        };
+
+        $('#nfc-manual-rfid-input').on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitManualRfid();
+            }
+        });
+
+        window.hapusRfidSiswaTerpilih = function () {
+            const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
+            if (selectedId <= 0) return;
+            const currentItem = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === selectedId);
+            const namaSiswa = currentItem ? currentItem.nama : 'siswa ini';
+
+            Swal.fire({
+                title: 'Lepas Kartu RFID?',
+                text: 'Nomor kartu RFID ' + namaSiswa + ' akan dihapus dari sistem.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                confirmButtonText: 'Ya, Lepas',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (!res.isConfirmed) return;
+                const payload = { id_siswa: selectedId, nomor_rfid: '' };
+                payload[CSRF_NAME] = CSRF_HASH;
+
+                $.ajax({
+                    url: URL_ASSIGN_RFID,
+                    type: 'POST',
+                    dataType: 'json',
+                    data: payload,
+                    success: function (r) {
+                        if (r && r.status) {
+                            if (currentItem) currentItem.nomor_rfid = '';
+                            onNfcSelectSiswaChange(selectedId);
+                            loadSiswa();
+                            Swal.fire('Berhasil', 'Kartu RFID telah dilepas.', 'success');
+                        } else {
+                            Swal.fire('Gagal', (r && r.message) || 'Gagal melepas kartu.', 'error');
+                        }
+                    }
+                });
+            });
+        };
+
+        $(document).on('click', '.btn-tap-nfc-row', function (e) {
+            e.preventDefault();
+            const idSiswa = $(this).data('id');
+            openQuickNfcModal(idSiswa);
         });
 
         // Muat data awal

@@ -229,7 +229,7 @@ class MasterModel extends Model
         $builder = $this->siswaListBuilder($tp, $smt, $status, $kelas, $search, $tanpaKelas);
 
         return $builder
-            ->select('a.id_siswa', 'a.foto', 'a.nama', 'a.nis', 'a.nisn', 'a.jenis_kelamin', 'a.agama', 'a.username', 'd.id_kelas', 'f.nama_kelas', 'us.active', 'u.status')
+            ->select('a.id_siswa', 'a.foto', 'a.nama', 'a.nis', 'a.nisn', 'a.nomor_rfid', 'a.jenis_kelamin', 'a.agama', 'a.username', 'd.id_kelas', 'f.nama_kelas', 'us.active', 'u.status')
             ->orderBy('a.nama', 'ASC')
             ->limit($limit, $offset)
             ->get()
@@ -434,7 +434,7 @@ class MasterModel extends Model
     public function getAllDataGuru(int $tp, int $smt): array
     {
         return DB::table('master_guru as a')
-            ->select('a.id_guru', 'a.nama_guru', 'a.nip', 'a.kode_guru', 'a.jenis_kelamin', 'a.foto', 'b.id_jabatan', 'b.id_kelas', 'b.mapel_kelas', 'b.ekstra_kelas', 'c.id_level', 'c.level', 'd.nama_kelas', 'e.tahun', 'f.nama_smt', 'g.active')
+            ->select('a.id_guru', 'a.nama_guru', 'a.nip', 'a.kode_guru', 'a.jenis_kelamin', 'a.foto', 'a.nomor_rfid', 'b.id_jabatan', 'b.id_kelas', 'b.mapel_kelas', 'b.ekstra_kelas', 'c.id_level', 'c.level', 'd.nama_kelas', 'e.tahun', 'f.nama_smt', 'g.active')
             ->leftJoin('jabatan_guru as b', function ($join) use ($tp, $smt) {
                 $join->on('a.id_guru', '=', 'b.id_guru')
                     ->where('b.id_tp', '=', (int) $tp)

@@ -2342,4 +2342,84 @@ class DataguruController extends BaseController
                 : 'Tidak ada foto yang tersimpan — semua baris dilewati ('.$skipped.' baris tidak valid).',
         ]);
     }
+
+    /**
+     * Tautkan kartu RFID/NFC ke Guru via AJAX (Scan Cepat NFC).
+     */
+    public function assignRfid()
+    {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+        }
+
+        $idGuru = (int) $this->request->input('id_guru');
+        $rfidRaw = trim((string) $this->request->input('nomor_rfid'));
+        $rfid = strtoupper(str_replace([':', ' ', '-'], '', $rfidRaw));
+
+        if ($idGuru <= 0) {
+            return $this->response->setJSON(['status' => false, 'message' => 'ID Guru tidak valid']);
+        }
+
+        $guru = DB::table('master_guru')->where('id_guru', $idGuru)->first();
+        if (! $guru) {
+            return $this->response->setJSON(['status' => false, 'message' => 'Data Guru tidak ditemukan']);
+        }
+
+        // Hapus tautan jika dikirim kosong
+        if ($rfid === '') {
+            DB::table('master_guru')->where('id_guru', $idGuru)->update(['nomor_rfid' => null]);
+
+            return $this->response->setJSON([
+                'status' => true,
+                'message' => 'Kartu RFID guru '.$guru->nama_guru.' berhasil dihapus/dilepas',
+                'nomor_rfid' => '',
+                'id_guru' => $idGuru,
+            ]);
+        }
+
+        // Cek duplikasi nomor_rfid pada guru lain
+        $duplicateGuru = DB::table('master_guru')
+            ->where('id_guru', '!=', $idGuru)
+            ->where(function ($q) use ($rfid, $rfidRaw) {
+                $q->where('nomor_rfid', $rfid)
+                    ->orWhere('nomor_rfid', $rfidRaw)
+                    ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [strtolower($rfid)]);
+            })
+            ->first();
+
+        if ($duplicateGuru) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama guru lain: '.$duplicateGuru->nama_guru,
+            ]);
+        }
+
+        // Cek duplikasi pada data siswa
+        if (Schema::hasTable('master_siswa') && Schema::hasColumn('master_siswa', 'nomor_rfid')) {
+            $duplicateSiswa = DB::table('master_siswa')
+                ->where(function ($q) use ($rfid, $rfidRaw) {
+                    $q->where('nomor_rfid', $rfid)
+                        ->orWhere('nomor_rfid', $rfidRaw)
+                        ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [strtolower($rfid)]);
+                })
+                ->first();
+
+            if ($duplicateSiswa) {
+                return $this->response->setJSON([
+                    'status' => false,
+                    'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama Siswa: '.$duplicateSiswa->nama.' (NIS: '.$duplicateSiswa->nis.')',
+                ]);
+            }
+        }
+
+        DB::table('master_guru')->where('id_guru', $idGuru)->update(['nomor_rfid' => $rfid]);
+
+        return $this->response->setJSON([
+            'status' => true,
+            'message' => 'Kartu RFID '.$rfid.' berhasil disimpan untuk '.$guru->nama_guru,
+            'nomor_rfid' => $rfid,
+            'id_guru' => $idGuru,
+            'nama_guru' => $guru->nama_guru,
+        ]);
+    }
 }

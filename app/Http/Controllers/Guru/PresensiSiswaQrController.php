@@ -2007,9 +2007,15 @@ class PresensiSiswaQrController extends BaseController
             // sebagai QR/barcode, dan UID numerik tidak boleh tertukar dengan
             // id_siswa yang kebetulan angkanya sama.
             if (! $row && Schema::hasColumn('master_siswa', 'nomor_rfid') && ! empty($qrValue)) {
+                $cleanQr = strtolower(str_replace([':', ' ', '-'], '', trim($qrValue)));
                 $row = $db->table('master_siswa')
                     ->select($cols)
                     ->where('nomor_rfid', $qrValue)
+                    ->orWhere(function ($q) use ($cleanQr) {
+                        if ($cleanQr !== '') {
+                            $q->whereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [$cleanQr]);
+                        }
+                    })
                     ->first();
             }
 
@@ -2036,10 +2042,16 @@ class PresensiSiswaQrController extends BaseController
             if (! Schema::hasTable('master_siswa') || ! Schema::hasColumn('master_siswa', 'nomor_rfid')) {
                 return null;
             }
-            $row = $db->table('master_siswa')
+            $cleanVal = strtolower(str_replace([':', ' ', '-'], '', trim($rfidValue)));
+            $query = $db->table('master_siswa')
                 ->select('id_siswa', 'nama', 'nis', 'nisn', 'foto', 'jenis_kelamin', 'nomor_rfid')
-                ->where('nomor_rfid', $rfidValue)
-                ->first();
+                ->where('nomor_rfid', $rfidValue);
+
+            if ($cleanVal !== '') {
+                $query->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [$cleanVal]);
+            }
+
+            $row = $query->first();
 
             return $row ?: null;
         } catch (\Throwable $e) {
@@ -2563,10 +2575,16 @@ class PresensiSiswaQrController extends BaseController
             if (! Schema::hasTable('master_guru') || ! Schema::hasColumn('master_guru', 'nomor_rfid')) {
                 return null;
             }
-            $row = $db->table('master_guru')
+            $cleanVal = strtolower(str_replace([':', ' ', '-'], '', trim($rfidValue)));
+            $query = $db->table('master_guru')
                 ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'username', 'foto', 'nomor_rfid')
-                ->where('nomor_rfid', $rfidValue)
-                ->first();
+                ->where('nomor_rfid', $rfidValue);
+
+            if ($cleanVal !== '') {
+                $query->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [$cleanVal]);
+            }
+
+            $row = $query->first();
 
             return $row ?: null;
         } catch (\Throwable $e) {

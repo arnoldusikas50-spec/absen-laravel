@@ -380,7 +380,10 @@ if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
                                             <label for="f-nomor_rfid" class="form-label-tw">Nomor Kartu RFID</label>
                                             <div class="relative">
                                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-card-id"></i></span>
-                                                <input type="text" id="f-nomor_rfid" name="nomor_rfid" inputmode="text" value="{{ $v($mapProf, 'nomor_rfid') }}" class="form-control-tw pl-9 font-mono text-uppercase" placeholder="04A1B2C3D" maxlength="64" autocomplete="off">
+                                                <input type="text" id="f-nomor_rfid" name="nomor_rfid" inputmode="text" value="{{ $v($mapProf, 'nomor_rfid') }}" class="form-control-tw pl-9 pr-24 font-mono text-uppercase" placeholder="04A1B2C3D" maxlength="64" autocomplete="off">
+                                                <button type="button" id="btn-scan-nfc-field" onclick="scanNfcToField('#f-nomor_rfid')" class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition-all" title="Tempelkan kartu ke HP untuk isi otomatis">
+                                                    <i class="bi bi-broadcast"></i> <span>Tap NFC</span>
+                                                </button>
                                             </div>
                                             <p class="field-msg" data-msg-for="f-nomor_rfid"></p>
                                             <p class="text-[11px] text-slate-400 mt-1 mb-0">Nomor kartu RFID guru/GTK — nomor inilah yang dicetak sebagai QR/barcode dan dibaca reader RFID, jadi QR, tap kartu, dan USB scanner memakai nomor yang sama. Kosongkan bila tidak pakai RFID.</p>
@@ -1037,5 +1040,58 @@ $(document).ready(function () {
         });
     });
 });
+
+window.scanNfcToField = async function (fieldSelector) {
+    if (!('NDEFReader' in window)) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Web NFC',
+            html: `<div class="text-left text-xs space-y-1.5 text-slate-600">
+                <p>Fitur Tap NFC langsung di browser membutuhkan:</p>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li>Smartphone <strong>Android</strong> ber-NFC.</li>
+                    <li>Browser <strong>Google Chrome</strong> Android.</li>
+                    <li>Akses melalui protokol <strong>HTTPS</strong>.</li>
+                </ul>
+                <p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual atau menggunakan USB RFID reader.</p>
+            </div>`,
+            confirmButtonText: 'Tutup'
+        });
+        return;
+    }
+
+    try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        Swal.fire({
+            title: 'Tempelkan Kartu NFC',
+            text: 'Dekatkan kartu RFID ke bagian belakang HP Anda sekarang...',
+            showCancelButton: true,
+            cancelButtonText: 'Batal',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        ndef.onreading = (event) => {
+            const rawSerial = event.serialNumber || '';
+            if (rawSerial) {
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                const clean = rawSerial.replace(/[: -]/g, '').toUpperCase();
+                $(fieldSelector).val(clean).trigger('input');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Kartu Terbaca!',
+                    text: 'UID Kartu: ' + clean,
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+        };
+    } catch (err) {
+        Swal.fire('Gagal', err.message || 'Tidak dapat membaca NFC.', 'error');
+    }
+};
 </script>
 @endsection

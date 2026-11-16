@@ -9,6 +9,7 @@ use App\Models\LogModel;
 use App\Models\MasterModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Datasiswa Controller - Migrated from CI3
@@ -344,6 +345,11 @@ class DatasiswaController extends BaseController
         ];
 
         $insert['uid'] = bin2hex(random_bytes(16));
+
+        $rfidInput = strtoupper(str_replace([':', ' ', '-'], '', trim((string) $this->request->input('nomor_rfid'))));
+        if ($rfidInput !== '') {
+            $insert['nomor_rfid'] = $rfidInput;
+        }
 
         $db = DB::connection();
         DB::beginTransaction();
@@ -1501,5 +1507,131 @@ class DatasiswaController extends BaseController
     public function data()
     {
         return $this->response->setJSON(['data' => []]);
+    }
+
+    /**
+     * Tautkan nomor kartu RFID ke siswa secara instan (Web NFC / USB RFID).
+     */
+    public function assignRfid()
+    {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+        }
+
+        $idSiswa = (int) $this->request->input('id_siswa');
+        $rfidRaw = trim((string) $this->request->input('nomor_rfid'));
+        $rfid = strtoupper(str_replace([':', ' ', '-'], '', $rfidRaw));
+
+        if ($idSiswa <= 0) {
+            return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak valid']);
+        }
+
+        $siswa = DB::table('master_siswa')->where('id_siswa', $idSiswa)->first();
+        if (! $siswa) {
+            return $this->response->setJSON(['status' => false, 'message' => 'Data siswa tidak ditemukan']);
+        }
+
+        if ($rfid === '') {
+            DB::table('master_siswa')->where('id_siswa', $idSiswa)->update(['nomor_rfid' => null]);
+
+            return $this->response->setJSON([
+                'status' => true,
+                'message' => 'Nomor kartu RFID siswa '.$siswa->nama.' berhasil dihapus',
+                'nomor_rfid' => '',
+                'id_siswa' => $idSiswa,
+            ]);
+        }
+
+        // Cek duplikasi nomor_rfid pada siswa lain
+        $duplicateSiswa = DB::table('master_siswa')
+            ->where('id_siswa', '!=', $idSiswa)
+            ->where(function ($q) use ($rfid, $rfidRaw) {
+                $q->where('nomor_rfid', $rfid)
+                    ->orWhere('nomor_rfid', $rfidRaw)
+                    ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [strtolower($rfid)]);
+            })
+            ->first();
+
+        if ($duplicateSiswa) {
+            return $this->response->setJSON([
+                'status' => false,
+                'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama siswa: '.$duplicateSiswa->nama.' (NIS: '.$duplicateSiswa->nis.')',
+            ]);
+        }
+
+        // Cek duplikasi pada data guru/GTK
+        if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'nomor_rfid')) {
+            $duplicateGuru = DB::table('master_guru')
+                ->where(function ($q) use ($rfid, $rfidRaw) {
+                    $q->where('nomor_rfid', $rfid)
+                        ->orWhere('nomor_rfid', $rfidRaw)
+                        ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), ' ', ''), '-', '')) = ?", [strtolower($rfid)]);
+                })
+                ->first();
+
+            if ($duplicateGuru) {
+                return $this->response->setJSON([
+                    'status' => false,
+                    'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama Guru/GTK: '.$duplicateGuru->nama_guru,
+                ]);
+            }
+        }
+
+        DB::table('master_siswa')->where('id_siswa', $idSiswa)->update(['nomor_rfid' => $rfid]);
+
+        return $this->response->setJSON([
+            'status' => true,
+            'message' => 'Kartu RFID '.$rfid.' berhasil disimpan untuk '.$siswa->nama,
+            'nomor_rfid' => $rfid,
+            'id_siswa' => $idSiswa,
+            'nama' => $siswa->nama,
+        ]);
+    }
+
+    /**
+     * Ambil daftar siswa berdasarkan kelas (untuk modal Scan NFC Cepat).
+     */
+    public function getSiswaByKelas($idKelas = null)
+    {
+        if (! $this->isLoggedIn() || ! $this->isAdmin()) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+        }
+
+        $tp = DB::table('master_tp')->where('active', 1)->first();
+        $smt = DB::table('master_smt')->where('active', 1)->first();
+
+        if (! $tp || ! $smt) {
+            return $this->response->setJSON(['status' => false, 'lists' => []]);
+        }
+
+        $idKelas = (int) $idKelas;
+        $db = DB::connection();
+
+        $query = $db->table('master_siswa as a')
+            ->select('a.id_siswa', 'a.nama', 'a.nis', 'a.nisn', 'a.nomor_rfid', 'f.nama_kelas', 'a.foto')
+            ->join('kelas_siswa as d', function ($join) use ($tp, $smt) {
+                $join->on('d.id_siswa', '=', 'a.id_siswa')
+                    ->where('d.id_tp', '=', (int) $tp->id_tp)
+                    ->where('d.id_smt', '=', (int) $smt->id_smt);
+            })
+            ->join('master_kelas as f', 'f.id_kelas', '=', 'd.id_kelas')
+            ->orderBy('a.nama', 'ASC');
+
+        if ($idKelas > 0) {
+            $query->where('d.id_kelas', $idKelas);
+        }
+
+        $lists = $query->get()->all();
+
+        foreach ($lists as $item) {
+            $item->foto = $item->foto && file_exists(public_path().'/'.$item->foto)
+                ? url($item->foto)
+                : url('assets/img/siswa_sm.png');
+        }
+
+        return $this->response->setJSON([
+            'status' => true,
+            'lists' => $lists,
+        ]);
     }
 }

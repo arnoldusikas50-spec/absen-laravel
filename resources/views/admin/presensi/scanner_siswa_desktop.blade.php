@@ -361,6 +361,13 @@
 
                 <!-- Action Controls -->
                 <div class="flex items-center gap-2">
+                    <button type="button" id="btn-toggle-nfc-desktop" onclick="toggleNfcDesktop()"
+                        class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                        title="Aktifkan Web NFC (Tap Kartu RFID)">
+                        <i class="bi bi-broadcast text-sm" id="icon-nfc-desktop"></i>
+                        <span class="hidden md:inline">NFC</span>
+                    </button>
+
                     <button type="button" id="btn-toggle-fullscreen"
                         class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
                         title="Mode Layar Penuh Kiosk">
@@ -523,6 +530,14 @@
                             </div>
                         </div>
 
+                        <!-- Bottom HUD: Status Web NFC -->
+                        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none flex items-center gap-2">
+                            <div id="desktop-nfc-status-pill" class="hidden items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-600/95 text-white text-[11px] font-bold shadow-lg animate-pulse backdrop-blur-xs border border-emerald-400/40">
+                                <i class="bi bi-broadcast"></i>
+                                <span>NFC Aktif: Tempelkan kartu di belakang perangkat</span>
+                            </div>
+                        </div>
+
                         <!-- Loading Overlay -->
                         <div id="camera-loading-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 text-white gap-3 p-4">
                             <div class="w-10 h-10 rounded-full border-4 border-rose-500 border-t-transparent animate-spin"></div>
@@ -563,6 +578,13 @@
                                 <i class="bi bi-keyboard absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none"></i>
                                 
                                 <div class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    <!-- Toggle Web NFC (Tap HP / Tablet Android) -->
+                                    <button type="button" id="btn-input-nfc-toggle" onclick="toggleNfcDesktop()"
+                                        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs border border-slate-600 shadow-xs transition-all flex items-center gap-1"
+                                        title="Aktifkan Web NFC (Tap Kartu RFID)">
+                                        <i class="bi bi-broadcast"></i> <span class="hidden sm:inline">NFC</span>
+                                    </button>
+
                                     <!-- Toggle Mode RFID (kartu RFID via keyboard wedge / Wiegand) -->
                                     <button type="button" id="btn-toggle-rfid-mode"
                                         class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold text-xs border border-slate-600 shadow-xs transition-all flex items-center gap-1"
@@ -1518,6 +1540,108 @@
                     focusBarcodeGunInput();
                 }, 1200);
             });
+        }
+
+        // ── 7b.1 WEB NFC SCANNER (Untuk Tablet / HP Kiosk) ──
+        let desktopNfcReader = null;
+        let desktopNfcController = null;
+        let desktopNfcActive = false;
+
+        function updateDesktopNfcUI(active) {
+            const $btnHeader = $('#btn-toggle-nfc-desktop');
+            const $btnInput  = $('#btn-input-nfc-toggle');
+            const $pill      = $('#desktop-nfc-status-pill');
+
+            if (active) {
+                $btnHeader.addClass('bg-emerald-500 text-white border-emerald-400 shadow-emerald-500/30 animate-pulse');
+                $btnInput.addClass('bg-emerald-600 text-white border-emerald-400');
+                $pill.removeClass('hidden').addClass('inline-flex');
+            } else {
+                $btnHeader.removeClass('bg-emerald-500 text-white border-emerald-400 shadow-emerald-500/30 animate-pulse');
+                $btnInput.removeClass('bg-emerald-600 text-white border-emerald-400');
+                $pill.addClass('hidden').removeClass('inline-flex');
+            }
+        }
+
+        window.toggleNfcDesktop = async function () {
+            if (!('NDEFReader' in window)) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Web NFC',
+                    html: `<div class="text-left text-xs space-y-2 text-slate-300">
+                        <p>Fitur Web NFC browser memerlukan perangkat Android dengan sensor NFC aktif, Chrome 89+, dan koneksi HTTPS / localhost.</p>
+                        <p class="text-slate-400">Untuk PC desktop / laptop, gunakan <strong>USB RFID Reader</strong> (cukup colokkan reader, nomor kartu otomatis terdeteksi tanpa driver).</p>
+                    </div>`,
+                    confirmButtonText: 'Tutup'
+                });
+                return;
+            }
+
+            if (desktopNfcActive) {
+                if (desktopNfcController) {
+                    desktopNfcController.abort();
+                    desktopNfcController = null;
+                }
+                desktopNfcActive = false;
+                updateDesktopNfcUI(false);
+            } else {
+                try {
+                    desktopNfcController = new AbortController();
+                    desktopNfcReader = new NDEFReader();
+                    await desktopNfcReader.scan({ signal: desktopNfcController.signal });
+                    desktopNfcActive = true;
+                    updateDesktopNfcUI(true);
+
+                    desktopNfcReader.onreading = (event) => {
+                        const rawSerial = event.serialNumber;
+                        if (rawSerial) {
+                            if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+                            const cleanUid = rawSerial.replace(/[: -]/g, '').toUpperCase();
+                            $('#desktop-nfc-status-pill span').text('Membaca: ' + cleanUid);
+                            setTimeout(() => {
+                                if (desktopNfcActive) {
+                                    $('#desktop-nfc-status-pill span').text('NFC Aktif: Tempelkan kartu di belakang perangkat');
+                                }
+                            }, 1500);
+                            processRfidScan(rawSerial);
+                        }
+                    };
+
+                    desktopNfcReader.onreadingerror = () => {
+                        if (navigator.vibrate) navigator.vibrate(200);
+                        $('#desktop-nfc-status-pill span').text('Gagal membaca kartu. Tempelkan kembali.');
+                        setTimeout(() => {
+                            if (desktopNfcActive) {
+                                $('#desktop-nfc-status-pill span').text('NFC Aktif: Tempelkan kartu di belakang perangkat');
+                            }
+                        }, 1500);
+                    };
+                } catch (err) {
+                    desktopNfcActive = false;
+                    updateDesktopNfcUI(false);
+                    if (err.name === 'NotAllowedError') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Izin NFC Ditolak',
+                            text: 'Izinkan akses NFC pada notifikasi Chrome untuk mulai membaca kartu.',
+                            confirmButtonText: 'OK'
+                        });
+                    } else if (err.name === 'NotSupportedError') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'NFC Tidak Aktif',
+                            text: 'Pastikan sensor NFC sudah dinyalakan di Pengaturan perangkat Android Anda.',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        Swal.fire('NFC Error', err.message || 'Gagal memulai sensor NFC.', 'error');
+                    }
+                }
+            }
+        };
+
+        if ('NDEFReader' in window) {
+            $('#btn-toggle-nfc-desktop, #btn-input-nfc-toggle').addClass('border-emerald-400/80');
         }
 
         // ── 7c. PROSES SCAN FINGERPRINT ─────────────────

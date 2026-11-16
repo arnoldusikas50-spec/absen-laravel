@@ -234,10 +234,20 @@
     .hud-btn:active { transform: scale(0.92); }
     .hud-btn.active { background: var(--brand-600); border-color: var(--brand-500); color: #fff; }
     .hud-btn.sound-muted { background: rgb(var(--brand-600-rgb) / 0.85); border-color: rgba(255, 255, 255, 0.4); }
+    .hud-btn.nfc-active {
+        background: #10b981 !important;
+        border-color: #34d399 !important;
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.7) !important;
+        animation: nfcPulse 1.8s infinite;
+    }
+    @keyframes nfcPulse {
+        0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
+        50% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.95); }
+    }
 
     .camera-hud-bottom {
         position: absolute; bottom: 10px; left: 12px; right: 12px;
-        display: flex; justify-content: center; align-items: center;
+        display: flex; flex-direction: column; gap: 5px; justify-content: center; align-items: center;
         z-index: 10; pointer-events: none;
     }
     .hud-hint-pill {
@@ -500,6 +510,9 @@ $csrfHash  = csrf_token();
                 <i class="bi bi-arrow-repeat"></i>
             </button>
             <div class="flex items-center gap-2">
+                <button type="button" class="hud-btn" id="btn-toggle-nfc" onclick="toggleNfc()" title="Aktifkan NFC HP (Tap Kartu RFID)">
+                    <i class="bi bi-broadcast" id="icon-hud-nfc"></i>
+                </button>
                 <button type="button" class="hud-btn" id="btn-toggle-torch" onclick="toggleTorch()" title="Nyalakan / Matikan Senter">
                     <i class="bi bi-lightning-charge-fill" id="icon-hud-torch"></i>
                 </button>
@@ -514,6 +527,10 @@ $csrfHash  = csrf_token();
             <div class="hud-hint-pill">
                 <span class="pulse-dot text-emerald-400"></span>
                 <span id="scan-hint-text">Arahkan QR Card Siswa ke kamera</span>
+            </div>
+            <div id="nfc-active-indicator" class="hidden items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600/90 text-white text-[11px] font-bold shadow-md animate-pulse">
+                <i class="bi bi-broadcast"></i>
+                <span>NFC Siap: Tempelkan kartu di belakang HP</span>
             </div>
         </div>
 
@@ -2441,10 +2458,144 @@ $csrfHash  = csrf_token();
         });
     }
 
+    // ── WEB NFC READER (Android Phone NFC for RFID Cards) ──
+    let nfcReader = null;
+    let nfcController = null;
+    let nfcActive = false;
+
+    window.toggleNfc = async function () {
+        if (!('NDEFReader' in window)) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Web NFC Belum Tersedia',
+                html: `
+                    <div class="text-left text-xs space-y-2 text-slate-600">
+                        <p>Fitur Web NFC langsung dari web browser memerlukan:</p>
+                        <ol class="list-decimal pl-4 space-y-1">
+                            <li>HP <strong>Android</strong> dengan chip NFC aktif.</li>
+                            <li>Browser <strong>Google Chrome</strong> Android (versi 89+).</li>
+                            <li>Koneksi web menggunakan <strong>HTTPS</strong> aman (atau localhost).</li>
+                        </ol>
+                        <div class="mt-3 p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-[11px]">
+                            <strong>💡 Alternatif Sangat Mudah (Tanpa HTTPS):</strong><br>
+                            Gunakan aplikasi <em>"NFC to Keyboard"</em> atau <em>"NFC Keyboard"</em> dari Google Play Store. Saat kartu ditempelkan ke belakang HP, nomor UID kartu langsung terketik otomatis ke form input seperti keyboard USB.
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+
+        if (nfcActive) {
+            stopNfcScan();
+        } else {
+            startNfcScan();
+        }
+    };
+
+    async function startNfcScan() {
+        try {
+            nfcController = new AbortController();
+            nfcReader = new NDEFReader();
+            await nfcReader.scan({ signal: nfcController.signal });
+
+            nfcActive = true;
+            updateNfcUI(true);
+
+            nfcReader.onreading = (event) => {
+                const rawUid = event.serialNumber;
+                if (!rawUid) return;
+
+                if (navigator.vibrate) {
+                    navigator.vibrate([80, 40, 80]);
+                }
+
+                const cleanUid = rawUid.replace(/[: -]/g, '').toUpperCase();
+                $('#nfc-active-indicator span').text('Membaca kartu: ' + cleanUid);
+
+                setTimeout(() => {
+                    if (nfcActive) {
+                        $('#nfc-active-indicator span').text('NFC Siap: Tempelkan kartu di belakang HP');
+                    }
+                }, 1500);
+
+                processRfidScan(rawUid, selectedMode);
+            };
+
+            nfcReader.onreadingerror = () => {
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+                $('#nfc-active-indicator span').text('Gagal membaca kartu. Tempelkan kembali.');
+                setTimeout(() => {
+                    if (nfcActive) {
+                        $('#nfc-active-indicator span').text('NFC Siap: Tempelkan kartu di belakang HP');
+                    }
+                }, 1500);
+            };
+
+        } catch (err) {
+            console.warn('NFC start error:', err);
+            nfcActive = false;
+            updateNfcUI(false);
+
+            if (err.name === 'NotAllowedError') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Izin NFC Ditolak',
+                    text: 'Izinkan akses NFC pada notifikasi Chrome untuk mulai membaca kartu.',
+                    confirmButtonText: 'OK'
+                });
+            } else if (err.name === 'NotSupportedError') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'NFC Tidak Aktif',
+                    text: 'Pastikan sensor NFC sudah dinyalakan di Pengaturan HP Android Anda.',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kendala NFC',
+                    text: err.message || 'Gagal memulai sensor NFC.',
+                    confirmButtonText: 'OK'
+                });
+            }
+        }
+    }
+
+    function stopNfcScan() {
+        if (nfcController) {
+            nfcController.abort();
+            nfcController = null;
+        }
+        nfcActive = false;
+        updateNfcUI(false);
+    }
+
+    function updateNfcUI(active) {
+        const $btn = $('#btn-toggle-nfc');
+        const $indicator = $('#nfc-active-indicator');
+        if (active) {
+            $btn.addClass('nfc-active');
+            $indicator.removeClass('hidden').addClass('inline-flex');
+            $('#scan-hint-text').text('Scan QR Kamera atau Tap Kartu NFC');
+        } else {
+            $btn.removeClass('nfc-active');
+            $indicator.addClass('hidden').removeClass('inline-flex');
+            $('#scan-hint-text').text('Arahkan QR Card Siswa ke kamera');
+        }
+    }
+
     // ── Initialization ─────────────────────────────────
     $(function () {
         initCamera();
         loadHistory(false);
+        if ('NDEFReader' in window) {
+            $('#btn-toggle-nfc').addClass('border-emerald-400');
+        }
     });
 
 })();

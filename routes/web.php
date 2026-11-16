@@ -236,6 +236,7 @@ Route::get('dataguru/downloadFormat', [DataguruController::class, 'downloadForma
 Route::get('dataguru/edit/{id}', [DataguruController::class, 'edit'])->middleware(['auth'])->name('dataguru.edit');
 Route::post('dataguru/create', [DataguruController::class, 'create'])->middleware(['auth'])->name('dataguru.create');
 Route::post('dataguru/save', [DataguruController::class, 'save'])->middleware(['auth'])->name('dataguru.save');
+Route::post('dataguru/assign_rfid', [DataguruController::class, 'assignRfid'])->middleware(['auth'])->name('dataguru.assign_rfid');
 Route::post('dataguru/delete', [DataguruController::class, 'delete'])->middleware(['auth'])->name('dataguru.delete');
 Route::post('dataguru/forcedelete', [DataguruController::class, 'forcedelete'])->middleware(['auth'])->name('dataguru.forcedelete');
 Route::get('dataguru/detail/{id}', [DataguruController::class, 'detail'])->middleware(['auth'])->name('dataguru.detail');
@@ -269,6 +270,8 @@ Route::get('datasiswa/downloadData/{id}', [DatasiswaController::class, 'download
 Route::post('datasiswa/update_foto', [DatasiswaController::class, 'update_foto'])->middleware(['auth'])->name('datasiswa.update_foto');
 Route::post('datasiswa/updateAll', [DatasiswaController::class, 'updateAll'])->middleware(['auth'])->name('datasiswa.updateAll.update_all');
 Route::post('datasiswa/editLogin', [DatasiswaController::class, 'editLogin'])->middleware(['auth'])->name('datasiswa.editLogin.edit_login');
+Route::post('datasiswa/assign_rfid', [DatasiswaController::class, 'assignRfid'])->middleware(['auth'])->name('datasiswa.assign_rfid');
+Route::get('datasiswa/siswa_by_kelas/{id_kelas?}', [DatasiswaController::class, 'getSiswaByKelas'])->middleware(['auth'])->name('datasiswa.siswa_by_kelas');
 Route::get('presensisiswa', [PresensiSiswaController::class, 'index'])->middleware(['auth'])->name('presensisiswa.index');
 Route::post('presensisiswa/getSiswa', [PresensiSiswaController::class, 'getSiswa'])->middleware(['auth'])->name('presensisiswa.getSiswa.get_siswa');
 Route::post('presensisiswa/save', [PresensiSiswaController::class, 'save'])->middleware(['auth'])->name('presensisiswa.save');
