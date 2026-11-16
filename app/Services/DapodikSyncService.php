@@ -261,12 +261,15 @@ class DapodikSyncService
             }
 
             $row = (array) DB::table('setting')->orderBy('id_setting', 'ASC')->first();
-            $tersimpan = $row
-                ? DB::table('setting')->where('id_setting', $row['id_setting'])->update($clean)
-                : DB::table('setting')->insert($clean);
-            if ($tersimpan === false) {
+            try {
+                if ($row) {
+                    DB::table('setting')->where('id_setting', $row['id_setting'])->update($clean);
+                } else {
+                    DB::table('setting')->insert($clean);
+                }
+            } catch (\Throwable $e) {
                 $pesan = 'Data sekolah diterima dari Dapodik tetapi gagal disimpan ke tabel pengaturan.';
-                Log::error('[DapodikSync] simpan setting gagal.');
+                Log::error('[DapodikSync] simpan setting gagal: '.$e->getMessage());
                 $this->writeLog('sekolah', 'api', 'gagal', count($mapping), 0, 0, $pesan, $userId);
 
                 return ['status' => false, 'message' => $pesan, 'processed' => count($mapping), 'added' => 0, 'updated' => 0];
@@ -509,13 +512,10 @@ class DapodikSyncService
                 if ($existing) {
                     // Sync tidak boleh menyentuh sandi baris lama; lihat
                     // penjelasan yang sama di processSiswaItems().
-                    $tersimpan = DB::table('master_guru')->where('id_guru', $existing['id_guru'])->update($data);
-                    if ($tersimpan === false) {
-                        $gagal++;
-                        $pesanGagal[] = 'GTK '.$nama.': pembaruan gagal';
-
-                        continue;
-                    }
+                    // update() mengembalikan jumlah baris dan melempar
+                    // QueryException saat gagal; kegagalannya ditangkap catch
+                    // di akhir perulangan ini.
+                    DB::table('master_guru')->where('id_guru', $existing['id_guru'])->update($data);
                     $updated++;
                 } else {
                     $data['username'] = $username;
@@ -773,13 +773,7 @@ class DapodikSyncService
                     // menimpa kolom password dengan nama pengguna begitu melihat
                     // hash bcrypt ($2y$...) — hasil akhirnya justru sandi plaintext
                     // yang mudah ditebak dan menghapus nilai aman yang sudah ada.
-                    $tersimpan = DB::table('master_siswa')->where('id_siswa', $existing['id_siswa'])->update($data);
-                    if ($tersimpan === false) {
-                        $gagal++;
-                        $pesanGagal[] = 'Siswa '.$nama.': pembaruan gagal';
-
-                        continue;
-                    }
+                    DB::table('master_siswa')->where('id_siswa', $existing['id_siswa'])->update($data);
                     $siswaId = $existing['id_siswa'];
                     $updated++;
                 } else {
@@ -997,13 +991,7 @@ class DapodikSyncService
                 ];
 
                 if ($existing) {
-                    $tersimpan = DB::table('master_kelas')->where('id_kelas', $existing['id_kelas'])->update($data);
-                    if ($tersimpan === false) {
-                        $gagal++;
-                        $pesanGagal[] = 'Rombel '.$namaNormal.': pembaruan gagal';
-
-                        continue;
-                    }
+                    DB::table('master_kelas')->where('id_kelas', $existing['id_kelas'])->update($data);
                     $updated++;
                     $kelasId = (int) $existing['id_kelas'];
                 } else {
@@ -1083,14 +1071,8 @@ class DapodikSyncService
                     foreach ($rows as $r) {
                         $k = (int) $r['id_siswa'].'-'.(int) $r['id_kelas'];
                         if (! isset($validMappings[$k])) {
-                            $terhapus = DB::table('kelas_siswa')
+                            DB::table('kelas_siswa')
                                 ->where('id_kelas_siswa', $r['id_kelas_siswa'])->delete();
-                            if ($terhapus === false) {
-                                $gagal++;
-                                $pesanGagal[] = 'Anggota kelas id '.(int) $r['id_kelas_siswa'].': gagal dilepas';
-
-                                continue;
-                            }
                             $removed++;
                         }
                     }
