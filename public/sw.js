@@ -20,7 +20,7 @@ const PRECACHE = [
   '/icons/maskable-512.png?v=2',
   '/icons/apple-touch-icon.png',
   '/assets/app/css/tailwind.css',
-  '/assets/plugins/bootstrap-icon/bootstrap-icons.min.css',
+  '/assets/app/css/lucide-icons.css',
   '/assets/plugins/jquery/jquery.min.js',
   '/assets/plugins/sweetalert2/sweetalert2.all.min.js'
 ];

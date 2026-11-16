@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * RememberLogin — "Tetap login" 30 hari untuk aplikasi Presensi (PWA).
- * Hanya untuk role guru & siswa; admin/panitia dikecualikan demi keamanan.
+ * Hanya untuk role guru & siswa; admin dikecualikan demi keamanan.
  *
  * Memakai kolom bawaan Ion Auth di tabel `users`:
  *   - remember_selector (pencari, plaintext)
@@ -105,7 +105,7 @@ class RememberLogin
             $roleName = strtolower((string) ($user->role_name ?? ''));
 
             // Remember 30 hari hanya untuk guru & siswa.
-            // Admin/panitia ditolak demi keamanan (termasuk token lama bila ada).
+            // Admin ditolak demi keamanan (termasuk token lama bila ada).
             if (! in_array($roleName, ['guru', 'siswa'], true)) {
                 DB::table('users')->where('id', (int) $user->id)
                     ->update(['remember_selector' => null, 'remember_code' => null]);

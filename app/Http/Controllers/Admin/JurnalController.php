@@ -33,10 +33,10 @@ class JurnalController extends BaseController
         $this->piketModel = new PiketModel;
     }
 
-    /** Admin, panitia/pengawas, dan kepala sekolah boleh memantau jurnal. */
+    /** Admin dan kepala sekolah boleh memantau jurnal. */
     private function canMonitor(): bool
     {
-        return $this->isAdmin() || $this->isPanitia() || $this->isKepsek();
+        return $this->isAdmin() || $this->isKepsek();
     }
 
     /**

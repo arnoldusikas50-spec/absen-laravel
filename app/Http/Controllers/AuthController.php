@@ -64,69 +64,6 @@ class AuthController extends BaseController
     }
 
     /**
-     * Render login page based on variant
-     */
-    private function renderLoginPage(string $variant = 'staff')
-    {
-
-        // Check if setup is complete
-        if (! function_exists('database_connected') || ! database_connected() || is_database_empty() || is_setting_empty()) {
-            return redirect()->to('install');
-        }
-
-        // Already logged in - redirect
-        if ($this->session->get('is_login')) {
-            $user = $this->findUserById((int) $this->session->get('user_id'));
-            $redirectUrl = $this->determineRedirect($user, false);
-
-            return redirect()->to($redirectUrl);
-        }
-
-        $setting = $this->getSettingRow();
-
-        $data = [
-            'setting' => $setting,
-            'identity' => [
-                'name' => 'username',
-                'id' => 'identity',
-                'type' => 'text',
-                'placeholder' => 'Username',
-                'autofocus' => 'autofocus',
-                'class' => 'form-control',
-                'autocomplete' => 'off',
-            ],
-            'username' => [
-                'name' => 'username',
-                'id' => 'identity',
-                'type' => 'text',
-                'placeholder' => 'Username',
-                'autofocus' => 'autofocus',
-                'class' => 'form-control',
-                'autocomplete' => 'off',
-            ],
-            'password' => [
-                'name' => 'password',
-                'id' => 'password',
-                'type' => 'password',
-                'placeholder' => 'Password',
-                'class' => 'form-control',
-            ],
-            'message' => session('message') ?? '',
-            'login_variant' => $variant,
-            'show_mode_selector' => false,
-            'cbt_only_default' => '0',
-            'login_title' => 'PRESENSI & JURNAL',
-        ];
-
-        // Use appropriate view based on variant
-        if ($variant !== 'siswa') {
-            return view('auth.login', $data);
-        }
-
-        return view('auth.index', $data);
-    }
-
-    /**
      * Handle login POST request
      */
     public function login()
@@ -234,7 +171,7 @@ class AuthController extends BaseController
                             $redirectUrl = $this->determineRedirect($user, $cbtOnly);
 
                             // PWA "tetap login" 30 hari — hanya guru & siswa
-                            // (admin/panitia dikecualikan demi keamanan)
+                            // (admin dikecualikan demi keamanan)
                             if (in_array($roleName, ['guru', 'siswa'], true)) {
                                 RememberLogin::issue((int) $user->id);
                             }
@@ -285,10 +222,9 @@ class AuthController extends BaseController
             return $default;
         }
 
-        // Admin Sekolah redirect
-        if (! empty($user->company)) {
-            return url('sekolahpanel');
-        }
+        // Akun multi-sekolah (kolom `company`) dulu diarahkan ke '/sekolahpanel',
+        // tetapi halaman itu tidak ada di build ini (404). Sementara ini mereka
+        // memakai alur berbasis role di bawah sampai panelnya ditambahkan.
 
         $roleName = strtolower($user->role_name ?? '');
 

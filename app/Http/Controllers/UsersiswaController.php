@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuthModel;
-use App\Models\DashboardModel;
 use App\Models\MasterModel;
 use App\Models\UsersModel;
 use App\Services\AvatarService;
@@ -15,8 +14,6 @@ class UsersiswaController extends BaseController
 {
     protected $users;
 
-    protected $dashboard;
-
     protected $auth;
 
     protected $master;
@@ -25,7 +22,6 @@ class UsersiswaController extends BaseController
     {
         parent::__construct();
         $this->users = new UsersModel;
-        $this->dashboard = new DashboardModel;
         $this->auth = new AuthModel;
         $this->master = new MasterModel;
     }
@@ -35,7 +31,7 @@ class UsersiswaController extends BaseController
         if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('dashboard');
         }
 
@@ -53,17 +49,12 @@ class UsersiswaController extends BaseController
             'smt_active' => DB::table('master_smt')->where('active', 1)->first(),
         ];
 
-        // Load role specific logic if panitia
-        if ($this->isPanitia()) {
-            $data['panitia'] = $this->dashboard->getDataPanitiaByUserId($user->id, $data['tp_active']->id_tp, $data['smt_active']->id_smt);
-        }
-
         return view('users.siswa.data', $data);
     }
 
     /**
-     * Panitia boleh melihat roster siswa, tetapi kolom password berisi
-     * kredensial login plaintext — hanya admin yang boleh menerimanya.
+     * Kolom password berisi kredensial login plaintext — hanya admin yang
+     * boleh menerimanya.
      */
     private function redactPasswords(array $rows): void
     {
@@ -83,7 +74,7 @@ class UsersiswaController extends BaseController
     // JSON Data endpoint for Datatables
     public function data()
     {
-        if ($deny = $this->requireRole(['admin', 'panitia'])) {
+        if ($deny = $this->requireRole(['admin'])) {
             return $deny;
         }
         $tp = DB::table('master_tp')->where('active', 1)->first();
@@ -100,7 +91,7 @@ class UsersiswaController extends BaseController
     // Manual pagination endpoint
     public function list()
     {
-        if ($deny = $this->requireRole(['admin', 'panitia'])) {
+        if ($deny = $this->requireRole(['admin'])) {
             return $deny;
         }
         $page = max(1, (int) ($this->request->input('page') ?? 1));

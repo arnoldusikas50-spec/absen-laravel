@@ -378,8 +378,7 @@
     <script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
     <!-- Select2 -->
     <script src="{{ asset('assets/plugins/select2/js/select2.full.min.js') }}"></script>
-    <!-- Moment -->
-    <script src="{{ asset('assets/plugins/moment/moment.min.js') }}"></script>
+    <!-- Moment (moment-with-locales sudah memuat moment core) -->
     <script src="{{ asset('assets/plugins/moment/moment-with-locales.min.js') }}"></script>
     <!-- Tempusdominus -->
     <script src="{{ asset('assets/plugins/tempus-dominus/tempus-dominus.min.js') }}"></script>

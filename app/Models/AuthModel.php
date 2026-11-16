@@ -56,14 +56,8 @@ class AuthModel extends Model
     public function inGroup(string|array $group): bool
     {
         $role = strtolower((string) (session()->get('role_name') ?? ''));
-        // Alias: pengawas (nama grup di DB) == panitia (nama di kode)
-        if ($role === 'pengawas') {
-            $role = 'panitia';
-        }
         $norm = static function ($g): string {
-            $g = strtolower((string) $g);
-
-            return $g === 'pengawas' ? 'panitia' : $g;
+            return strtolower((string) $g);
         };
         if (is_array($group)) {
             $group = array_map($norm, $group);

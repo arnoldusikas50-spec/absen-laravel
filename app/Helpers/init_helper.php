@@ -12,58 +12,6 @@ use App\Models\DashboardModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-if (! function_exists('database_connected')) {
-    /**
-     * Check if database is connected
-     */
-    function database_connected(): bool
-    {
-        try {
-            DB::connection()->getPdo();
-
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-}
-
-if (! function_exists('is_database_empty')) {
-    /**
-     * Check if database has required tables
-     */
-    function is_database_empty(): bool
-    {
-        try {
-            $requiredTables = ['users', 'setting', 'groups'];
-
-            foreach ($requiredTables as $table) {
-                if (! Schema::hasTable($table)) {
-                    return true;
-                }
-            }
-
-            return false;
-        } catch (Exception $e) {
-            return true;
-        }
-    }
-}
-
-if (! function_exists('is_setting_empty')) {
-    /**
-     * Check if settings table has data
-     */
-    function is_setting_empty(): bool
-    {
-        try {
-            return DB::table('setting')->count() === 0;
-        } catch (Exception $e) {
-            return true;
-        }
-    }
-}
-
 if (! function_exists('get_setting')) {
     /**
      * Get application settings

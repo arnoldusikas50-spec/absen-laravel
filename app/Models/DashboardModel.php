@@ -201,24 +201,6 @@ class DashboardModel extends Model
     }
 
     /**
-     * Get data panitia by user ID
-     * Tabel master_panitia tidak ada di database (fitur panitia tidak dipakai);
-     * kembalikan null bila tabelnya tidak ada supaya halaman /usersiswa tidak
-     * error untuk pengguna berperan panitia.
-     */
-    public function getDataPanitiaByUserId(int $userId, int $tp, int $smt): ?object
-    {
-        if (! Schema::hasTable('master_panitia')) {
-            return null;
-        }
-
-        return DB::table('master_panitia as a')
-            ->join('users as b', 'a.username', '=', 'b.username')
-            ->where('b.id', $userId)
-            ->first();
-    }
-
-    /**
      * Get data guru by username including wali_kelas info
      */
     // TODO: tabel master_guru, jabatan_guru, master_kelas, level_kelas belum ada migrasinya

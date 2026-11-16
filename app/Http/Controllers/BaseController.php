@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Validator;
  *   - $this->response : CiResponse adapter (setJSON/setStatusCode/...)
  *
  * Helpers ported 1:1 from CI4: isLoggedIn, getUserId, getUserRole, inGroup,
- * isAdmin/isGuru/isPanitia/isKepsek/isSiswa, requireLogin, requireRole,
+ * isAdmin/isGuru/isKepsek/isSiswa, requireLogin, requireRole,
  * respond, getUser, showError, renderView, maybe_unserialize, getTpSmt.
  *
  * Validation: $this->validate($rules) mirrors CI4 (bool + $this->validation()
@@ -120,15 +120,6 @@ class BaseController extends Controller
         return (string) $role === '2' || $roleName === 'guru' || $this->inGroup('guru');
     }
 
-    /**
-     * Role 'panitia' dihapus dari sistem RBAC. Tetap disediakan sebagai stub
-     * (selalu false) agar pemanggilan di controller lain tidak fatal.
-     */
-    protected function isPanitia(): bool
-    {
-        return false;
-    }
-
     protected function isKepsek(): bool
     {
         return is_kepsek((int) (session()->get('user_id') ?? 0));
@@ -220,8 +211,8 @@ class BaseController extends Controller
             // Jika first_name sudah berisi spasi (nama lengkap tersimpan di
             // salah field), jangan tambahkan last_name agar nama tidak ganda.
             $first = trim((string) ($user->first_name ?? ''));
-            $last  = trim((string) ($user->last_name ?? ''));
-            if (!empty($first) && strpos($first, ' ') !== false) {
+            $last = trim((string) ($user->last_name ?? ''));
+            if (! empty($first) && strpos($first, ' ') !== false) {
                 $user->nama_lengkap = $first;
             } elseif ($first === $last) {
                 $user->nama_lengkap = $first;

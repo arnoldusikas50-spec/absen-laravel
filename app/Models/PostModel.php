@@ -24,24 +24,6 @@ class PostModel extends Model
 
     // TODO: tabel post belum ada migrasinya
     // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel master_panitia belum ada migrasinya
-    // TODO: tabel post_comments belum ada migrasinya
-    public function getPostUser($id_user)
-    {
-        $builder = DB::table('post as a');
-        $builder->selectRaw('a.*, b.nama_guru, b.foto, d.nama_panitia, d.foto as foto_panitia, (SELECT COUNT(post_comments.id_comment) FROM post_comments WHERE a.id_post = post_comments.id_post) AS jml');
-        $builder->leftJoin('master_guru as b', 'a.dari', '=', 'b.id_guru');
-        $builder->leftJoin('master_panitia as d', 'a.dari', '=', 'd.id_panitia');
-        if ($id_user != 0) {
-            $builder->where('a.dari', $id_user);
-        }
-        $builder->orderBy('a.updated', 'desc');
-
-        return $builder->get()->all();
-    }
-
-    // TODO: tabel post belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
     // TODO: tabel post_comments belum ada migrasinya
     public function getPostForUser($kepada, $kelas = null, $limit = null, $offset = null)
     {

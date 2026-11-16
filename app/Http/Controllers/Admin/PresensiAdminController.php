@@ -64,7 +64,7 @@ class PresensiAdminController extends BaseController
      */
     public function index()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -426,7 +426,7 @@ class PresensiAdminController extends BaseController
      */
     public function pendingDinas()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -503,7 +503,7 @@ class PresensiAdminController extends BaseController
      */
     public function pendingPermits()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -543,7 +543,7 @@ class PresensiAdminController extends BaseController
      */
     public function approvePermit($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -797,7 +797,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectPermit($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -999,7 +999,7 @@ class PresensiAdminController extends BaseController
      */
     public function approveDinas($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -1118,7 +1118,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectDinas($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -1248,7 +1248,7 @@ class PresensiAdminController extends BaseController
      */
     public function rekap()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1369,7 +1369,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportRekap()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1497,7 +1497,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportPdf()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1665,7 +1665,7 @@ class PresensiAdminController extends BaseController
      */
     public function suratTeguran()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1983,7 +1983,7 @@ class PresensiAdminController extends BaseController
      */
     public function downloadTeguran($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -2026,7 +2026,7 @@ class PresensiAdminController extends BaseController
      */
     public function pendingKoreksi()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -2079,7 +2079,7 @@ class PresensiAdminController extends BaseController
      */
     public function approveKoreksi($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2445,7 +2445,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectKoreksi($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2543,7 +2543,7 @@ class PresensiAdminController extends BaseController
      */
     public function pendingVerifikasi()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -2586,7 +2586,7 @@ class PresensiAdminController extends BaseController
      */
     public function verifyVerifikasi($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -2715,7 +2715,7 @@ class PresensiAdminController extends BaseController
      */
     public function rejectVerifikasi($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -4227,7 +4227,7 @@ class PresensiAdminController extends BaseController
      */
     public function qrCurrentToken($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -4621,7 +4621,7 @@ class PresensiAdminController extends BaseController
      */
     public function dashboard()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -4829,7 +4829,7 @@ class PresensiAdminController extends BaseController
      */
     public function manualAbsen()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -4895,7 +4895,7 @@ class PresensiAdminController extends BaseController
      */
     public function batchManualAbsen()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
         $this->patchAbsensiHarianTable();
@@ -5452,7 +5452,7 @@ class PresensiAdminController extends BaseController
      */
     public function processManualCheckin()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -5774,7 +5774,7 @@ class PresensiAdminController extends BaseController
 
     public function processManualCheckout()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -6028,7 +6028,7 @@ class PresensiAdminController extends BaseController
      */
     public function getAttendanceStatus()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -6074,7 +6074,7 @@ class PresensiAdminController extends BaseController
      */
     public function deleteAttendance()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -6141,7 +6141,7 @@ class PresensiAdminController extends BaseController
      */
     public function batchAttendanceStatus()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -6190,7 +6190,7 @@ class PresensiAdminController extends BaseController
      */
     public function permits()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -6309,7 +6309,7 @@ class PresensiAdminController extends BaseController
      */
     public function saveManualPermit()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -6677,7 +6677,7 @@ class PresensiAdminController extends BaseController
      */
     public function deletePermit($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -7330,7 +7330,7 @@ class PresensiAdminController extends BaseController
 
     public function saveShift()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
@@ -7435,7 +7435,7 @@ class PresensiAdminController extends BaseController
 
     public function assignShift()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
@@ -7507,7 +7507,7 @@ class PresensiAdminController extends BaseController
 
     public function unassignShift()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
@@ -7530,7 +7530,7 @@ class PresensiAdminController extends BaseController
      */
     public function toggleShift()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
         $this->patchAbsensiShiftTables();
@@ -8500,7 +8500,7 @@ class PresensiAdminController extends BaseController
      */
     public function daftarDenda()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -8685,7 +8685,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportDendaPdf()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -8747,7 +8747,7 @@ class PresensiAdminController extends BaseController
      */
     public function kirimRekapDenda()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -8870,7 +8870,7 @@ class PresensiAdminController extends BaseController
      */
     public function recalculateMonthlyDenda()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -10015,7 +10015,7 @@ class PresensiAdminController extends BaseController
      */
     public function laporanPembayaran()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -10029,7 +10029,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportLaporanPdf()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -10510,7 +10510,7 @@ class PresensiAdminController extends BaseController
      */
     public function cleanOldPhotos()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -10636,7 +10636,7 @@ class PresensiAdminController extends BaseController
      */
     public function rekapSemester()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -10838,7 +10838,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportRekapSemester()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -10938,7 +10938,7 @@ class PresensiAdminController extends BaseController
      */
     public function exportRekapSemesterPdf()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -10993,7 +10993,7 @@ class PresensiAdminController extends BaseController
 
     public function pendingWajah()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -11070,7 +11070,7 @@ class PresensiAdminController extends BaseController
 
     public function approveWajah($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -11154,7 +11154,7 @@ class PresensiAdminController extends BaseController
 
     public function rejectWajah($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -11228,7 +11228,7 @@ class PresensiAdminController extends BaseController
      */
     public function deleteWajah($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -11287,7 +11287,7 @@ class PresensiAdminController extends BaseController
      */
     public function clearWajahHistory()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
@@ -11433,7 +11433,7 @@ class PresensiAdminController extends BaseController
      */
     public function suratPanggilan()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -11604,7 +11604,7 @@ class PresensiAdminController extends BaseController
      */
     public function kirimNotifikasiPanggilan()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11673,7 +11673,7 @@ class PresensiAdminController extends BaseController
      */
     public function buatSuratPanggilan()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11730,7 +11730,7 @@ class PresensiAdminController extends BaseController
      */
     public function buatSuratTeguran()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11816,7 +11816,7 @@ class PresensiAdminController extends BaseController
      */
     public function batalkanSuratTeguran($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -11863,7 +11863,7 @@ class PresensiAdminController extends BaseController
      */
     public function kirimSuratTeguran($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -12021,7 +12021,7 @@ class PresensiAdminController extends BaseController
      */
     public function batalkanSuratPanggilan($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -12053,7 +12053,7 @@ class PresensiAdminController extends BaseController
      */
     public function hitungUlangSuratPanggilan()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 
@@ -12107,7 +12107,7 @@ class PresensiAdminController extends BaseController
      */
     public function downloadSuratPanggilan($id)
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -12282,7 +12282,7 @@ class PresensiAdminController extends BaseController
      */
     public function kirimRekapBulanan()
     {
-        if (! $this->isAdmin() && ! $this->isPanitia()) {
+        if (! $this->isAdmin()) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
 

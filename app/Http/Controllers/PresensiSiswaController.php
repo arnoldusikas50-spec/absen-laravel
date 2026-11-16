@@ -163,7 +163,7 @@ class PresensiSiswaController extends BaseController
 
     /**
      * Kelas yang boleh dikelola pengguna ini; null = semua.
-     * - Admin & panitia: semua kelas.
+     * - Admin: semua kelas.
      * - Guru piket hari ini: semua kelas (butuh lintas kelas).
      * - Guru lain yang punya data penugasan TP/SMT aktif: hanya kelas
      *   perwalian (jabatan 4 / master_kelas.guru_id) + kelas yang diampu.
@@ -175,7 +175,7 @@ class PresensiSiswaController extends BaseController
      */
     private function allowedKelasIds(): ?array
     {
-        if ($this->isAdmin() || $this->isPanitia()) {
+        if ($this->isAdmin()) {
             return null;
         }
         $guruId = $this->resolveGuruId();
@@ -365,8 +365,8 @@ class PresensiSiswaController extends BaseController
         if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        // Halaman input — batasi untuk pengelola & panitia (siswa tak boleh mengisi sendiri)
-        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
+        // Halaman input — batasi untuk pengelola (siswa tak boleh mengisi sendiri)
+        if (! $this->canManageSiswa()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -427,7 +427,7 @@ class PresensiSiswaController extends BaseController
 
     public function getSiswa()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -466,7 +466,7 @@ class PresensiSiswaController extends BaseController
 
     public function getPresensi()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -494,7 +494,7 @@ class PresensiSiswaController extends BaseController
 
     public function getBdr()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -523,7 +523,7 @@ class PresensiSiswaController extends BaseController
     public function save()
     {
         // Panitia boleh input seperti di halaman index (hapus tetap admin/guru)
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
@@ -715,7 +715,7 @@ class PresensiSiswaController extends BaseController
 
     public function checkIn()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
@@ -861,7 +861,7 @@ class PresensiSiswaController extends BaseController
 
     public function checkOut()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
@@ -994,7 +994,7 @@ class PresensiSiswaController extends BaseController
 
     public function updateJam()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
         }
 
@@ -1104,7 +1104,7 @@ class PresensiSiswaController extends BaseController
 
     public function rekapBulanan()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -1177,8 +1177,8 @@ class PresensiSiswaController extends BaseController
         if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        // Monitoring memuat NIS/foto seluruh siswa — batasi untuk pengelola & panitia
-        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
+        // Monitoring memuat NIS/foto seluruh siswa — batasi untuk pengelola
+        if (! $this->canManageSiswa()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -1216,7 +1216,7 @@ class PresensiSiswaController extends BaseController
 
     public function getMonitoringHarian()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
@@ -1266,7 +1266,7 @@ class PresensiSiswaController extends BaseController
 
     public function monitoringHarianPdf()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1363,7 +1363,7 @@ class PresensiSiswaController extends BaseController
         if (! $this->isLoggedIn()) {
             return redirect()->to('auth');
         }
-        if (! $this->canManageSiswa() && ! $this->isPanitia()) {
+        if (! $this->canManageSiswa()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -1402,7 +1402,7 @@ class PresensiSiswaController extends BaseController
      */
     public function exportRekapExcel()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1431,7 +1431,7 @@ class PresensiSiswaController extends BaseController
      */
     public function exportRekapPdf()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return redirect()->to('auth')->with('error', 'Akses ditolak');
         }
 
@@ -1474,7 +1474,7 @@ class PresensiSiswaController extends BaseController
      */
     public function kelasRekapOptions()
     {
-        if (! $this->isLoggedIn() || (! $this->canManageSiswa() && ! $this->isPanitia())) {
+        if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
             return $this->response->setStatusCode(403)->setJSON([
                 'status' => false,
                 'message' => 'Akses ditolak',
@@ -1595,7 +1595,7 @@ class PresensiSiswaController extends BaseController
             $idKelas = 0;
         }
 
-        // Admin/panitia: id_kelas yang tidak dikenal diperlakukan sebagai
+        // Admin: id_kelas yang tidak dikenal diperlakukan sebagai
         // "belum memilih" agar tidak menampilkan tabel kosong dengan label
         // "Semua Kelas".
         if ($allowed === null && $idKelas !== null && $idKelas > 0) {

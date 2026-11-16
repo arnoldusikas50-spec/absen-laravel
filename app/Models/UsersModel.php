@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\AvatarService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -39,9 +38,6 @@ class UsersModel extends Model
         switch ($table) {
             case 'master_siswa':
                 $select_name = 'nama';
-                break;
-            case 'master_panitia':
-                $select_name = 'nama_panitia';
                 break;
             default:
                 $select_name = 'nama_guru';
@@ -143,47 +139,6 @@ class UsersModel extends Model
     public function getGuruByUsername($username)
     {
         return DB::table('master_guru')->where('username', $username)->first();
-    }
-
-    // TODO: tabel master_panitia, users, login_attempts belum ada migrasinya
-    public function getUserPanitia()
-    {
-        if (! Schema::hasTable('master_panitia')) {
-            return [];
-        }
-        $count = DB::table('master_panitia')->count();
-        if ($count == 0) {
-            return [];
-        }
-
-        $builder = DB::table('master_panitia as a');
-        $builder->select('a.id_panitia', 'a.nama_panitia', 'a.nip', 'a.username', 'a.password', 'a.instansi', 'a.jabatan', 'a.ruang', 'a.email', 'a.no_hp', 'a.foto', 'a.status', 'u.id', 'u.active');
-        $builder->selectRaw('(SELECT COUNT(login) FROM login_attempts WHERE login_attempts.login = a.username) AS reset');
-
-        $school_uuid = session()->get('school_uuid');
-        if ($school_uuid && Schema::hasColumn('master_panitia', 'sync_school_uuid')) {
-            $builder->where('a.sync_school_uuid', $school_uuid);
-        }
-
-        $builder->leftJoin('users as u', 'a.id_user', '=', 'u.id');
-        $builder->orderBy('a.nama_panitia', 'ASC');
-
-        $result = $builder->get()->all();
-        foreach ($result as $row) {
-            $row->foto = AvatarService::url($row->foto) ?? url('assets/img/profile-default.png');
-        }
-
-        return $result;
-    }
-
-    // TODO: tabel master_panitia belum ada migrasinya
-    public function getDataPanitia($id)
-    {
-        if (! Schema::hasTable('master_panitia')) {
-            return null;
-        }
-
-        return DB::table('master_panitia')->where('id_panitia', $id)->first();
     }
 
     // TODO: tabel master_kelas belum ada migrasinya

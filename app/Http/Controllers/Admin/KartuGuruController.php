@@ -31,11 +31,11 @@ class KartuGuruController extends BaseController
             return redirect()->to('auth');
         }
         // Kartu memuat NIP/NUPTK/QR seluruh guru — bukan untuk akun siswa.
-        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $isStaffPenuh = $this->isAdmin() || $this->isPanitia();
+        $isStaffPenuh = $this->isAdmin();
         $idGuru = (int) ($this->request->query('id_guru') ?? 0);
         if (! $isStaffPenuh) {
             // Guru hanya boleh melihat/mencetak kartunya sendiri.
@@ -143,11 +143,11 @@ class KartuGuruController extends BaseController
         if (! $user) {
             return redirect()->to('auth');
         }
-        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
-        $isStaffPenuh = $this->isAdmin() || $this->isPanitia();
+        $isStaffPenuh = $this->isAdmin();
         $idGuru = (int) ($this->request->query('id_guru') ?? 0);
         if (! $isStaffPenuh) {
             $idGuru = $this->currentGuruId((int) $user->id);

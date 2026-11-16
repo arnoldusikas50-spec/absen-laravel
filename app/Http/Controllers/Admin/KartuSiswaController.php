@@ -51,7 +51,7 @@ class KartuSiswaController extends BaseController
 
     /**
      * Kelas yang boleh dilihat guru yang sedang login.
-     *   null  = seluruh kelas (admin/panitia — sama seperti sebelum-sebelumnya)
+     *   null  = seluruh kelas (admin — sama seperti sebelum-sebelumnya)
      *   []    = tidak ada (guru tanpa perwalian — kartunya KartuGuru, bukan ini)
      *   [..]  = hanya kelas perwaliannya
      * Sumber: master_kelas.guru_id (wali) + jabatan_guru id_jabatan=4,
@@ -61,7 +61,7 @@ class KartuSiswaController extends BaseController
      */
     private function idKelasBolehDilihat(): ?array
     {
-        if ($this->isAdmin() || $this->isPanitia()) {
+        if ($this->isAdmin()) {
             return null;
         }
 
@@ -153,7 +153,7 @@ class KartuSiswaController extends BaseController
             return redirect()->to('auth');
         }
         // Kartu memuat NIS/NISN/foto seluruh siswa — bukan untuk akun siswa.
-        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -346,7 +346,7 @@ class KartuSiswaController extends BaseController
             return redirect()->to('auth');
         }
         // Kartu memuat NIS/NISN/foto seluruh siswa — bukan untuk akun siswa.
-        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return redirect()->to('dashboard')->with('error', 'Akses ditolak');
         }
 
@@ -490,7 +490,7 @@ class KartuSiswaController extends BaseController
                 'status' => false, 'message' => 'Unauthorized', 'data' => [],
             ]);
         }
-        if (! $this->isAdmin() && ! $this->isPanitia() && ! $this->isGuru()) {
+        if (! $this->isAdmin() && ! $this->isGuru()) {
             return $this->response->setStatusCode(403)->setJSON([
                 'status' => false, 'message' => 'Akses ditolak', 'data' => [],
             ]);

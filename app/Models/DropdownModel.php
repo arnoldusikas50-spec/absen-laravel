@@ -224,13 +224,4 @@ class DropdownModel extends Model
 
         return $result ? $result->nama_kelas : '';
     }
-
-    // TODO: tabel master_panitia belum ada migrasinya
-    public function getAllPanitiaPengawas()
-    {
-        return DB::table('master_panitia')
-            ->select('id_panitia', 'nama_panitia', 'ruang')
-            ->get()
-            ->all();
-    }
 }

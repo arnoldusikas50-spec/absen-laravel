@@ -16,9 +16,11 @@ use Symfony\Component\HttpFoundation\Response;
  *   1. session('role_name') — string, dibanding lowercase.
  *   2. session('role') — id grup (1=admin, 2=guru, 3=siswa).
  *   3. Bila session kosong, fallback ke atribut user yang login
- *      ($user->role_name / $user->role).
- * Belum login -> 401 JSON untuk AJAX, else redirect route 'auth'.
+ *      ($user->role_name / $user->role). Catatan: model App\Models\User
+ *      belum menyimpan atribut itu, jadi fallback ini praktis jarang terpakai.
+ * Belum login -> 401 JSON untuk AJAX, else redirect route 'login'.
  * Role tidak diizinkan -> 403 JSON untuk AJAX, else redirect 'dashboard'.
+ * Tanpa argumen role -> semua request ditolak (fail-closed).
  */
 class RoleMiddleware
 {
@@ -61,16 +63,13 @@ class RoleMiddleware
 
     /**
      * Normalisasi daftar role yang diizinkan: lowercase.
-     * Tanpa parameter -> default ['admin'] (perilaku AdminFilter CI4).
+     * Tanpa parameter -> daftar kosong, artinya semua request ditolak
+     * (fail-closed), supaya `role:` yang lupa diberi argumen tidak
+     * diam-diam berubah menjadi "admin only".
      */
     protected function normalizeRoles(array $roles): array
     {
-        $roles = array_filter(array_map(fn ($r) => strtolower(trim((string) $r)), $roles));
-        if (empty($roles)) {
-            $roles = ['admin'];
-        }
-
-        return $roles;
+        return array_values(array_filter(array_map(fn ($r) => strtolower(trim((string) $r)), $roles)));
     }
 
     protected function userHasRole(Request $request, array $allowed): bool

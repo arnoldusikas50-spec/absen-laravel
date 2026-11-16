@@ -263,7 +263,7 @@ class AttendanceController extends BaseController
             ->first();
 
         $groupName = strtolower((string) ($userGroup->group_name ?? $user->role_name ?? ''));
-        if (! in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
+        if (! in_array($groupName, ['guru', 'admin'], true)) {
             return $this->respond(false, 'Akses ditolak: Hanya akun Guru atau Admin yang diizinkan.');
         }
 
@@ -294,7 +294,7 @@ class AttendanceController extends BaseController
 
         $redirectUrl = $groupName === 'guru' ? url('presensi') : url('dashboard');
 
-        // PWA "tetap login" 30 hari — hanya guru (admin/panitia dikecualikan).
+        // PWA "tetap login" 30 hari — hanya guru (admin dikecualikan).
         if ($groupName === 'guru') {
             RememberLogin::issue((int) $user->id);
         }
@@ -477,13 +477,13 @@ class AttendanceController extends BaseController
             $guru = $db->table('master_guru')->where('id_user', $user->id)->first();
             $groupName = strtolower(trim((string) ($user->role_name ?? '')));
             if ($groupName === '') {
-                $groupName = ['1' => 'admin', '2' => 'guru', '3' => 'siswa', '4' => 'panitia'][(string) $user->group_id] ?? '';
+                $groupName = ['1' => 'admin', '2' => 'guru', '3' => 'siswa'][(string) $user->group_id] ?? '';
             }
 
             // Login Google hanya untuk staf. Tanpa whitelist ini akun siswa
             // (atau user tanpa grup) akan diberi role_name 'Guru' dan lolos
             // pemeriksaan inGroup('guru') di seluruh endpoint /presensi.
-            if (! in_array($groupName, ['guru', 'admin', 'panitia'], true)) {
+            if (! in_array($groupName, ['guru', 'admin'], true)) {
                 return redirect()->to('auth')->with('error', 'Akun ini tidak diizinkan login melalui Google.');
             }
 
@@ -504,16 +504,13 @@ class AttendanceController extends BaseController
                 'login_provider' => 'google',
             ]);
 
-            // PWA "tetap login" 30 hari — hanya guru (admin/panitia dikecualikan).
+            // PWA "tetap login" 30 hari — hanya guru (admin dikecualikan).
             if ($groupName === 'guru') {
                 RememberLogin::issue((int) $user->id);
             }
 
             if ($groupName === 'admin') {
                 return redirect()->to('admin/presensi');
-            }
-            if ($groupName === 'panitia') {
-                return redirect()->to('dashboard');
             }
 
             return redirect()->to('presensi');

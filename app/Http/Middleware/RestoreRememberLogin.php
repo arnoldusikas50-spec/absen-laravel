@@ -15,19 +15,15 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Middleware 'auth' bawaan Laravel tidak punya titik hook untuk logika ini
  * tanpa mengubah bootstrap/app.php, jadi logika itu dipisah ke middleware
- * ini. File ini SENGAJA TIDAK didaftarkan aliasnya di bootstrap/app.php
- * (tugas melarang mengubah hal lain di file itu selain alias 'role').
- * Koordinator perlu menambahkan satu baris alias agar middleware ini aktif:
- *   'restore.remember' => App\Http\Middleware\RestoreRememberLogin::class,
- * lalu memakainya sebelum 'auth' pada rute yang memerlukan pemulihan
- * remember-me, mis. ->middleware(['restore.remember', 'auth']).
+ * ini. Middleware ini terdaftar pada grup 'web' di bootstrap/app.php,
+ * sehingga berlaku untuk seluruh rute web.
  *
  * Perilaku:
  *   1. Bila belum login, coba RememberLogin::restore() (cookie 30 hari,
- *      hanya guru & siswa; admin/panitia ditolak + token dicabut).
+ *      hanya guru & siswa; admin ditolak + token dicabut).
  *   2. Bila sudah login, revalidasi role dari DB tiap 60 detik: bila akun
  *      tidak ada / tidak aktif, session di-invalidate dan user diarahkan
- *      ke 'auth' (401 JSON untuk AJAX); bila role berubah, session
+ *      ke route 'login' (401 JSON untuk AJAX); bila role berubah, session
  *      disinkronkan (role_name / role).
  */
 class RestoreRememberLogin
