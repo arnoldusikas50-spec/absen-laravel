@@ -201,6 +201,9 @@ class DataguruController extends BaseController
             // no_hp milik Dapodik dan ditimpa tiap sinkronisasi, sementara
             // ini tujuan kiriman yang tidak boleh berubah diam-diam.
             (object) ['label' => 'No. WhatsApp', 'name' => 'wa_number', 'value' => $waNumber ?? '', 'icon' => 'bi bi-whatsapp', 'type' => 'text'],
+            // Kartu RFID dan mesin sidik jari — diisi admin, tidak dari Dapodik.
+            (object) ['label' => 'Nomor Kartu RFID', 'name' => 'nomor_rfid', 'value' => $guru->nomor_rfid ?? '', 'icon' => 'bi bi-card-id', 'type' => 'text'],
+            (object) ['label' => 'UserID Mesin Sidik Jari', 'name' => 'fingerprint_uid', 'value' => $guru->fingerprint_uid ?? '', 'icon' => 'bi bi-fingerprint', 'type' => 'text'],
         ];
 
         $data['input_alamat'] = [
@@ -409,6 +412,11 @@ class DataguruController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'ID guru tidak valid']);
         }
 
+        // Kolom MySQL yang menolak string kosong — harus dikonversi ke NULL.
+        // DATE: tmt, tgl_lahir  |  INT: kode_pos
+        $dateColumns = ['tmt', 'tgl_lahir'];
+        $intColumns = ['kode_pos'];
+
         // Whitelist field (blokir timpa username/password/id_user/dokumen via POST)
         $raw = $this->request->input();
         $data = [];
@@ -421,7 +429,12 @@ class DataguruController extends BaseController
                 if (mb_strlen($val) > $maxLen) {
                     return $this->response->setJSON(['status' => false, 'message' => "Field {$field} terlalu panjang (maks {$maxLen} karakter)"]);
                 }
-                $data[$field] = $val;
+                // Konversi string kosong → NULL untuk kolom DATE / INT
+                if ($val === '' && (in_array($field, $dateColumns, true) || in_array($field, $intColumns, true))) {
+                    $data[$field] = null;
+                } else {
+                    $data[$field] = $val;
+                }
             }
         }
         if (empty($data['nama_guru'])) {
@@ -435,15 +448,16 @@ class DataguruController extends BaseController
         // eligibilitas kategori cuti — CutiKategoriService), kosong = tidak terdata.
         // Pemeriksaan final dilakukan setelah data existing terbaca, agar
         // nilai legacy yang tidak diubah tidak ikut ditolak.
-        if (array_key_exists('tmt', $data)) {
-            if ($data['tmt'] === '') {
-                // Kosong → simpan NULL agar MySQL DATE column tidak error
-                $data['tmt'] = null;
-            } else {
-                [$thn, $bln, $hri] = array_pad(explode('-', $data['tmt']), 3, '0');
-                if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
-                }
+        if (array_key_exists('tmt', $data) && $data['tmt'] !== null) {
+            [$thn, $bln, $hri] = array_pad(explode('-', $data['tmt']), 3, '0');
+            if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
+                return $this->response->setJSON(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
+            }
+        }
+        if (array_key_exists('tgl_lahir', $data) && $data['tgl_lahir'] !== null) {
+            [$thn, $bln, $hri] = array_pad(explode('-', $data['tgl_lahir']), 3, '0');
+            if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
+                return $this->response->setJSON(['status' => false, 'message' => 'Tanggal lahir tidak valid (yyyy-mm-dd)']);
             }
         }
 

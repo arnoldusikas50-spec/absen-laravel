@@ -121,7 +121,7 @@ if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
                 <span class="badge-tw badge-primary font-mono">NIP {{ $guru->nip ?? '-' }}</span>
             </div>
             <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight truncate">{{ $judul ?? 'Edit Guru' }} — {{ $guru->nama_guru ?? '' }}</h1>
-            <p class="text-xs text-slate-500 mt-1 font-mono">{{ $subjudul ?? 'Edit Data' }} · @{{ $guru->username ?? '-' }} · TP {{ $tp_active->tahun ?? '-' }} {{ $smt_active->smt ?? '' }}</p>
+            <p class="text-xs text-slate-500 mt-1 font-mono">{{ $subjudul ?? 'Edit Data' }} · {{ $guru->username ?? '-' }} · TP {{ $tp_active->tahun ?? '-' }} {{ $smt_active->smt ?? '' }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap shrink-0">
             <a href="{{ url('dataguru') }}" class="btn-tw btn-light">
@@ -169,7 +169,7 @@ if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
                         <h4 id="profile-nama" class="mt-3 font-bold text-slate-900">{{ $guru->nama_guru ?? '-' }}</h4>
                         <p class="text-slate-400 text-xs mt-0.5">{{ $jabatan }}</p>
                         <p class="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-mono"><i class="bi bi-person-circle"></i>@{{ $guru->username ?? '-' }}</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-mono"><i class="bi bi-person-circle"></i>{{ $guru->username ?? '-' }}</span>
                         </p>
                     </div>
 

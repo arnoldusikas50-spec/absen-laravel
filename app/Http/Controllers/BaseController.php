@@ -933,7 +933,13 @@ class BaseController extends Controller
     protected function updateMasterData(string $table, array $data, string $pk, $id)
     {
         try {
-            return DB::table($table)->where($pk, $id)->update($data);
+            // DB::update() returns the number of affected rows (int).
+            // 0 means no rows changed (data identical) — that is still a
+            // success, so we cast to bool only after ruling out false itself.
+            $result = DB::table($table)->where($pk, $id)->update($data);
+
+            // false = exception path (never reached here), 0 or more = ok.
+            return $result !== false;
         } catch (\Throwable $e) {
             Log::error('[BaseController::updateMasterData] '.$e->getMessage());
 
