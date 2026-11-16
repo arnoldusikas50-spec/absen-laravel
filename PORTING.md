@@ -183,8 +183,12 @@ post_reply — plus tabel `sessions` standar Laravel (dibutuhkan karena
   config warna dinamis via CSS variable) di
   `public/assets/app/css/tailwind.css`. Tidak memakai Vite/Tailwind 4
   Laravel karena config v3 tidak kompatibel.
-- **Halaman error/debug CI4** (`errors/cli/*`, `errors/html/*`) disalin
-  tapi tidak dipakai Laravel (punya exception handler sendiri).
+- **Halaman error/debug CI4**: hanya `errors/html/error_400/403/404/500`
+  (+ `errors/html/_shell`) yang dipertahankan karena dipakai
+  `BaseController::showError()` dan `ErrorsController`; sisa halaman
+  error/debug CI4 (`errors/cli/*`, `errors/disable_login`,
+  `errors/html/error_exception`, `errors/html/production`) dihapus karena
+  tidak dipakai Laravel (punya exception handler sendiri).
 - **Perilaku yang disederhanakan** di `BaseController`: `DB::transStatus()`
   → `true`; `$db->affectedRows()` → `1`; `$db->error()` → array kosong;
   aturan validasi CI4 yang tak dikenal diabaikan (dicatat di log).

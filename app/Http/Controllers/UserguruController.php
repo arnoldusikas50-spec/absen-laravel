@@ -274,34 +274,26 @@ class UserguruController extends BaseController
         // users (hash) dan master_guru (cermin plaintext) adalah satu kesatuan:
         // tulis separuh membuat guru bisa login dengan password lama lewat
         // jalur yang masih membaca master_guru.
-        $dibuka = DB::beginTransaction();
+        //
+        // PENTING: DB::beginTransaction() di Laravel mengembalikan void (bukan
+        // bool seperti CI4), sehingga pola "$dibuka = DB::beginTransaction()"
+        // + "if ($dibuka) { DB::commit(); }" membuat commit/rollback TIDAK
+        // pernah jalan -> transaksi dibiarkan terbuka dan MySQL melakukan
+        // implicit rollback di akhir request (data hilang senyap walau respons
+        // status true). Gunakan DB::transaction() agar commit/rollback otomatis.
         try {
-            try {
+            DB::transaction(function () use ($db, $account, $default, $username) {
                 $db->table('users')->where('id', (int) $account->id)->update([
                     'password' => password_hash($default, PASSWORD_BCRYPT),
                 ]);
                 if (Schema::hasTable('master_guru')) {
                     $db->table('master_guru')->where('username', $username)->update(['password' => $default]);
                 }
-            } catch (\Throwable $e) {
-                if ($dibuka) {
-                    DB::rollBack();
-                }
-                Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
-
-                return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
-            }
-
-            if ($dibuka) {
-                DB::commit();
-            }
+            });
         } catch (\Throwable $e) {
-            if ($dibuka) {
-                DB::rollBack();
-            }
-            Log::error('[Userguru::reset_password] '.$e->getMessage());
+            Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Terjadi kesalahan sistem — periksa log aplikasi.']);
+            return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
         }
 
         return $this->response->setJSON(['status' => true, 'msg' => 'Password "'.$username.'" berhasil direset ke password default.']);

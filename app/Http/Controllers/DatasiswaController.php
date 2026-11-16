@@ -289,15 +289,14 @@ class DatasiswaController extends BaseController
         $tanggalMasukRaw = trim((string) ($this->request->input('tahun_masuk') ?? ''));
         $tanggalMasuk = self::normalisasiTanggalTerima($tanggalMasukRaw);
 
-        $validation = $this->validation();
-        $validation->setRules([
+        $rules = [
             'nama_siswa' => 'required|min_length[3]|max_length[100]',
             'nis' => 'required|numeric|min_length[4]|max_length[20]|is_unique[master_siswa.nis]',
             'nisn' => 'required|numeric|min_length[9]|max_length[20]|is_unique[master_siswa.nisn]',
             'username' => 'required|min_length[4]|max_length[30]|alpha_dash|is_unique[master_siswa.username]|is_unique[users.username]',
             'password' => 'required|min_length[6]|max_length[72]',
             'jenis_kelamin' => 'permit_empty|in_list[L,P]',
-        ]);
+        ];
         // Tanggal diterima dicek terpisah, bukan lewat aturan string.
         // Aturan `valid_date[Y-m-d]` akan menolak tahun-saja dan
         // "5/10/2026" yang sengaja diterima normalisasiTanggalTerima(),
@@ -308,8 +307,8 @@ class DatasiswaController extends BaseController
             ? 'Tanggal diterima tidak valid. Gunakan format YYYY-MM-DD.'
             : null;
 
-        if (! $this->validate($validation->getRules()) || $errorTanggal !== null) {
-            $errors = $validation->getErrors();
+        if (! $this->validate($rules) || $errorTanggal !== null) {
+            $errors = $this->validation()->getErrors();
             if ($errorTanggal !== null) {
                 $errors['tahun_masuk'] = $errorTanggal;
             }
@@ -555,19 +554,18 @@ class DatasiswaController extends BaseController
         $u_nis = $siswa->nis == $nis ? '' : '|is_unique[master_siswa.nis]';
         $u_nisn = $siswa->nisn == $nisn ? '' : '|is_unique[master_siswa.nisn]';
 
-        $validation = $this->validation();
-        $validation->setRules([
+        $rules = [
             'nama' => 'required|min_length[3]|max_length[100]',
             'nis' => 'required|numeric|min_length[4]|max_length[20]'.$u_nis,
             'nisn' => 'required|numeric|min_length[9]|max_length[20]'.$u_nisn,
             'tanggal_lahir' => 'permit_empty|valid_date[Y-m-d]',
             'tahun_masuk' => 'permit_empty|max_length[10]',
-        ]);
+        ];
 
-        if (! $this->validate($validation->getRules())) {
+        if (! $this->validate($rules)) {
             return $this->response->setJSON([
                 'insert' => false,
-                'text' => implode('<br>', $validation->getErrors()),
+                'text' => implode('<br>', $this->validation()->getErrors()),
             ]);
         }
 

@@ -1529,6 +1529,9 @@ class SettingsController extends BaseController
             abort(404);
         }
 
-        return $this->response->download($filepath, null)->setFileName(basename($filepath));
+        // CI4: download($path, null) -> DownloadResponse lalu setFileName().
+        // Laravel: response()->download() mengembalikan BinaryFileResponse yang
+        // tidak punya setFileName(); nama file harus diberikan di parameter kedua.
+        return $this->response->download($filepath, basename($filepath));
     }
 }

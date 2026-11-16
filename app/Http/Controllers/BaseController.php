@@ -538,6 +538,12 @@ class BaseController extends Controller
     protected function translateRules(string $ruleStr): string
     {
         $out = [];
+        // CI4 `min_length`/`max_length` mengukur panjang karakter. Laravel
+        // `min`/`max` beralih ke perbandingan nilai numerik bila field juga
+        // punya aturan numeric/integer/decimal — sehingga NIS 15 digit
+        // (nilainya > 20) ikut ditolak. Untuk field numerik dipakai varian
+        // digit (panjang digit) agar setara dengan CI4.
+        $hasNumeric = (bool) preg_match('/(?:^|\|)\s*(?:numeric|integer|decimal)\s*(?:\[|\||$)/', $ruleStr);
         foreach (explode('|', $ruleStr) as $part) {
             $part = trim($part);
             if ($part === '') {
@@ -560,13 +566,13 @@ class BaseController extends Controller
                 case 'if_exist':
                     break;
                 case 'min_length':
-                    $out[] = 'min:'.$arg;
+                    $out[] = $hasNumeric ? 'min_digits:'.$arg : 'min:'.$arg;
                     break;
                 case 'max_length':
-                    $out[] = 'max:'.$arg;
+                    $out[] = $hasNumeric ? 'max_digits:'.$arg : 'max:'.$arg;
                     break;
                 case 'exact_length':
-                    $out[] = 'size:'.$arg;
+                    $out[] = $hasNumeric ? 'digits:'.$arg : 'size:'.$arg;
                     break;
                 case 'numeric':
                 case 'decimal':
