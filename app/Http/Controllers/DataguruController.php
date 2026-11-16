@@ -435,10 +435,15 @@ class DataguruController extends BaseController
         // eligibilitas kategori cuti — CutiKategoriService), kosong = tidak terdata.
         // Pemeriksaan final dilakukan setelah data existing terbaca, agar
         // nilai legacy yang tidak diubah tidak ikut ditolak.
-        if (array_key_exists('tmt', $data) && $data['tmt'] !== '') {
-            [$thn, $bln, $hri] = array_pad(explode('-', $data['tmt']), 3, '0');
-            if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
+        if (array_key_exists('tmt', $data)) {
+            if ($data['tmt'] === '') {
+                // Kosong → simpan NULL agar MySQL DATE column tidak error
+                $data['tmt'] = null;
+            } else {
+                [$thn, $bln, $hri] = array_pad(explode('-', $data['tmt']), 3, '0');
+                if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
+                    return $this->response->setJSON(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
+                }
             }
         }
 

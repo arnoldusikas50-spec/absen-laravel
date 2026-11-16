@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PresensiAdminController;
 use App\Http\Controllers\Admin\PresensiBdrController;
 use App\Http\Controllers\Admin\RewardController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\NfcController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\CronControllerController;
@@ -621,6 +622,15 @@ Route::post('admin/integrasi/dapodik/testConnection', [DapodikController::class,
 Route::post('admin/integrasi/dapodik/syncApi', [DapodikController::class, 'syncApi'])->middleware(['auth', 'role:admin'])->name('admin.integrasi.dapodik.syncApi.sync_api');
 Route::post('admin/integrasi/dapodik/clearLogs', [DapodikController::class, 'clearLogs'])->middleware(['auth', 'role:admin'])->name('admin.integrasi.dapodik.clearLogs.clear_logs');
 Route::get('cron/dapodik_sync', [CronController::class, 'dapodik_sync'])->middleware(['auth'])->name('cron.dapodik_sync');
+
+// ─────────────────────────────────────────────────────────────────────────
+// NFC API Routes (untuk aplikasi Android)
+// Endpoint ini diakses oleh perangkat Android untuk absensi via NFC/RFID
+// Autentikasi menggunakan API key, bukan session login
+// ─────────────────────────────────────────────────────────────────────────
+Route::post('api/nfc/scan', [NfcController::class, 'scan'])->name('api.nfc.scan');
+Route::post('api/nfc/check', [NfcController::class, 'checkCard'])->name('api.nfc.check');
+Route::post('api/nfc/cards', [NfcController::class, 'listCards'])->name('api.nfc.cards');
 
 // CATATAN: RoleMiddleware & RestoreRememberLogin masih memanggil route('auth')
 // — rute login di sini bernama 'login' (sesuai keputusan tahap ini, agar

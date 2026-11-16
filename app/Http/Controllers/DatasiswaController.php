@@ -1609,12 +1609,12 @@ class DatasiswaController extends BaseController
 
         $query = $db->table('master_siswa as a')
             ->select('a.id_siswa', 'a.nama', 'a.nis', 'a.nisn', 'a.nomor_rfid', 'f.nama_kelas', 'a.foto')
-            ->join('kelas_siswa as d', function ($join) use ($tp, $smt) {
+            ->leftJoin('kelas_siswa as d', function ($join) use ($tp, $smt) {
                 $join->on('d.id_siswa', '=', 'a.id_siswa')
                     ->where('d.id_tp', '=', (int) $tp->id_tp)
                     ->where('d.id_smt', '=', (int) $smt->id_smt);
             })
-            ->join('master_kelas as f', 'f.id_kelas', '=', 'd.id_kelas')
+            ->leftJoin('master_kelas as f', 'f.id_kelas', '=', 'd.id_kelas')
             ->orderBy('a.nama', 'ASC');
 
         if ($idKelas > 0) {

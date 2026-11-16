@@ -309,6 +309,124 @@ $guruNonaktif = $totalGuru - $guruAktif;
     </div>
 </div>
 
+{{-- ─── MODAL REGISTRASI CEPAT NFC GURU ─── --}}
+@if ($isAdmin)
+<div id="quickNfcGuruModal" class="modal hidden fixed inset-0 items-center justify-center bg-slate-900/60 p-3 sm:p-4" style="z-index: 1060;" tabindex="-1" aria-labelledby="quickNfcGuruLabel" aria-hidden="true" onclick="if(event.target === this) closeNfcGuruModal()">
+    <div class="modal-box-tw w-full max-w-lg">
+        <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0 backdrop-blur-xs">
+                        <i class="bi bi-broadcast"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <h5 class="font-bold text-white text-base mb-0.5" id="quickNfcGuruLabel">Scan & Tautkan Kartu NFC Guru</h5>
+                        <p class="text-[11px] text-emerald-100 mb-0">Tempelkan kartu RFID ke HP untuk menyimpan langsung ke database.</p>
+                    </div>
+                </div>
+                <button type="button" class="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors shrink-0"
+                    onclick="closeNfcGuruModal()" data-ui-dismiss="modal" aria-label="Tutup">
+                    <i class="bi bi-x-lg text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+                <!-- Dropdown Guru -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Guru Target <span class="text-rose-500">*</span></label>
+                    <select id="nfc-guru-select" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium">
+                        <option value="">-- Pilih Guru --</option>
+                        @foreach($gurus as $g)
+                            <option value="{{ $g->id_guru }}"
+                                data-nama="{{ $g->nama_guru }}"
+                                data-nip="{{ $g->nip ?? '' }}"
+                                data-rfid="{{ trim($g->nomor_rfid ?? '') }}">
+                                {{ $g->nama_guru }}
+                                @if(trim($g->nomor_rfid ?? '') !== '')
+                                    [✓ {{ $g->nomor_rfid }}]
+                                @else
+                                    [Belum ada RFID]
+                                @endif
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Preview Guru Aktif -->
+                <div id="nfc-guru-preview" class="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 flex items-center gap-3.5 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-2xl shrink-0 border border-emerald-100">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h5 id="nfc-guru-preview-nama" class="font-bold text-slate-800 text-sm leading-tight truncate">Pilih guru terlebih dahulu</h5>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">
+                            <span id="nfc-guru-preview-nip">NIP: -</span>
+                        </div>
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="text-[10px] text-slate-400">Status Kartu:</span>
+                            <span id="nfc-guru-preview-rfid" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600">
+                                Belum ada kartu terdaftar
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sensor NFC & Tap Area -->
+                <div id="nfc-guru-sensor-area" class="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-5 text-center relative overflow-hidden transition-all">
+                    <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 animate-pulse">
+                        <i class="bi bi-broadcast" id="nfc-guru-icon"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-800 text-sm mt-3 mb-1" id="nfc-guru-status-title">Siap Membaca Kartu RFID / NFC</h4>
+                    <p id="nfc-guru-status-text" class="text-xs text-slate-500 max-w-xs mx-auto mb-3">
+                        Tempelkan kartu RFID guru ke <strong>bagian belakang HP Android</strong> Anda sekarang.
+                    </p>
+
+                    <!-- Manual UID or USB Reader input -->
+                    <div class="max-w-sm mx-auto">
+                        <div class="relative">
+                            <input type="text" id="nfc-guru-manual-input" placeholder="Atau scan via USB Reader / ketik UID"
+                                class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden"
+                                autocomplete="off">
+                            <i class="bi bi-upc-scan absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <button type="button" onclick="submitNfcGuruManual()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                Simpan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opsi Auto Advance -->
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center gap-2 cursor-pointer select-none font-semibold text-slate-700">
+                        <input type="checkbox" id="nfc-guru-auto-advance" checked class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                        <span>Otomatis lanjut ke guru berikutnya (tanpa RFID)</span>
+                    </label>
+                    <span id="nfc-guru-session-count" class="text-emerald-600 font-bold">0 tersimpan</span>
+                </div>
+
+                <!-- Riwayat Sesi -->
+                <div id="nfc-guru-history-wrap" class="hidden">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Riwayat Sesi Ini</p>
+                    <div id="nfc-guru-history" class="space-y-1 max-h-24 overflow-y-auto pr-1 text-xs"></div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
+                <button type="button" id="btn-hapus-rfid-guru" onclick="hapusRfidGuruTerpilih()" class="hidden px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors">
+                    <i class="bi bi-trash3 mr-1"></i> Lepas Kartu Guru Ini
+                </button>
+                <div class="ml-auto flex items-center gap-2">
+                    <button type="button" onclick="closeNfcGuruModal()" data-ui-dismiss="modal" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 @endsection
 
 @section('scripts')
@@ -432,133 +550,17 @@ $guruNonaktif = $totalGuru - $guruAktif;
     }
 </script>
 
-{{-- ─── MODAL REGISTRASI CEPAT NFC GURU ─── --}}
+<?php
+$guruJsonList = json_encode(collect($gurus ?? [])->map(function ($g) {
+    return [
+        'id_guru' => is_array($g) ? ($g['id_guru'] ?? null) : ($g->id_guru ?? null),
+        'nama_guru' => is_array($g) ? ($g['nama_guru'] ?? '') : ($g->nama_guru ?? ''),
+        'nomor_rfid' => is_array($g) ? ($g['nomor_rfid'] ?? '') : ($g->nomor_rfid ?? ''),
+    ];
+})->values()->all(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+?>
+
 @if ($isAdmin)
-<div id="quickNfcGuruModal" class="fixed inset-0 z-[9999] hidden" aria-modal="true" role="dialog">
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onclick="closeNfcGuruModal()"></div>
-
-    <!-- Panel -->
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 text-white">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-                            <i class="bi bi-broadcast text-xl"></i>
-                        </div>
-                        <div>
-                            <h5 class="font-black text-base m-0">Scan & Tautkan Kartu NFC</h5>
-                            <p class="text-emerald-100 text-xs m-0">Registrasi cepat kartu RFID Guru</p>
-                        </div>
-                    </div>
-                    <button type="button" onclick="closeNfcGuruModal()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all">
-                        <i class="bi bi-x-lg text-sm"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Body -->
-            <div class="p-6 space-y-4">
-                <!-- Dropdown Guru -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilih Guru</label>
-                    <select id="nfc-guru-select" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all">
-                        <option value="">-- Pilih Guru --</option>
-                        @foreach($gurus as $g)
-                            <option value="{{ $g->id_guru }}"
-                                data-nama="{{ $g->nama_guru }}"
-                                data-rfid="{{ trim($g->nomor_rfid ?? '') }}">
-                                {{ $g->nama_guru }}
-                                @if(trim($g->nomor_rfid ?? '') !== '')
-                                    [✓ {{ $g->nomor_rfid }}]
-                                @else
-                                    [Belum ada RFID]
-                                @endif
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <!-- Preview Guru Aktif -->
-                <div id="nfc-guru-preview" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                            <i class="bi bi-person-badge text-2xl text-emerald-600"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="font-bold text-sm text-emerald-800 m-0 truncate" id="nfc-guru-preview-nama">-</p>
-                            <p class="text-xs text-emerald-600 m-0" id="nfc-guru-preview-rfid">Belum ada kartu terdaftar</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sensor NFC Animasi -->
-                <div class="relative flex flex-col items-center justify-center py-5 bg-gradient-to-b from-slate-50 to-white rounded-2xl border border-dashed border-emerald-300" id="nfc-guru-sensor-area">
-                    <div class="relative w-20 h-20 mb-3">
-                        <div class="absolute inset-0 rounded-full border-4 border-emerald-200 animate-ping opacity-40"></div>
-                        <div class="absolute inset-2 rounded-full border-4 border-emerald-300 animate-ping opacity-60" style="animation-delay:0.3s"></div>
-                        <div class="relative w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-400 flex items-center justify-center">
-                            <i class="bi bi-broadcast text-4xl text-emerald-500" id="nfc-guru-icon"></i>
-                        </div>
-                    </div>
-                    <p class="text-sm font-bold text-slate-700 m-0" id="nfc-guru-status-text">Tempelkan kartu RFID ke HP</p>
-                    <p class="text-xs text-slate-400 mt-0.5 m-0">Chrome Android v89+ dengan NFC aktif</p>
-
-                    <div id="nfc-guru-not-supported" class="hidden mt-3 w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
-                        <i class="bi bi-info-circle mr-1"></i> Web NFC tidak tersedia di perangkat ini.<br>
-                        Gunakan input manual USB RFID Reader di bawah.
-                    </div>
-                </div>
-
-                <!-- Input fallback USB / manual -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
-                        <i class="bi bi-keyboard mr-1"></i>Input Manual / USB RFID Reader
-                    </label>
-                    <div class="flex gap-2">
-                        <input type="text" id="nfc-guru-manual-input" placeholder="Ketik UID atau tembak reader, tekan Enter..."
-                            class="flex-1 px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
-                            autocomplete="off" />
-                        <button type="button" onclick="submitNfcGuruManual()"
-                            class="px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors">
-                            Simpan
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Auto-advance -->
-                <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
-                    <input type="checkbox" id="nfc-guru-auto-advance" class="w-4 h-4 rounded text-emerald-600 border-slate-300 focus:ring-emerald-500" checked>
-                    <span>Otomatis lanjut ke guru berikutnya (tanpa RFID)</span>
-                </label>
-
-                <!-- Riwayat Sesi -->
-                <div id="nfc-guru-history-wrap" class="hidden">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Riwayat Sesi Ini</p>
-                    <div id="nfc-guru-history" class="space-y-1 max-h-28 overflow-y-auto pr-1"></div>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
-                <span class="text-xs text-slate-500" id="nfc-guru-footer-info">NFC tidak aktif</span>
-                <div class="flex gap-2">
-                    <button type="button" id="btn-nfc-guru-toggle" onclick="toggleNfcGuru()"
-                        class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors flex items-center gap-1.5">
-                        <i class="bi bi-broadcast"></i> Aktifkan NFC
-                    </button>
-                    <button type="button" onclick="closeNfcGuruModal()"
-                        class="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">
-                        Tutup
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 (function () {
     const ASSIGN_URL = '{{ url('dataguru/assign_rfid') }}';
@@ -569,153 +571,216 @@ $guruNonaktif = $totalGuru - $guruAktif;
     let nfcGuruActive = false;
     let currentGuruId = null;
     let currentGuruNama = '';
+    let nfcSessionCount = 0;
     let guruSessionHistory = [];
 
     // ── Daftar guru dari Blade (untuk auto-advance) ──
-    const allGuruList = @json($gurus->map(fn($g) => ['id_guru' => $g->id_guru, 'nama_guru' => $g->nama_guru, 'nomor_rfid' => $g->nomor_rfid ?? '']));
+    const allGuruList = {!! $guruJsonList !!};
 
     function escHtml(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
     window.openNfcGuruModal = function () {
-        document.getElementById('quickNfcGuruModal').classList.remove('hidden');
+        const modalEl = document.getElementById('quickNfcGuruModal');
+        if (modalEl) {
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('is-open', 'show');
+            modalEl.style.display = 'flex';
+            if (window.AdminUI && window.AdminUI.modal) {
+                window.AdminUI.modal.open(modalEl);
+            }
+        }
         checkNfcSupport();
-        document.getElementById('nfc-guru-manual-input').addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); submitNfcGuruManual(); }
-        });
+        startNfcGuru();
+        setTimeout(function () {
+            const inputEl = document.getElementById('nfc-guru-manual-input');
+            if (inputEl) inputEl.focus();
+        }, 150);
     };
 
     window.openNfcSingleGuru = function (idGuru, namaGuru) {
         openNfcGuruModal();
         const sel = document.getElementById('nfc-guru-select');
-        sel.value = idGuru;
-        sel.dispatchEvent(new Event('change'));
+        if (sel) {
+            sel.value = idGuru;
+            sel.dispatchEvent(new Event('change'));
+        }
     };
 
     window.closeNfcGuruModal = function () {
         stopNfcGuru();
-        document.getElementById('quickNfcGuruModal').classList.add('hidden');
+        const modalEl = document.getElementById('quickNfcGuruModal');
+        if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('is-open', 'show', 'active');
+            modalEl.style.display = 'none';
+            if (window.AdminUI && window.AdminUI.modal) {
+                window.AdminUI.modal.close(modalEl);
+            }
+        }
     };
 
     function checkNfcSupport() {
+        const title = document.getElementById('nfc-guru-status-title');
+        const text = document.getElementById('nfc-guru-status-text');
         if (!('NDEFReader' in window)) {
-            document.getElementById('nfc-guru-not-supported').classList.remove('hidden');
+            if (title) title.textContent = 'Mode USB Reader / Input Manual';
+            if (text) text.innerHTML = '<span class="text-amber-700">Web NFC tidak didukung di browser ini. Tempelkan kartu pada USB RFID Reader atau ketik UID di bawah.</span>';
+        } else {
+            if (title) title.textContent = 'Siap Membaca Kartu RFID / NFC';
+            if (text) text.innerHTML = 'Tempelkan kartu RFID guru ke <strong>bagian belakang HP Android</strong> Anda sekarang.';
         }
     }
 
-    // ── Dropdown guru ──
+    // ── Dropdown guru & Keyboard event ──
     document.addEventListener('DOMContentLoaded', function () {
         const sel = document.getElementById('nfc-guru-select');
         if (!sel) return;
+
         sel.addEventListener('change', function () {
             const opt = this.options[this.selectedIndex];
-            currentGuruId = this.value ? parseInt(this.value) : null;
-            currentGuruNama = opt.dataset.nama || '';
-            const rfid = (opt.dataset.rfid || '').trim();
-            const preview = document.getElementById('nfc-guru-preview');
+            currentGuruId = this.value ? parseInt(this.value, 10) : null;
+            currentGuruNama = opt ? (opt.dataset.nama || '') : '';
+            const nip = opt ? (opt.dataset.nip || '') : '';
+            const rfid = opt ? (opt.dataset.rfid || '').trim() : '';
+
+            const previewNama = document.getElementById('nfc-guru-preview-nama');
+            const previewNip = document.getElementById('nfc-guru-preview-nip');
+            const previewRfid = document.getElementById('nfc-guru-preview-rfid');
+            const btnHapus = document.getElementById('btn-hapus-rfid-guru');
+
             if (currentGuruId) {
-                preview.classList.remove('hidden');
-                document.getElementById('nfc-guru-preview-nama').textContent = currentGuruNama;
-                document.getElementById('nfc-guru-preview-rfid').textContent =
-                    rfid !== '' ? ('RFID: ' + rfid) : 'Belum ada kartu terdaftar';
+                if (previewNama) previewNama.textContent = currentGuruNama;
+                if (previewNip) previewNip.textContent = 'NIP: ' + (nip || '-');
+                if (previewRfid) {
+                    if (rfid !== '') {
+                        previewRfid.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800';
+                        previewRfid.innerHTML = '<i class="bi bi-check-circle-fill text-emerald-600"></i> RFID: ' + escHtml(rfid);
+                    } else {
+                        previewRfid.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600';
+                        previewRfid.textContent = 'Belum ada kartu terdaftar';
+                    }
+                }
+                if (btnHapus) {
+                    btnHapus.classList.toggle('hidden', rfid === '');
+                }
             } else {
-                preview.classList.add('hidden');
+                if (previewNama) previewNama.textContent = 'Pilih guru terlebih dahulu';
+                if (previewNip) previewNip.textContent = 'NIP: -';
+                if (previewRfid) {
+                    previewRfid.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600';
+                    previewRfid.textContent = 'Belum ada kartu terdaftar';
+                }
+                if (btnHapus) btnHapus.classList.add('hidden');
             }
         });
+
+        const manualInput = document.getElementById('nfc-guru-manual-input');
+        if (manualInput) {
+            manualInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitNfcGuruManual();
+                }
+            });
+        }
     });
 
-    // ── Toggle Web NFC ──
-    window.toggleNfcGuru = async function () {
-        if (!('NDEFReader' in window)) {
-            Swal.fire('Web NFC Tidak Tersedia', 'Gunakan Chrome Android 89+ dengan NFC aktif.', 'info');
-            return;
-        }
-        if (nfcGuruActive) {
-            stopNfcGuru();
-        } else {
-            await startNfcGuru();
-        }
-    };
-
+    // ── Web NFC Scanner ──
     async function startNfcGuru() {
+        if (!('NDEFReader' in window)) return;
         try {
+            if (nfcGuruController) nfcGuruController.abort();
             nfcGuruController = new AbortController();
             nfcGuruReader = new NDEFReader();
             await nfcGuruReader.scan({ signal: nfcGuruController.signal });
             nfcGuruActive = true;
-            updateNfcGuruUI(true);
+
+            const title = document.getElementById('nfc-guru-status-title');
+            const text = document.getElementById('nfc-guru-status-text');
+            if (title) title.textContent = 'Sensor NFC Aktif!';
+            if (text) text.innerHTML = '<span class="text-emerald-700 font-semibold">Sensor NFC HP siap! Tempelkan kartu RFID guru ke belakang HP...</span>';
 
             nfcGuruReader.onreading = (event) => {
                 const rawUid = event.serialNumber;
                 if (!rawUid) return;
                 if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
                 const cleanUid = rawUid.replace(/[: -]/g, '').toUpperCase();
-                document.getElementById('nfc-guru-status-text').textContent = 'Membaca: ' + cleanUid;
-                setTimeout(() => {
-                    if (nfcGuruActive) {
-                        document.getElementById('nfc-guru-status-text').textContent = 'Tempelkan kartu RFID ke HP';
-                    }
-                }, 1500);
                 processNfcGuruScan(cleanUid);
             };
 
             nfcGuruReader.onreadingerror = () => {
                 if (navigator.vibrate) navigator.vibrate(200);
-                document.getElementById('nfc-guru-status-text').textContent = 'Gagal membaca, tempelkan kembali.';
+                const text = document.getElementById('nfc-guru-status-text');
+                if (text) text.innerHTML = '<span class="text-rose-600 font-semibold">Gagal membaca kartu, tempelkan kembali.</span>';
             };
         } catch (err) {
+            console.warn('NFC Guru Error:', err);
             nfcGuruActive = false;
-            updateNfcGuruUI(false);
-            Swal.fire('NFC Error', err.message || 'Gagal memulai sensor NFC.', 'error');
         }
     }
 
     function stopNfcGuru() {
-        if (nfcGuruController) { nfcGuruController.abort(); nfcGuruController = null; }
-        nfcGuruActive = false;
-        updateNfcGuruUI(false);
-    }
-
-    function updateNfcGuruUI(active) {
-        const $btn = document.getElementById('btn-nfc-guru-toggle');
-        const $footer = document.getElementById('nfc-guru-footer-info');
-        if (active) {
-            $btn.innerHTML = '<i class="bi bi-stop-circle mr-1"></i> Hentikan NFC';
-            $btn.classList.replace('bg-emerald-600', 'bg-rose-600');
-            $btn.classList.replace('hover:bg-emerald-700', 'hover:bg-rose-700');
-            $footer.textContent = 'NFC Aktif – tempelkan kartu di belakang HP';
-            document.getElementById('nfc-guru-icon').classList.add('text-emerald-600');
-        } else {
-            $btn.innerHTML = '<i class="bi bi-broadcast mr-1"></i> Aktifkan NFC';
-            $btn.classList.replace('bg-rose-600', 'bg-emerald-600');
-            $btn.classList.replace('hover:bg-rose-700', 'hover:bg-emerald-700');
-            $footer.textContent = 'NFC tidak aktif';
-            document.getElementById('nfc-guru-status-text').textContent = 'Tempelkan kartu RFID ke HP';
+        if (nfcGuruController) {
+            nfcGuruController.abort();
+            nfcGuruController = null;
         }
+        nfcGuruActive = false;
     }
 
     // ── Submit NFC scan ke server ──
     function processNfcGuruScan(uid) {
         if (!currentGuruId) {
-            Swal.fire('Pilih Guru Dulu', 'Pilih nama guru sebelum menempelkan kartu.', 'warning');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Pilih Guru',
+                text: 'Pilih guru target terlebih dahulu sebelum menempelkan kartu.',
+                timer: 2000,
+                showConfirmButton: false
+            });
             return;
         }
         doAssignRfidGuru(currentGuruId, currentGuruNama, uid);
     }
 
     window.submitNfcGuruManual = function () {
-        const val = (document.getElementById('nfc-guru-manual-input').value || '').trim().replace(/[: -]/g, '').toUpperCase();
-        if (!val) return;
-        document.getElementById('nfc-guru-manual-input').value = '';
+        const input = document.getElementById('nfc-guru-manual-input');
+        const val = (input ? input.value : '').trim().replace(/[: -]/g, '').toUpperCase();
+        if (!val) {
+            Swal.fire('Peringatan', 'Ketik nomor UID kartu terlebih dahulu.', 'warning');
+            return;
+        }
+        if (input) input.value = '';
         if (!currentGuruId) {
-            Swal.fire('Pilih Guru Dulu', 'Pilih nama guru sebelum menyimpan kartu.', 'warning');
+            Swal.fire('Peringatan', 'Pilih guru target terlebih dahulu.', 'warning');
             return;
         }
         doAssignRfidGuru(currentGuruId, currentGuruNama, val);
     };
 
+    window.hapusRfidGuruTerpilih = function () {
+        if (!currentGuruId) return;
+        Swal.fire({
+            title: 'Lepas Kartu RFID?',
+            text: 'Nomor kartu RFID milik ' + currentGuruNama + ' akan dihapus dari sistem.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            confirmButtonText: 'Ya, Lepas',
+            cancelButtonText: 'Batal'
+        }).then((res) => {
+            if (!res.isConfirmed) return;
+            doAssignRfidGuru(currentGuruId, currentGuruNama, '');
+        });
+    };
+
     function doAssignRfidGuru(idGuru, namaGuru, uid) {
+        const text = document.getElementById('nfc-guru-status-text');
+        if (text) {
+            text.innerHTML = '<span class="text-blue-700 font-semibold inline-flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span> Menyimpan kartu ' + (uid ? escHtml(uid) : '') + ' ke database...</span>';
+        }
+
         $.ajax({
             url: ASSIGN_URL,
             type: 'POST',
@@ -723,31 +788,117 @@ $guruNonaktif = $totalGuru - $guruAktif;
             data: { id_guru: idGuru, nomor_rfid: uid, _token: CSRF },
             success: function (res) {
                 if (res.status) {
+                    nfcSessionCount++;
+                    const countEl = document.getElementById('nfc-guru-session-count');
+                    if (countEl) countEl.textContent = nfcSessionCount + ' tersimpan';
+
+                    // Feedback audio
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(880, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.2);
+                    } catch(e) {}
+
                     addGuruHistory(namaGuru, uid, true);
-                    // Update preview & dropdown
-                    document.getElementById('nfc-guru-preview-rfid').textContent = 'RFID: ' + uid;
+
+                    // Update dropdown & preview
+                    const sel = document.getElementById('nfc-guru-select');
                     const opt = document.querySelector(`#nfc-guru-select option[value="${idGuru}"]`);
-                    if (opt) { opt.dataset.rfid = uid; opt.text = namaGuru + ' [✓ ' + uid + ']'; }
-                    // Update status di allGuruList
+                    if (opt) {
+                        opt.dataset.rfid = uid;
+                        opt.text = namaGuru + (uid ? ' [✓ ' + uid + ']' : ' [Belum ada RFID]');
+                    }
+                    if (sel) sel.dispatchEvent(new Event('change'));
+
+                    // Update allGuruList
                     const item = allGuruList.find(g => g.id_guru == idGuru);
                     if (item) item.nomor_rfid = uid;
 
-                    if (document.getElementById('nfc-guru-auto-advance').checked) {
-                        autoAdvanceGuru();
+                    // Update baris tabel langsung tanpa reload
+                    updateTableRowRfid(idGuru, uid);
+
+                    if (text) {
+                        text.innerHTML = '<span class="text-emerald-700 font-semibold">' + (res.message || 'Kartu berhasil disimpan!') + '</span>';
+                    }
+
+                    const autoAdvance = document.getElementById('nfc-guru-auto-advance');
+                    if (autoAdvance && autoAdvance.checked && uid !== '') {
+                        setTimeout(autoAdvanceGuru, 600);
                     }
                 } else {
                     addGuruHistory(namaGuru, uid, false, res.message || 'Gagal');
-                    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: res.message || 'UID kartu sudah terdaftar.', timer: 3000, showConfirmButton: false });
+                    if (text) {
+                        text.innerHTML = '<span class="text-rose-600 font-semibold">' + (res.message || 'Gagal menyimpan kartu.') + '</span>';
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Menyimpan',
+                        text: res.message || 'UID kartu sudah terdaftar.',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 }
             },
             error: function () {
+                if (text) text.innerHTML = '<span class="text-rose-600">Gagal menghubungi server.</span>';
                 Swal.fire('Error', 'Gagal menghubungi server.', 'error');
             }
         });
     }
 
+    function updateTableRowRfid(idGuru, uid) {
+        const btn = document.querySelector(`.btn-tap-nfc-guru-row[data-id="${idGuru}"]`);
+        if (btn) {
+            btn.dataset.rfid = uid;
+            if (uid) {
+                btn.className = 'btn-tap-nfc-guru-row inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-xs';
+                btn.title = 'RFID: ' + uid + ' (Klik untuk ganti)';
+            } else {
+                btn.className = 'btn-tap-nfc-guru-row inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200 transition-colors shadow-xs';
+                btn.title = 'Tap NFC untuk daftarkan kartu';
+            }
+        }
+        const row = btn ? btn.closest('tr') : null;
+        if (row) {
+            const cell = row.children[2];
+            if (cell) {
+                const nipEl = cell.querySelector('.text-slate-700');
+                const nipText = nipEl ? nipEl.textContent.trim() : '-';
+                if (uid) {
+                    cell.innerHTML = `
+                        <div class="font-mono text-xs text-slate-700 font-semibold">${escHtml(nipText)}</div>
+                        <div class="mt-1">
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Nomor RFID: ${escHtml(uid)}">
+                                <i class="bi bi-broadcast text-emerald-600"></i> ${escHtml(uid)}
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    cell.innerHTML = `
+                        <div class="font-mono text-xs text-slate-700 font-semibold">${escHtml(nipText)}</div>
+                        <div class="mt-1">
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] text-slate-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Belum ada RFID
+                            </span>
+                        </div>
+                    `;
+                }
+            }
+        }
+    }
+
     function autoAdvanceGuru() {
         const sel = document.getElementById('nfc-guru-select');
+        if (!sel) return;
         const currentIdx = Array.from(sel.options).findIndex(o => o.value == currentGuruId);
         for (let i = currentIdx + 1; i < sel.options.length; i++) {
             const opt = sel.options[i];
@@ -765,12 +916,13 @@ $guruNonaktif = $totalGuru - $guruAktif;
         guruSessionHistory.unshift({ nama, uid, ok, errorMsg });
         const wrap = document.getElementById('nfc-guru-history-wrap');
         const list = document.getElementById('nfc-guru-history');
+        if (!wrap || !list) return;
         wrap.classList.remove('hidden');
         list.innerHTML = guruSessionHistory.slice(0, 8).map(h => `
             <div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg ${h.ok ? 'bg-emerald-50 border border-emerald-100' : 'bg-rose-50 border border-rose-100'}">
                 <i class="bi ${h.ok ? 'bi-check-circle-fill text-emerald-500' : 'bi-x-circle-fill text-rose-500'} text-xs shrink-0"></i>
                 <span class="text-xs font-medium ${h.ok ? 'text-emerald-800' : 'text-rose-800'} truncate">${escHtml(h.nama)}</span>
-                <span class="text-[10px] font-mono ${h.ok ? 'text-emerald-600' : 'text-rose-500'} ml-auto shrink-0">${escHtml(h.uid)}</span>
+                <span class="text-[10px] font-mono ${h.ok ? 'text-emerald-600' : 'text-rose-500'} ml-auto shrink-0">${escHtml(h.uid || 'Dilepas')}</span>
             </div>
         `).join('');
     }

@@ -163,7 +163,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-xs">
                             <i class="bi bi-upload"></i> Import
                         </a>
-                        <button type="button" onclick="openQuickNfcModal()"
+                        <button type="button" id="btn-scan-nfc-modal" onclick="openQuickNfcModal()"
                             class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"
                             title="Scan & Tautkan Kartu RFID/NFC ke Siswa">
                             <i class="bi bi-broadcast"></i> Scan NFC Siswa
@@ -470,9 +470,10 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
     </div>
 
     <!-- Modal Registrasi Cepat Kartu RFID / NFC Siswa -->
-    <div id="quickNfcModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-3 sm:p-4" tabindex="-1" aria-labelledby="quickNfcLabel" aria-hidden="true">
+    <div id="quickNfcModal" class="modal hidden fixed inset-0 items-center justify-center bg-slate-900/60 p-3 sm:p-4" style="z-index: 1060;" tabindex="-1" aria-labelledby="quickNfcLabel" aria-hidden="true" onclick="if(event.target === this) closeQuickNfcModal()">
         <div class="modal-box-tw w-full max-w-lg">
-            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                <!-- Header -->
                 <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0 backdrop-blur-xs">
@@ -484,17 +485,18 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                         </div>
                     </div>
                     <button type="button" class="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors shrink-0"
-                        onclick="closeQuickNfcModal()" aria-label="Tutup">
+                        onclick="closeQuickNfcModal()" data-ui-dismiss="modal" aria-label="Tutup">
                         <i class="bi bi-x-lg text-sm"></i>
                     </button>
                 </div>
 
-                <div class="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+                <!-- Body (Scrollable, Clean Spacing) -->
+                <div class="p-5 sm:p-6 space-y-3.5 overflow-y-auto max-h-[75vh]">
                     <!-- Filter Kelas & Pemilihan Siswa -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Filter Kelas</label>
-                            <select id="nfc-filter-kelas" onchange="onNfcFilterKelasChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden">
+                            <select id="nfc-filter-kelas" onchange="onNfcFilterKelasChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all">
                                 <option value="">Semua Kelas</option>
                                 <?php foreach (($kelass ?? []) as $id => $name): ?>
                                     <option value="{{ (int) $id }}">{{ $name }}</option>
@@ -503,24 +505,24 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Siswa Target <span class="text-rose-500">*</span></label>
-                            <select id="nfc-select-siswa" onchange="onNfcSelectSiswaChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium">
+                            <select id="nfc-select-siswa" onchange="onNfcSelectSiswaChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium transition-all">
                                 <option value="">-- Memuat Siswa --</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Kartu Preview Siswa Terpilih -->
-                    <div id="nfc-siswa-card" class="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 flex items-center gap-3.5 transition-all">
-                        <img id="nfc-siswa-foto" src="{{ asset('assets/img/siswa_sm.png') }}" alt="Foto" class="w-12 h-12 rounded-xl object-cover border border-slate-200 bg-white shadow-xs shrink-0">
+                    <!-- Kartu Preview Siswa Terpilih (Sleek Compact) -->
+                    <div id="nfc-siswa-card" class="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex items-center gap-3 transition-all">
+                        <img id="nfc-siswa-foto" src="{{ asset('assets/img/siswa_sm.png') }}" alt="Foto" class="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-white shadow-xs shrink-0">
                         <div class="min-w-0 flex-1">
                             <h5 id="nfc-siswa-nama" class="font-bold text-slate-800 text-sm leading-tight truncate">Pilih siswa terlebih dahulu</h5>
-                            <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">
+                            <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
                                 <span id="nfc-siswa-nis">NIS: -</span>
                                 <span>&bull;</span>
                                 <span id="nfc-siswa-kelas" class="font-semibold text-emerald-700">-</span>
                             </div>
                             <div class="mt-1 flex items-center gap-2">
-                                <span class="text-[10px] text-slate-400">Status Kartu:</span>
+                                <span class="text-[10px] text-slate-400">Status:</span>
                                 <span id="nfc-siswa-rfid-status" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600">
                                     Belum Ada RFID
                                 </span>
@@ -528,57 +530,54 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                         </div>
                     </div>
 
-                    <!-- Sensor NFC & Tap Area -->
-                    <div class="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-5 text-center relative overflow-hidden">
-                        <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 animate-pulse">
+                    <!-- Sensor NFC & Tap Area (Modern & Minimalist) -->
+                    <div class="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-4 text-center relative overflow-hidden transition-all">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl shadow-md shadow-emerald-500/20 animate-pulse">
                             <i class="bi bi-broadcast"></i>
                         </div>
-                        <h4 class="font-bold text-slate-800 text-sm mt-3 mb-1">Siap Membaca Kartu RFID / NFC</h4>
-                        <p id="nfc-modal-status-text" class="text-xs text-slate-500 max-w-xs mx-auto mb-3">
-                            Tempelkan kartu RFID siswa ke <strong>bagian belakang HP Android</strong> Anda sekarang.
+                        <p id="nfc-modal-status-text" class="text-xs text-slate-600 max-w-sm mx-auto my-2">
+                            Tempelkan kartu RFID siswa ke <strong>bagian belakang HP Android</strong> Anda.
                         </p>
 
                         <!-- Input Manual / USB Reader fallback -->
-                        <div class="max-w-xs mx-auto">
+                        <div class="max-w-sm mx-auto mt-2">
                             <div class="relative">
-                                <input type="text" id="nfc-manual-rfid-input" placeholder="Atau scan via USB Reader / ketik UID" class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden" autocomplete="off">
+                                <input type="text" id="nfc-manual-rfid-input" placeholder="Atau scan via USB Reader / ketik UID" class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden shadow-2xs" autocomplete="off">
                                 <i class="bi bi-upc-scan absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <button type="button" onclick="submitManualRfid()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                <button type="button" onclick="submitManualRfid()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
                                     Simpan
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Checkbox Auto Advance -->
-                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        <label for="nfc-auto-next" class="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-700">
+                    <!-- Checkbox Auto Advance & Counter (Minimalist bar) -->
+                    <div class="flex items-center justify-between text-xs px-1">
+                        <label for="nfc-auto-next" class="flex items-center gap-2 cursor-pointer select-none font-semibold text-slate-700">
                             <input type="checkbox" id="nfc-auto-next" checked class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
                             <span>Otomatis lanjut ke siswa berikutnya</span>
                         </label>
-                        <span class="text-[10px] text-slate-400 font-medium">Bagus untuk registrasi massal</span>
+                        <span id="nfc-session-count" class="text-emerald-600 font-bold">0 tersimpan</span>
                     </div>
 
                     <!-- Log Aktivitas Scan Terbaru -->
-                    <div>
-                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
-                            <span>Riwayat Taut Kartu Sesi Ini</span>
-                            <span id="nfc-session-count" class="text-emerald-600 font-bold">0 tersimpan</span>
-                        </p>
-                        <div id="nfc-scan-history" class="space-y-1.5 max-h-28 overflow-y-auto text-xs">
-                            <p class="text-[11px] text-slate-400 italic text-center py-2 mb-0">Belum ada kartu yang ditautkan pada sesi ini.</p>
-                        </div>
+                    <div id="nfc-scan-history-wrap">
+                        <div id="nfc-scan-history" class="space-y-1 max-h-24 overflow-y-auto pr-1 text-xs"></div>
                     </div>
                 </div>
 
+                <!-- Footer -->
                 <div class="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
                     <button type="button" id="btn-hapus-rfid-siswa" onclick="hapusRfidSiswaTerpilih()" class="hidden px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors">
                         <i class="bi bi-trash3 mr-1"></i> Lepas Kartu Siswa Ini
                     </button>
                     <div class="ml-auto">
-                        <button type="button" onclick="closeQuickNfcModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
+                        <button type="button" onclick="closeQuickNfcModal()" data-ui-dismiss="modal" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
             </div>
         </div>
     </div>
@@ -589,6 +588,36 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
 @section('scripts')
 <script src="{{ asset('assets/app/js/jquery.twbsPagination.js') }}"></script>
 <script>
+    // Global fallback handler untuk modal Scan NFC Siswa agar selalu responsif seketika
+    window.openQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
+        const modalEl = document.getElementById('quickNfcModal');
+        if (modalEl) {
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('is-open', 'show');
+            modalEl.style.display = 'flex';
+            if (window.AdminUI && window.AdminUI.modal) {
+                window.AdminUI.modal.open(modalEl);
+            }
+        }
+        if (typeof window._initQuickNfcModal === 'function') {
+            window._initQuickNfcModal(preselectIdSiswa, preselectIdKelas);
+        }
+    };
+    window.closeQuickNfcModal = function () {
+        const modalEl = document.getElementById('quickNfcModal');
+        if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('is-open', 'show', 'active');
+            modalEl.style.display = 'none';
+            if (window.AdminUI && window.AdminUI.modal) {
+                window.AdminUI.modal.close(modalEl);
+            }
+        }
+        if (typeof window._cleanupQuickNfcModal === 'function') {
+            window._cleanupQuickNfcModal();
+        }
+    };
+
     $(function () {
         const IS_ADMIN    = {{ $isAdmin ? 'true' : 'false' }};
         const HAS_PERIODE = {{ $hasPeriode ? 'true' : 'false' }};
@@ -793,7 +822,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                 const aksi = IS_ADMIN
                     ? '<td class="text-center align-middle py-3 px-4">' +
                         '<div class="flex items-center justify-center gap-1.5">' +
-                            '<button type="button" class="btn-tap-nfc-row inline-flex items-center justify-center w-8 h-8 rounded-lg ' + (rfidVal ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200') + ' transition-colors shadow-xs" data-id="' + idSiswa + '" data-nama="' + nama + '" data-rfid="' + rfidVal + '" data-nis="' + nis + '" data-kelas="' + escapeHtml(siswa.nama_kelas || '-') + '" data-foto="' + foto + '" title="' + (rfidVal ? 'RFID: ' + rfidVal + ' (Klik untuk ganti)' : 'Tap NFC untuk daftarkan kartu') + '">' +
+                            '<button type="button" class="btn-tap-nfc-row inline-flex items-center justify-center w-8 h-8 rounded-lg ' + (rfidVal ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200') + ' transition-colors shadow-xs" data-id="' + idSiswa + '" data-nama="' + nama + '" data-rfid="' + rfidVal + '" data-nis="' + nis + '" data-kelas="' + escapeHtml(siswa.nama_kelas || '-') + '" data-kelas-id="' + (siswa.id_kelas || '') + '" data-foto="' + foto + '" onclick="openQuickNfcModal(' + idSiswa + ', \'' + (siswa.id_kelas || '') + '\')" title="' + (rfidVal ? 'RFID: ' + rfidVal + ' (Klik untuk ganti)' : 'Tap NFC untuk daftarkan kartu') + '">' +
                                 '<i class="bi bi-broadcast text-xs"></i>' +
                             '</button>' +
                             '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT.replace('__ID__', idSiswa) + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
@@ -1210,24 +1239,58 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
             }
         };
 
-        window.openQuickNfcModal = function (preselectIdSiswa = null) {
-            $('#quickNfcModal').removeClass('hidden').addClass('flex');
-            const currentKelas = $('#users-kelas').val() || '';
-            $('#nfc-filter-kelas').val(currentKelas === 'tanpa' ? '' : currentKelas);
-            loadSiswaForNfc($('#nfc-filter-kelas').val(), preselectIdSiswa);
+        window._initQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
+            let filterKelas = '';
+            if (preselectIdKelas) {
+                filterKelas = String(preselectIdKelas);
+            } else {
+                const currentKelas = $('#users-kelas').val() || '';
+                filterKelas = (currentKelas === 'tanpa' ? '' : currentKelas);
+            }
+            $('#nfc-filter-kelas').val(filterKelas);
+            loadSiswaForNfc(filterKelas, preselectIdSiswa);
             startModalNfcScan();
         };
 
-        window.closeQuickNfcModal = function () {
+        window._cleanupQuickNfcModal = function () {
             stopModalNfcScan();
-            $('#quickNfcModal').addClass('hidden').removeClass('flex');
             loadSiswa();
+        };
+
+        window.openQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
+            const modalEl = document.getElementById('quickNfcModal');
+            if (modalEl) {
+                modalEl.classList.remove('hidden');
+                modalEl.classList.add('is-open', 'show');
+                modalEl.style.display = 'flex';
+                if (window.AdminUI && window.AdminUI.modal) {
+                    window.AdminUI.modal.open(modalEl);
+                }
+            }
+            window._initQuickNfcModal(preselectIdSiswa, preselectIdKelas);
+            setTimeout(function () {
+                const inputEl = document.getElementById('nfc-manual-rfid-input');
+                if (inputEl) inputEl.focus();
+            }, 150);
+        };
+
+        window.closeQuickNfcModal = function () {
+            const modalEl = document.getElementById('quickNfcModal');
+            if (modalEl) {
+                modalEl.classList.add('hidden');
+                modalEl.classList.remove('is-open', 'show', 'active');
+                modalEl.style.display = 'none';
+                if (window.AdminUI && window.AdminUI.modal) {
+                    window.AdminUI.modal.close(modalEl);
+                }
+            }
+            window._cleanupQuickNfcModal();
         };
 
         async function startModalNfcScan() {
             if (!('NDEFReader' in window)) {
                 $('#nfc-modal-status-text').html(
-                    '<span class="text-amber-700">Web NFC tidak didukung di browser ini. Gunakan HP Android + Chrome (HTTPS), atau scan menggunakan USB RFID Reader / ketik UID di bawah.</span>'
+                    '<span class="text-slate-600 font-medium">Mode Reader USB / Input Manual aktif. Tempelkan kartu pada USB RFID Reader atau ketik UID di bawah.</span>'
                 );
                 return;
             }
@@ -1320,7 +1383,14 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
 
                     $('#nfc-select-siswa').html(options);
 
+                    if (selectId && !preselectFound && idKelas) {
+                        $('#nfc-filter-kelas').val('');
+                        loadSiswaForNfc('', selectId);
+                        return;
+                    }
+
                     if (selectId && preselectFound) {
+                        $('#nfc-select-siswa').val(selectId);
                         onNfcSelectSiswaChange(selectId);
                     } else if (nfcSiswaList.length) {
                         const firstWithoutRfid = nfcSiswaList.find(s => !s.nomor_rfid);
@@ -1564,7 +1634,13 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
         $(document).on('click', '.btn-tap-nfc-row', function (e) {
             e.preventDefault();
             const idSiswa = $(this).data('id');
-            openQuickNfcModal(idSiswa);
+            const idKelas = $(this).data('kelas-id') || '';
+            openQuickNfcModal(idSiswa, idKelas);
+        });
+
+        $('#btn-scan-nfc-modal').on('click', function (e) {
+            e.preventDefault();
+            openQuickNfcModal();
         });
 
         // Muat data awal
