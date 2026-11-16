@@ -7,9 +7,7 @@ use App\Libraries\SuratNomor;
 use App\Libraries\Theme;
 use App\Models\AttendanceLocationModel;
 use App\Models\AttendanceSettingModel;
-use App\Models\DashboardModel;
 use App\Models\LogModel;
-use App\Models\SettingsModel;
 use App\Services\OpenWAService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +16,6 @@ use Illuminate\Support\Facades\Schema;
 
 class SettingsController extends BaseController
 {
-    protected $settings;
-
-    protected $dashboard;
-
     /**
      * Header dump yang dihasilkan aplikasi ini. restore() menolak file tanpa
      * header ini, supaya file SQL arbitrer tidak bisa diselundupkan sebagai
@@ -41,8 +35,6 @@ class SettingsController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        $this->settings = new SettingsModel;
-        $this->dashboard = new DashboardModel;
     }
 
     public function index()
@@ -554,6 +546,8 @@ class SettingsController extends BaseController
             'telegram_bot_token', 'telegram_chat_id',
             'wa_gateway_url', 'wa_token', 'wa_target_number',
             'wa_gateway_mode', 'wa_base_url', 'wa_api_key', 'wa_session_name',
+            // MikroTik: hanya ada di absensi_setting, bukan di tabel setting
+            'mikrotik_host', 'mikrotik_port', 'mikrotik_user', 'mikrotik_pass',
         ];
         $notifData = [];
         foreach ($notifKeys as $k) {

@@ -342,7 +342,7 @@ Route::post('datatahun/savehariefektif', [DatatahunController::class, 'saveHariE
 Route::post('datatahun/hapustahun', [DatatahunController::class, 'hapusTahun'])->middleware(['auth', 'role:admin'])->name('datatahun.hapustahun.hapus_tahun');
 Route::post('datatahun/hapussemester', [DatatahunController::class, 'hapusSemester'])->middleware(['auth', 'role:admin'])->name('datatahun.hapussemester.hapus_semester');
 Route::get('settings', [SettingsController::class, 'index'])->middleware(['auth', 'role:admin'])->name('settings.index');
-Route::post('settings', [SettingsController::class, 'index'])->middleware(['auth', 'role:admin'])->name('settings.index.2');
+Route::post('settings', [SettingsController::class, 'saveSetting'])->middleware(['auth', 'role:admin'])->name('settings.index.2');
 Route::get('settings/dbManager', [SettingsController::class, 'dbManager'])->middleware(['auth', 'role:admin'])->name('settings.dbManager.db_manager');
 Route::post('settings/dbManager/backupdb', [SettingsController::class, 'backupDb'])->middleware(['auth', 'role:admin'])->name('settings.dbManager.backupdb.backup_db');
 Route::post('settings/dbManager/backupdata', [SettingsController::class, 'backupData'])->middleware(['auth', 'role:admin'])->name('settings.dbManager.backupdata.backup_data');

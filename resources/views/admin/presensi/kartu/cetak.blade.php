@@ -1367,7 +1367,7 @@
             <?php endforeach; ?>
 
         {{-- ══════════════════════════════════════════════════════════════════
-             MODE 2: DUPLEX PORTRAIT (5.4 × 8.56 cm) — Model Kalung
+             MODE 2: DUPLEX PORTRAIT (5.4 × 8.56 cm)
         ══════════════════════════════════════════════════════════════════ --}}
         <?php elseif ($desainAktif === 'duplex_portrait'): ?>
             <?php foreach ($siswa_list as $s): ?>
@@ -1387,7 +1387,7 @@
                                     <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
                                 </div>
                                 <div class="dp-header-titles">
-                                    <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
+                                    <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMAN 2 AMFOANG TIMUR' }}</h4>
                                     <p class="dp-header-sub">KARTU PELAJAR • TP {{ $tp_active->tahun ?? '-' }}</p>
                                 </div>
                                 <!-- Accent ombak di bawah header -->

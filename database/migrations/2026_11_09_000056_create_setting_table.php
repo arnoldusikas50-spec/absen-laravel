@@ -19,7 +19,7 @@ return new class extends Migration
             $table->collation = 'latin1_swedish_ci';
 
             $table->integer('id_setting', true);
-            $table->string('kode_sekolah', 10)->nullable();
+            $table->string('kode_sekolah', 50)->nullable();
             $table->string('sekolah', 50)->nullable();
             $table->string('npsn', 10)->nullable();
             $table->string('nss', 20)->nullable();
