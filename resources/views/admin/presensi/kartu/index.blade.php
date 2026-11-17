@@ -481,7 +481,7 @@
     .sign-stamp {
         position: absolute;
         left: 50%;
-        top: 50%;
+        top: 35%;
         transform: translate(-50%, -50%);
         width: 20mm;
         height: 20mm;
@@ -917,6 +917,11 @@
     // Di-set sekali di awal section lalu dipakai seluruh link & switcher desain.
     $basePath = $base_path ?? 'admin/presensi/siswa/kartu';
     $desainAktif = $desain ?? 'duplex';
+    $modeAktif = in_array(($mode ?? 'lembar'), ['lembar', 'bolakbalik', 'ktp'], true) ? ($mode ?? 'lembar') : 'lembar';
+    $flipAktif = ($flip ?? 'long') === 'short' ? 'short' : 'long';
+    $qsCetak = 'id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '');
+    // Bawa serta mode & arah flip saat berganti desain agar pilihannya tidak ter-reset.
+    $qsSertaan = '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '');
 ?>
 <div class="fade-in-up p-4 md:p-6 space-y-6">
 
@@ -931,10 +936,10 @@
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
             <a id="btnCetakLembar"
-               href="{{ url($basePath . '/cetak?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=' . $desainAktif . '&v=4') }}"
+               href="{{ url($basePath . '/cetak?' . $qsCetak . '&desain=' . $desainAktif . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&v=5') }}"
                target="_blank"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
-                <i class="bi bi-printer-fill"></i> Cetak Lembar Kartu (A4)
+                <i class="bi bi-printer-fill"></i> Cetak Kartu
             </a>
             <a href="{{ url('guru/presensi-siswa' . (session('user_id') ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int)session('user_id')) : '')) }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
@@ -945,26 +950,36 @@
 
     <!-- Filter & Control Panel -->
     <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
+        <!-- Judul Panel Opsi -->
+        <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                <i class="bi bi-sliders"></i>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-extrabold text-slate-800 leading-tight">Opsi Cetak Kartu</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Pilih desain kartu dan tata letak cetak sebelum mencetak.</p>
+            </div>
+        </div>
+
+        <div class="space-y-5">
         <!-- Pilihan Desain Kartu -->
-        <div class="mb-4">
+        <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain & Format Kartu</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
-                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex&v=4') }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex' . $qsSertaan . '&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-layers-fill"></i> Kartu Pelajar (Landscape)
-                    <span class="hidden sm:inline font-semibold {{ $desainAktif === 'duplex' ? 'text-blue-500' : 'text-slate-400' }}"></span>
                 </a>
-                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=duplex_portrait&v=4') }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex_portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex_portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-card-heading"></i> Kartu Pelajar (Portrait)
-                    <span class="hidden sm:inline font-semibold {{ $desainAktif === 'duplex_portrait' ? 'text-blue-500' : 'text-slate-400' }}"></span>
                 </a>
-                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=landscape&v=4') }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=landscape' . $qsSertaan . '&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front"></i> Kartu Absen Landscape
                 </a>
-                <a href="{{ url($basePath . '?id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '') . '&desain=portrait&v=4') }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=portrait' . $qsSertaan . '&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card"></i> Kartu Absen Portrait
                 </a>
             </div>
@@ -980,12 +995,62 @@
                 @endif
             </p>
         </div>
+
+        <!-- Pilihan Tata Letak / Mode Cetak -->
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tata Letak Cetak</label>
+            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan tata letak cetak">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=lembar&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'lembar' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-file-earmark"></i> Lembar
+                </a>
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $flipAktif . '&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'bolakbalik' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-layout-text-window-reverse"></i> Bolak-balik (Grid A4)
+                </a>
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=ktp&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-credit-card-2-front"></i> Ukuran KTP (CR80)
+                </a>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">
+                @if($modeAktif === 'ktp')
+                    <strong>Ukuran KTP :</strong> Cetak langsung ke kartu CR80 85.6 × 54 mm, satu kartu per halaman — cocok untuk printer kartu.
+                @elseif($modeAktif === 'bolakbalik')
+                    <strong>Bolak-balik :</strong> Grid A4 dua tahap — cetak semua sisi depan, balik tumpukan kertas, lalu cetak semua sisi belakang.
+                @else
+                    <strong>Lembar :</strong> Sisi depan & belakang dicetak berdampingan dalam satu lembar.
+                @endif
+            </p>
+            @if($modeAktif === 'bolakbalik')
+                <div class="mt-3 flex items-center gap-2 flex-wrap">
+                    <span class="text-[11px] font-bold text-slate-600">Arah balik kertas:</span>
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=long&v=5') }}"
+                       class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all no-underline {{ $flipAktif === 'long' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                        <i class="bi bi-arrow-left-right"></i> Sisi Panjang (Long Edge)
+                    </a>
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=short&v=5') }}"
+                       class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all no-underline {{ $flipAktif === 'short' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                        <i class="bi bi-arrow-down-up"></i> Sisi Pendek (Short Edge)
+                    </a>
+                </div>
+            @endif
+        </div>
+        </div>
+
+        <hr class="my-5 border-slate-100">
+
+        <!-- Filter Data -->
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Filter Data Siswa</label>
         <form method="get" action="{{ url($basePath) }}" id="filterForm" data-base="{{ url($basePath) }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <input type="hidden" name="desain" id="inputDesain" value="{{ $desainAktif }}">
+            <input type="hidden" name="mode" id="inputMode" value="{{ $modeAktif }}">
+            <input type="hidden" name="flip" id="inputFlip" value="{{ $flipAktif }}">
             <!-- Pilih Kelas -->
             <div class="md:col-span-4">
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Kelas</label>
-                <select name="id_kelas" id="selectKelas" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <select name="id_kelas" id="selectKelas" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
                     <option value="0">-- Semua Kelas --</option>
                     <?php foreach ($kelases as $k): ?>
                         <option value="{{ $k->id_kelas }}" {{ ($id_kelas == $k->id_kelas) ? 'selected' : '' }}>
@@ -998,7 +1063,7 @@
             <!-- Pilih Siswa (Per Orang) -->
             <div class="md:col-span-4">
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Siswa (Opsional / Per Orang)</label>
-                <select name="id_siswa" id="selectSiswa" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <select name="id_siswa" id="selectSiswa" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
                     <option value="0">-- Semua Siswa di Kelas Ini --</option>
                     <?php foreach ($siswa_options as $so): ?>
                         <option value="{{ $so->id_siswa }}" {{ ($id_siswa == $so->id_siswa) ? 'selected' : '' }}>
@@ -1014,10 +1079,11 @@
                 <div class="relative">
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" id="searchInput" placeholder="Cari nama atau NIS siswa..."
-                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
                 </div>
             </div>
         </form>
+        </div>
 
         <?php if (!empty($catatan)): ?>
             <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
@@ -1036,17 +1102,28 @@
             </div>
         <?php endif; ?>
 
-        <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+        <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px]">
+                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
                     {{ count($siswa_list) }}
                 </span>
-                <span>kartu ditampilkan{{ !empty($terpotong) ? ' (dari daftar yang dipotong)' : '' }}</span>
+                <span class="font-semibold text-slate-600">kartu ditampilkan</span>
+                @if (!empty($terpotong))
+                    <span class="text-slate-400">(dari daftar yang dipotong)</span>
+                @endif
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-slate-400">TP: <strong class="text-slate-700">{{ $tp_active->tahun ?? '-' }}</strong></span>
+                <span class="inline-flex items-center gap-1.5">
+                    <i class="bi bi-calendar3 text-slate-400"></i>
+                    <span class="text-slate-400">TP</span>
+                    <strong class="text-slate-700">{{ $tp_active->tahun ?? '-' }}</strong>
+                </span>
                 <span class="text-slate-300">•</span>
-                <span class="text-slate-400">Semester: <strong class="text-slate-700">{{ $smt_active->smt ?? '-' }}</strong></span>
+                <span class="inline-flex items-center gap-1.5">
+                    <i class="bi bi-list-check text-slate-400"></i>
+                    <span class="text-slate-400">Semester</span>
+                    <strong class="text-slate-700">{{ $smt_active->smt ?? '-' }}</strong>
+                </span>
             </div>
         </div>
     </div>
@@ -1090,7 +1167,7 @@
                             <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $s->nama }}</h5>
                             <span class="text-[10px] font-semibold text-slate-400">({{ $s->nama_kelas }})</span>
                         </div>
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex' . $qsSertaan . '&v=5') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
                             <i class="bi bi-printer"></i> Cetak Kartu
@@ -1294,7 +1371,7 @@
                             <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $s->nama }}</h5>
                             <span class="text-[10px] font-semibold text-slate-400">({{ $s->nama_kelas }})</span>
                         </div>
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
                             <i class="bi bi-printer"></i> Cetak
@@ -1509,7 +1586,7 @@
                         </span>
                     </div>
                     <div class="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-center">
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 font-bold text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
                             <i class="bi bi-printer"></i> Cetak Kartu Ini
@@ -1636,7 +1713,7 @@
                             <div style="width:52px;border-bottom:1px solid #cbd5e1;margin-bottom:2px;"></div>
                             <span style="font-weight:600;">Kepala Sekolah</span>
                         </div>
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex&v=4') }}"
+                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex' . $qsSertaan . '&v=5') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 no-underline"
                            style="font-size:9px;font-weight:700;color:var(--primary-600,#4f46e5);background:var(--primary-50,#eef2ff);border:1px solid var(--primary-100,#e0e7ff);padding:3px 9px;border-radius:7px;transition:all .15s;">
@@ -1728,10 +1805,14 @@ $(document).ready(function() {
         const idKelas = $('#selectKelas').val() || '0';
         const idSiswa = $('#selectSiswa').val() || '0';
         const desain  = $('#inputDesain').val() || 'duplex';
+        const mode    = $('#inputMode').val() || 'lembar';
+        const flip    = $('#inputFlip').val() || 'long';
         let url = basePath + '/cetak?id_kelas=' + encodeURIComponent(idKelas);
         if (idSiswa !== '0') url += '&id_siswa=' + encodeURIComponent(idSiswa);
         url += '&desain=' + encodeURIComponent(desain);
-        url += '&v=4';
+        url += '&mode=' + encodeURIComponent(mode);
+        if (mode === 'bolakbalik') url += '&flip=' + encodeURIComponent(flip);
+        url += '&v=5';
         $('#btnCetakLembar').attr('href', url);
     }
 

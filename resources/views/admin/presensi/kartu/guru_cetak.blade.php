@@ -1,3 +1,11 @@
+@php
+    // Tata letak cetak: grid (lembar A4) | ktp (satu kartu per halaman CR80).
+    $desainAktif = $desain ?? 'landscape';
+    $modeAktif = ($mode ?? 'grid') === 'ktp' ? 'ktp' : 'grid';
+    $ktpLebarMm = 85.6;
+    $ktpTinggiMm = 54.0;
+    $qsBase = 'desain=' . $desainAktif;
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -25,13 +33,13 @@
             max-width: 1000px;
             margin: 0 auto 20px auto;
             background: #ffffff;
-            padding: 14px 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            padding: 16px 20px;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
             border: 1px solid #e2e8f0;
         }
         .top-bar-info {
@@ -50,8 +58,8 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 16px;
-            font-size: 12px;
+            padding: 7px 14px;
+            font-size: 11.5px;
             font-weight: 700;
             border-radius: 8px;
             cursor: pointer;
@@ -67,12 +75,113 @@
             background-color: var(--accent-700);
         }
         .btn-secondary {
-            background-color: #f1f5f9;
+            background-color: #f8fafc;
             color: #334155;
             border: 1px solid #cbd5e1;
         }
         .btn-secondary:hover {
             background-color: #e2e8f0;
+        }
+        .btn-active {
+            background-color: var(--accent-700) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(88,28,135,0.3);
+        }
+
+        /* ── Top bar terstruktur (layar) ──────────────────────────────── */
+        .top-bar-head {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .top-bar-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            flex-wrap: wrap;
+        }
+        .top-bar-title > i {
+            color: var(--accent-600);
+            font-size: 16px;
+        }
+        .top-bar-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #6b21a8;
+            background: #faf5ff;
+            border: 1px solid #e9d5ff;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .top-bar-count.muted {
+            color: #334155;
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+        }
+        .top-bar-controls {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-top: 13px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .ctrl-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ctrl-label {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .seg {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            background: #f1f5f9;
+            border-radius: 11px;
+        }
+        .top-bar-tip {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            color: #64748b;
+            padding-top: 11px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .top-bar-tip i {
+            color: #f59e0b;
+            flex: 0 0 auto;
+        }
+        .top-bar-alert {
+            width: 100%;
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #b45309;
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 8px 12px;
         }
 
         /* Sheet Container (A4 Printable Area) */
@@ -438,6 +547,62 @@
             color: #581c87;
         }
 
+        /* Mode KTP (Layar): pratinjau satu kartu per halaman */
+        .ktp-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: 820px;
+            margin: 0 auto 16px auto;
+            background: #faf5ff;
+            border: 1px solid #e9d5ff;
+            border-left: 4px solid var(--accent-600);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #6b21a8;
+        }
+        .ktp-hint > i {
+            font-size: 16px;
+            color: var(--accent-600);
+            flex: 0 0 auto;
+            margin-top: 1px;
+        }
+        .ktp-hint strong {
+            color: #581c87;
+        }
+        .ktp-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .ktp-cap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ktp-cap i {
+            color: var(--accent-600);
+        }
+        .ktp-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 4px;
+            box-shadow: 0 2px 12px rgba(15,23,42,.05);
+        }
+
         /* Print Media Style */
         @media print {
             body {
@@ -468,28 +633,112 @@
             .id-card-portrait {
                 border: 0.5px dashed #64748b !important;
             }
+
+            /* Mode KTP: satu kartu penuh per halaman CR80 */
+            .ktp-mode .sheet-container {
+                padding: 0 !important;
+                max-width: none !important;
+            }
+            .ktp-stack {
+                display: block !important;
+            }
+            .ktp-page {
+                display: block !important;
+                width: {{ $ktpLebarMm }}mm;
+                height: {{ $ktpTinggiMm }}mm;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                overflow: hidden !important;
+                break-after: page !important;
+                page-break-after: always !important;
+            }
+            .ktp-page .id-card {
+                width: 92mm !important;
+                height: 58mm !important;
+                border: none !important;
+                border-radius: 0 !important;
+                transform: scale(0.9304);
+                transform-origin: top left;
+            }
+            .ktp-stack > .ktp-page:last-child {
+                break-after: auto !important;
+                page-break-after: auto !important;
+            }
         }
     </style>
+    @if ($modeAktif === 'ktp')
+    <style>
+        /* Kertas disetel persis seukuran kartu ID-1 CR80 (85.6 × 54 mm). */
+        @media print {
+            @page {
+                size: {{ $ktpLebarMm }}mm {{ $ktpTinggiMm }}mm;
+                margin: 0;
+            }
+        }
+    </style>
+    @endif
 </head>
-<body>
+<body class="{{ $modeAktif === 'ktp' ? 'ktp-mode' : '' }}">
 
     <!-- Action Bar (Screen Only) -->
-    <div class="top-bar">
-        <div class="top-bar-info">
-            <strong>Cetak Kartu Absen Guru / GTK QR Code</strong> • {{ count($guru_list) }} Kartu Guru • Mode {{ ucfirst($desain) }}
-            <?php if (!empty($terpotong)): ?>
-                <span style="font-size: 11px; color: #b45309; margin-left: 8px;">
-                    ⚠ Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama — cetak sisanya dengan memilih satu guru.
-                </span>
-            <?php endif; ?>
+    <div class="top-bar no-print">
+        <div class="top-bar-head">
+            <div class="top-bar-title">
+                <i class="bi bi-printer-fill"></i> Siap Cetak
+                <span class="top-bar-count">{{ count($guru_list) }} Kartu Guru</span>
+                <span class="top-bar-count muted">{{ $judul_cetak }}</span>
+            </div>
+            <div class="btn-group">
+                <a href="{{ url('admin/presensi/guru/kartu?' . $qsBase . '&mode=' . $modeAktif) }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="bi bi-printer"></i> Cetak Sekarang
+                </button>
+            </div>
         </div>
-        <div class="btn-group">
-            <button onclick="window.print()" class="btn btn-primary">
-                <i class="bi bi-printer-fill"></i> Cetak / Print Sekarang
-            </button>
-            <a href="{{ url('admin/presensi/guru/kartu?desain=' . $desain) }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Kembali ke Preview
-            </a>
+
+        <div class="top-bar-controls">
+            <div class="ctrl-group">
+                <span class="ctrl-label">Desain</span>
+                <div class="seg">
+                    <a href="{{ url('admin/presensi/guru/kartu/cetak?desain=landscape&mode=' . $modeAktif) }}" class="btn {{ $desainAktif === 'landscape' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 9.2 × 5.8 cm">
+                        <i class="bi bi-layers-fill"></i> Landscape
+                    </a>
+                    <a href="{{ url('admin/presensi/guru/kartu/cetak?desain=portrait&mode=' . $modeAktif) }}" class="btn {{ $desainAktif === 'portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.8 × 9.2 cm">
+                        <i class="bi bi-card-heading"></i> Portrait
+                    </a>
+                </div>
+            </div>
+            <div class="ctrl-group">
+                <span class="ctrl-label">Tata Letak</span>
+                <div class="seg">
+                    <a href="{{ url('admin/presensi/guru/kartu/cetak?' . $qsBase . '&mode=grid') }}" class="btn {{ $modeAktif === 'grid' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 — beberapa kartu per lembar">
+                        <i class="bi bi-grid-3x3-gap"></i> Grid A4
+                    </a>
+                    <a href="{{ url('admin/presensi/guru/kartu/cetak?' . $qsBase . '&mode=ktp') }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
+                        <i class="bi bi-credit-card-2-front"></i> Ukuran KTP
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <?php if (!empty($terpotong)): ?>
+            <div class="top-bar-alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama — cetak sisanya dengan memilih satu guru.</span>
+            </div>
+        <?php endif; ?>
+
+        <div class="top-bar-tip">
+            <i class="bi bi-lightbulb-fill"></i>
+            <span>
+                Aktifkan <strong>“Background graphics”</strong> pada dialog cetak agar warna kartu tercetak penuh, dan pilih ukuran kertas
+                <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>.
+            </span>
         </div>
     </div>
 
@@ -509,6 +758,24 @@
             </div>
         <?php endif; ?>
 
+        @if ($modeAktif === 'ktp')
+            <!-- Mode Cetak Ukuran KTP (CR80 85.6 × 54 mm, satu kartu per halaman) -->
+            <div class="ktp-hint no-print">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>
+                    Kertas disetel otomatis ke ukuran kartu <strong>ID-1 CR80</strong> (85,6 × 54 mm). Pilih media
+                    <strong>Card Size</strong> pada driver printer (Epson/Canon) agar hasil cetak presisi tanpa memotong.
+                </span>
+            </div>
+            <div class="ktp-stack">
+                <?php foreach ($guru_list as $index => $g): ?>
+                    <div class="ktp-cap no-print"><i class="bi bi-credit-card-2-front"></i> Kartu {{ $index + 1 }} dari {{ count($guru_list) }}</div>
+                    <div class="ktp-page">
+                        @include('admin.presensi.kartu.partials.kartu_guru_landscape')
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        @else
         <?php if ($desain === 'portrait'): ?>
             <!-- Mode Cetak Portrait (3 Kolom per Lembar A4) -->
             <div class="{{ $is_single ? 'single-mode' : 'card-grid-portrait' }}">
@@ -545,68 +812,11 @@
             <!-- Mode Cetak Landscape (2 Kolom per Lembar A4) -->
             <div class="{{ $is_single ? 'single-mode' : 'card-grid' }}">
                 <?php foreach ($guru_list as $g): ?>
-                    <div class="id-card">
-                        <!-- Kop Kartu -->
-                        <div class="card-header-bar">
-                            <div class="card-logo">
-                                <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                            </div>
-                            <div class="card-header-text">
-                                <p class="app-title">KARTU PRESENSI DIGITAL GURU / GTK</p>
-                                <h4 class="school-title">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
-                            </div>
-                            <div class="card-header-badge">
-                                {{ $g->status_pegawai ?: 'GTK' }}
-                            </div>
-                        </div>
-
-                        <!-- Isi Kartu -->
-                        <div class="card-content">
-                            <!-- Foto -->
-                            <div class="card-photo-box">
-                                <img src="{{ $g->foto_url }}" alt="{{ $g->nama_guru }}"
-                                     onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::inisial($g->nama_guru, 128, '#7c3aed') }}'">
-                            </div>
-
-                            <!-- Identitas -->
-                            <div class="card-details">
-                                <h5 class="card-name" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
-                                <table class="card-table">
-                                    <tr>
-                                        <td class="label">NIP</td>
-                                        <td class="sep">:</td>
-                                        <td class="val">{{ $g->nip ?: '-' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="label">NUPTK</td>
-                                        <td class="sep">:</td>
-                                        <td class="val">{{ $g->nuptk ?: '-' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="label">TUGAS</td>
-                                        <td class="sep">:</td>
-                                        <td class="val" style="font-family:inherit;font-weight:700;color:#6b21a8;">{{ $g->jabatan }}</td>
-                                    </tr>
-                                </table>
-                            </div>
-
-                            <!-- QR Code -->
-                            <div class="card-qr-box">
-                                <div class="card-qr-render qr-box" data-code="{{ $g->qr_value }}" data-size="64"></div>
-                                <div class="card-qr-code">{{ $g->qr_value }}</div>
-                                <div class="card-qr-label">Scan Absen</div>
-                            </div>
-                        </div>
-
-                        <!-- Footer Kartu -->
-                        <div class="card-footer-bar">
-                            <span class="badge-instansi">{{ $setting->sekolah ?? 'Sekolah' }}</span>
-                            <span>GTK PRESENSI MANDIRI</span>
-                        </div>
-                    </div>
+                    @include('admin.presensi.kartu.partials.kartu_guru_landscape')
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
+        @endif
     </div>
 
     <!-- Script Library QRCode -->

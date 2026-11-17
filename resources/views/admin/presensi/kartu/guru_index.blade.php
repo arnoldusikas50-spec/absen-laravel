@@ -50,11 +50,12 @@
         <div class="flex items-center gap-2.5 flex-wrap">
             <?php $basePath = $base_path ?? 'admin/presensi/guru/kartu'; ?>
             <?php $desainAktif = $desain ?? 'landscape'; ?>
+            <?php $modeAktif = in_array(($mode ?? 'grid'), ['grid', 'ktp'], true) ? ($mode ?? 'grid') : 'grid'; ?>
             <a id="btnCetakLembar"
-               href="{{ url($basePath . '/cetak?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&v=1') }}"
+               href="{{ url($basePath . '/cetak?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=' . $modeAktif . '&v=1') }}"
                target="_blank"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-purple-500/20 no-underline">
-                <i class="bi bi-printer-fill"></i> Cetak Lembar Kartu (A4)
+                <i class="bi bi-printer-fill"></i> Cetak Kartu
             </a>
             <a href="{{ url('scanner') }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
@@ -65,20 +66,33 @@
 
     <!-- Filter & Control Panel -->
     <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
-        <?php $desainAktif = $desain ?? 'landscape'; ?>
+        <?php
+        // Bawa serta mode cetak saat berganti desain agar pilihannya tidak ter-reset.
+        $qsSertaan = '&mode=' . $modeAktif;
+        ?>
+        <!-- Judul Panel Opsi -->
+        <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+                <i class="bi bi-sliders"></i>
+            </span>
+            <div class="min-w-0">
+                <p class="text-sm font-extrabold text-slate-800 leading-tight">Opsi Cetak Kartu</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Pilih desain kartu dan tata letak cetak sebelum mencetak.</p>
+            </div>
+        </div>
+
+        <div class="space-y-5">
         <!-- Pilihan Desain Kartu -->
-        <div class="mb-4">
+        <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain Kartu</label>
-            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1" role="tablist" aria-label="Pilihan desain kartu">
-                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=landscape') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
+                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=landscape' . $qsSertaan) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front"></i> Landscape
-                    <span class="hidden sm:inline font-semibold {{ $desainAktif === 'landscape' ? 'text-purple-500' : 'text-slate-400' }}">• Foto & Detail</span>
                 </a>
-                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=portrait') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700' }}">
+                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=portrait' . $qsSertaan) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card"></i> Portrait
-                    <span class="hidden sm:inline font-semibold {{ $desainAktif === 'portrait' ? 'text-purple-500' : 'text-slate-400' }}">• QR Besar</span>
                 </a>
             </div>
             <p class="text-[11px] text-slate-400 mt-1.5">
@@ -88,13 +102,40 @@
             </p>
         </div>
 
+        <!-- Tata Letak Cetak -->
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tata Letak Cetak</label>
+            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan tata letak cetak">
+                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=grid') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'grid' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-file-earmark-text"></i> Grid A4
+                </a>
+                <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=ktp') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-credit-card-2-front-fill"></i> Ukuran KTP
+                </a>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">
+                {{ $modeAktif === 'ktp'
+                    ? 'Ukuran KTP: kertas disetel otomatis ke kartu ID-1 CR80 (85,6 × 54 mm) sehingga bisa dicetak langsung ke blanko kartu / media Card Size pada printer Epson.'
+                    : 'Grid A4: beberapa kartu per lembar A4, hemat kertas dan mudah dipotong.' }}
+            </p>
+        </div>
+        </div>
+
+        <hr class="my-5 border-slate-100">
+
+        <!-- Filter Data -->
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Filter Data Guru</label>
         <form method="get" action="{{ url($basePath) }}" id="filterForm" data-base="{{ url($basePath) }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <input type="hidden" name="desain" id="inputDesain" value="{{ $desainAktif }}">
+            <input type="hidden" name="mode" id="inputMode" value="{{ $modeAktif }}">
             
             <!-- Pilih Guru (Per Orang / Semua) -->
             <div class="md:col-span-6">
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Guru / GTK</label>
-                <select name="id_guru" id="selectGuru" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
+                <select name="id_guru" id="selectGuru" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-300">
                     <option value="0">-- Semua Guru / GTK ({{ count($guru_options) }} Guru) --</option>
                     <?php foreach ($guru_options as $go): ?>
                         <option value="{{ $go->id_guru }}" {{ ($id_guru == $go->id_guru) ? 'selected' : '' }}>
@@ -110,10 +151,11 @@
                 <div class="relative">
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" id="searchInput" placeholder="Cari nama, NIP, atau kode guru..."
-                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
+                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-300">
                 </div>
             </div>
         </form>
+        </div>
 
         <?php if (!empty($catatan)): ?>
             <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
@@ -132,15 +174,20 @@
             </div>
         <?php endif; ?>
 
-        <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+        <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold text-[10px]">
+                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-purple-50 text-purple-700 font-bold text-[11px] border border-purple-100">
                     {{ count($guru_list) }}
                 </span>
-                <span>kartu guru ditampilkan{{ !empty($terpotong) ? ' (dari daftar yang dipotong)' : '' }}</span>
+                <span class="font-semibold text-slate-600">kartu guru ditampilkan</span>
+                @if (!empty($terpotong))
+                    <span class="text-slate-400">(dari daftar yang dipotong)</span>
+                @endif
             </div>
-            <div class="flex items-center gap-3">
-                <span class="text-slate-400">Instansi: <strong class="text-slate-700">{{ $setting->sekolah ?? 'Sekolah' }}</strong></span>
+            <div class="flex items-center gap-2">
+                <i class="bi bi-building text-slate-400"></i>
+                <span class="text-slate-400">Instansi</span>
+                <strong class="text-slate-700">{{ $setting->sekolah ?? 'Sekolah' }}</strong>
             </div>
         </div>
     </div>
@@ -200,7 +247,7 @@
                         </span>
                     </div>
                     <div class="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-center">
-                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&v=1') }}"
+                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
                             <i class="bi bi-printer"></i> Cetak Kartu Ini
@@ -295,7 +342,7 @@
                     <!-- Card Footer & Single Print Button -->
                     <div class="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-[10px]">
                         <span class="text-slate-400 truncate max-w-[170px]">Gunakan scan di Kiosk Presensi</span>
-                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=landscape&v=1') }}"
+                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=landscape&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
                            class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline">
                             <i class="bi bi-printer"></i> Cetak Kartu Ini
@@ -343,9 +390,10 @@ $(document).ready(function() {
     function refreshCetakLink() {
         const idGuru = $('#selectGuru').val() || '0';
         const desain = $('#inputDesain').val() || 'landscape';
+        const mode = $('#inputMode').val() || 'grid';
         let url = basePath + '/cetak?';
         if (idGuru !== '0') url += 'id_guru=' + encodeURIComponent(idGuru) + '&';
-        url += 'desain=' + encodeURIComponent(desain) + '&v=1';
+        url += 'desain=' + encodeURIComponent(desain) + '&mode=' + encodeURIComponent(mode) + '&v=1';
         $('#btnCetakLembar').attr('href', url);
     }
 

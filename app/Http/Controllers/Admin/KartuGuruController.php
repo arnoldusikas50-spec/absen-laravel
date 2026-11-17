@@ -114,6 +114,12 @@ class KartuGuruController extends BaseController
             $desain = 'landscape';
         }
 
+        // Tata letak cetak: grid (lembar A4) | ktp (kertas disetel seukuran kartu CR80).
+        $mode = strtolower(trim((string) ($this->request->query('mode') ?? 'grid')));
+        if (! in_array($mode, ['grid', 'ktp'], true)) {
+            $mode = 'grid';
+        }
+
         $data = [
             'judul' => 'Cetak Kartu Absen Guru / GTK',
             'user' => $user,
@@ -129,6 +135,7 @@ class KartuGuruController extends BaseController
             'logo_url' => self::resolveLogoUrl($setting),
             'base_path' => $basePath,
             'desain' => $desain,
+            'mode' => $mode,
         ];
 
         return view('admin.presensi.kartu.guru_index', $data);
@@ -206,6 +213,12 @@ class KartuGuruController extends BaseController
             $desain = 'landscape';
         }
 
+        // Tata letak cetak: grid (lembar A4) | ktp (kertas disetel seukuran kartu CR80).
+        $mode = strtolower(trim((string) ($this->request->query('mode') ?? 'grid')));
+        if (! in_array($mode, ['grid', 'ktp'], true)) {
+            $mode = 'grid';
+        }
+
         $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         $this->response->setHeader('Pragma', 'no-cache');
 
@@ -221,6 +234,7 @@ class KartuGuruController extends BaseController
             'catatan' => $catatan,
             'logo_url' => self::resolveLogoUrl($setting),
             'desain' => $desain,
+            'mode' => $mode,
         ];
 
         return view('admin.presensi.kartu.guru_cetak', $data);

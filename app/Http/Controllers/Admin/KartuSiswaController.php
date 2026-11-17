@@ -28,6 +28,24 @@ class KartuSiswaController extends BaseController
     private const DESAIN_CETAK = ['duplex', 'duplex_portrait'];
 
     /**
+     * Mode tata letak halaman cetak.
+     *   lembar      = tata letak lama: sisi depan & belakang berdampingan
+     *   bolakbalik  = grid A4 dua tahap (semua depan, lalu semua belakang)
+     *   ktp         = cetak langsung ukuran KTP/CR80, satu kartu per halaman
+     *
+     * @var list<string>
+     */
+    private const MODE_CETAK = ['lembar', 'bolakbalik', 'ktp'];
+
+    /**
+     * Ukuran kertas KTP / kartu ID-1 CR80 dalam milimeter (ISO/IEC 7810).
+     * Dipakai mode "ktp" untuk menyetel @page persis seukuran kartu.
+     */
+    private const KTP_LEBAR_MM = 85.6;
+
+    private const KTP_TINGGI_MM = 54.0;
+
+    /**
      * Filter ke siswa AKTIF saja (buku_induk.status = '1').
      * Kartu QR siswa LULUS/PINDAH/KELUAR tidak dicetak karena
      * QR mereka ditolak saat scan.
@@ -141,6 +159,97 @@ class KartuSiswaController extends BaseController
         }
 
         return [$idTp, $idSmt, $catatan];
+    }
+
+    /**
+     * Mode tata letak halaman cetak yang diminta, dengan fallback aman.
+     */
+    private function modeCetak(): string
+    {
+        $mode = strtolower(trim((string) ($this->request->query('mode') ?? 'lembar')));
+
+        return in_array($mode, self::MODE_CETAK, true) ? $mode : 'lembar';
+    }
+
+    /**
+     * Arah balik kertas untuk mode bolak-balik.
+     *   long  = flip on long edge (standar inkjet Epson/Canon untuk dokumen portrait)
+     *   short = flip on short edge
+     */
+    private function arahFlip(): string
+    {
+        $flip = strtolower(trim((string) ($this->request->query('flip') ?? 'long')));
+
+        return in_array($flip, ['long', 'short'], true) ? $flip : 'long';
+    }
+
+    /**
+     * Berapa kartu yang muat di satu lembar A4.
+     *
+     * Area cetak A4 dengan margin 8mm×10mm ≈ 190mm × 281mm. Kartu CR80
+     * landscape 85.6×54mm muat 2 kolom × 4 baris; portrait 54×85.6mm muat
+     * 3 kolom × 3 baris. Dihitung statis (bukan dari ukuran perangkat) supaya
+     * hasil cetak sama di semua browser.
+     *
+     * @return array{cols:int, rows:int, per_sheet:int, portrait:bool}
+     */
+    private static function konfigurasiGrid(bool $portrait): array
+    {
+        return $portrait
+            ? ['cols' => 3, 'rows' => 3, 'per_sheet' => 9, 'portrait' => true]
+            : ['cols' => 2, 'rows' => 4, 'per_sheet' => 8, 'portrait' => false];
+    }
+
+    /**
+     * Susun ulang satu potongan kartu agar sisi belakang tepat berada di balik
+     * sisi depan setelah kertas dibalik printer (cetak bolak-balik).
+     *
+     *   - Flip tepi panjang: kertas dibalik pada sumbu vertikal, jadi urutan
+     *     kolom dibalik sedangkan baris tetap.
+     *   - Flip tepi pendek: kertas diputar 180°, jadi kolom DAN baris dibalik.
+     *
+     * @param  array<int, object>  $potongan
+     * @return array<int, object>
+     */
+    private static function urutanSisiBelakang(array $potongan, int $cols, string $flip): array
+    {
+        $baris = [];
+        foreach (array_chunk($potongan, max(1, $cols)) as $isiBaris) {
+            $baris[] = array_reverse($isiBaris);
+        }
+        if ($flip === 'short') {
+            $baris = array_reverse($baris);
+        }
+
+        $hasil = [];
+        foreach ($baris as $isiBaris) {
+            foreach ($isiBaris as $kartu) {
+                $hasil[] = $kartu;
+            }
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Pecah daftar kartu menjadi lembar-lembar A4 untuk mode bolak-balik,
+     * lengkap dengan urutan sisi belakang yang sudah dicerminkan.
+     *
+     * @param  array<int, object>  $kartu
+     * @param  array{cols:int, rows:int, per_sheet:int, portrait:bool}  $grid
+     * @return array<int, array{depan: array<int, object>, belakang: array<int, object>}>
+     */
+    private static function pecahPerLembar(array $kartu, array $grid, string $flip): array
+    {
+        $lembar = [];
+        foreach (array_chunk($kartu, $grid['per_sheet']) as $potongan) {
+            $lembar[] = [
+                'depan' => array_values($potongan),
+                'belakang' => self::urutanSisiBelakang($potongan, $grid['cols'], $flip),
+            ];
+        }
+
+        return $lembar;
     }
 
     /**
@@ -332,6 +441,11 @@ class KartuSiswaController extends BaseController
             'stampel_url' => self::resolveStampelUrl($setting),
             'base_path' => $basePath,
             'desain' => $desain,
+            'mode' => $this->modeCetak(),
+            'flip' => $this->arahFlip(),
+            'grid' => self::konfigurasiGrid($desain === 'duplex_portrait'),
+            'ktp_lebar_mm' => self::KTP_LEBAR_MM,
+            'ktp_tinggi_mm' => self::KTP_TINGGI_MM,
         ];
 
         return view('admin.presensi.kartu.index', $data);
@@ -460,6 +574,15 @@ class KartuSiswaController extends BaseController
             $desain = $desain === 'portrait' ? 'duplex_portrait' : 'duplex';
         }
 
+        $mode = $this->modeCetak();
+        $flip = $this->arahFlip();
+
+        // Mode bolak-balik: kartu dipecah per lembar A4. Semua sisi depan
+        // dicetak lebih dulu, lalu semua sisi belakang pada posisi yang sudah
+        // dicerminkan supaya jatuh tepat di balik kartunya saat kertas dibalik.
+        $grid = self::konfigurasiGrid($desain === 'duplex_portrait');
+        $lembar = $mode === 'bolakbalik' ? self::pecahPerLembar($siswaList->all(), $grid, $flip) : [];
+
         // Halaman cetak: jangan di-cache browser/proxy agar revisi desain langsung tampil
         $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         $this->response->setHeader('Pragma', 'no-cache');
@@ -477,6 +600,12 @@ class KartuSiswaController extends BaseController
             'logo_url' => self::resolveLogoUrl($setting),
             'stampel_url' => self::resolveStampelUrl($setting),
             'desain' => $desain,
+            'mode' => $mode,
+            'flip' => $flip,
+            'grid' => $grid,
+            'lembar' => $lembar,
+            'ktp_lebar_mm' => self::KTP_LEBAR_MM,
+            'ktp_tinggi_mm' => self::KTP_TINGGI_MM,
         ];
 
         return view('admin.presensi.kartu.cetak', $data);

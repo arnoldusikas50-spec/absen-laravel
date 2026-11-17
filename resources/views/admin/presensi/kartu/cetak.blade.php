@@ -1,3 +1,14 @@
+@php
+    // Variabel tata letak cetak (dipakai di seluruh halaman ini).
+    $desainAktif = $desain ?? 'duplex';
+    $isPortrait = $desainAktif === 'duplex_portrait';
+    $modeAktif = in_array(($mode ?? 'lembar'), ['lembar', 'bolakbalik', 'ktp'], true) ? ($mode ?? 'lembar') : 'lembar';
+    $flipAktif = ($flip ?? 'long') === 'short' ? 'short' : 'long';
+    $gridAktif = $grid ?? ['cols' => 2, 'rows' => 4, 'per_sheet' => 8, 'portrait' => false];
+    $lembarList = is_array($lembar ?? null) ? $lembar : [];
+    $partialDepan = $isPortrait ? 'admin.presensi.kartu.partials.kartu_dp_depan' : 'admin.presensi.kartu.partials.kartu_dl_depan';
+    $partialBelakang = $isPortrait ? 'admin.presensi.kartu.partials.kartu_dp_belakang' : 'admin.presensi.kartu.partials.kartu_dl_belakang';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -25,15 +36,14 @@
             max-width: 1100px;
             margin: 0 auto 20px auto;
             background: #ffffff;
-            padding: 14px 20px;
+            padding: 16px 20px;
             border-radius: 14px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.06);
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
             border: 1px solid #e2e8f0;
-            flex-wrap: wrap;
         }
         .top-bar-info {
             font-size: 13px;
@@ -83,6 +93,88 @@
             background-color: #1e40af !important;
             color: #ffffff !important;
             box-shadow: 0 2px 6px rgba(30,64,175,0.3);
+        }
+
+        /* ── Top bar terstruktur (layar) ──────────────────────────────── */
+        .top-bar-head {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .top-bar-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .top-bar-title > i {
+            color: #2563eb;
+            font-size: 16px;
+        }
+        .top-bar-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #1e40af;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .top-bar-count.muted {
+            color: #334155;
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+        }
+        .top-bar-controls {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-top: 13px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .ctrl-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ctrl-label {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .seg {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            background: #f1f5f9;
+            border-radius: 11px;
+        }
+        .top-bar-tip {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            color: #64748b;
+            padding-top: 11px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .top-bar-tip i {
+            color: #f59e0b;
+            flex: 0 0 auto;
         }
 
         /* Sheet Container */
@@ -595,7 +687,7 @@
         .sign-stamp {
             position: absolute;
             left: 50%;
-            top: 50%;
+            top: 35%;
             width: 20mm;
             height: 20mm;
             object-fit: contain;
@@ -1154,47 +1246,279 @@
             .dp-back-footer-wave-wrap { height: 5.4mm !important; }
             .dp-footer-motto { font-size: 4.2pt !important; bottom: 0.8mm !important; }
 
+            /* Bolak-balik grid: satu lembar A4 per sisi, dipisah page break */
+            .bolakbalik-stack {
+                display: block !important;
+                gap: 0 !important;
+            }
+            .bolakbalik-group {
+                display: block !important;
+                background: transparent !important;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            .bolakbalik-sheet {
+                gap: 4mm 4mm !important;
+                padding: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                break-after: page !important;
+                page-break-after: always !important;
+            }
+            .bolakbalik-stack > .bolakbalik-group:last-child .bolakbalik-sheet:last-child {
+                break-after: auto !important;
+                page-break-after: auto !important;
+            }
+
+            /* Mode KTP: satu kartu penuh per halaman */
+            .ktp-stack {
+                display: block !important;
+            }
+            .ktp-page {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                overflow: hidden !important;
+                break-after: page !important;
+                page-break-after: always !important;
+            }
+            .ktp-page .card-dl {
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
+            .ktp-stack > .ktp-page:last-child {
+                break-after: auto !important;
+                page-break-after: auto !important;
+            }
+
             @page {
                 size: A4 portrait;
                 margin: 8mm 10mm;
             }
         }
+
+        /* ═══════════════════════════════════════════════════════════════════
+           PRATINJAU BOLAK-BALIK GRID (Layar) & MODE KTP
+        ═══════════════════════════════════════════════════════════════════ */
+        .bolakbalik-hint,
+        .ktp-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: 820px;
+            margin: 0 auto 18px auto;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-left: 4px solid #2563eb;
+            border-radius: 10px;
+            padding: 13px 16px;
+            font-size: 12px;
+            line-height: 1.65;
+            color: #1e40af;
+        }
+        .bolakbalik-hint > i,
+        .ktp-hint > i {
+            font-size: 16px;
+            line-height: 1.35;
+            flex: 0 0 auto;
+        }
+        .bolakbalik-hint strong,
+        .ktp-hint strong {
+            color: #1d4ed8;
+        }
+        .bolakbalik-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .bolakbalik-group {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 2px 12px rgba(15,23,42,.05);
+        }
+        .sheet-label {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #475569;
+            margin: 0 0 10px 0;
+        }
+        .sheet-label:not(:first-child) {
+            margin-top: 18px;
+        }
+        .sheet-page-no {
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        .side-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .02em;
+        }
+        .side-chip.front {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .side-chip.back {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+        }
+        .bolakbalik-sheet {
+            display: grid;
+            gap: 5mm 5mm;
+            justify-content: center;
+            align-content: start;
+            background: transparent;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 7mm;
+            margin: 0 auto;
+        }
+        .bolakbalik-group > .bolakbalik-sheet:last-child {
+            margin-bottom: 0;
+        }
+        /* Mode KTP (layar): tumpukan halaman satu kartu per halaman */
+        .ktp-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .ktp-cap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ktp-cap i {
+            color: #2563eb;
+        }
+        .ktp-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 6px;
+            box-shadow: 0 2px 12px rgba(15,23,42,.05);
+        }
     </style>
+    @if ($modeAktif === 'ktp')
+    <style>
+        /* Mode KTP: kertas disetel persis seukuran kartu ID-1 CR80 (85.6 × 54 mm). */
+        @media print {
+            @page {
+                size: {{ $ktp_lebar_mm ?? 85.6 }}mm {{ $ktp_tinggi_mm ?? 54 }}mm;
+                margin: 0;
+            }
+        }
+    </style>
+    @endif
 </head>
 <body>
 
     <!-- Top Action Bar (Screen Only) -->
     <?php
-    $desainAktif = $desain ?? 'duplex';
     $qKelas = (int) ($_GET['id_kelas'] ?? 0);
     $qSiswa = (int) ($_GET['id_siswa'] ?? 0);
     $baseQs = 'id_kelas=' . $qKelas . ($qSiswa ? '&id_siswa=' . $qSiswa : '');
+    $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '');
+    $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '');
+    $qsFlip = static fn (string $f): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $f;
     ?>
     <div class="top-bar no-print">
-        <div class="top-bar-info">
-            <span style="display:inline-flex;align-items:center;gap:6px;font-weight:800;color:#1e40af;">
-                <i class="bi bi-printer-fill"></i> Siap Cetak: {{ count($siswa_list) }} Kartu ({{ $nama_kelas }})
-            </span>
-            <span style="color: #cbd5e1;">|</span>
-            <span style="display:inline-flex;gap:6px;vertical-align:middle;flex-wrap:wrap;">
-                <a href="?{{ $baseQs }}&desain=duplex" class="btn {{ $desainAktif === 'duplex' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 8.56 × 5.4 cm">
-                    <i class="bi bi-layers-fill"></i> Landscape ✦
-                </a>
-                <a href="?{{ $baseQs }}&desain=duplex_portrait" class="btn {{ $desainAktif === 'duplex_portrait' ? 'btn-active' : 'btn-secondary' }}" title=" Portrait 5.4 × 8.56 cm">
-                    <i class="bi bi-card-heading"></i> Portrait ✦
-                </a>
-            </span>
-            <span style="font-size: 11px; color: #64748b; margin-left: 4px;">
-                💡 Tips: Centang <strong>"Background graphics"</strong> pada print dialog agar warna tercetak penuh.
-            </span>
+        <div class="top-bar-head">
+            <div class="top-bar-title">
+                <i class="bi bi-printer-fill"></i> Siap Cetak
+                <span class="top-bar-count">{{ count($siswa_list) }} Kartu</span>
+                <span class="top-bar-count muted">{{ $nama_kelas }}</span>
+            </div>
+            <div class="btn-group">
+                <button onclick="window.history.back()" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </button>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="bi bi-printer"></i> Cetak Sekarang
+                </button>
+            </div>
         </div>
-        <div class="btn-group">
-            <button onclick="window.history.back()" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </button>
-            <button onclick="window.print()" class="btn btn-primary">
-                <i class="bi bi-printer"></i> Cetak Sekarang
-            </button>
+
+        <div class="top-bar-controls">
+            <div class="ctrl-group">
+                <span class="ctrl-label">Desain</span>
+                <div class="seg">
+                    <a href="{{ $qsDesain('duplex') }}" class="btn {{ $desainAktif === 'duplex' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 8.56 × 5.4 cm">
+                        <i class="bi bi-layers-fill"></i> Landscape
+                    </a>
+                    <a href="{{ $qsDesain('duplex_portrait') }}" class="btn {{ $desainAktif === 'duplex_portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.4 × 8.56 cm">
+                        <i class="bi bi-card-heading"></i> Portrait
+                    </a>
+                </div>
+            </div>
+            <div class="ctrl-group">
+                <span class="ctrl-label">Tata Letak</span>
+                <div class="seg">
+                    <a href="{{ $qsMode('lembar') }}" class="btn {{ $modeAktif === 'lembar' ? 'btn-active' : 'btn-secondary' }}" title="Sisi depan & belakang berdampingan dalam satu lembar">
+                        <i class="bi bi-file-earmark"></i> Lembar
+                    </a>
+                    <a href="{{ $qsMode('bolakbalik') }}" class="btn {{ $modeAktif === 'bolakbalik' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 dua tahap: semua depan, lalu semua belakang">
+                        <i class="bi bi-layout-text-window-reverse"></i> Bolak-balik
+                    </a>
+                    <a href="{{ $qsMode('ktp') }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
+                        <i class="bi bi-credit-card-2-front"></i> Ukuran KTP
+                    </a>
+                </div>
+            </div>
+            @if ($modeAktif === 'bolakbalik')
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Balik Kertas</span>
+                    <div class="seg">
+                        <a href="{{ $qsFlip('long') }}" class="btn {{ $flipAktif === 'long' ? 'btn-active' : 'btn-secondary' }}" title="Balik kertas pada sisi panjang (sisi belakang tegak lurus)">
+                            <i class="bi bi-arrow-left-right"></i> Sisi Panjang
+                        </a>
+                        <a href="{{ $qsFlip('short') }}" class="btn {{ $flipAktif === 'short' ? 'btn-active' : 'btn-secondary' }}" title="Balik kertas pada sisi pendek (sisi belakang terbalik 180°)">
+                            <i class="bi bi-arrow-down-up"></i> Sisi Pendek
+                        </a>
+                    </div>
+                </div>
+            @endif
+        </div>
+
+        <div class="top-bar-tip">
+            <i class="bi bi-lightbulb-fill"></i>
+            <span>
+                Aktifkan <strong>“Background graphics”</strong> pada dialog cetak agar warna kartu tercetak penuh, dan pilih ukuran kertas
+                <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>.
+            </span>
         </div>
     </div>
 
@@ -1224,6 +1548,85 @@
         <?php endif; ?>
 
         {{-- ══════════════════════════════════════════════════════════════════
+             MODE KTP: cetak langsung ukuran kartu KTP (CR80 85.6 × 54 mm)
+             Satu kartu per halaman — semua sisi depan, lalu semua sisi belakang.
+        ══════════════════════════════════════════════════════════════════ --}}
+        @if (! empty($siswa_list) && $modeAktif === 'ktp')
+            @php
+                // Mode KTP selalu memakai kartu landscape CR80 agar ukurannya sama dengan KTP.
+                $ktpDepan = 'admin.presensi.kartu.partials.kartu_dl_depan';
+                $ktpBelakang = 'admin.presensi.kartu.partials.kartu_dl_belakang';
+            @endphp
+            <div class="ktp-hint no-print">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>
+                    Cetak langsung ukuran kartu KTP ({{ $ktp_lebar_mm ?? 85.6 }} × {{ $ktp_tinggi_mm ?? 54 }} mm) — satu kartu per halaman.
+                    Cetak semua <strong>sisi depan</strong> dulu, lalu masukkan kembali kartu dan cetak semua <strong>sisi belakang</strong>.
+                </span>
+            </div>
+            <div class="ktp-stack">
+                @foreach ($siswa_list as $index => $s)
+                    <div class="ktp-cap no-print"><i class="bi bi-front"></i> Sisi Depan • Kartu {{ $index + 1 }}</div>
+                    <div class="ktp-page">
+                        @include($ktpDepan)
+                    </div>
+                @endforeach
+                @foreach ($siswa_list as $index => $s)
+                    <div class="ktp-cap no-print"><i class="bi bi-back"></i> Sisi Belakang • Kartu {{ $index + 1 }}</div>
+                    <div class="ktp-page">
+                        @include($ktpBelakang)
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        {{-- ══════════════════════════════════════════════════════════════════
+             MODE BOLAK-BALIK: grid A4 dua tahap (semua depan, lalu semua belakang)
+        ══════════════════════════════════════════════════════════════════ --}}
+        @if (! empty($siswa_list) && $modeAktif === 'bolakbalik')
+            @php
+                $gridCols = max(1, (int) ($gridAktif['cols'] ?? 2));
+                $gridRows = max(1, (int) ($gridAktif['rows'] ?? 4));
+            @endphp
+            <div class="bolakbalik-hint no-print">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>
+                    Cetak bolak-balik {{ $isPortrait ? 'portrait (5.4 × 8.56 cm)' : 'landscape (8.56 × 5.4 cm)' }} —
+                    {{ $gridCols }} × {{ $gridRows }} kartu per lembar A4 ({{ (int) ($gridAktif['per_sheet'] ?? 8) }} kartu/lembar).
+                    Arah balik kertas: <strong>{{ $flipAktif === 'short' ? 'Sisi pendek (short edge)' : 'Sisi panjang (long edge)' }}</strong>.
+                    Cetak halaman <strong>sisi depan</strong> semua dulu, balik tumpukan kertas, lalu cetak halaman <strong>sisi belakang</strong>.
+                </span>
+            </div>
+            <div class="bolakbalik-stack">
+                @foreach ($lembarList as $i => $lembarCetak)
+                    <div class="bolakbalik-group">
+                        <div class="sheet-label no-print">
+                            <span>Lembar {{ $i + 1 }}</span>
+                            <span class="side-chip front"><i class="bi bi-front"></i> Sisi Depan</span>
+                            <span class="sheet-page-no">Halaman {{ $i * 2 + 1 }}</span>
+                        </div>
+                        <div class="bolakbalik-sheet" style="grid-template-columns: repeat({{ $gridCols }}, max-content);">
+                            @foreach ($lembarCetak['depan'] as $s)
+                                @include($partialDepan)
+                            @endforeach
+                        </div>
+                        <div class="sheet-label no-print">
+                            <span>Lembar {{ $i + 1 }}</span>
+                            <span class="side-chip back"><i class="bi bi-back"></i> Sisi Belakang</span>
+                            <span class="sheet-page-no">Halaman {{ $i * 2 + 2 }}</span>
+                        </div>
+                        <div class="bolakbalik-sheet" style="grid-template-columns: repeat({{ $gridCols }}, max-content);">
+                            @foreach ($lembarCetak['belakang'] as $s)
+                                @include($partialBelakang)
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        @if ($modeAktif === 'lembar')
+        {{-- ══════════════════════════════════════════════════════════════════
              MODE 1: DUPLEX LANDSCAPE (8.56 × 5.4 cm) — Dua Sisi Depan Belakang
         ══════════════════════════════════════════════════════════════════ --}}
         <?php if ($desainAktif === 'duplex'): ?>
@@ -1238,179 +1641,21 @@
                     <!-- SISI DEPAN (FRONT) LANDSCAPE -->
                     <div class="duplex-card-wrap">
                         <span class="side-badge no-print">Sisi Depan</span>
-                        <div class="card-dl card-dl-front">
-                            <!-- Header Bar -->
-                            <div class="dl-header-bar">
-                                <div class="dl-logo-wrap">
-                                    <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                                </div>
-                                <div class="dl-header-titles">
-                                    <h4 class="dl-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
-                                    <p class="dl-header-sub">KARTU PELAJAR • TP {{ $tp_active->tahun ?? '-' }}</p>
-                                </div>
-                                <div class="dl-class-pill">{{ $s->nama_kelas }}</div>
-                                <!-- Accent ombak tipis di bawah header -->
-                                <svg class="dl-header-accent" viewBox="0 0 324 6" preserveAspectRatio="none">
-                                    <path d="M0,0 L324,0 L324,2 Q240,6 160,3 Q80,0 0,3 Z" fill="#f59e0b" />
-                                    <path d="M0,3 Q80,0 160,3 Q240,6 324,2 L324,4 Q240,7 160,4 Q80,1 0,4 Z" fill="#38bdf8" />
-                                </svg>
-                            </div>
-
-                            <!-- Body: 3 Kolom Rapi (Foto Siswa, Identitas Tengah, QR Code Kanan) -->
-                            <div class="dl-front-body">
-                                <!-- Kolom 1: Foto Siswa -->
-                                <div class="dl-photo-col">
-                                    <div class="dl-photo-box">
-                                        <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                                        <div class="dl-photo-placeholder" style="display:none;"><i class="bi bi-person-fill"></i></div>
-                                    </div>
-                                    <span class="dl-jk-tag {{ $isLaki ? 'L' : 'P' }}">{{ $isLaki ? 'LAKI-LAKI' : 'PEREMPUAN' }}</span>
-                                </div>
-
-                                <!-- Kolom 2: Identitas Tengah -->
-                                <div class="dl-info-col">
-                                    <h4 class="dl-student-name" title="{{ $s->nama }}">{{ $s->nama }}</h4>
-                                    <div class="dl-name-divider"></div>
-                                    <table class="dl-info-table">
-                                        <tr>
-                                            <td class="dl-lbl">NISN</td>
-                                            <td class="dl-sep">:</td>
-                                            <td class="dl-val">{{ $nisnClean }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dl-lbl">Kelas</td>
-                                            <td class="dl-sep">:</td>
-                                            <td class="dl-val">{{ $s->nama_kelas }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dl-lbl">JK</td>
-                                            <td class="dl-sep">:</td>
-                                            <td class="dl-val">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dl-lbl">TTL</td>
-                                            <td class="dl-sep">:</td>
-                                            <td class="dl-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <!-- Kolom 3: QR Code Besar -->
-                                <div class="dl-qr-col">
-                                    <div class="dl-qr-card">
-                                        <div class="dl-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="70"></div>
-                                    </div>
-                                    <div class="dl-qr-badge">SCAN PRESENSI</div>
-                                </div>
-                            </div>
-                        </div>
+                        @include('admin.presensi.kartu.partials.kartu_dl_depan')
                     </div>
 
                     <!-- SISI BELAKANG (BACK) LANDSCAPE -->
                     <div class="duplex-card-wrap">
                         <span class="side-badge no-print">Sisi Belakang</span>
-                        <div class="card-dl card-dl-back">
-                            <!-- Header Back -->
-                            <div class="dl-back-header-bar">
-                                <h4 class="dl-back-title">DATA PESERTA DIDIK</h4>
-                            </div>
-
-                            <!-- Watermark logo transparan -->
-                            <div class="dl-back-watermark">
-                                <img src="{{ $logo_url }}" alt="Watermark" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                            </div>
-
-                            <div class="dl-back-body">
-                                <!-- Left Column: Data Siswa + Barcode -->
-                                <div class="dl-back-col-left">
-                                    <div class="dl-back-sublabel">Identitas Siswa</div>
-                                    <table class="dl-back-table">
-                                        <tr>
-                                            <td class="b-lbl">Nama</td>
-                                            <td class="b-sep">:</td>
-                                            <td class="b-val" title="{{ $s->nama }}">{{ $s->nama }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="b-lbl">JK</td>
-                                            <td class="b-sep">:</td>
-                                            <td class="b-val">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="b-lbl">TTL</td>
-                                            <td class="b-sep">:</td>
-                                            <td class="b-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="b-lbl">NISN</td>
-                                            <td class="b-sep">:</td>
-                                            <td class="b-val">{{ $nisnClean }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="b-lbl">Kelas</td>
-                                            <td class="b-sep">:</td>
-                                            <td class="b-val">{{ $s->nama_kelas }}</td>
-                                        </tr>
-                                    </table>
-
-                                    <!-- Barcode di bawah tabel -->
-                                    <div class="dl-barcode-box">
-                                        <svg class="barcode-svg" data-barcode="{{ $barcodeVal }}"></svg>
-                                        <span class="dl-barcode-text">{{ $barcodeVal }}</span>
-                                    </div>
-                                </div>
-
-                                <!-- Right Column: Tata Tertib & Pengesahan Kepala Sekolah -->
-                                <div class="dl-back-col-right">
-                                    <div class="dl-back-rules-box">
-                                        <div class="dl-back-pill">TATA TERTIB SISWA</div>
-                                        <div class="dl-rules-list">
-                                            <div class="dl-rule-item">
-                                                <span class="dl-rule-num">1.</span>
-                                                <span class="dl-rule-text">Wajib membawa kartu saat KBM & presensi.</span>
-                                            </div>
-                                            <div class="dl-rule-item">
-                                                <span class="dl-rule-num">2.</span>
-                                                <span class="dl-rule-text">Merupakan identitas resmi siswa di sekolah.</span>
-                                            </div>
-                                            <div class="dl-rule-item">
-                                                <span class="dl-rule-num">3.</span>
-                                                <span class="dl-rule-text">Jika kartu hilang, segera lapor ke sekolah.</span>
-                                            </div>
-                                            <div class="dl-rule-item">
-                                                <span class="dl-rule-num">4.</span>
-                                                <span class="dl-rule-text">Kartu tidak boleh dipindahtangankan.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Pengesahan Kepala Sekolah -->
-                                    <div class="dl-back-sign">
-                                        <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                        <div class="sign-stamp-area">
-                                        @if (!empty($stampel_url))
-                                            <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
-                                        @endif
-                                            <div style="font-weight:700;">Kepala Sekolah,</div>
-                                            <div class="dl-sign-name" style="margin-top:10px;">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                            <div>NIP. {{ $setting->nip ?? '-' }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Footer Card: Motto Sekolah -->
-                            <div class="dl-back-footer">
-                                <span class="dl-motto">Belajar, Berprestasi, Berakhlak Mulia</span>
-                            </div>
-                        </div>
+                        @include('admin.presensi.kartu.partials.kartu_dl_belakang')
                     </div>
                 </div>
             <?php endforeach; ?>
 
         {{-- ══════════════════════════════════════════════════════════════════
-             MODE 2: DUPLEX PORTRAIT (5.4 × 8.56 cm)
+             MODE 2: DUPLEX PORTRAIT (5.4 × 8.56 cm) — tata letak lembar
         ══════════════════════════════════════════════════════════════════ --}}
-        <?php elseif ($desainAktif === 'duplex_portrait'): ?>
+        <?php else: ?>
             <?php foreach ($siswa_list as $s): ?>
                 <?php
                 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
@@ -1422,171 +1667,18 @@
                     <!-- SISI DEPAN (FRONT) PORTRAIT -->
                     <div class="duplex-card-wrap">
                         <span class="side-badge no-print">Sisi Depan</span>
-                        <div class="card-dp card-dp-front">
-                            <div class="dp-header">
-                                <div class="dp-logo-wrap">
-                                    <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                                </div>
-                                <div class="dp-header-titles">
-                                    <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMAN 2 AMFOANG TIMUR' }}</h4>
-                                    <p class="dp-header-sub">KARTU PELAJAR • TP {{ $tp_active->tahun ?? '-' }}</p>
-                                </div>
-                                <!-- Accent ombak di bawah header -->
-                                <svg class="dp-header-accent" viewBox="0 0 204 6" preserveAspectRatio="none">
-                                    <path d="M0,0 L204,0 L204,2 Q150,6 102,3 Q50,0 0,3 Z" fill="#f59e0b" />
-                                    <path d="M0,3 Q50,0 102,3 Q150,6 204,2 L204,4 Q150,7 102,4 Q50,1 0,4 Z" fill="#38bdf8" />
-                                </svg>
-                            </div>
-
-                            <!-- Foto Siswa (Merah) -->
-                            <div class="dp-photo-wrap">
-                                <div class="dp-photo-box">
-                                    <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                                    <div class="dl-photo-placeholder" style="display:none;"><i class="bi bi-person-fill"></i></div>
-                                </div>
-                            </div>
-
-                            <!-- Nama Siswa Pill -->
-                            <div class="dp-name-badge" title="{{ $s->nama }}">{{ $s->nama }}</div>
-
-                            <!-- Metadata Table -->
-                            <table class="dp-meta-table">
-                                <tr>
-                                    <td class="dp-meta-lbl">NIS/NISN</td>
-                                    <td class="dp-meta-sep">:</td>
-                                    <td class="dp-meta-val">{{ ($s->nis ? $s->nis . ' / ' : '') . ($s->nisn ?: '-') }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="dp-meta-lbl">Kelas</td>
-                                    <td class="dp-meta-sep">:</td>
-                                    <td class="dp-meta-val">{{ $s->nama_kelas }}</td>
-                                </tr>
-                            </table>
-
-                            <!-- QR Section Bottom -->
-                            <div class="dp-qr-section">
-                                <div class="dp-qr-card">
-                                    <div class="dp-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="64"></div>
-                                </div>
-                                <div class="dp-qr-divider"></div>
-                                <div class="dp-qr-desc">
-                                    SCAN UNTUK<br>PRESENSI
-                                </div>
-                            </div>
-
-                            <!-- Bottom Right Accent Wave -->
-                            <svg class="dp-front-wave-bottom" viewBox="0 0 86 38" preserveAspectRatio="none">
-                                <path d="M86,0 C60,12 25,26 0,38 L86,38 Z" fill="#09265e" />
-                                <path d="M86,5 C64,15 32,29 12,38" fill="none" stroke="#f59e0b" stroke-width="2" />
-                                <path d="M86,9 C67,18 40,32 22,38" fill="none" stroke="#38bdf8" stroke-width="1.2" />
-                            </svg>
-                        </div>
+                        @include('admin.presensi.kartu.partials.kartu_dp_depan')
                     </div>
 
                     <!-- SISI BELAKANG (BACK) PORTRAIT -->
                     <div class="duplex-card-wrap">
                         <span class="side-badge no-print">Sisi Belakang</span>
-                        <div class="card-dp card-dp-back">
-                            <div class="dp-back-header">
-                                <h4 class="dp-back-title">DATA PESERTA DIDIK</h4>
-                                <!-- Accent ombak di bawah header back -->
-                                <svg class="dp-header-accent" viewBox="0 0 204 6" preserveAspectRatio="none">
-                                    <path d="M0,0 L204,0 L204,2 Q150,6 102,3 Q50,0 0,3 Z" fill="#f59e0b" />
-                                    <path d="M0,3 Q50,0 102,3 Q150,6 204,2 L204,4 Q150,7 102,4 Q50,1 0,4 Z" fill="#38bdf8" />
-                                </svg>
-                            </div>
-
-                            <!-- Watermark -->
-                            <div class="dp-back-watermark">
-                                <img src="{{ $logo_url }}" alt="Watermark" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                            </div>
-
-                            <div class="dp-back-body">
-                                <table class="dp-info-table">
-                                    <tr>
-                                        <td class="dp-lbl">Nama</td>
-                                        <td class="dp-sep">:</td>
-                                        <td class="dp-val" title="{{ $s->nama }}">{{ $s->nama }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="dp-lbl">Jenis Kelamin</td>
-                                        <td class="dp-sep">:</td>
-                                        <td class="dp-val">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="dp-lbl">Tempat Tgl Lahir</td>
-                                        <td class="dp-sep">:</td>
-                                        <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="dp-lbl">NIS/NISN</td>
-                                        <td class="dp-sep">:</td>
-                                        <td class="dp-val">{{ ($s->nis ? $s->nis . ' / ' : '') . ($s->nisn ?: '-') }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="dp-lbl">Kelas</td>
-                                        <td class="dp-sep">:</td>
-                                        <td class="dp-val">{{ $s->nama_kelas }}</td>
-                                    </tr>
-                                </table>
-                                <!-- Divider -->
-                                <div style="height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:4px 0 3px;"></div>
-
-                                <div class="dp-rules-section">
-                                    <div class="dp-rules-pill">TATA TERTIB SISWA</div>
-                                    <div class="dp-rules-list">
-                                        <div class="dp-rule-item">
-                                            <span class="dp-rule-num">1.</span>
-                                            <span class="dp-rule-text">Siswa wajib membawa kartu pelajar setiap saat.</span>
-                                        </div>
-                                        <div class="dp-rule-item">
-                                            <span class="dp-rule-num">2.</span>
-                                            <span class="dp-rule-text">Kartu ini digunakan sebagai identitas resmi sekolah.</span>
-                                        </div>
-                                        <div class="dp-rule-item">
-                                            <span class="dp-rule-num">3.</span>
-                                            <span class="dp-rule-text">Jika kartu hilang, segera lapor ke pihak sekolah.</span>
-                                        </div>
-                                        <div class="dp-rule-item">
-                                            <span class="dp-rule-num">4.</span>
-                                            <span class="dp-rule-text">Kartu tidak boleh dipindahtangankan.</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Pengesahan Kepala Sekolah -->
-                                <div class="dp-back-sign">
-                                    <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                    <div class="sign-stamp-area">
-                                    @if (!empty($stampel_url))
-                                        <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
-                                    @endif
-                                        <div style="font-weight:700;">Kepala Sekolah,</div>
-                                        <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                        <div>NIP. {{ $setting->nip ?? '-' }}</div>
-                                    </div>
-                                </div>
-
-                                <div class="dp-barcode-wrap">
-                                    <svg class="barcode-svg dp-barcode-svg" data-barcode="{{ $barcodeVal }}"></svg>
-                                    <span class="dp-barcode-text">{{ $barcodeVal }}</span>
-                                </div>
-                            </div>
-
-                            <!-- Footer wave with motto -->
-                            <div class="dp-back-footer-wave-wrap">
-                                <svg class="dp-back-footer-wave" viewBox="0 0 204 22" preserveAspectRatio="none">
-                                    <path d="M0,8 C60,0 140,0 204,8 L204,22 L0,22 Z" fill="#09265e" />
-                                    <path d="M0,7 C60,-1 140,-1 204,7" fill="none" stroke="#f59e0b" stroke-width="1.8" />
-                                    <path d="M0,9 C60,1 140,1 204,9" fill="none" stroke="#38bdf8" stroke-width="1" />
-                                </svg>
-                                <div class="dp-footer-motto">Belajar, Berprestasi, Berakhlak Mulia</div>
-                            </div>
-                        </div>
+                        @include('admin.presensi.kartu.partials.kartu_dp_belakang')
                     </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+        @endif
     </div>
 
     <!-- QR Code Script -->
