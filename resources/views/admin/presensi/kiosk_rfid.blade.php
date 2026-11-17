@@ -301,9 +301,14 @@
                         Tempelkan Kartu RFID / NFC
                     </h2>
 
-                    <button type="button" onclick="promptManualUid()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-semibold transition-all shadow-md hover:scale-105 active:scale-95">
-                        <i class="fa-solid fa-keyboard text-slate-400"></i> Input Manual
-                    </button>
+                    <div class="flex flex-wrap items-center justify-center gap-2">
+                        <button type="button" id="btn-enable-nfc" onclick="startNfcScan()" class="hidden items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 border border-emerald-300/60 text-xs font-bold transition-all shadow-md hover:scale-105 active:scale-95">
+                            <i class="fa-solid fa-wifi"></i> Aktifkan Sensor NFC
+                        </button>
+                        <button type="button" onclick="promptManualUid()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 text-xs font-semibold transition-all shadow-md hover:scale-105 active:scale-95">
+                            <i class="fa-solid fa-keyboard text-slate-400"></i> Input Manual
+                        </button>
+                    </div>
                 </div>
 
                 <!-- ────────────────────────────────────────────── -->
@@ -643,8 +648,16 @@
 
         // ── 4. Input Focus & Tangkap USB Reader ──
         const $hiddenInput = $('#rfidHiddenInput');
+        // PENTING: gunakan fokus native ($hiddenInput[0].focus()), BUKAN
+        // $hiddenInput.focus(). jQuery .focus() = .trigger('focus') yang ikut
+        // membubble sampai window, sehingga handler $(window).on('focus', ...)
+        // di bawah terpanggil lagi -> rekursi tanpa henti
+        // (RangeError: Maximum call stack size exceeded) setiap kali ada klik.
         window.focusWedgeInput = function () {
-            $hiddenInput.focus();
+            const el = $hiddenInput[0];
+            if (el && document.activeElement !== el) {
+                el.focus();
+            }
         };
 
         $(document).on('click', function (e) {
@@ -1042,28 +1055,80 @@
             });
         }
 
-        // ── 10. Web NFC API (Android NFC Sensor) ──
-        if ('NDEFReader' in window) {
-            $('#nfc-chip').removeClass('hidden');
-            $('#header-status-badge').html('Terminal Absen Mandiri &bull; <span class="text-emerald-400 font-bold">NFC Aktif</span>');
-            try {
-                const ndef = new NDEFReader();
-                ndef.scan().then(() => {
-                    ndef.onreading = (event) => {
-                        const serial = event.serialNumber;
-                        if (serial) {
-                            if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-                            const cleanUid = serial.replace(/[: -]/g, '').toUpperCase();
-                            $('#reader-status').text('Membaca: ' + cleanUid);
-                            processRfidScan(cleanUid);
-                        }
-                    };
-                    ndef.onreadingerror = () => {
-                        if (navigator.vibrate) navigator.vibrate(200);
-                        $('#reader-status').text('Error membaca kartu');
-                    };
-                }).catch(() => {});
-            } catch (e) {}
+        // ── 10. Web NFC API (Sensor NFC Android) ──
+        // Web NFC (NDEFReader) hanya tersedia di Chrome Android pada konteks
+        // aman (HTTPS/localhost), dan ndef.scan() WAJIB dipicu gesture
+        // pengguna. Pemanggilan otomatis saat halaman dimuat selalu ditolak
+        // NotAllowedError — sebelumnya kegagalan itu ditelan `.catch(() => {})`
+        // sehingga kartu yang ditempel tidak menimbulkan reaksi apa pun.
+        function nfcDidukung() {
+            return window.isSecureContext && ('NDEFReader' in window);
+        }
+
+        window.startNfcScan = function () {
+            if (!nfcDidukung()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sensor NFC Tidak Tersedia',
+                    html: window.isSecureContext
+                        ? 'Browser ini tidak mendukung Web NFC.<br>Gunakan <b>Chrome di Android</b> dan aktifkan NFC perangkat.'
+                        : 'Web NFC hanya berjalan lewat <b>HTTPS</b>.<br>Buka kiosk ini dengan alamat <b>https://…</b>, bukan http://…',
+                    background: '#0a0f1d',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#10b981'
+                });
+                return;
+            }
+
+            const ndef = new NDEFReader();
+            $('#reader-status').text('Menyiapkan NFC...');
+
+            ndef.scan().then(function () {
+                $('#nfc-chip').removeClass('hidden');
+                $('#header-status-badge').html('Terminal Absen Mandiri &bull; <span class="text-emerald-400 font-bold">NFC Aktif</span>');
+                $('#btn-enable-nfc').addClass('hidden').removeClass('inline-flex');
+                $('#reader-status').text('NFC aktif \u00b7 tempelkan kartu');
+
+                ndef.onreading = function (event) {
+                    const serial = event.serialNumber;
+                    if (!serial) return;
+                    if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+                    const cleanUid = serial.replace(/[: -]/g, '').toUpperCase();
+                    $('#reader-status').text('Membaca: ' + cleanUid);
+                    processRfidScan(cleanUid);
+                };
+
+                ndef.onreadingerror = function () {
+                    if (navigator.vibrate) navigator.vibrate(200);
+                    $('#reader-status').text('Gagal membaca kartu');
+                };
+            }).catch(function (err) {
+                $('#btn-enable-nfc').removeClass('hidden').addClass('inline-flex');
+                $('#reader-status').text('NFC tidak aktif');
+
+                const pesan = (err && err.name === 'NotAllowedError')
+                    ? 'Izin NFC belum diberikan. Tekan <b>Aktifkan Sensor NFC</b> lalu pilih <b>Allow</b> saat Chrome meminta izin.'
+                    : 'Gagal mengaktifkan sensor NFC: ' + ((err && err.message) || 'penyebab tidak diketahui');
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'NFC Gagal Aktif',
+                    html: pesan,
+                    background: '#0a0f1d',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#10b981'
+                });
+            });
+        };
+
+        // Tombol aktivasi hanya muncul kalau perangkat memang mendukung NFC;
+        // kalau tidak, status diberi keterangan supaya petugas tidak menduga
+        // kiosk rusak saat kartu ditempel tanpa hasil.
+        if (nfcDidukung()) {
+            $('#btn-enable-nfc').removeClass('hidden').addClass('inline-flex');
+            $('#reader-status').text('Tekan Aktifkan NFC');
+        } else {
+            $('#reader-status').text(window.isSecureContext ? 'Browser tanpa NFC' : 'NFC butuh HTTPS');
         }
 
         // ── 11. Modal Input Manual UID / NIS ──

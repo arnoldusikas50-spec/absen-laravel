@@ -39,6 +39,31 @@
     /* ── Dropzone foto ── */
     .dz { border: 2px dashed #cbd5e1; border-radius: 14px; transition: all .15s; cursor: pointer; }
     .dz:hover, .dz.over { border-color: var(--primary-600); background: var(--primary-50); }
+    /* ── Photo crop modal ── */
+    #editFotoModal .modal-box-tw { display: flex; overflow: hidden; }
+    #editFotoModal .modal-box-tw > .bg-white {
+        display: flex; flex-direction: column; min-height: 0; max-height: 92vh; width: 100%;
+    }
+    #editFotoModal .modal-header-tw, #editFotoModal .modal-footer-tw { flex: 0 0 auto; }
+    #editFotoModal .modal-body-tw { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .crop-ratio-switch {
+        display: inline-flex; gap: 2px; padding: 3px;
+        border-radius: 9999px; background: #f1f5f9;
+    }
+    .crop-ratio-option {
+        border: 0; border-radius: 9999px; padding: 5px 12px;
+        background: transparent; color: #64748b; cursor: pointer;
+        font-size: 12px; font-weight: 700; transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .crop-ratio-option.active {
+        background: #fff; color: var(--primary-600); box-shadow: 0 1px 4px rgba(15,23,42,.12);
+    }
+    .crop-reset-button {
+        width: 32px; height: 32px; border: 1px solid #e2e8f0; border-radius: 9999px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #fff; color: #64748b; cursor: pointer;
+    }
+    .crop-reset-button:hover { background: #f8fafc; color: #0f172a; }
     /* ── Password strength ── */
     .pw-bar { height: 6px; border-radius: 9999px; background: #e2e8f0; overflow: hidden; }
     .pw-bar > div { height: 100%; width: 0; border-radius: 9999px; transition: width .2s, background .2s; }
@@ -588,7 +613,7 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglLahir) || $tglLahir === '0000-00-00
             <div class="modal-header-tw">
                 <div>
                     <h5 class="font-bold text-slate-800">Update Foto Siswa</h5>
-                    <p class="text-[11px] text-slate-400 mb-0">JPG/PNG · maksimal 2MB · tampil lingkaran di profil</p>
+                    <p class="text-[11px] text-slate-400 mb-0">Pilih ukuran dan atur posisi foto.</p>
                 </div>
                 <button type="button" data-ui-dismiss="modal" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">&times;</button>
             </div>
@@ -602,11 +627,40 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglLahir) || $tglLahir === '0000-00-00
                         <p id="dz-filename" class="hidden mt-1.5 font-mono text-[11px] font-bold text-blue-700 break-all"></p>
                         <input type="file" id="input-foto" name="foto" class="hidden" accept="image/jpeg,image/png">
                     </div>
+                    {{-- Crop foto untuk ukuran cetak foto kartu pelajar. --}}
+                    <div id="crop-panel" class="hidden mt-3">
+                        <div class="flex items-center justify-center gap-2 mb-2">
+                            <span class="text-[11px] text-slate-500">Ukuran</span>
+                            <div class="crop-ratio-switch" role="group" aria-label="Ukuran foto">
+                                <button type="button" id="crop-ratio-4x6" class="crop-ratio-option active" aria-pressed="true">4 × 6</button>
+                                <button type="button" id="crop-ratio-3x4" class="crop-ratio-option" aria-pressed="false">3 × 4</button>
+                            </div>
+                        </div>
+                        <div id="crop-viewport" class="relative mx-auto overflow-hidden rounded-2xl bg-slate-900"
+                            style="width: 100%; max-width: 210px; aspect-ratio: 2 / 3; touch-action: none; cursor: grab;">
+                            <img id="crop-img" alt="Pratinjau crop" draggable="false"
+                                style="position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; user-select: none; -webkit-user-drag: none;">
+                            <div style="position: absolute; inset: 4px; border: 2px dashed rgba(255,255,255,.8); border-radius: 4px; pointer-events: none;"></div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2 mx-auto" style="max-width: 250px;">
+                            <button type="button" id="crop-reset" class="crop-reset-button" title="Atur ulang crop" aria-label="Atur ulang crop"><i class="bi bi-arrow-counterclockwise"></i></button>
+                            <i class="bi bi-zoom-out text-slate-400 text-xs"></i>
+                            <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" class="w-full" aria-label="Zoom foto">
+                            <i class="bi bi-zoom-in text-slate-400 text-xs"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1 mb-0 text-center">Geser foto atau atur zoom.</p>
+                        <div class="flex items-center justify-between gap-2 mt-2">
+                            <button type="button" id="crop-cancel" class="btn-tw btn-secondary text-xs py-1 px-3">Ganti Foto</button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="crop-apply" class="btn-tw btn-primary text-xs py-1 px-3"><i class="bi bi-check2 mr-1"></i>Terapkan</button>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer-tw">
                 <button type="button" class="btn-tw btn-secondary" data-ui-dismiss="modal">Batal</button>
-                <button type="button" id="btn-upload-foto" class="btn-tw btn-primary"><i class="bi bi-cloud-arrow-up mr-1"></i>Upload Foto</button>
+                <button type="button" id="btn-upload-foto" class="btn-tw btn-primary" disabled><i class="bi bi-cloud-arrow-up mr-1"></i>Upload Foto</button>
             </div>
         </div>
     </div>
@@ -789,6 +843,11 @@ $(document).ready(function() {
     // ── Foto: dropzone klik + seret ──
     const dz = $('#dz-foto'), fi = $('#input-foto');
     dz.on('click keydown', function (e) {
+        // #input-foto berada DI DALAM #dz-foto, jadi fi.trigger('click') akan
+        // membubble balik ke dz dan memicu handler ini lagi tanpa henti
+        // (RangeError: Maximum call stack size exceeded). Abaikan event yang
+        // berasal dari input file itu sendiri.
+        if (e.target === fi[0]) { return; }
         if (e.type === 'click' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.trigger('click'); }
     });
     dz.on('dragover dragenter', function (e) { e.preventDefault(); dz.addClass('over'); });
@@ -797,28 +856,269 @@ $(document).ready(function() {
         const files = (e.originalEvent.dataTransfer || {}).files;
         if (files && files[0]) { fi[0].files = files; fi.trigger('change'); }
     });
-    function handleFoto(file) {
-        if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            Swal.fire('Terlalu Besar', 'Ukuran foto maksimal 2MB.', 'warning');
-            fi.val('');
+    // ── Crop + kompres foto (maks 800px, JPEG 80%) ──
+    // Foto dari kamera HP sering 3-8MB sehingga dulu selalu ditolak batas
+    // 2MB. Sekarang gambar dipotong sesuai rasio foto kartu lalu dikompres
+    // di browser, jadi yang dikirim ke server selalu ringan.
+    const FOTO_MAX_DIM = 800;
+    const FOTO_QUALITY = 0.8;
+    const FOTO_MAKS_ASLI = 15 * 1024 * 1024;
+    const cropImg = document.getElementById('crop-img');
+    const cropViewport = document.getElementById('crop-viewport');
+    const CROP_RATIOS = {
+        '4x6': { width: 2, height: 3 },
+        '3x4': { width: 3, height: 4 },
+    };
+    let cropRatioKey = '4x6';
+    let cropState = null;   // { img, viewWidth, viewHeight, baseScale, zoom, panX, panY }
+    let cropObjectUrl = null;
+    let fotoFile = null;    // hasil crop yang benar-benar diunggah
+
+    /** Skala tampil (px CSS per px asli) = skala dasar x zoom. */
+    function cropSkala() {
+        return cropState.baseScale * cropState.zoom;
+    }
+
+    /** Tahan geseran supaya gambar selalu menutupi viewport (tanpa celah). */
+    function cropBatasi() {
+        const s = cropState, skala = cropSkala();
+        const mx = Math.max(0, (s.img.naturalWidth * skala - s.viewWidth) / 2);
+        const my = Math.max(0, (s.img.naturalHeight * skala - s.viewHeight) / 2);
+        s.panX = Math.min(mx, Math.max(-mx, s.panX));
+        s.panY = Math.min(my, Math.max(-my, s.panY));
+    }
+
+    function cropAturRasio(key) {
+        if (!CROP_RATIOS[key]) {
             return;
         }
+
+        cropRatioKey = key;
+        const ratio = CROP_RATIOS[key];
+        cropViewport.style.aspectRatio = ratio.width + ' / ' + ratio.height;
+        $('#crop-ratio-4x6')
+            .toggleClass('active', key === '4x6')
+            .attr('aria-pressed', key === '4x6' ? 'true' : 'false');
+        $('#crop-ratio-3x4')
+            .toggleClass('active', key === '3x4')
+            .attr('aria-pressed', key === '3x4' ? 'true' : 'false');
+
+        if (cropState) {
+            cropState.viewWidth = cropViewport.clientWidth || 240;
+            cropState.viewHeight = cropViewport.clientHeight || (cropState.viewWidth * ratio.height / ratio.width);
+            cropState.baseScale = Math.max(
+                cropState.viewWidth / cropState.img.naturalWidth,
+                cropState.viewHeight / cropState.img.naturalHeight
+            );
+            cropState.zoom = 1;
+            cropState.panX = 0;
+            cropState.panY = 0;
+            $('#crop-zoom').val(1);
+            cropGambar();
+        }
+    }
+
+    function cropGambar() {
+        const s = cropState, skala = cropSkala();
+        cropImg.style.width = (s.img.naturalWidth * skala) + 'px';
+        cropImg.style.height = (s.img.naturalHeight * skala) + 'px';
+        cropImg.style.transform = 'translate(-50%, -50%) translate(' + s.panX + 'px, ' + s.panY + 'px)';
+    }
+
+    $('#crop-ratio-4x6').on('click', function () { cropAturRasio('4x6'); });
+    $('#crop-ratio-3x4').on('click', function () { cropAturRasio('3x4'); });
+    cropAturRasio(cropRatioKey);
+
+    function bukaCrop(file) {
+        if (cropObjectUrl) {
+            URL.revokeObjectURL(cropObjectUrl);
+        }
+
+        const objUrl = URL.createObjectURL(file);
+        cropObjectUrl = objUrl;
+        cropImg.onload = function () {
+            if (cropObjectUrl !== objUrl) {
+                URL.revokeObjectURL(objUrl);
+                return;
+            }
+
+            $('#dz-foto').addClass('hidden');
+            $('#crop-panel').removeClass('hidden');
+            cropAturRasio(cropRatioKey);
+            const ratio = CROP_RATIOS[cropRatioKey];
+            const viewWidth = cropViewport.clientWidth || 240;
+            const viewHeight = cropViewport.clientHeight || (viewWidth * ratio.height / ratio.width);
+            cropState = {
+                img: cropImg,
+                viewWidth: viewWidth,
+                viewHeight: viewHeight,
+                // Skala awal "cover": gambar menutupi seluruh viewport.
+                baseScale: Math.max(
+                    viewWidth / cropImg.naturalWidth,
+                    viewHeight / cropImg.naturalHeight
+                ),
+                zoom: 1,
+                panX: 0,
+                panY: 0,
+            };
+            cropGambar();
+            $('#crop-zoom').val(1);
+            fotoFile = null;
+            $('#dz-filename').addClass('hidden').text('');
+            $('#btn-upload-foto').prop('disabled', true);
+        };
+        cropImg.onerror = function () {
+            if (cropObjectUrl === objUrl) {
+                URL.revokeObjectURL(objUrl);
+                cropObjectUrl = null;
+            }
+            Swal.fire('Gagal Membuka Foto', 'Foto tidak bisa diproses browser. Coba file JPG/PNG lain.', 'error');
+            fi.val('');
+        };
+        cropImg.src = objUrl;
+    }
+
+    function handleFoto(file) {
+        if (!file) return;
         if (!/jpe?g|png/i.test(file.type + ' ' + file.name)) {
             Swal.fire('Format Salah', 'Foto harus JPG/PNG.', 'warning');
             fi.val('');
             return;
         }
-        $('#dz-filename').removeClass('hidden').text(file.name + ' (' + Math.round(file.size / 1024) + ' KB)');
-        const reader = new FileReader();
-        reader.onload = function(e) { $('#preview-foto').attr('src', e.target.result); };
-        reader.readAsDataURL(file);
+        if (file.size > FOTO_MAKS_ASLI) {
+            Swal.fire('Terlalu Besar', 'Ukuran file asli maksimal 15MB.', 'warning');
+            fi.val('');
+            return;
+        }
+        bukaCrop(file);
     }
     fi.change(function() { handleFoto(this.files[0]); });
 
+    // Terapkan crop: potong bagian yang terlihat di viewport, lalu kompres.
+    $('#crop-apply').on('click', function () {
+        const s = cropState;
+        if (!s) return;
+        const skala = cropSkala();
+        const cropWidth = s.viewWidth / skala;
+        const cropHeight = s.viewHeight / skala;
+        const sx = (s.img.naturalWidth - cropWidth) / 2 - s.panX / skala;
+        const sy = (s.img.naturalHeight - cropHeight) / 2 - s.panY / skala;
+        const ratio = CROP_RATIOS[cropRatioKey];
+        const outputHeight = Math.floor(FOTO_MAX_DIM / ratio.height) * ratio.height;
+        const outputWidth = outputHeight * ratio.width / ratio.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        // Latar putih: PNG transparan tidak jadi hitam saat diubah ke JPEG.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, outputWidth, outputHeight);
+        ctx.drawImage(s.img, sx, sy, cropWidth, cropHeight, 0, 0, outputWidth, outputHeight);
+
+        $('#crop-apply').prop('disabled', true);
+        canvas.toBlob(function (blob) {
+            $('#crop-apply').prop('disabled', false);
+            if (!blob) {
+                Swal.fire('Gagal', 'Crop tidak bisa diproses. Coba foto lain.', 'error');
+                return;
+            }
+            fotoFile = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
+            $('#btn-upload-foto').prop('disabled', false);
+            const reader = new FileReader();
+            reader.onload = function (e) { $('#preview-foto').attr('src', e.target.result); };
+            reader.readAsDataURL(fotoFile);
+            cropState = null;
+            $('#crop-panel').addClass('hidden');
+            $('#dz-foto').removeClass('hidden');
+            $('#dz-filename').removeClass('hidden').text('foto.jpg · ' + Math.max(1, Math.round(fotoFile.size / 1024)) + ' KB');
+            if (cropObjectUrl) {
+                URL.revokeObjectURL(cropObjectUrl);
+                cropObjectUrl = null;
+            }
+            cropImg.onload = null;
+            cropImg.onerror = null;
+            cropImg.removeAttribute('src');
+        }, 'image/jpeg', FOTO_QUALITY);
+    });
+
+    /** Kembalikan modal foto ke kondisi awal (tanpa pilihan file). */
+    function bersihkanCrop() {
+        cropState = null;
+        fotoFile = null;
+        if (cropObjectUrl) {
+            URL.revokeObjectURL(cropObjectUrl);
+            cropObjectUrl = null;
+        }
+        cropImg.onload = null;
+        cropImg.onerror = null;
+        cropImg.removeAttribute('src');
+        $('#crop-panel').addClass('hidden');
+        $('#dz-foto').removeClass('hidden');
+        $('#dz-filename').addClass('hidden').text('');
+        $('#preview-foto').attr('src', '{{ $displayFoto }}');
+        $('#btn-upload-foto').prop('disabled', true);
+        fi.val('');
+    }
+
+    $('#crop-cancel').on('click', function () {
+        bersihkanCrop();
+        fi[0].click();
+    });
+    // Modal dibuka lagi -> jangan tinggalkan sisa crop dari sesi sebelumnya.
+    $('[data-ui-target="#editFotoModal"]').on('click', bersihkanCrop);
+
+    $('#crop-reset').on('click', function () {
+        if (!cropState) return;
+        cropState.zoom = 1;
+        cropState.panX = 0;
+        cropState.panY = 0;
+        $('#crop-zoom').val(1);
+        cropGambar();
+    });
+
+    $('#crop-zoom').on('input', function () {
+        if (!cropState) return;
+        cropState.zoom = parseFloat(this.value) || 1;
+        cropBatasi();
+        cropGambar();
+    });
+
+    // Geser gambar: pointer event menangani mouse sekaligus sentuhan.
+    (function () {
+        let geser = false, x0 = 0, y0 = 0;
+        cropViewport.addEventListener('pointerdown', function (e) {
+            if (!cropState) return;
+            geser = true;
+            x0 = e.clientX;
+            y0 = e.clientY;
+            cropViewport.style.cursor = 'grabbing';
+            if (cropViewport.setPointerCapture) { cropViewport.setPointerCapture(e.pointerId); }
+        });
+        cropViewport.addEventListener('pointermove', function (e) {
+            if (!geser || !cropState) return;
+            cropState.panX += e.clientX - x0;
+            cropState.panY += e.clientY - y0;
+            x0 = e.clientX;
+            y0 = e.clientY;
+            cropBatasi();
+            cropGambar();
+        });
+        const selesai = function () { geser = false; cropViewport.style.cursor = 'grab'; };
+        cropViewport.addEventListener('pointerup', selesai);
+        cropViewport.addEventListener('pointercancel', selesai);
+        cropViewport.addEventListener('wheel', function (e) {
+            if (!cropState) return;
+            e.preventDefault();
+            cropState.zoom = Math.min(3, Math.max(1, cropState.zoom - e.deltaY * 0.0015));
+            $('#crop-zoom').val(cropState.zoom);
+            cropBatasi();
+            cropGambar();
+        }, { passive: false });
+    })();
+
     $('#btn-upload-foto').click(function() {
-        const fileInput = fi[0];
-        if (!fileInput.files[0]) {
+        if (!fotoFile) {
             Swal.fire('Peringatan', 'Pilih file foto terlebih dahulu', 'warning');
             return;
         }
@@ -826,7 +1126,7 @@ $(document).ready(function() {
         const orig = $btn.html();
         $btn.prop('disabled', true).html(spin() + ' Mengunggah...');
         const formData = new FormData();
-        formData.append('foto', fileInput.files[0]);
+        formData.append('foto', fotoFile, 'foto.jpg');
         formData.append(CSRF_NAME, CSRF_HASH);
 
         Swal.fire({ title: 'Uploading...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
