@@ -106,10 +106,6 @@ if ($isHariSekolah) {
         : $deskripsiLibur . ' Presensi tidak dihitung.';
 }
 
-// Donut SVG helpers
-$circumference = 100;
-$pctOntime = $ph['total_guru'] > 0 ? round(($ph['ontime'] / $ph['total_guru']) * 100) : 0;
-$pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) * 100) : 0;
 ?>
 
 <div class="fade-in-up">
@@ -164,48 +160,11 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                         {{ $sapaan }}
                     </p>
 
-                    <!-- Ringkasan cepat di dalam hero -->
-                    <?php if ($isHariSekolah): ?>
-                    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 mt-5 pt-5 border-t border-white/10">
-                        <div>
-                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Tepat Waktu</p>
-                            <p class="text-lg font-extrabold text-emerald-300 leading-none mt-1 tabular">{{ (int)($ph['ontime'] ?? 0) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Terlambat</p>
-                            <p class="text-lg font-extrabold text-amber-300 leading-none mt-1 tabular">{{ (int)($ph['telat'] ?? 0) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Belum Absen</p>
-                            <p class="text-lg font-extrabold text-rose-300 leading-none mt-1 tabular">{{ (int)($ph['belum_absen'] ?? 0) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Total Guru</p>
-                            <p class="text-lg font-extrabold text-white leading-none mt-1 tabular">{{ (int)$ph['total_guru'] }}</p>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                 </div>
 
                 <!-- Right: live attendance pill + action -->
-                <div class="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch lg:justify-end gap-3 shrink-0">
+                <div class="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch lg:justify-center gap-3 shrink-0">
                     <?php if ($isHariSekolah): ?>
-                        <!-- Live attendance mini pill -->
-                        <div class="flex-1 flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3.5">
-                            <div class="relative w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-live flex-shrink-0"></div>
-                            <div class="min-w-0">
-                                <p class="text-[10px] text-white/60 font-semibold uppercase tracking-wider leading-none">Hadir Hari Ini</p>
-                                <p class="text-2xl font-extrabold text-white leading-none mt-1 tabular">
-                                    {{ (int)$ph['hadir'] }}
-                                    <span class="text-sm font-semibold text-white/50">/ {{ (int)$ph['total_guru'] }}</span>
-                                </p>
-                            </div>
-                            <div class="ml-auto text-right shrink-0 hidden sm:block">
-                                <p class="text-[10px] text-white/50 font-semibold uppercase tracking-wider leading-none">Tingkat</p>
-                                <p class="text-lg font-extrabold text-emerald-300 leading-none mt-1 tabular">{{ $persen }}%</p>
-                            </div>
-                        </div>
-
                         <a href="{{ url('admin/presensi') }}"
                             class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
                             <i class="bi bi-speedometer2"></i>
@@ -229,21 +188,8 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                 </div>
             </div>
 
-            <!-- Bottom bar inside hero -->
+            <?php if (!$isHariSekolah): ?>
             <div class="relative z-10 px-6 md:px-7 pb-5">
-                <?php if ($isHariSekolah): ?>
-                    <div class="flex items-center justify-between text-[11px] text-white/70 mb-2">
-                        <span class="inline-flex items-center gap-1.5">
-                            <i class="bi bi-graph-up-arrow text-emerald-300"></i>
-                            Tingkat Kehadiran Guru Hari Ini
-                        </span>
-                        <span class="font-extrabold text-white tabular">{{ $persen }}%</span>
-                    </div>
-                    <div class="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700"
-                            style="width: {{ $persen }}%"></div>
-                    </div>
-                <?php else: ?>
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-white/70 border-t border-white/10 pt-3">
                         <span class="inline-flex items-center gap-1.5">
                             <i class="bi bi-info-circle"></i>
@@ -256,8 +202,8 @@ $pctTelat  = $ph['total_guru'] > 0 ? round(($ph['telat']  / $ph['total_guru']) *
                             </span>
                         <?php endif; ?>
                     </div>
-                <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 
