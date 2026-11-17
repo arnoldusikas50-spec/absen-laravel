@@ -7,7 +7,7 @@
     .stat-chip:hover { transform: translateY(-2px); }
 
     /* ── Quick action tile ──────────────────────── */
-    .qa-tile { transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+    .qa-tile { transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
     .qa-tile:hover { transform: translateY(-2px); }
 
     /* ── Timeline dot connector ─────────────────── */
@@ -162,13 +162,18 @@ if ($isHariSekolah) {
 
                 </div>
 
-                <!-- Right: live attendance pill + action -->
-                <div class="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch lg:justify-center gap-3 shrink-0">
+                <!-- Right: monitoring actions -->
+                <div class="lg:col-span-5 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-3 shrink-0">
                     <?php if ($isHariSekolah): ?>
                         <a href="{{ url('admin/presensi') }}"
-                            class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 transition-colors shadow text-sm no-underline shrink-0">
+                            class="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 bg-white text-blue-700 font-bold rounded-2xl hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700 transition-colors shadow text-sm no-underline shrink-0">
                             <i class="bi bi-speedometer2"></i>
-                            <span>Monitoring Presensi</span>
+                            <span>Monitoring Guru</span>
+                        </a>
+                        <a href="{{ url('admin/presensi/siswa/harian') }}"
+                            class="inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-3 bg-white/15 border border-white/25 text-white font-bold rounded-2xl hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700 transition-colors text-sm no-underline shrink-0">
+                            <i class="bi bi-people-fill"></i>
+                            <span>Monitoring Siswa</span>
                         </a>
                     <?php else: ?>
                         <div class="flex-1 flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3.5">
@@ -453,7 +458,7 @@ if ($isHariSekolah) {
 
         <!-- Row 1.5: Akses Cepat (strip horizontal) -->
         <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                 <i class="bi bi-grid-fill text-[9px]"></i> Akses Cepat
             </p>
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -469,7 +474,7 @@ if ($isHariSekolah) {
                 ];
                 foreach ($qaLinks as $qa): ?>
                 <a href="{{ url($qa['url']) }}"
-                    class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-700 text-xs font-semibold whitespace-nowrap no-underline transition-colors">
+                    class="qa-tile inline-flex w-full min-h-[44px] items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-blue-50 hover:border-blue-300 hover:text-blue-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 text-sm font-semibold text-slate-700 whitespace-nowrap no-underline">
                     <span class="w-5 h-5 rounded-lg {{ $qa['icbg'] }} {{ $qa['ic'] }} ic-box shrink-0">
                         <i class="bi {{ $qa['icon'] }} text-[11px]"></i>
                     </span>
