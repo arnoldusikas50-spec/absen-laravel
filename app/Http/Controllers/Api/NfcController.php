@@ -162,7 +162,7 @@ class NfcController extends BaseController
 
         try {
             $service = new NfcAttendanceService;
-            $user = $this->findUserByNfcUid($nfcUid);
+            $user = $service->findUserByNfcUid($nfcUid);
 
             if (! $user) {
                 return response()->json([
@@ -285,48 +285,5 @@ class NfcController extends BaseController
         }
 
         return false;
-    }
-
-    /**
-     * Cari user berdasarkan NFC UID.
-     */
-    private function findUserByNfcUid(string $nfcUid): ?array
-    {
-        $db = DB::connection();
-        $nfcUid = trim($nfcUid);
-
-        if (empty($nfcUid)) {
-            return null;
-        }
-
-        // Cari di master_guru
-        $guru = $db->table('master_guru')
-            ->where('nomor_rfid', $nfcUid)
-            ->first();
-
-        if ($guru) {
-            return [
-                'tipe' => 'guru',
-                'user_id' => $guru->id_user,
-                'reference_id' => $guru->id_guru,
-                'nama' => $guru->nama_guru,
-            ];
-        }
-
-        // Cari di master_siswa
-        $siswa = $db->table('master_siswa')
-            ->where('nomor_rfid', $nfcUid)
-            ->first();
-
-        if ($siswa) {
-            return [
-                'tipe' => 'siswa',
-                'user_id' => $siswa->id_user,
-                'reference_id' => $siswa->id_siswa,
-                'nama' => $siswa->nama,
-            ];
-        }
-
-        return null;
     }
 }

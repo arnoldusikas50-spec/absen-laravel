@@ -482,7 +482,7 @@
         position: absolute;
         left: 50%;
         top: 50%;
-        transform: translate(-50%, -50%) rotate(-10deg);
+        transform: translate(-50%, -50%);
         width: 20mm;
         height: 20mm;
         object-fit: contain;

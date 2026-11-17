@@ -601,7 +601,7 @@
             object-fit: contain;
             opacity: 0.7;
             pointer-events: none;
-            transform: translate(-50%, -50%) rotate(-10deg);
+            transform: translate(-50%, -50%);
             z-index: 0;
         }
         .dl-sign-name {

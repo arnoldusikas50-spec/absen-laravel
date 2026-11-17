@@ -95,6 +95,7 @@ Content-Type: application/json
 | ALREADY_CHECKED | Sudah melakukan absensi dengan jenis yang sama hari ini |
 | TIME_INVALID | Diluar waktu absensi yang diizinkan |
 | HOLIDAY | Hari libur |
+| OUT_OF_RANGE | Di luar area sekolah (geofence) |
 | NO_CHECKIN | Belum ada absen masuk (untuk check-out) |
 | RATE_LIMITED | Terlalu banyak permintaan |
 | UNAUTHORIZED | API key tidak valid |
@@ -266,14 +267,16 @@ suspend fun scanNfc(
 
 1. **API Key Validation** - Setiap request harus menyertakan API key yang valid
 2. **Rate Limiting** - Maksimal 10 request per menit per device
-3. **Audit Log** - Semua scan dicatat di `nfc_scan_log`
-4. **GPS Validation** - Opsional, untuk memastikan scan dari lokasi yang valid
+3. **Audit Log** - Semua scan dicatat di `nfc_scan_log` dengan nama pemilik kartu
+4. **GPS Validation** - Geofence radius sekolah wajib (jika GPS tersedia)
+5. **Mock Location Detection** - Menolak akurasi GPS 0 (indikasi mock location)
 
 ## Troubleshooting
 
 ### Kartu Tidak Terbaca
 - Pastikan `nomor_rfid` sudah diisi di tabel `master_guru` atau `master_siswa`
-- Format UID harus sesuai (case-insensitive)
+- UID dicocokkan secara case-insensitive dan mengabaikan separator (`:`, `-`, spasi)
+- `04A1B2C3`, `04a1b2c3`, `04:A1:B2:C3` semuanya cocok
 
 ### API Key Tidak Valid
 - Cek API key di tabel `setting`, `absensi_setting`, atau `.env`
@@ -289,4 +292,4 @@ suspend fun scanNfc(
 2. `app/Models/NfcScanLogModel.php` - Model untuk log
 3. `app/Services/NfcAttendanceService.php` - Business logic untuk proses absensi
 4. `app/Http/Controllers/Api/NfcController.php` - API controller
-5. `routes/web.php` - Route definitions (ditambahkan 3 endpoint)
+5. `routes/api.php` - Route definitions (3 endpoint NFC)

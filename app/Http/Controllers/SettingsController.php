@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class SettingsController extends BaseController
 {
@@ -229,15 +230,12 @@ class SettingsController extends BaseController
         if (strpos($rel, 'uploads/settings/') !== 0) {
             return null;
         }
-        $abs = realpath(base_path().'/'.'public/'.$rel);
-        $root = realpath(base_path().'/'.'public/uploads/settings');
+        $abs = realpath(public_path($rel));
+        $root = realpath(public_path('uploads/settings'));
         if ($abs === false || $root === false || strpos($abs, $root) !== 0 || ! is_file($abs)) {
             return null;
         }
-        // base_path() . '/' bisa berakhir '/' (Linux) atau '\' (Windows): potong dari akar
-        // yang sudah dibersihkan lalu paksa separator maju agar cocok dengan
-        // nilai di kolom settings.
-        $out = substr($abs, strlen(rtrim(base_path().'/'.'public/', '/\\')) + 1);
+        $out = substr($abs, strlen(rtrim(public_path(), '/\\')) + 1);
         $out = str_replace('\\', '/', $out);
 
         return strpos($out, 'uploads/settings/') === 0 ? $out : null;
@@ -264,98 +262,109 @@ class SettingsController extends BaseController
         ];
 
         if (! $this->validate($validationRule)) {
-            $data = [
+            $errors = $this->validation()->getErrors();
+            $message = $errors['logo'] ?? 'File gambar tidak valid.';
+
+            return $this->response->setStatusCode(422)->setJSON([
                 'status' => false,
-                'src' => $this->validator->getErrors()['logo'] ?? 'Invalid file',
-                'message' => 'Upload failed',
-            ];
-        } else {
-            if ($file->isValid() && ! false /* was: $file->hasMoved() */) {
-                $uploadPath = base_path().'/'.'public/uploads/settings/';
-                if (! is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0755, true);
-                }
+                'message' => $message,
+                'errors' => $errors,
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                // Ekstensi dari MIME tervalidasi (jangan percaya nama file client → cegah .php)
-                $mimeMap = [
-                    'image/jpeg' => 'jpg', 'image/jpg' => 'jpg',
-                    'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp',
-                ];
-                $ext = $mimeMap[$file->getMimeType()] ?? null;
-                if ($ext === null) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'Tipe file tidak didukung']);
-                }
+        if (! $file || ! $file->isValid()) {
+            $message = $file ? $file->getErrorMessage() : 'Pilih file gambar untuk diunggah.';
 
-                $fileName = $logo.'.'.$ext;
+            return $this->response->setStatusCode(422)->setJSON([
+                'status' => false,
+                'message' => $message,
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                // Pindahkan file baru DULU, baru bersihkan varian lama.
-                // Urutan terbalik (hapus dulu, move tanpa diperiksa) membuat
-                // gangguan apa pun pada move() meninggalkan sekolah tanpa logo
-                // sama sekali sementara respons tetap berkata "berhasil".
-                // CATATAN: move() Laravel/Symfony mengembalikan objek File,
-                // BUKAN true seperti CI4 — kegagalan dilempar sebagai exception.
-                try {
-                    $pindah = $file->move($uploadPath, $fileName);
-                } catch (\Throwable $e) {
-                    Log::error('[Settings::uploadFile] move '.$fileName.' gagal: '.$e->getMessage());
-                    $pindah = false;
-                }
+        $mimeMap = [
+            'image/jpeg' => 'jpg', 'image/jpg' => 'jpg',
+            'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp',
+        ];
+        $ext = $mimeMap[$file->getMimeType()] ?? null;
+        if ($ext === null) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status' => false,
+                'message' => 'Format gambar tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                $tujuan = $uploadPath.$fileName;
-                if ($pindah === false || ! is_file($tujuan) || (int) @filesize($tujuan) === 0) {
-                    return $this->response->setJSON([
-                        'status' => false,
-                        'message' => 'Gambar gagal disimpan ke server. Logo lama belum diganti — coba lagi, dan bila berulang periksa izin folder public/uploads/settings.',
-                        'csrfName' => '_token',
-                        'csrfHash' => csrf_token(),
-                    ]);
-                }
+        $uploadPath = public_path('uploads/settings');
+        if (! is_dir($uploadPath) && ! mkdir($uploadPath, 0755, true) && ! is_dir($uploadPath)) {
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false,
+                'message' => 'Folder uploads/settings tidak dapat dibuat. Periksa izin tulis folder public.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                // Hapus file lama field ini dengan ekstensi apapun agar tidak menumpuk
-                $existen = str_replace('\\', '/', $uploadPath).$fileName;
-                foreach ((glob($uploadPath.$logo.'.*') ?: []) as $ef) {
-                    $efN = str_replace('\\', '/', $ef);
-                    if (is_file($ef) && $efN !== $existen) {
-                        @unlink($ef);
-                    }
-                }
+        // Nama unik mencegah browser memakai cache gambar lama setelah file diganti.
+        $fileName = $logo.'.'.Str::uuid().'.'.$ext;
+        $destination = $uploadPath.DIRECTORY_SEPARATOR.$fileName;
 
-                $relativePath = 'uploads/settings/'.$fileName;
+        try {
+            $file->move($uploadPath, $fileName);
+        } catch (\Throwable $e) {
+            Log::error('[Settings::uploadFile] move '.$fileName.' gagal: '.$e->getMessage());
 
-                if ($this->updateSettingRow([$logo => $relativePath]) !== true) {
-                    Log::error('[Settings::uploadFile] simpan path '.$relativePath.' ke setting gagal');
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false,
+                'message' => 'File gagal disimpan ke server. Periksa izin tulis folder public/uploads/settings.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                    return $this->response->setJSON([
-                        'status' => false,
-                        'message' => 'Gambar sudah tersimpan tapi penamaan di pengaturan gagal diperbarui. Logo yang tampil bisa masih yang lama — simpan ulang.',
-                        'src' => url($relativePath),
-                        'csrfName' => '_token',
-                        'csrfHash' => csrf_token(),
-                    ]);
-                }
+        if (! is_file($destination) || (int) @filesize($destination) === 0) {
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false,
+                'message' => 'File gambar tidak ditemukan setelah proses unggah.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
 
-                $data = [
-                    'status' => true,
-                    'src' => url($relativePath),
-                    'relative_path' => $relativePath,
-                    'filename' => $fileName,
-                    'type' => $file->getClientMimeType(),
-                    'size' => (int) @filesize($tujuan),
-                ];
+        $relativePath = 'uploads/settings/'.$fileName;
+        if (! $this->updateSettingRow([$logo => $relativePath])) {
+            @unlink($destination);
+            Log::error('[Settings::uploadFile] simpan path '.$relativePath.' ke setting gagal');
 
-            } else {
-                $data = [
-                    'status' => false,
-                    'src' => $file->getErrorString(),
-                    'message' => 'File move failed',
-                ];
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false,
+                'message' => 'File diterima, tetapi path-nya gagal disimpan ke pengaturan sekolah. File lama tetap dipertahankan.',
+                'csrfName' => '_token',
+                'csrfHash' => csrf_token(),
+            ]);
+        }
+
+        // Bersihkan versi lama hanya setelah path baru berhasil tersimpan di database.
+        foreach ((glob($uploadPath.DIRECTORY_SEPARATOR.$logo.'.*') ?: []) as $oldFile) {
+            if (is_file($oldFile) && realpath($oldFile) !== realpath($destination)) {
+                @unlink($oldFile);
             }
         }
 
-        $data['csrfName'] = '_token';
-        $data['csrfHash'] = csrf_token();
-
-        return $this->response->setJSON($data);
+        return $this->response->setJSON([
+            'status' => true,
+            'src' => url($relativePath),
+            'relative_path' => $relativePath,
+            'filename' => $fileName,
+            'type' => $file->getClientMimeType(),
+            'size' => (int) @filesize($destination),
+            'csrfName' => '_token',
+            'csrfHash' => csrf_token(),
+        ]);
     }
 
     public function deleteFile()
@@ -382,14 +391,14 @@ class SettingsController extends BaseController
         $deletedFile = false;
         if (! empty($src)) {
             $rel = $this->resolveMediaPath($src);
-            if ($rel !== null && is_file(base_path().'/'.'public/'.$rel)) {
-                @unlink(base_path().'/'.'public/'.$rel);
+            if ($rel !== null && is_file(public_path($rel))) {
+                @unlink(public_path($rel));
                 $deletedFile = true;
             }
         }
 
         // Hapus juga file fisik yang ada di direktori settings dengan prefix nama field
-        $uploadPath = base_path().'/'.'public/uploads/settings/';
+        $uploadPath = public_path('uploads/settings').DIRECTORY_SEPARATOR;
         $existing = glob($uploadPath.$field.'.*');
         if (! empty($existing)) {
             foreach ($existing as $oldFile) {

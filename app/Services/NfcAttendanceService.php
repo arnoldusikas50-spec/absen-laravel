@@ -53,7 +53,7 @@ class NfcAttendanceService
         if ($this->isDuplicateScan($nfcUid, $tanggal, $jenisScan)) {
             // Cek apakah sudah ada absensi hari ini untuk jenis ini
             $existingMsg = $this->getExistingAttendanceMessage($tipeUser, $referenceId, $tanggal, $jenisScan);
-            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'Sudah absen');
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'Sudah absen', null, $nama);
 
             return [
                 'success' => false,
@@ -68,7 +68,7 @@ class NfcAttendanceService
         $setting = $this->getAttendanceSettings();
         $timeValidation = $this->validateTime($jenisScan, $setting, $tanggal);
         if (! $timeValidation['valid']) {
-            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $timeValidation['message']);
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $timeValidation['message'], null, $nama);
 
             return [
                 'success' => false,
@@ -82,7 +82,7 @@ class NfcAttendanceService
         // 4. Validasi hari libur
         $liburCheck = $this->isHoliday($tanggal);
         if ($liburCheck) {
-            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $liburCheck);
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $liburCheck, null, $nama);
 
             return [
                 'success' => false,
@@ -93,16 +93,32 @@ class NfcAttendanceService
             ];
         }
 
-        // 5. Proses absensi berdasarkan tipe user
+        // 5. Validasi geofence (jika GPS tersedia dan tabel lokasi dikonfigurasi)
+        if ($lat !== null && $lng !== null) {
+            $geoCheck = $this->validateGeofence($lat, $lng, $accuracy, $setting);
+            if (! $geoCheck['ok']) {
+                $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $geoCheck['message'], null, $nama);
+
+                return [
+                    'success' => false,
+                    'message' => $geoCheck['message'],
+                    'status' => 'OUT_OF_RANGE',
+                    'nama' => $nama,
+                    'tipe' => $tipeUser,
+                ];
+            }
+        }
+
+        // 6. Proses absensi berdasarkan tipe user
         try {
             if ($tipeUser === 'guru') {
-                $result = $this->processGuruAttendance($referenceId, $userId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $setting);
+                $result = $this->processGuruAttendance($referenceId, $userId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $setting, $deviceId, $ip);
             } else {
                 $result = $this->processSiswaAttendance($referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $setting);
             }
         } catch (\Throwable $e) {
             Log::error('[NfcAttendanceService] Error: '.$e->getMessage());
-            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'Error sistem: '.$e->getMessage());
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'Error sistem: '.$e->getMessage(), null, $nama);
 
             return [
                 'success' => false,
@@ -113,15 +129,16 @@ class NfcAttendanceService
             ];
         }
 
-        // 6. Catat log sukses
+        // 7. Catat log sukses
         $this->logScan(
             $nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam,
             $lat, $lng, $accuracy, $deviceId, $ip, true,
             $result['message'] ?? 'Berhasil',
-            $result['presensi_id'] ?? null
+            $result['presensi_id'] ?? null,
+            $nama
         );
 
-        // 7. Kirim notifikasi (jika telat)
+        // 8. Kirim notifikasi (jika telat)
         if (! empty($result['telat_menit']) && $result['telat_menit'] > 0) {
             try {
                 (new NotificationService)->notifyLateCheckin($nama, $jam, $result['telat_menit'], $userId);
@@ -143,9 +160,19 @@ class NfcAttendanceService
     }
 
     /**
-     * Cari user (guru/siswa) berdasarkan NFC UID.
+     * Normalisasi UID RFID: uppercase, hapus separator (:, -, spasi).
      */
-    private function findUserByNfcUid(string $nfcUid): ?array
+    private function normalizeUid(string $uid): string
+    {
+        return strtoupper(str_replace([':', '-', ' '], '', trim($uid)));
+    }
+
+    /**
+     * Cari user (guru/siswa) berdasarkan NFC UID.
+     * Match case-insensitive dengan normalisasi separator yang konsisten
+     * dengan assignRfid() dan findSiswaByRfid()/findGuruByRfid().
+     */
+    public function findUserByNfcUid(string $nfcUid): ?array
     {
         $db = DB::connection();
         $nfcUid = trim($nfcUid);
@@ -154,10 +181,13 @@ class NfcAttendanceService
             return null;
         }
 
+        $cleanUid = strtolower(str_replace([':', '-', ' '], '', $nfcUid));
+
         // Cari di master_guru
         if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'nomor_rfid')) {
             $guru = $db->table('master_guru')
                 ->where('nomor_rfid', $nfcUid)
+                ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), '-', ''), ' ', '')) = ?", [$cleanUid])
                 ->first();
 
             if ($guru) {
@@ -176,6 +206,7 @@ class NfcAttendanceService
         if (Schema::hasTable('master_siswa') && Schema::hasColumn('master_siswa', 'nomor_rfid')) {
             $siswa = $db->table('master_siswa')
                 ->where('nomor_rfid', $nfcUid)
+                ->orWhereRaw("LOWER(REPLACE(REPLACE(REPLACE(nomor_rfid, ':', ''), '-', ''), ' ', '')) = ?", [$cleanUid])
                 ->first();
 
             if ($siswa) {
@@ -303,15 +334,29 @@ class NfcAttendanceService
             }
         }
 
-        // Cek kalender libur
-        if (Schema::hasTable('absensi_kalender')) {
-            $libur = DB::table('absensi_kalender')
+        // Cek tabel absensi_hari_libur (libur nasional / khusus)
+        if (Schema::hasTable('absensi_hari_libur')) {
+            $libur = DB::table('absensi_hari_libur')
                 ->where('tanggal', $tanggal)
-                ->where('is_libur', 1)
                 ->first();
 
             if ($libur) {
                 return 'Hari libur: '.($libur->keterangan ?? 'Libur nasional');
+            }
+        }
+
+        // Cek tabel kalender_akademik (tipe = LIBUR, tanggal dalam rentang tgl_mulai..tgl_selesai)
+        if (Schema::hasTable('kalender_akademik')) {
+            $kalender = DB::table('kalender_akademik')
+                ->where('tipe', 'LIBUR')
+                ->where('tgl_mulai', '<=', $tanggal)
+                ->where(function ($q) use ($tanggal) {
+                    $q->whereNull('tgl_selesai')->orWhere('tgl_selesai', '>=', $tanggal);
+                })
+                ->first();
+
+            if ($kalender) {
+                return 'Hari libur: '.($kalender->judul ?? 'Libur kalender akademik');
             }
         }
 
@@ -321,7 +366,7 @@ class NfcAttendanceService
     /**
      * Proses absensi guru.
      */
-    private function processGuruAttendance(int $idGuru, int $userId, string $jenisScan, string $tanggal, string $jam, ?float $lat, ?float $lng, ?int $accuracy, object $setting): array
+    private function processGuruAttendance(int $idGuru, int $userId, string $jenisScan, string $tanggal, string $jam, ?float $lat, ?float $lng, ?int $accuracy, object $setting, ?string $deviceId = null, ?string $ip = null): array
     {
         $db = DB::connection();
 
@@ -390,6 +435,8 @@ class NfcAttendanceService
                 'denda' => $denda,
                 'keterangan_denda' => $keteranganDenda,
                 'gps_accuracy' => $accuracy,
+                'device_info' => $deviceId ? substr('NFC: '.$deviceId, 0, 255) : 'NFC Android',
+                'ip_address' => $ip,
                 'updated_at' => now(),
             ];
 
@@ -465,6 +512,8 @@ class NfcAttendanceService
                 'jarak_pulang' => $jarak,
                 'status_pulang' => $statusPulang,
                 'pulang_cepat_menit' => $pulangCepat,
+                'device_info' => $deviceId ? substr('NFC: '.$deviceId, 0, 255) : 'NFC Android',
+                'ip_address' => $ip,
                 'updated_at' => now(),
             ];
 
@@ -582,6 +631,57 @@ class NfcAttendanceService
     }
 
     /**
+     * Validasi geofence: tolak scan jika di luar radius semua lokasi sekolah.
+     * Mengembalikan ['ok' => bool, 'message' => string].
+     */
+    private function validateGeofence(float $lat, float $lng, ?int $accuracy, object $setting): array
+    {
+        // Koordinat tidak valid
+        if (($lat === 0.0 && $lng === 0.0) || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return ['ok' => false, 'message' => 'Koordinat GPS tidak valid'];
+        }
+
+        // Akurasi 0 = pasti mock location
+        if ($accuracy !== null && $accuracy === 0) {
+            return ['ok' => false, 'message' => 'Terdeteksi lokasi palsu (mock location)'];
+        }
+
+        if ($accuracy !== null && $accuracy > 1000) {
+            return ['ok' => false, 'message' => 'Akurasi GPS terlalu rendah (±'.$accuracy.'m)'];
+        }
+
+        if (! Schema::hasTable('absensi_lokasi')) {
+            // Jika tidak ada tabel lokasi, lewati geofence (opsional)
+            return ['ok' => true];
+        }
+
+        $locations = DB::table('absensi_lokasi')->get();
+        if ($locations->isEmpty()) {
+            return ['ok' => false, 'message' => 'Titik lokasi sekolah belum dikonfigurasi'];
+        }
+
+        $defaultRadius = (int) ($setting->radius_meter ?? 100);
+        if ($defaultRadius <= 0) {
+            $defaultRadius = 100;
+        }
+
+        foreach ($locations as $loc) {
+            if ($loc->latitude && $loc->longitude) {
+                $radius = (int) ($loc->radius_meter ?? $defaultRadius);
+                if ($radius <= 0) {
+                    $radius = $defaultRadius;
+                }
+                $distance = $this->haversineDistance($lat, $lng, (float) $loc->latitude, (float) $loc->longitude);
+                if ($distance <= $radius) {
+                    return ['ok' => true];
+                }
+            }
+        }
+
+        return ['ok' => false, 'message' => 'Di luar area sekolah. Absensi hanya bisa dilakukan di lokasi yang sudah ditentukan.'];
+    }
+
+    /**
      * Cari lokasi terdekat.
      */
     private function findNearestLocation(float $lat, float $lng, object $setting): ?object
@@ -689,7 +789,8 @@ class NfcAttendanceService
         ?string $ip,
         bool $berhasil,
         string $pesan,
-        ?string $presensiId = null
+        ?string $presensiId = null,
+        ?string $nama = null
     ): void {
         try {
             NfcScanLogModel::create([
@@ -697,7 +798,7 @@ class NfcAttendanceService
                 'tipe_user' => $tipeUser,
                 'user_id' => $userId,
                 'reference_id' => $referenceId,
-                'nama' => null, // Diisi di processScan
+                'nama' => $nama,
                 'jenis_scan' => $jenisScan,
                 'tanggal' => $tanggal,
                 'jam' => $jam,

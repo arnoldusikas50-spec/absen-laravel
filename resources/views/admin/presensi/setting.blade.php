@@ -2262,11 +2262,19 @@
                         }
                     },
                     error: function(xhr) {
-                        if (xhr && xhr.status === 403) {
-                            Swal.fire('Akses Ditolak', 'Sesi berakhir atau akses tidak diizinkan. Silakan login ulang.', 'error');
-                        } else {
-                            Swal.fire('Error', 'Terjadi kesalahan koneksi saat upload file', 'error');
-                        }
+                        const response = xhr?.responseJSON || {};
+                        const errors = response.errors
+                            ? Object.values(response.errors).flat().join('\n')
+                            : '';
+                        const message = errors || response.message || (
+                            xhr?.status === 403
+                                ? 'Sesi berakhir atau akses tidak diizinkan. Silakan login ulang.'
+                                : xhr?.status === 413
+                                    ? 'Ukuran file melebihi batas server.'
+                                    : `Upload gagal (HTTP ${xhr?.status || 'tidak diketahui'}).`
+                        );
+
+                        Swal.fire('Upload Gagal', message, 'error');
                     }
                 });
             });
