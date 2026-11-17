@@ -473,8 +473,7 @@
         margin-left: auto;
     }
     .sign-stamp-area > div,
-    .dl-back-sign > div:first-child,
-    .dp-back-sign > div:first-child {
+    .dl-back-sign > div:first-child {
         position: relative;
         z-index: 2;
     }
@@ -489,10 +488,6 @@
         opacity: .85;
         pointer-events: none;
         z-index: 0;
-    }
-    .dp-back-sign .sign-stamp {
-        width: 14mm;
-        height: 14mm;
     }
     .dl-back-footer {
         height: 18px;
@@ -519,7 +514,7 @@
     ═══════════════════════════════════════════════════════════════════ */
     .card-dp {
         width: 204px;
-        height: 324px;
+        height: 344px;
         border-radius: 12px;
         overflow: hidden;
         position: relative;
@@ -531,37 +526,49 @@
         text-align: left;
     }
     .card-dp-front {
-        background: #ffffff;
+        background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
+    }
+    /* Latar: garis lengkung halus */
+    .dp-streaks {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+    }
+    /* Dekorasi: ombak biru muda + garis emas di bawah header */
+    .dp-wave-top {
+        position: absolute;
+        top: 64px;
+        left: 0;
+        width: 100%;
+        height: 36px;
+        z-index: 1;
+        pointer-events: none;
+    }
+    /* Sisi belakang: ombak pendek menempel di bawah header (46px),
+       menjorok di belakang header agar tidak menabrak tabel data */
+    .dp-wave-top-back {
+        top: 40px;
+        height: 13px;
     }
     .dp-header {
-        height: 48px;
-        background: linear-gradient(135deg, #09265e 0%, #103a8a 55%, #1e56c8 100%);
-        padding: 6px 8px 4px 8px;
+        height: 68px;
+        background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
+        padding: 7px 10px 6px 10px;
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 9px;
         position: relative;
         z-index: 2;
     }
-    .dp-header-accent {
-        position: absolute;
-        bottom: -5px;
-        left: 0;
-        width: 100%;
-        height: 6px;
-        pointer-events: none;
-        z-index: 3;
-    }
     .dp-logo-wrap {
-        width: 30px;
-        height: 30px;
-        background: #ffffff;
-        border-radius: 50%;
-        padding: 2px;
+        width: 38px;
+        height: 38px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.25);
         flex-shrink: 0;
     }
     .dp-logo-wrap img {
@@ -574,22 +581,19 @@
         min-width: 0;
     }
     .dp-header-title {
-        font-size: 6.8pt;
+        font-size: 11px;
         font-weight: 900;
         color: #ffffff;
         text-transform: uppercase;
         letter-spacing: 0.2px;
-        line-height: 1.15;
+        line-height: 1.12;
         margin: 0;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    }
-    .dp-header-sub {
-        font-size: 4.6pt;
-        font-weight: 700;
-        color: #fbbf24;
-        margin: 1.5px 0 0 0;
-        letter-spacing: 0.2px;
-        text-transform: uppercase;
+        text-shadow: 0 1px 3px rgba(4, 24, 62, 0.45);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
     }
     .dp-photo-wrap {
         position: relative;
@@ -599,13 +603,13 @@
         margin-top: 8px;
     }
     .dp-photo-box {
-        width: 86px;
-        height: 108px;
-        background: #dc2626;
-        border-radius: 6px;
+        width: 82px;
+        height: 98px;
+        background: #e23434;
+        border-radius: 9px;
         overflow: hidden;
-        border: 2.5px solid #ffffff;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+        border: 3px solid #ffffff;
+        box-shadow: 0 3px 10px rgba(9,38,94,0.28);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -618,50 +622,53 @@
     .dp-name-badge {
         position: relative;
         z-index: 2;
-        margin: 6px 12px 0 12px;
-        background: linear-gradient(90deg, #09265e 0%, #1e56c8 100%);
+        margin: 7px 12px 0 12px;
+        background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
         color: #ffffff;
-        font-size: 7.5pt;
+        font-size: 10.5px;
         font-weight: 900;
         text-transform: uppercase;
-        padding: 3px 8px;
-        border-radius: 9999px;
+        padding: 5px 8px;
+        border-radius: 7px;
         text-align: center;
-        white-space: nowrap;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         overflow: hidden;
-        text-overflow: ellipsis;
-        box-shadow: 0 2px 6px rgba(9,38,94,0.25);
-        letter-spacing: 0.3px;
+        box-shadow: 0 2px 7px rgba(15,53,147,0.35);
+        letter-spacing: 0.1px;
+        line-height: 1.2;
     }
     .dp-meta-table {
         position: relative;
         z-index: 2;
-        margin: 5px auto 0 auto;
-        width: 152px;
+        margin: 6px auto 0 auto;
+        width: 168px;
         border-collapse: collapse;
-        font-size: 6.5pt;
-        line-height: 1.35;
+        table-layout: fixed;
+        font-size: 10px;
+        line-height: 1.3;
     }
     .dp-meta-table td {
-        padding: 0.5px 0;
+        padding: 1px 0;
         vertical-align: middle;
     }
     .dp-meta-table .dp-meta-lbl {
-        width: 48px;
+        width: 54px;
         font-weight: 800;
-        color: #475569;
-        text-transform: uppercase;
-        font-size: 5.8pt;
+        color: #123a75;
     }
     .dp-meta-table .dp-meta-sep {
-        width: 8px;
+        width: 11px;
         font-weight: 800;
-        color: #94a3b8;
+        color: #123a75;
         text-align: center;
     }
     .dp-meta-table .dp-meta-val {
-        font-weight: 900;
-        color: #09265e;
+        padding-left: 2px;
+        font-weight: 800;
+        color: #123a75;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -669,25 +676,25 @@
     .dp-qr-section {
         position: relative;
         z-index: 2;
-        margin: auto 8px 8px 10px;
+        margin: auto 12px 12px 12px;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
     }
     .dp-qr-card {
         background: #ffffff;
         border: 1.5px solid #bfdbfe;
-        border-radius: 8px;
-        padding: 3px;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.12);
+        border-radius: 10px;
+        padding: 4px;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.16);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
     }
     .dp-qr-box {
-        width: 60px;
-        height: 60px;
+        width: 56px;
+        height: 56px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -698,37 +705,37 @@
         display: block;
     }
     .dp-qr-divider {
-        width: 2px;
-        height: 46px;
-        background: #09265e;
-        border-radius: 1px;
+        width: 2.5px;
+        height: 44px;
+        background: #1e56c8;
+        border-radius: 2px;
         flex-shrink: 0;
     }
     .dp-qr-desc {
-        font-size: 6.2pt;
+        font-size: 9.5px;
         font-weight: 900;
-        color: #09265e;
+        color: #1e56c8;
         text-transform: uppercase;
-        line-height: 1.25;
+        line-height: 1.3;
         letter-spacing: 0.3px;
     }
-    .dp-front-wave-bottom {
+    .dp-wave-bottom {
         position: absolute;
         bottom: 0;
         right: 0;
-        width: 86px;
-        height: 38px;
+        width: 120px;
+        height: 42px;
         pointer-events: none;
         z-index: 1;
     }
     .card-dp-back {
-        background: #ffffff;
+        background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
         display: flex;
         flex-direction: column;
     }
     .dp-back-header {
-        height: 32px;
-        background: linear-gradient(135deg, #09265e 0%, #103a8a 55%, #1e56c8 100%);
+        height: 46px;
+        background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -736,31 +743,30 @@
         z-index: 2;
     }
     .dp-back-title {
-        font-size: 7.5pt;
+        font-size: 13.5px;
         font-weight: 900;
         color: #ffffff;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         margin: 0;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        text-shadow: 0 1px 3px rgba(4, 24, 62, 0.45);
     }
     .dp-back-body {
         position: relative;
         z-index: 2;
         flex: 1;
-        padding: 6px 10px 0 10px;
+        padding: 6px 12px 0 12px;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
     }
     .dp-back-watermark {
         position: absolute;
-        top: 42%;
+        top: 52%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 110px;
-        height: 110px;
-        opacity: 0.04;
+        width: 130px;
+        height: 130px;
+        opacity: 0.07;
         pointer-events: none;
         z-index: 1;
     }
@@ -774,97 +780,87 @@
         z-index: 2;
         width: 100%;
         border-collapse: collapse;
-        font-size: 6.2pt;
-        line-height: 1.35;
+        table-layout: fixed;
+        font-size: 9.5px;
+        line-height: 1.3;
     }
     .dp-info-table td {
-        padding: 1.2px 0;
+        padding: 2px 0;
         vertical-align: top;
     }
     .dp-info-table .dp-lbl {
-        width: 56px;
-        font-weight: 700;
-        color: #475569;
-        text-transform: uppercase;
-        font-size: 5.4pt;
+        width: 76px;
+        font-size: 9px;
+        font-weight: 800;
+        color: #123a75;
         white-space: nowrap;
     }
     .dp-info-table .dp-sep {
-        width: 6px;
-        font-weight: 700;
-        color: #94a3b8;
+        width: 11px;
+        font-weight: 800;
+        color: #123a75;
+        text-align: center;
     }
     .dp-info-table .dp-val {
+        padding-left: 2px;
         font-weight: 800;
-        color: #0f172a;
+        color: #123a75;
         line-height: 1.3;
+        word-break: break-word;
+    }
+    /* Garis biru di bawah tabel data */
+    .dp-info-divider {
+        position: relative;
+        z-index: 2;
+        height: 2px;
+        background: #1e56c8;
+        border-radius: 1px;
+        margin-top: 5px;
     }
     .dp-rules-section {
         position: relative;
         z-index: 2;
-        margin-top: 3px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 4px 6px;
+        margin-top: 6px;
         text-align: center;
     }
     .dp-rules-pill {
-        background: #09265e;
+        background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
         color: #ffffff;
-        font-size: 5.4pt;
+        font-size: 9px;
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.3px;
-        padding: 1.5px 8px;
+        padding: 3px 14px;
         border-radius: 9999px;
         display: inline-block;
-        margin-bottom: 2px;
+        margin-bottom: 4px;
+        box-shadow: 0 2px 6px rgba(15,53,147,0.3);
     }
     .dp-rules-list {
         margin: 0;
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 1.5px;
+        gap: 2px;
         text-align: left;
     }
     .dp-rule-item {
         display: flex;
         align-items: flex-start;
-        font-size: 4.6pt;
-        color: #334155;
+        font-size: 8.5px;
+        color: #16325c;
         line-height: 1.35;
         font-weight: 600;
     }
     .dp-rule-num {
-        width: 10px;
+        width: 12px;
         flex-shrink: 0;
         font-weight: 800;
-        color: #09265e;
+        color: #123a75;
     }
     .dp-rule-text {
         flex: 1;
     }
-
-    .dp-back-sign {
-        position: relative;
-        z-index: 2;
-        text-align: right;
-        font-size: 4.6pt;
-        color: #475569;
-        line-height: 1.25;
-        margin-top: 3px;
-        padding-right: 2px;
-    }
-    .dp-sign-name {
-        font-weight: 800;
-        color: #0f172a;
-        text-decoration: underline;
-        font-size: 5pt;
-        margin-top: 7px;
-    }
-
     .dp-barcode-wrap {
         position: relative;
         z-index: 2;
@@ -872,25 +868,30 @@
         flex-direction: column;
         align-items: center;
         gap: 1px;
-        margin-top: 3px;
+        margin-top: auto;
+        padding-top: 5px;
     }
     .dp-barcode-svg {
-        width: 110px;
-        height: 16px;
+        width: 150px;
+        height: 18px;
+    }
+    .dp-barcode-svg rect {
+        fill: #123a75;
     }
     .dp-barcode-text {
         font-family: monospace;
-        font-size: 5pt;
+        font-size: 6.5px;
         font-weight: 800;
-        color: #09265e;
+        color: #123a75;
         margin-top: -1px;
     }
     .dp-back-footer-wave-wrap {
         position: relative;
         z-index: 2;
         width: 100%;
-        height: 22px;
-        margin-top: auto;
+        height: 28px;
+        margin-top: 5px;
+        flex-shrink: 0;
     }
     .dp-back-footer-wave {
         width: 100%;
@@ -899,12 +900,13 @@
     }
     .dp-footer-motto {
         position: absolute;
-        bottom: 3px;
+        bottom: 5px;
         left: 0;
         width: 100%;
-        font-size: 5.2pt;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 9.5px;
         font-style: italic;
-        font-weight: 800;
+        font-weight: 700;
         color: #ffffff;
         text-align: center;
         letter-spacing: 0.2px;
@@ -1382,22 +1384,26 @@
                         <div class="flex flex-col items-center gap-1.5">
                             <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
                             <div class="card-dp card-dp-front">
+                                <!-- Latar: garis lengkung halus (hanya di zona bawah, tidak menabrak foto & nama) -->
+                                <svg class="dp-streaks" viewBox="0 0 204 344" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M-24,258 C42,238 128,272 236,232" stroke="#cfe3f8" stroke-width="13" fill="none" opacity="0.55"/>
+                                    <path d="M-24,296 C52,276 138,304 236,268" stroke="#ddebfa" stroke-width="19" fill="none" opacity="0.5"/>
+                                </svg>
+                                <!-- Dekorasi: ombak biru muda + garis emas di bawah header -->
+                                <svg class="dp-wave-top" viewBox="0 0 204 36" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M0,0 L204,0 L204,6 C160,24 108,4 64,15 C38,22 16,24 0,30 Z" fill="#8ecbf5"/>
+                                    <path d="M0,0 L204,0 L204,2 C156,15 100,0 56,9 C30,14 12,16 0,20" fill="none" stroke="#f0b429" stroke-width="3"/>
+                                </svg>
+
+                                <!-- Kop: Logo + Nama Sekolah -->
                                 <div class="dp-header">
                                     <div class="dp-logo-wrap">
                                         <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
                                     </div>
-                                    <div class="dp-header-titles">
-                                        <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
-                                        <p class="dp-header-sub">KARTU PELAJAR • TP {{ $tp_active->tahun ?? '-' }}</p>
-                                    </div>
-                                    <!-- Accent ombak di bawah header -->
-                                    <svg class="dp-header-accent" viewBox="0 0 204 6" preserveAspectRatio="none">
-                                        <path d="M0,0 L204,0 L204,2 Q150,6 102,3 Q50,0 0,3 Z" fill="#f59e0b" />
-                                        <path d="M0,3 Q50,0 102,3 Q150,6 204,2 L204,4 Q150,7 102,4 Q50,1 0,4 Z" fill="#38bdf8" />
-                                    </svg>
+                                    <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
                                 </div>
 
-                                <!-- Foto Siswa (Merah) -->
+                                <!-- Foto Siswa (latar merah pas foto, bingkai putih) -->
                                 <div class="dp-photo-wrap">
                                     <div class="dp-photo-box">
                                         <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -1405,10 +1411,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Nama Siswa Pill -->
+                                <!-- Banner Nama -->
                                 <div class="dp-name-badge" title="{{ $s->nama }}">{{ $s->nama }}</div>
 
-                                <!-- Metadata Table -->
+                                <!-- Data Ringkas -->
                                 <table class="dp-meta-table">
                                     <tr>
                                         <td class="dp-meta-lbl">NIS/NISN</td>
@@ -1422,22 +1428,22 @@
                                     </tr>
                                 </table>
 
-                                <!-- QR Section Bottom -->
+                                <!-- QR Section -->
                                 <div class="dp-qr-section">
                                     <div class="dp-qr-card">
                                         <div class="dp-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="64"></div>
                                     </div>
                                     <div class="dp-qr-divider"></div>
                                     <div class="dp-qr-desc">
-                                        SCAN UNTUK<br>PRESENSI
+                                        SCAN UNTUK<br>INFORMASI
                                     </div>
                                 </div>
 
-                                <!-- Bottom Right Accent Wave -->
-                                <svg class="dp-front-wave-bottom" viewBox="0 0 86 38" preserveAspectRatio="none">
-                                    <path d="M86,0 C60,12 25,26 0,38 L86,38 Z" fill="#09265e" />
-                                    <path d="M86,5 C64,15 32,29 12,38" fill="none" stroke="#f59e0b" stroke-width="2" />
-                                    <path d="M86,9 C67,18 40,32 22,38" fill="none" stroke="#38bdf8" stroke-width="1.2" />
+                                <!-- Dekorasi: ombak biru + emas kanan bawah -->
+                                <svg class="dp-wave-bottom" viewBox="0 0 120 42" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M120,0 C88,14 52,28 0,42 L120,42 Z" fill="#1e56c8"/>
+                                    <path d="M120,8 C92,20 56,32 20,42" fill="none" stroke="#f0b429" stroke-width="3"/>
+                                    <path d="M120,16 C96,26 64,36 38,42" fill="none" stroke="#8ecbf5" stroke-width="2"/>
                                 </svg>
                             </div>
                         </div>
@@ -1446,14 +1452,15 @@
                         <div class="flex flex-col items-center gap-1.5">
                             <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
                             <div class="card-dp card-dp-back">
+                                <!-- Kop: judul sisi belakang -->
                                 <div class="dp-back-header">
                                     <h4 class="dp-back-title">DATA PESERTA DIDIK</h4>
-                                    <!-- Accent ombak di bawah header back -->
-                                    <svg class="dp-header-accent" viewBox="0 0 204 6" preserveAspectRatio="none">
-                                        <path d="M0,0 L204,0 L204,2 Q150,6 102,3 Q50,0 0,3 Z" fill="#f59e0b" />
-                                        <path d="M0,3 Q50,0 102,3 Q150,6 204,2 L204,4 Q150,7 102,4 Q50,1 0,4 Z" fill="#38bdf8" />
-                                    </svg>
                                 </div>
+                                <!-- Dekorasi: ombak biru muda + garis emas, menjorok tipis di bawah header -->
+                                <svg class="dp-wave-top dp-wave-top-back" viewBox="0 0 204 14" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M0,0 L204,0 L204,2 C160,11 108,3 64,8 C38,11 16,12 0,13.5 Z" fill="#8ecbf5"/>
+                                    <path d="M0,0 L204,0 L204,1 C156,8 100,1.5 56,6 C30,9 12,9.5 0,11" fill="none" stroke="#f0b429" stroke-width="2.5"/>
+                                </svg>
 
                                 <!-- Watermark -->
                                 <div class="dp-back-watermark">
@@ -1461,6 +1468,7 @@
                                 </div>
 
                                 <div class="dp-back-body">
+                                    <!-- Data Siswa -->
                                     <table class="dp-info-table">
                                         <tr>
                                             <td class="dp-lbl">Nama</td>
@@ -1475,7 +1483,7 @@
                                         <tr>
                                             <td class="dp-lbl">Tempat Tgl Lahir</td>
                                             <td class="dp-sep">:</td>
-                                        <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                            <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                         </tr>
                                         <tr>
                                             <td class="dp-lbl">NIS/NISN</td>
@@ -1489,6 +1497,10 @@
                                         </tr>
                                     </table>
 
+                                    <!-- Garis biru -->
+                                    <div class="dp-info-divider"></div>
+
+                                    <!-- Tata Tertib -->
                                     <div class="dp-rules-section">
                                         <div class="dp-rules-pill">TATA TERTIB SISWA</div>
                                         <div class="dp-rules-list">
@@ -1511,31 +1523,18 @@
                                         </div>
                                     </div>
 
-                                    <!-- Pengesahan Kepala Sekolah -->
-                                    <div class="dp-back-sign">
-                                        <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                        <div class="sign-stamp-area">
-                                        @if (!empty($stampel_url))
-                                            <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
-                                        @endif
-                                            <div style="font-weight:700;">Kepala Sekolah,</div>
-                                            <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                            <div>NIP. {{ $setting->nip ?? '-' }}</div>
-                                        </div>
-                                    </div>
-
+                                    <!-- Barcode -->
                                     <div class="dp-barcode-wrap">
                                         <svg class="barcode-svg dp-barcode-svg" data-barcode="{{ $barcodeVal }}"></svg>
                                         <span class="dp-barcode-text">{{ $barcodeVal }}</span>
                                     </div>
                                 </div>
 
-                                <!-- Footer wave with motto -->
+                                <!-- Ombak bawah + motto -->
                                 <div class="dp-back-footer-wave-wrap">
-                                    <svg class="dp-back-footer-wave" viewBox="0 0 204 22" preserveAspectRatio="none">
-                                        <path d="M0,8 C60,0 140,0 204,8 L204,22 L0,22 Z" fill="#09265e" />
-                                        <path d="M0,7 C60,-1 140,-1 204,7" fill="none" stroke="#f59e0b" stroke-width="1.8" />
-                                        <path d="M0,9 C60,1 140,1 204,9" fill="none" stroke="#38bdf8" stroke-width="1" />
+                                    <svg class="dp-back-footer-wave" viewBox="0 0 204 30" preserveAspectRatio="none" aria-hidden="true">
+                                        <path d="M0,10 C50,0 120,2 204,10 L204,30 L0,30 Z" fill="#0b3d91"/>
+                                        <path d="M0,9 C50,-1 120,1 204,9" fill="none" stroke="#f0b429" stroke-width="2.5"/>
                                     </svg>
                                     <div class="dp-footer-motto">Belajar, Berprestasi, Berakhlak Mulia</div>
                                 </div>
@@ -1563,7 +1562,7 @@
                                  onerror="this.src='{{ asset('assets/img/logo.png') }}'">
                         </div>
                         <p class="tracking-wider uppercase leading-none mt-1.5" style="font-size:8px;font-weight:600;color:var(--primary-200);">KARTU PRESENSI DIGITAL</p>
-                        <h4 class="leading-tight mt-0.5" style="font-size:11px;font-weight:800;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
+                        <h4 class="leading-tight mt-0.5" style="font-size:10px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-0.2px;">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
                         <span class="inline-block mt-1 px-2 py-0.5 rounded-md uppercase" style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);">
                             {{ $s->nama_kelas }}
                         </span>

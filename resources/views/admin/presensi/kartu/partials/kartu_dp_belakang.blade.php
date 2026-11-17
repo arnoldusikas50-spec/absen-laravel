@@ -1,18 +1,23 @@
 <?php
 // Partial sisi BELAKANG kartu siswa portrait (CR80 54×85.6mm).
+// Desain mengikuti kartu pelajar resmi: header biru "DATA PESERTA DIDIK",
+// ombak biru muda & garis emas, latar biru muda dengan watermark logo,
+// tabel data siswa, pil "TATA TERTIB SISWA" + daftar aturan, barcode, dan
+// ombak bawah dengan motto sekolah.
 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
 $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
 $barcodeVal = $s->qr_value;
 ?>
 <div class="card-dp card-dp-back">
+    <!-- Kop: judul sisi belakang -->
     <div class="dp-back-header">
         <h4 class="dp-back-title">DATA PESERTA DIDIK</h4>
-        <!-- Accent ombak di bawah header back -->
-        <svg class="dp-header-accent" viewBox="0 0 204 6" preserveAspectRatio="none">
-            <path d="M0,0 L204,0 L204,2 Q150,6 102,3 Q50,0 0,3 Z" fill="#f59e0b" />
-            <path d="M0,3 Q50,0 102,3 Q150,6 204,2 L204,4 Q150,7 102,4 Q50,1 0,4 Z" fill="#38bdf8" />
-        </svg>
     </div>
+    <!-- Dekorasi: ombak biru muda + garis emas, menjorok tipis di bawah header -->
+    <svg class="dp-wave-top dp-wave-top-back" viewBox="0 0 204 14" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0,0 L204,0 L204,2 C160,11 108,3 64,8 C38,11 16,12 0,13.5 Z" fill="#8ecbf5"/>
+        <path d="M0,0 L204,0 L204,1 C156,8 100,1.5 56,6 C30,9 12,9.5 0,11" fill="none" stroke="#f0b429" stroke-width="2.5"/>
+    </svg>
 
     <!-- Watermark -->
     <div class="dp-back-watermark">
@@ -20,6 +25,7 @@ $barcodeVal = $s->qr_value;
     </div>
 
     <div class="dp-back-body">
+        <!-- Data Siswa -->
         <table class="dp-info-table">
             <tr>
                 <td class="dp-lbl">Nama</td>
@@ -47,9 +53,11 @@ $barcodeVal = $s->qr_value;
                 <td class="dp-val">{{ $s->nama_kelas }}</td>
             </tr>
         </table>
-        <!-- Divider -->
-        <div style="height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:4px 0 3px;"></div>
 
+        <!-- Garis biru -->
+        <div class="dp-info-divider"></div>
+
+        <!-- Tata Tertib -->
         <div class="dp-rules-section">
             <div class="dp-rules-pill">TATA TERTIB SISWA</div>
             <div class="dp-rules-list">
@@ -72,31 +80,18 @@ $barcodeVal = $s->qr_value;
             </div>
         </div>
 
-        <!-- Pengesahan Kepala Sekolah -->
-        <div class="dp-back-sign">
-            <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-            <div class="sign-stamp-area">
-            @if (!empty($stampel_url))
-                <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
-            @endif
-                <div style="font-weight:700;">Kepala Sekolah,</div>
-                <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                <div>NIP. {{ $setting->nip ?? '-' }}</div>
-            </div>
-        </div>
-
+        <!-- Barcode -->
         <div class="dp-barcode-wrap">
             <svg class="barcode-svg dp-barcode-svg" data-barcode="{{ $barcodeVal }}"></svg>
             <span class="dp-barcode-text">{{ $barcodeVal }}</span>
         </div>
     </div>
 
-    <!-- Footer wave with motto -->
+    <!-- Ombak bawah + motto -->
     <div class="dp-back-footer-wave-wrap">
-        <svg class="dp-back-footer-wave" viewBox="0 0 204 22" preserveAspectRatio="none">
-            <path d="M0,8 C60,0 140,0 204,8 L204,22 L0,22 Z" fill="#09265e" />
-            <path d="M0,7 C60,-1 140,-1 204,7" fill="none" stroke="#f59e0b" stroke-width="1.8" />
-            <path d="M0,9 C60,1 140,1 204,9" fill="none" stroke="#38bdf8" stroke-width="1" />
+        <svg class="dp-back-footer-wave" viewBox="0 0 204 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,10 C50,0 120,2 204,10 L204,30 L0,30 Z" fill="#0b3d91"/>
+            <path d="M0,9 C50,-1 120,1 204,9" fill="none" stroke="#f0b429" stroke-width="2.5"/>
         </svg>
         <div class="dp-footer-motto">Belajar, Berprestasi, Berakhlak Mulia</div>
     </div>

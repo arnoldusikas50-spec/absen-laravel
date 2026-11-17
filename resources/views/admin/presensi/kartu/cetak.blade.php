@@ -679,8 +679,7 @@
             margin-left: auto;
         }
         .sign-stamp-area > div,
-        .dl-back-sign > div:first-child,
-        .dp-back-sign > div:first-child {
+        .dl-back-sign > div:first-child {
             position: relative;
             z-index: 2;
         }
@@ -740,37 +739,49 @@
         }
 
         .card-dp-front {
-            background: #ffffff;
+            background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
+        }
+        /* Latar: garis lengkung halus */
+        .dp-streaks {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* Dekorasi: ombak biru muda + garis emas di bawah header */
+        .dp-wave-top {
+            position: absolute;
+            top: 64px;
+            left: 0;
+            width: 100%;
+            height: 36px;
+            z-index: 1;
+            pointer-events: none;
+        }
+        /* Sisi belakang: ombak pendek menempel di bawah header (46px),
+           menjorok di belakang header agar tidak menabrak tabel data */
+        .dp-wave-top-back {
+            top: 40px;
+            height: 13px;
         }
         .dp-header {
-            height: 48px;
-            background: linear-gradient(135deg, #09265e 0%, #103a8a 55%, #1e56c8 100%);
-            padding: 6px 8px 4px 8px;
+            height: 68px;
+            background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
+            padding: 7px 10px 6px 10px;
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 9px;
             position: relative;
             z-index: 2;
         }
-        .dp-header-accent {
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 100%;
-            height: 6px;
-            pointer-events: none;
-            z-index: 3;
-        }
         .dp-logo-wrap {
-            width: 30px;
-            height: 30px;
-            background: #ffffff;
-            border-radius: 50%;
-            padding: 2px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
             flex-shrink: 0;
         }
         .dp-logo-wrap img {
@@ -783,22 +794,19 @@
             min-width: 0;
         }
         .dp-header-title {
-            font-size: 6.8pt;
+            font-size: 11px;
             font-weight: 900;
             color: #ffffff;
             text-transform: uppercase;
             letter-spacing: 0.2px;
-            line-height: 1.15;
+            line-height: 1.12;
             margin: 0;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-        .dp-header-sub {
-            font-size: 4.6pt;
-            font-weight: 700;
-            color: #fbbf24;
-            margin: 1.5px 0 0 0;
-            letter-spacing: 0.2px;
-            text-transform: uppercase;
+            text-shadow: 0 1px 3px rgba(4, 24, 62, 0.45);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
         }
 
         .dp-photo-wrap {
@@ -809,13 +817,13 @@
             margin-top: 8px;
         }
         .dp-photo-box {
-            width: 86px;
-            height: 108px;
-            background: #dc2626;
-            border-radius: 6px;
+            width: 82px;
+            height: 98px;
+            background: #e23434;
+            border-radius: 9px;
             overflow: hidden;
-            border: 2.5px solid #ffffff;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+            border: 3px solid #ffffff;
+            box-shadow: 0 3px 10px rgba(9,38,94,0.28);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -829,51 +837,54 @@
         .dp-name-badge {
             position: relative;
             z-index: 2;
-            margin: 6px 12px 0 12px;
-            background: linear-gradient(90deg, #09265e 0%, #1e56c8 100%);
+            margin: 9px 14px 0 14px;
+            background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
             color: #ffffff;
-            font-size: 7.5pt;
+            font-size: 11px;
             font-weight: 900;
             text-transform: uppercase;
-            padding: 3px 8px;
-            border-radius: 9999px;
+            padding: 5px 10px;
+            border-radius: 8px;
             text-align: center;
-            white-space: nowrap;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            text-overflow: ellipsis;
-            box-shadow: 0 2px 6px rgba(9,38,94,0.25);
-            letter-spacing: 0.3px;
+            box-shadow: 0 2px 7px rgba(15,53,147,0.35);
+            letter-spacing: 0.1px;
+            line-height: 1.25;
         }
 
         .dp-meta-table {
             position: relative;
             z-index: 2;
-            margin: 5px auto 0 auto;
-            width: 152px;
+            margin: 6px auto 0 auto;
+            width: 168px;
             border-collapse: collapse;
-            font-size: 6.5pt;
-            line-height: 1.35;
+            table-layout: fixed;
+            font-size: 10px;
+            line-height: 1.3;
         }
         .dp-meta-table td {
-            padding: 0.5px 0;
+            padding: 1px 0;
             vertical-align: middle;
         }
         .dp-meta-table .dp-meta-lbl {
-            width: 48px;
+            width: 54px;
             font-weight: 800;
-            color: #475569;
-            text-transform: uppercase;
-            font-size: 5.8pt;
+            color: #123a75;
         }
         .dp-meta-table .dp-meta-sep {
-            width: 8px;
+            width: 11px;
             font-weight: 800;
-            color: #94a3b8;
+            color: #123a75;
             text-align: center;
         }
         .dp-meta-table .dp-meta-val {
-            font-weight: 900;
-            color: #09265e;
+            padding-left: 2px;
+            font-weight: 800;
+            color: #123a75;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -882,25 +893,25 @@
         .dp-qr-section {
             position: relative;
             z-index: 2;
-            margin: auto 8px 8px 10px;
+            margin: auto 12px 12px 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         .dp-qr-card {
             background: #ffffff;
             border: 1.5px solid #bfdbfe;
-            border-radius: 8px;
-            padding: 3px;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.12);
+            border-radius: 10px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.16);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
         .dp-qr-box {
-            width: 60px;
-            height: 60px;
+            width: 56px;
+            height: 56px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -911,39 +922,39 @@
             display: block;
         }
         .dp-qr-divider {
-            width: 2px;
-            height: 46px;
-            background: #09265e;
-            border-radius: 1px;
+            width: 2.5px;
+            height: 44px;
+            background: #1e56c8;
+            border-radius: 2px;
             flex-shrink: 0;
         }
         .dp-qr-desc {
-            font-size: 6.2pt;
+            font-size: 9.5px;
             font-weight: 900;
-            color: #09265e;
+            color: #1e56c8;
             text-transform: uppercase;
-            line-height: 1.25;
+            line-height: 1.3;
             letter-spacing: 0.3px;
         }
-        .dp-front-wave-bottom {
+        .dp-wave-bottom {
             position: absolute;
             bottom: 0;
             right: 0;
-            width: 86px;
-            height: 38px;
+            width: 120px;
+            height: 42px;
             pointer-events: none;
             z-index: 1;
         }
 
         /* BACK: Portrait */
         .card-dp-back {
-            background: #ffffff;
+            background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
             display: flex;
             flex-direction: column;
         }
         .dp-back-header {
-            height: 32px;
-            background: linear-gradient(135deg, #09265e 0%, #103a8a 55%, #1e56c8 100%);
+            height: 46px;
+            background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -951,32 +962,30 @@
             z-index: 2;
         }
         .dp-back-title {
-            font-size: 7.5pt;
+            font-size: 13.5px;
             font-weight: 900;
             color: #ffffff;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.4px;
             margin: 0;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 3px rgba(4, 24, 62, 0.45);
         }
-
         .dp-back-body {
             position: relative;
             z-index: 2;
             flex: 1;
-            padding: 6px 10px 0 10px;
+            padding: 6px 12px 0 12px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
         }
         .dp-back-watermark {
             position: absolute;
-            top: 42%;
+            top: 52%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 110px;
-            height: 110px;
-            opacity: 0.04;
+            width: 130px;
+            height: 130px;
+            opacity: 0.07;
             pointer-events: none;
             z-index: 1;
         }
@@ -991,100 +1000,88 @@
             z-index: 2;
             width: 100%;
             border-collapse: collapse;
-            font-size: 6.2pt;
-            line-height: 1.35;
+            table-layout: fixed;
+            font-size: 9.5px;
+            line-height: 1.3;
         }
         .dp-info-table td {
-            padding: 1.2px 0;
+            padding: 2px 0;
             vertical-align: top;
         }
         .dp-info-table .dp-lbl {
-            width: 56px;
-            font-weight: 700;
-            color: #475569;
-            text-transform: uppercase;
-            font-size: 5.4pt;
+            width: 76px;
+            font-size: 9px;
+            font-weight: 800;
+            color: #123a75;
             white-space: nowrap;
         }
         .dp-info-table .dp-sep {
-            width: 6px;
-            font-weight: 700;
-            color: #94a3b8;
+            width: 11px;
+            font-weight: 800;
+            color: #123a75;
+            text-align: center;
         }
         .dp-info-table .dp-val {
+            padding-left: 2px;
             font-weight: 800;
-            color: #0f172a;
+            color: #123a75;
             line-height: 1.3;
+            word-break: break-word;
+        }
+
+        /* Garis biru di bawah tabel data */
+        .dp-info-divider {
+            position: relative;
+            z-index: 2;
+            height: 2px;
+            background: #1e56c8;
+            border-radius: 1px;
+            margin: 5px 0 0 0;
         }
 
         .dp-rules-section {
             position: relative;
             z-index: 2;
-            margin-top: 3px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 4px 6px;
+            margin-top: 6px;
             text-align: center;
         }
         .dp-rules-pill {
-            background: #09265e;
+            background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
             color: #ffffff;
-            font-size: 5.4pt;
+            font-size: 9px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            padding: 1.5px 8px;
+            padding: 3px 14px;
             border-radius: 9999px;
             display: inline-block;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
+            box-shadow: 0 2px 6px rgba(15,53,147,0.3);
         }
         .dp-rules-list {
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 1.5px;
+            gap: 2px;
             text-align: left;
         }
         .dp-rule-item {
             display: flex;
             align-items: flex-start;
-            font-size: 4.6pt;
-            color: #334155;
+            font-size: 8.5px;
+            color: #16325c;
             line-height: 1.35;
             font-weight: 600;
         }
         .dp-rule-num {
-            width: 10px;
+            width: 12px;
             flex-shrink: 0;
             font-weight: 800;
-            color: #09265e;
+            color: #123a75;
         }
         .dp-rule-text {
             flex: 1;
-        }
-
-        .dp-back-sign {
-            position: relative;
-            z-index: 2;
-            text-align: right;
-            font-size: 4.6pt;
-            color: #475569;
-            line-height: 1.25;
-            margin-top: 3px;
-            padding-right: 2px;
-        }
-        .dp-back-sign .sign-stamp {
-            width: 14mm;
-            height: 14mm;
-        }
-        .dp-sign-name {
-            font-weight: 800;
-            color: #0f172a;
-            text-decoration: underline;
-            font-size: 5pt;
-            margin-top: 7px;
         }
 
         .dp-barcode-wrap {
@@ -1094,17 +1091,21 @@
             flex-direction: column;
             align-items: center;
             gap: 1px;
-            margin-top: 3px;
+            margin-top: auto;
+            padding-top: 5px;
         }
         .dp-barcode-svg {
-            width: 110px;
-            height: 16px;
+            width: 150px;
+            height: 18px;
+        }
+        .dp-barcode-svg rect {
+            fill: #123a75;
         }
         .dp-barcode-text {
             font-family: monospace;
-            font-size: 5pt;
+            font-size: 6.5px;
             font-weight: 800;
-            color: #09265e;
+            color: #123a75;
             margin-top: -1px;
         }
 
@@ -1112,8 +1113,9 @@
             position: relative;
             z-index: 2;
             width: 100%;
-            height: 22px;
-            margin-top: auto;
+            height: 28px;
+            margin-top: 5px;
+            flex-shrink: 0;
         }
         .dp-back-footer-wave {
             width: 100%;
@@ -1122,12 +1124,13 @@
         }
         .dp-footer-motto {
             position: absolute;
-            bottom: 3px;
+            bottom: 5px;
             left: 0;
             width: 100%;
-            font-size: 5.2pt;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9.5px;
             font-style: italic;
-            font-weight: 800;
+            font-weight: 700;
             color: #ffffff;
             text-align: center;
             letter-spacing: 0.2px;
@@ -1212,39 +1215,42 @@
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
-            .dp-header { height: 12.5mm !important; padding: 1.5mm 2mm 0 2mm !important; }
-            .dp-logo-wrap { width: 7.5mm !important; height: 7.5mm !important; }
-            .dp-header-title { font-size: 6.2pt !important; }
-            .dp-header-sub { font-size: 4.2pt !important; }
-            .dp-photo-wrap { margin-top: 1.5mm !important; }
-            .dp-photo-box { width: 22.5mm !important; height: 28.5mm !important; }
-            .dp-name-badge { font-size: 6.5pt !important; margin: 1.5mm 3mm 0 3mm !important; padding: 0.6mm 2mm !important; }
-            .dp-meta-table { font-size: 5.2pt !important; margin: 1mm auto 0 auto !important; width: 38mm !important; }
-            .dp-meta-table .dp-meta-lbl { width: 12mm !important; font-size: 4.8pt !important; }
-            .dp-qr-section { margin: auto 2.5mm 2mm 2.5mm !important; gap: 2.5mm !important; }
-            .dp-qr-card { padding: 0.8mm !important; }
-            .dp-qr-box { width: 16.5mm !important; height: 16.5mm !important; }
-            .dp-qr-divider { height: 13.5mm !important; width: 0.5mm !important; }
-            .dp-qr-desc { font-size: 4.8pt !important; }
+            .dp-header { height: 18mm !important; padding: 1.8mm 2.6mm 1.5mm 2.6mm !important; }
+            .dp-wave-top { top: 17mm !important; height: 9.5mm !important; }
+            .dp-wave-top-back { top: 10.2mm !important; height: 3.8mm !important; }
+            .dp-logo-wrap { width: 10mm !important; height: 10mm !important; }
+            .dp-header-title { font-size: 8pt !important; line-height: 1.12 !important; }
+            .dp-photo-wrap { margin-top: 2mm !important; }
+            .dp-photo-box { width: 22mm !important; height: 26mm !important; border-radius: 2.4mm !important; border-width: 0.8mm !important; }
+            .dp-name-badge { font-size: 7.8pt !important; margin: 2mm 3.2mm 0 3.2mm !important; padding: 1.2mm 2.4mm !important; border-radius: 1.8mm !important; line-height: 1.2 !important; -webkit-line-clamp: 2 !important; }
+            .dp-meta-table { font-size: 7.5pt !important; margin: 1.6mm auto 0 auto !important; width: 44.5mm !important; }
+            .dp-meta-table .dp-meta-lbl { width: 14.3mm !important; }
+            .dp-meta-table .dp-meta-sep { width: 2.9mm !important; }
+            .dp-qr-section { margin: auto 3.2mm 3.2mm 3.2mm !important; gap: 2.6mm !important; }
+            .dp-qr-card { padding: 1mm !important; border-radius: 2.6mm !important; }
+            .dp-qr-box { width: 14.8mm !important; height: 14.8mm !important; }
+            .dp-qr-divider { height: 11.6mm !important; width: 0.66mm !important; }
+            .dp-qr-desc { font-size: 7pt !important; }
+            .dp-wave-bottom { width: 31.7mm !important; height: 11.1mm !important; }
 
-            .dp-back-header { height: 8.5mm !important; }
-            .dp-back-title { font-size: 6.8pt !important; }
-            .dp-back-body { padding: 1.5mm 2.5mm 0 2.5mm !important; }
-            .dp-info-table { font-size: 5pt !important; line-height: 1.3 !important; }
-            .dp-info-table td { padding: 0.6px 0 !important; }
-            .dp-info-table .dp-lbl { width: 15mm !important; font-size: 4.4pt !important; }
-            .dp-rules-section { padding: 0.8mm 1.5mm !important; margin-top: 0.8mm !important; border-radius: 1.5mm !important; }
-            .dp-rules-pill { font-size: 4.2pt !important; padding: 0.3mm 2mm !important; border-radius: 2mm !important; margin-bottom: 0.6mm !important; }
+            .dp-back-header { height: 12.2mm !important; }
+            .dp-back-title { font-size: 10pt !important; }
+            .dp-back-body { padding: 1.6mm 3.2mm 0 3.2mm !important; }
+            .dp-info-table { font-size: 7.1pt !important; line-height: 1.3 !important; }
+            .dp-info-table td { padding: 0.5mm 0 !important; }
+            .dp-info-table .dp-lbl { width: 20mm !important; font-size: 6.7pt !important; }
+            .dp-info-table .dp-sep { width: 2.9mm !important; }
+            .dp-info-divider { height: 0.55mm !important; margin-top: 1.3mm !important; }
+            .dp-rules-section { margin-top: 1.6mm !important; }
+            .dp-rules-pill { font-size: 6.7pt !important; padding: 0.8mm 3.7mm !important; margin-bottom: 1mm !important; }
             .dp-rules-list { gap: 0.5mm !important; }
-            .dp-rule-item { font-size: 3.8pt !important; line-height: 1.25 !important; }
-            .dp-rule-num { width: 2.6mm !important; font-size: 3.8pt !important; }
-            .dp-back-sign { font-size: 4pt !important; line-height: 1.2 !important; margin-top: 0.8mm !important; padding-right: 1mm !important; }
-            .dp-sign-name { font-size: 4.4pt !important; margin-top: 1.6mm !important; }
-            .dp-barcode-wrap { margin-top: 0.8mm !important; }
-            .dp-barcode-svg { width: 28mm !important; height: 3.8mm !important; }
-            .dp-barcode-text { font-size: 4pt !important; }
-            .dp-back-footer-wave-wrap { height: 5.4mm !important; }
-            .dp-footer-motto { font-size: 4.2pt !important; bottom: 0.8mm !important; }
+            .dp-rule-item { font-size: 6.2pt !important; line-height: 1.3 !important; }
+            .dp-rule-num { width: 3.2mm !important; font-size: 6.2pt !important; }
+            .dp-barcode-wrap { padding-top: 1.3mm !important; }
+            .dp-barcode-svg { width: 39.7mm !important; height: 4.8mm !important; }
+            .dp-barcode-text { font-size: 4.9pt !important; }
+            .dp-back-footer-wave-wrap { height: 7.4mm !important; margin-top: 1.3mm !important; }
+            .dp-footer-motto { font-size: 7pt !important; bottom: 1.3mm !important; }
 
             /* Bolak-balik grid: satu lembar A4 per sisi, dipisah page break */
             .bolakbalik-stack {

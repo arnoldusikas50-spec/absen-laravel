@@ -399,6 +399,7 @@ class DapodikSyncService
                 $statusNikah = trim($item['status_perkawinan'] ?? $item['status_nikah'] ?? '');
                 $tmt = trim($item['tmt_pengangkatan'] ?? $item['tmt'] ?? '');
                 $npwp = trim($item['npwp'] ?? '');
+                $pendidikan = trim($item['pendidikan'] ?? $item['pendidikan_terakhir'] ?? $item['pendidikan_terakhir_id_str'] ?? '');
 
                 $baseUsername = ! empty($nip) ? $nip : (! empty($nuptk) ? $nuptk : strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nama)));
                 if (empty($baseUsername)) {
@@ -507,6 +508,9 @@ class DapodikSyncService
                 }
                 if (! empty($npwp)) {
                     $data['npwp'] = $npwp;
+                }
+                if (! empty($pendidikan)) {
+                    $data['pendidikan'] = $pendidikan;
                 }
 
                 if ($existing) {

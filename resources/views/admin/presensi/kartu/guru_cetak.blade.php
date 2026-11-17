@@ -198,10 +198,10 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 5mm;
         }
-        /* Grid Cards: 3 Columns on A4 for Portrait */
+        /* Grid Cards: 1 column for Portrait (depan + belakang berpasangan) */
         .card-grid-portrait {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 1fr;
             gap: 5mm;
             justify-items: center;
         }
@@ -211,6 +211,16 @@
             display: flex;
             justify-content: center;
             padding: 20px 0;
+        }
+
+        /* Duplex pair: kartu depan + belakang berdampingan */
+        .guru-duplex-pair {
+            display: flex;
+            gap: 4mm;
+            align-items: flex-start;
+            justify-content: center;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         /* Individual Card Box Landscape */
@@ -243,118 +253,268 @@
             break-inside: avoid;
         }
 
-        .portrait-header {
-            background: linear-gradient(180deg, #6b21a8 0%, #581c87 100%);
-            color: #ffffff;
-            padding: 2.5mm 3mm 2mm 3mm;
+        /* ═══════════════════════════════════════════════════════════════════
+           KARTU GURU PORTRAIT — CSS CETAK (58 × 92 mm)
+           Class-class ini dipakai oleh partial kartu_guru_portrait &
+           kartu_guru_belakang. Ukuran dalam mm/pt untuk hasil cetak presisi.
+        ═══════════════════════════════════════════════════════════════════ */
+
+        /* Dekorasi: lingkaran biru kiri atas & ombak biru bawah */
+        .gdeco-circle {
+            position: absolute;
+            top: -15mm;
+            left: -17mm;
+            width: 46mm;
+            height: 46mm;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .gdeco-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10mm;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Kop: logo + dinas + sekolah + alamat */
+        .gkop-header {
+            position: relative;
+            z-index: 1;
             text-align: center;
-            border-bottom: 2px solid #a855f7;
             flex-shrink: 0;
         }
-        .portrait-logo {
-            width: 8mm;
-            height: 8mm;
-            background: #ffffff;
-            border-radius: 5px;
-            padding: 1.5px;
+        .gkop-logo {
+            width: 10.5mm;
+            height: 10.5mm;
+            margin: 0 auto 0.8mm auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1.5mm auto;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
-        .portrait-logo img {
+        .gkop-logo img {
             max-width: 100%;
             max-height: 100%;
-            object-contain: contain;
+            object-fit: contain;
         }
-        .portrait-sub {
-            font-size: 6pt;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            color: #e9d5ff;
-            text-transform: uppercase;
-            margin: 0;
-        }
-        .portrait-school {
-            font-size: 7.5pt;
+        .gkop-dinas {
+            font-size: 6.4pt;
             font-weight: 800;
-            color: #ffffff;
-            margin: 0.5mm 0;
+            letter-spacing: 0.4px;
+            color: #16325c;
+            margin: 0;
+            line-height: 1.1;
+        }
+        .gkop-school {
+            font-size: 7.2pt;
+            font-weight: 900;
+            color: #16325c;
+            margin: 0.4mm 0 0 0;
             line-height: 1.15;
+            max-width: 52mm;
             white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
+            text-overflow: clip;
+            letter-spacing: -0.3px;
         }
-        .portrait-badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.22);
-            border: 1px solid rgba(255,255,255,0.4);
-            color: #ffffff;
-            font-size: 6.5pt;
-            font-weight: 800;
-            padding: 0.5mm 2.5mm;
-            border-radius: 3px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .gkop-address {
+            font-size: 5pt;
+            font-weight: 700;
+            color: #1f3c66;
+            margin: 0.6mm 0 0 0;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            max-width: 52mm;
+            letter-spacing: -0.2px;
         }
-        .portrait-body {
+
+        /* Pil judul kartu dengan garis di kedua sisi */
+        .gpill-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 1.5mm;
+            width: 100%;
+            margin: 1.4mm 0 0 0;
+        }
+        .gpill-line {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-evenly;
-            padding: 2mm 3mm;
-            background: #ffffff;
+            height: 0.7mm;
+            background: #1e56c8;
+            border-radius: 1mm;
         }
-        .portrait-qr {
-            width: 38mm;
-            height: 38mm;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            padding: 1.5mm;
-            background: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .gpill {
+            background: #1e56c8;
+            color: #ffffff;
+            font-size: 7.8pt;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            padding: 1mm 3.2mm;
+            border-radius: 1.8mm;
+            white-space: nowrap;
+            line-height: 1;
+            flex-shrink: 0;
         }
-        .portrait-qr canvas, .portrait-qr img {
-            max-width: 100% !important;
-            max-height: 100% !important;
+
+        /* Sisi depan: latar & layout */
+        .id-card-guru-front {
+            background: linear-gradient(165deg, #f5fbff 0%, #e8f2fc 55%, #d8eafa 100%);
+            padding: 2.5mm 3mm 8mm 3mm;
+            align-items: center;
+        }
+
+        /* Sisi depan: foto pas foto berbingkai biru */
+        .gfront-photo {
+            position: relative;
+            z-index: 1;
+            width: 25mm;
+            height: 30mm;
+            margin: 2mm auto 0 auto;
+            background: #d92b2b;
+            border: 0.8mm solid #2f7dd1;
+            border-radius: 2.2mm;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .gfront-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: block;
-            margin: 0 auto;
         }
-        .portrait-name {
-            font-size: 8pt;
-            font-weight: 800;
-            color: #0f172a;
+        .gfront-identity {
+            position: relative;
+            z-index: 1;
             text-align: center;
+            margin-top: 2mm;
+            width: 100%;
+        }
+        .gfront-name {
+            font-size: 9pt;
+            font-weight: 900;
+            color: #16325c;
             line-height: 1.15;
             margin: 0;
-            max-width: 100%;
+            text-transform: uppercase;
+            word-break: break-word;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .portrait-meta {
-            font-size: 6.5pt;
-            color: #475569;
-            text-align: center;
-            margin: 0.5mm 0 0 0;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        .gfront-name-line {
+            height: 0.6mm;
+            background: #16325c;
+            border-radius: 1mm;
+            width: 42mm;
+            margin: 1.1mm auto 0 auto;
         }
-        .portrait-footer {
-            background: #faf5ff;
-            border-top: 1px solid #f3e8ff;
-            padding: 1.5mm 3mm;
+        .gfront-nip {
+            font-size: 7pt;
+            font-weight: 800;
+            color: #16325c;
+            margin: 1mm 0 0 0;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Sisi belakang: latar & layout */
+        .id-card-guru-back {
+            background: linear-gradient(165deg, #f5fbff 0%, #e8f2fc 55%, #d8eafa 100%);
+            padding: 1.8mm 3.5mm 10mm 3.5mm;
+        }
+
+        /* Sisi belakang: garis ganda biru di bawah kop */
+        .gback-divider {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            margin: 1.2mm 0 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5mm;
+        }
+        .gback-divider span {
+            display: block;
+            height: 0.55mm;
+            background: #1e56c8;
+            border-radius: 1mm;
+        }
+        .gback-table {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 6.8pt;
+            line-height: 1.3;
+            margin-top: 1.2mm;
+        }
+        .gback-table td {
+            padding: 0.4mm 0;
+            vertical-align: top;
+        }
+        .gback-table .lbl {
+            width: 16mm;
+            font-weight: 800;
+            color: #16325c;
+            white-space: nowrap;
+        }
+        .gback-table .sep {
+            width: 2.5mm;
             text-align: center;
-            font-size: 5.5pt;
+            font-weight: 800;
+            color: #16325c;
+        }
+        .gback-table .val {
+            padding-left: 0.6mm;
+            font-weight: 800;
+            color: #16325c;
+            word-break: break-word;
+        }
+        .gback-qr {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            margin-top: 1.2mm;
+        }
+        .gback-qr-box {
+            width: 22mm;
+            height: 22mm;
+            background: #ffffff;
+            border: 0.7mm solid #2f7dd1;
+            border-radius: 2mm;
+            padding: 0.8mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gback-qr-box canvas,
+        .gback-qr-box img {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            display: block;
+            margin: 0 auto;
+        }
+        .gback-motto {
+            position: relative;
+            z-index: 1;
+            font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+            font-style: italic;
             font-weight: 700;
-            color: var(--accent-600);
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            flex-shrink: 0;
+            font-size: 6.2pt;
+            color: #1e56c8;
+            text-align: center;
+            line-height: 1.25;
+            margin: 1mm 0 0 0;
         }
 
         /* Landscape Card Layout */
@@ -627,11 +787,29 @@
             .card-grid-portrait {
                 gap: 4mm !important;
             }
+            .guru-duplex-pair {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
             .id-card {
                 border: 0.5px dashed #64748b !important;
             }
             .id-card-portrait {
                 border: 0.5px dashed #64748b !important;
+            }
+            /* Portrait partials: pastikan dekorasi & teks tercetak */
+            .id-card-guru-front,
+            .id-card-guru-back {
+                border: 0.5px dashed #64748b !important;
+            }
+            .gdeco-circle {
+                top: -15mm !important;
+                left: -17mm !important;
+                width: 46mm !important;
+                height: 46mm !important;
+            }
+            .gdeco-wave {
+                height: 10mm !important;
             }
 
             /* Mode KTP: satu kartu penuh per halaman CR80 */
@@ -777,34 +955,12 @@
             </div>
         @else
         <?php if ($desain === 'portrait'): ?>
-            <!-- Mode Cetak Portrait (3 Kolom per Lembar A4) -->
+            <!-- Mode Cetak Portrait — depan + belakang berdampingan per pasang -->
             <div class="{{ $is_single ? 'single-mode' : 'card-grid-portrait' }}">
                 <?php foreach ($guru_list as $g): ?>
-                    <div class="id-card-portrait">
-                        <!-- Kop Kartu -->
-                        <div class="portrait-header">
-                            <div class="portrait-logo">
-                                <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                            </div>
-                            <p class="portrait-sub">KARTU PRESENSI DIGITAL</p>
-                            <h4 class="portrait-school">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
-                            <span class="portrait-badge">GURU / GTK</span>
-                        </div>
-
-                        <!-- Body & Large QR -->
-                        <div class="portrait-body">
-                            <div class="portrait-qr qr-box" data-code="{{ $g->qr_value }}" data-size="130"></div>
-                            <div>
-                                <h5 class="portrait-name" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
-                                <p class="portrait-meta">NIP: {{ $g->nip ?: ($g->kode_guru ?: '-') }}</p>
-                                <p class="portrait-meta" style="color:var(--accent-600);font-weight:700;">{{ $g->jabatan }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Footer -->
-                        <div class="portrait-footer">
-                            SCAN DI KIOSK SCANNER PRESENSI
-                        </div>
+                    <div class="guru-duplex-pair">
+                        @include('admin.presensi.kartu.partials.kartu_guru_portrait')
+                        @include('admin.presensi.kartu.partials.kartu_guru_belakang')
                     </div>
                 <?php endforeach; ?>
             </div>

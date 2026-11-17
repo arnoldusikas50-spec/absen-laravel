@@ -302,4 +302,73 @@ class DatasiswaRfidTest extends TestCase
         $response->assertJson(['status' => false]);
         $this->assertStringContainsString('Siswa', (string) $response->json('message'));
     }
+
+    public function test_dataguru_page_renders_successfully(): void
+    {
+        $this->loginAsAdmin();
+
+        DB::table('master_guru')->insert([
+            'id_guru' => 1,
+            'nip' => '198001012010011001',
+            'nama_guru' => 'Pak Guru Budi',
+            'status_aktif' => 'Aktif',
+            'nomor_rfid' => '04A1B2C3',
+        ]);
+
+        $response = $this->get('/dataguru');
+        $response->assertStatus(200);
+        $response->assertSee('Scan NFC Guru');
+        $response->assertSee('Pak Guru Budi');
+        $response->assertSee('04A1B2C3');
+    }
+
+    public function test_datasiswa_page_renders_successfully(): void
+    {
+        $this->loginAsAdmin();
+        $this->createSiswa(1, 'Agnes Obe', '04A1B2C3');
+
+        $response = $this->get('/datasiswa');
+        $response->assertStatus(200);
+        $response->assertSee('Scan NFC Siswa');
+    }
+
+    public function test_kiosk_rfid_page_renders_successfully(): void
+    {
+        $this->loginAsAdmin();
+
+        $response = $this->get('/kiosk');
+        $response->assertStatus(200);
+        $response->assertSee('Tempelkan Kartu');
+        $response->assertSee('RFID');
+
+        $altResponse = $this->get('/scanner/rfid');
+        $altResponse->assertStatus(200);
+        $altResponse->assertSee('Tempelkan Kartu');
+    }
+
+    public function test_scanner_automatically_renders_mobile_view_on_android_and_desktop_view_on_pc(): void
+    {
+        $this->loginAsAdmin();
+
+        // 1. Desktop request
+        $desktopResponse = $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ])->get('/scanner');
+        $desktopResponse->assertStatus(200);
+        $desktopResponse->assertSee('Scanner QR Siswa Desktop');
+
+        // 2. Android Mobile request
+        $mobileResponse = $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        ])->get('/scanner');
+        $mobileResponse->assertStatus(200);
+        $mobileResponse->assertSee('Scan QR Presensi Siswa');
+
+        // 3. Override param ?view=mobile on desktop
+        $forcedMobile = $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ])->get('/scanner?view=mobile');
+        $forcedMobile->assertStatus(200);
+        $forcedMobile->assertSee('Scan QR Presensi Siswa');
+    }
 }

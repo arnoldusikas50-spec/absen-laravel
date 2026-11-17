@@ -72,7 +72,7 @@ class KartuGuruController extends BaseController
         if ($catatan === '') {
             try {
                 $builder = $db->table('master_guru')
-                    ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username')
+                    ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username', 'tempat_lahir', 'tgl_lahir', 'pendidikan')
                     ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
 
                 if ($idGuru > 0) {
@@ -171,7 +171,7 @@ class KartuGuruController extends BaseController
 
         try {
             $builder = $db->table('master_guru')
-                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username')
+                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username', 'tempat_lahir', 'tgl_lahir', 'pendidikan')
                 ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
 
             if ($idGuru > 0) {

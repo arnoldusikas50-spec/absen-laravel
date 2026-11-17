@@ -32,6 +32,287 @@
         border: 1px solid rgba(255, 255, 255, 0.4) !important;
         color: #ffffff !important;
     }
+
+    /* Duplex pair: kartu depan + belakang berdampingan di preview */
+    .guru-duplex-pair {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       KARTU GURU PORTRAIT — Base class (dipakai depan & belakang)
+    ═══════════════════════════════════════════════════════════════════ */
+    .id-card-portrait {
+        width: 240px;
+        height: 380px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: linear-gradient(165deg, #f5fbff 0%, #e8f2fc 55%, #d8eafa 100%);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.35);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       KARTU GURU BELAKANG (preview)
+    ═══════════════════════════════════════════════════════════════════ */
+    .id-card-guru-back {
+        padding: 8px 14px 40px 14px;
+    }
+    /* Dekorasi bersama dua sisi: lingkaran biru kiri atas & ombak bawah */
+    .gdeco-circle {
+        position: absolute;
+        top: -62px;
+        left: -70px;
+        width: 190px;
+        height: 190px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    .gdeco-wave {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 34px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    /* Kop bersama dua sisi: logo + dinas + sekolah + alamat */
+    .gkop-header {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .gkop-logo {
+        width: 46px;
+        height: 46px;
+        margin: 0 auto 3px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .gkop-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .gkop-dinas {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        color: #16325c;
+        margin: 0;
+        line-height: 1.1;
+    }
+    .gkop-school {
+        font-size: 10.5px;
+        font-weight: 900;
+        color: #16325c;
+        margin: 2px 0 0 0;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
+        width: 100%;
+        display: block;
+        letter-spacing: -0.3px;
+    }
+    .gkop-address {
+        font-size: 8px;
+        font-weight: 700;
+        color: #1f3c66;
+        margin: 3px 0 0 0;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
+        width: 100%;
+        display: block;
+        letter-spacing: -0.2px;
+    }
+    /* Pil judul kartu dengan garis di kedua sisi */
+    .gpill-row {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        margin-top: 6px;
+    }
+    .gpill-line {
+        flex: 1;
+        height: 3px;
+        background: #1e56c8;
+        border-radius: 3px;
+    }
+    .gpill {
+        background: #1e56c8;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        padding: 4px 13px;
+        border-radius: 7px;
+        white-space: nowrap;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    /* Garis ganda biru di bawah kop sisi belakang */
+    .gback-divider {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        margin-top: 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .gback-divider span {
+        display: block;
+        height: 2.5px;
+        background: #1e56c8;
+        border-radius: 2px;
+    }
+    .gback-table {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 10px;
+        line-height: 1.3;
+        margin-top: 5px;
+    }
+    .gback-table td {
+        padding: 1.5px 0;
+        vertical-align: top;
+    }
+    .gback-table .lbl {
+        width: 64px;
+        font-weight: 800;
+        color: #16325c;
+        white-space: nowrap;
+    }
+    .gback-table .sep {
+        width: 12px;
+        text-align: center;
+        font-weight: 800;
+        color: #16325c;
+    }
+    .gback-table .val {
+        padding-left: 2px;
+        font-weight: 800;
+        color: #16325c;
+        word-break: break-word;
+    }
+    .gback-qr {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        margin-top: 5px;
+    }
+    .gback-qr-box {
+        width: 90px;
+        height: 90px;
+        background: #ffffff;
+        border: 3px solid #2f7dd1;
+        border-radius: 8px;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .gback-qr-box canvas,
+    .gback-qr-box img {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        display: block;
+        margin: 0 auto;
+    }
+    .gback-motto {
+        position: relative;
+        z-index: 1;
+        font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+        font-style: italic;
+        font-weight: 700;
+        font-size: 9px;
+        color: #1e56c8;
+        text-align: center;
+        line-height: 1.25;
+        margin: 4px 0 0 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       KARTU GURU DEPAN (preview, disesuaikan skala layar)
+    ═══════════════════════════════════════════════════════════════════ */
+    .id-card-guru-front {
+        align-items: center;
+        padding: 10px 12px 34px 12px;
+    }
+    /* Sisi depan: foto merah berbingkai biru + nama bergaris bawah + NIP */
+    .gfront-photo {
+        position: relative;
+        z-index: 1;
+        width: 104px;
+        height: 124px;
+        margin: 8px auto 0 auto;
+        background: #d92b2b;
+        border: 3px solid #2f7dd1;
+        border-radius: 9px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .gfront-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .gfront-identity {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        margin-top: 8px;
+        width: 100%;
+    }
+    .gfront-name {
+        font-size: 12.5px;
+        font-weight: 900;
+        color: #16325c;
+        line-height: 1.15;
+        margin: 0;
+        text-transform: uppercase;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .gfront-name-line {
+        height: 2.5px;
+        background: #16325c;
+        border-radius: 2px;
+        width: 168px;
+        margin: 5px auto 0 auto;
+    }
+    .gfront-nip {
+        font-size: 10px;
+        font-weight: 800;
+        color: #16325c;
+        margin: 4px 0 0 0;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 @endsection
 
@@ -97,8 +378,8 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-1.5">
                 {{ $desainAktif === 'portrait'
-                    ? 'Portrait: kartu vertikal dengan QR Code besar di tengah — sangat jelas terbaca dan cocok untuk kartu gantung / lanyard.'
-                    : 'Landscape: kartu horizontal resmi dengan foto guru, NIP, jabatan, dan QR Code di samping kanan.' }}
+                    ? 'Portrait: kartu ID resmi 5,8 × 9,2 cm — sisi depan foto & nama guru, sisi belakang data lengkap dan QR Code absensi. Dicetak 2 sisi (depan + belakang).'
+                    : 'Landscape: kartu horizontal resmi 9,2 × 5,8 cm — foto guru, NIP, jabatan, dan QR Code di samping kanan, sisi belakang data lengkap. Dicetak 2 sisi (depan + belakang).' }}
             </p>
         </div>
 
@@ -209,50 +490,28 @@
         </div>
     <?php else: ?>
         <?php if ($desainAktif === 'portrait'): ?>
-        <!-- Preview Portrait: vertikal, QR besar -->
-        <div id="cardGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 justify-items-center">
+        <!-- Preview Portrait: kartu ID depan + belakang berdampingan -->
+        <div id="cardGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6 justify-items-center">
             <?php foreach ($guru_list as $g): ?>
-                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs relative flex flex-col w-full max-w-[220px]"
+                <div class="teacher-card-item card-preview flex flex-col items-center gap-2"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
                      data-kode="{{ strtolower($g->kode_guru ?? '') }}">
-                    <!-- Kop vertikal -->
-                    <div class="card-header-gtk-portrait px-3 pt-3 pb-2.5 text-center" style="background:linear-gradient(180deg,var(--accent-900) 0%,var(--accent-600) 55%,#581c87 100%);color:#fff;">
-                        <div class="w-9 h-9 rounded-xl p-1 mx-auto flex items-center justify-center bg-white shadow-xs">
-                            <img src="{{ $logo_url }}" alt="Logo" class="max-h-full max-w-full object-contain"
-                                 onerror="this.src='{{ asset('assets/img/logo.png') }}'">
+                    <div class="guru-duplex-pair">
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Sisi Depan</span>
+                            @include('admin.presensi.kartu.partials.kartu_guru_portrait')
                         </div>
-                        <p class="tracking-wider uppercase leading-none mt-1.5 font-bold" style="font-size:8px;color:#e9d5ff;">KARTU PRESENSI DIGITAL</p>
-                        <h4 class="leading-tight mt-0.5 font-black text-white" style="font-size:11px;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
-                        <span class="inline-block mt-1 px-2 py-0.5 rounded-md uppercase font-extrabold badge-gtk-glass" style="font-size:9px;letter-spacing:.05em;color:#fff;">
-                            GURU / GTK
-                        </span>
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Sisi Belakang</span>
+                            @include('admin.presensi.kartu.partials.kartu_guru_belakang')
+                        </div>
                     </div>
-                    <!-- QR besar -->
-                    <div class="px-3 pt-2 pb-1 flex flex-col items-center">
-                        <div class="qr-box p-2 bg-white border border-slate-200 rounded-xl shadow-2xs"
-                             data-code="{{ $g->qr_value }}" data-size="150"
-                             id="qr-preview-{{ $g->id_guru }}" style="width:166px;height:166px;display:flex;align-items:center;justify-content:center;"></div>
-                        <span class="font-mono font-bold text-slate-800 text-[8.5px] mt-1 text-center tracking-tight break-all max-w-[170px]">{{ $g->qr_value }}</span>
-                        <span class="text-[7.5px] font-extrabold text-purple-600 uppercase tracking-wider">Scan Absen</span>
-                    </div>
-                    <!-- Identitas -->
-                    <div class="px-3 pb-2 pt-1 text-center flex-1">
-                        <h5 class="text-xs font-extrabold text-slate-900 leading-snug line-clamp-2" title="{{ $g->nama_guru }}">
-                            {{ $g->nama_guru }}
-                        </h5>
-                        <p class="text-[10px] text-slate-500 mt-0.5 font-mono">NIP: {{ $g->nip ?: ($g->kode_guru ?: '-') }}</p>
-                        <span class="inline-block mt-1 px-2 py-0.5 text-[9px] font-bold rounded-full bg-purple-50 text-purple-700">
-                            {{ $g->jabatan }}
-                        </span>
-                    </div>
-                    <div class="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-center">
-                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
-                           target="_blank"
-                           class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
-                            <i class="bi bi-printer"></i> Cetak Kartu Ini
-                        </a>
-                    </div>
+                    <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
+                       target="_blank"
+                       class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
+                        <i class="bi bi-printer"></i> Cetak Kartu Ini
+                    </a>
                 </div>
             <?php endforeach; ?>
         </div>
