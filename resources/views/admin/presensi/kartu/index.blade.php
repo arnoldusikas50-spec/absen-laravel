@@ -379,6 +379,14 @@
         text-overflow: ellipsis;
         max-width: 85px;
     }
+    .ttl-wrap {
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere;
+        text-overflow: clip !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
     .dl-back-rules-box {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -447,6 +455,7 @@
         letter-spacing: 0.5px;
     }
     .dl-back-sign {
+        position: relative;
         text-align: right;
         font-size: 4.8pt;
         color: #64748b;
@@ -456,6 +465,34 @@
         font-weight: 800;
         color: #0f172a;
         text-decoration: underline;
+    }
+    /* Cap / Stempel Sekolah (kolom setting.stampel, diatur di /settings) */
+    .sign-stamp-area {
+        position: relative;
+        width: max-content;
+        margin-left: auto;
+    }
+    .sign-stamp-area > div,
+    .dl-back-sign > div:first-child,
+    .dp-back-sign > div:first-child {
+        position: relative;
+        z-index: 2;
+    }
+    .sign-stamp {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) rotate(-10deg);
+        width: 20mm;
+        height: 20mm;
+        object-fit: contain;
+        opacity: .85;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .dp-back-sign .sign-stamp {
+        width: 14mm;
+        height: 14mm;
     }
     .dl-back-footer {
         height: 18px;
@@ -1116,7 +1153,7 @@
                                             <tr>
                                                 <td class="dl-lbl">TTL</td>
                                                 <td class="dl-sep">:</td>
-                                                <td class="dl-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                                <td class="dl-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                             </tr>
                                         </table>
                                     </div>
@@ -1164,7 +1201,7 @@
                                             <tr>
                                                 <td class="b-lbl">TTL</td>
                                                 <td class="b-sep">:</td>
-                                                <td class="b-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                                <td class="b-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                             </tr>
                                             <tr>
                                                 <td class="b-lbl">NISN</td>
@@ -1212,9 +1249,14 @@
                                         <!-- Pengesahan Kepala Sekolah -->
                                         <div class="dl-back-sign">
                                             <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                            <div style="font-weight:700;">Kepala Sekolah,</div>
-                                            <div class="dl-sign-name" style="margin-top:10px;">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                            <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                            <div class="sign-stamp-area">
+                                            @if (!empty($stampel_url))
+                                                <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
+                                            @endif
+                                                <div style="font-weight:700;">Kepala Sekolah,</div>
+                                                <div class="dl-sign-name" style="margin-top:10px;">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
+                                                <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1356,7 +1398,7 @@
                                         <tr>
                                             <td class="dp-lbl">Tempat Tgl Lahir</td>
                                             <td class="dp-sep">:</td>
-                                            <td class="dp-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                        <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                         </tr>
                                         <tr>
                                             <td class="dp-lbl">NIS/NISN</td>
@@ -1395,9 +1437,14 @@
                                     <!-- Pengesahan Kepala Sekolah -->
                                     <div class="dp-back-sign">
                                         <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                        <div style="font-weight:700;">Kepala Sekolah,</div>
-                                        <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                        <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                        <div class="sign-stamp-area">
+                                        @if (!empty($stampel_url))
+                                            <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
+                                        @endif
+                                            <div style="font-weight:700;">Kepala Sekolah,</div>
+                                            <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
+                                            <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                        </div>
                                     </div>
 
                                     <div class="dp-barcode-wrap">
@@ -1562,7 +1609,7 @@
                             @if(!empty($s->tempat_lahir) || !empty($s->tanggal_lahir))
                             <div class="flex" style="gap:3px;">
                                 <span style="width:30px;font-weight:700;color:#94a3b8;font-size:8px;text-transform:uppercase;flex-shrink:0;">TTL</span>
-                                <span style="font-weight:600;color:#334155;font-size:8.5px;line-height:1.3;">{{ \App\Services\KartuSiswaFormatter::ttl($s, 'D MMM Y') }}</span>
+                                <span class="ttl-wrap" style="font-weight:600;color:#334155;font-size:8.5px;line-height:1.3;">{{ \App\Services\KartuSiswaFormatter::ttl($s, 'D MMM Y') }}</span>
                             </div>
                             @endif
                             @if(!empty($s->alamat))

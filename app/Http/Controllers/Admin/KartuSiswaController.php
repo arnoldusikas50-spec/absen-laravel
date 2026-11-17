@@ -329,6 +329,7 @@ class KartuSiswaController extends BaseController
             'batas_cetak' => self::BATAS_CETAK,
             'catatan' => $catatan,
             'logo_url' => self::resolveLogoUrl($setting),
+            'stampel_url' => self::resolveStampelUrl($setting),
             'base_path' => $basePath,
             'desain' => $desain,
         ];
@@ -474,6 +475,7 @@ class KartuSiswaController extends BaseController
             'batas_cetak' => self::BATAS_CETAK,
             'catatan' => $catatan,
             'logo_url' => self::resolveLogoUrl($setting),
+            'stampel_url' => self::resolveStampelUrl($setting),
             'desain' => $desain,
         ];
 
@@ -627,5 +629,27 @@ class KartuSiswaController extends BaseController
         }
 
         return $defaultLogo;
+    }
+
+    /**
+     * Helper URL Cap/Stempel Sekolah (kolom setting.stampel, diatur di /settings).
+     * Mengembalikan null bila belum diatur atau file tidak ada, sehingga kartu
+     * hanya menampilkan stempel saat sekolah benar-benar mengunggahnya.
+     */
+    public static function resolveStampelUrl(?object $setting): ?string
+    {
+        if (! $setting || empty($setting->stampel)) {
+            return null;
+        }
+
+        $clean = ltrim(str_replace('\\', '/', (string) $setting->stampel), '/');
+        if (strpos($clean, '..') !== false) {
+            return null;
+        }
+        if (file_exists(public_path().'/'.$clean)) {
+            return url($clean);
+        }
+
+        return null;
     }
 }

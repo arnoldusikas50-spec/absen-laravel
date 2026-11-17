@@ -497,6 +497,14 @@
             text-overflow: ellipsis;
             max-width: 85px;
         }
+        .ttl-wrap {
+            white-space: normal !important;
+            overflow: visible !important;
+            overflow-wrap: anywhere;
+            text-overflow: clip !important;
+            max-width: none !important;
+            min-width: 0 !important;
+        }
 
         .dl-back-rules-box {
             background: #f8fafc;
@@ -567,10 +575,34 @@
             letter-spacing: 0.5px;
         }
         .dl-back-sign {
+            position: relative;
             text-align: right;
             font-size: 4.8pt;
             color: #64748b;
             line-height: 1.25;
+        }
+        .sign-stamp-area {
+            position: relative;
+            width: max-content;
+            margin-left: auto;
+        }
+        .sign-stamp-area > div,
+        .dl-back-sign > div:first-child,
+        .dp-back-sign > div:first-child {
+            position: relative;
+            z-index: 2;
+        }
+        .sign-stamp {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 20mm;
+            height: 20mm;
+            object-fit: contain;
+            opacity: 0.7;
+            pointer-events: none;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            z-index: 0;
         }
         .dl-sign-name {
             font-weight: 800;
@@ -951,6 +983,10 @@
             margin-top: 3px;
             padding-right: 2px;
         }
+        .dp-back-sign .sign-stamp {
+            width: 14mm;
+            height: 14mm;
+        }
         .dp-sign-name {
             font-weight: 800;
             color: #0f172a;
@@ -1254,7 +1290,7 @@
                                         <tr>
                                             <td class="dl-lbl">TTL</td>
                                             <td class="dl-sep">:</td>
-                                            <td class="dl-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                            <td class="dl-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -1302,7 +1338,7 @@
                                         <tr>
                                             <td class="b-lbl">TTL</td>
                                             <td class="b-sep">:</td>
-                                            <td class="b-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                            <td class="b-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                         </tr>
                                         <tr>
                                             <td class="b-lbl">NISN</td>
@@ -1350,9 +1386,14 @@
                                     <!-- Pengesahan Kepala Sekolah -->
                                     <div class="dl-back-sign">
                                         <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                        <div style="font-weight:700;">Kepala Sekolah,</div>
-                                        <div class="dl-sign-name" style="margin-top:10px;">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                        <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                        <div class="sign-stamp-area">
+                                        @if (!empty($stampel_url))
+                                            <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
+                                        @endif
+                                            <div style="font-weight:700;">Kepala Sekolah,</div>
+                                            <div class="dl-sign-name" style="margin-top:10px;">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
+                                            <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1475,7 +1516,7 @@
                                     <tr>
                                         <td class="dp-lbl">Tempat Tgl Lahir</td>
                                         <td class="dp-sep">:</td>
-                                        <td class="dp-val" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
+                                        <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
                                     </tr>
                                     <tr>
                                         <td class="dp-lbl">NIS/NISN</td>
@@ -1516,9 +1557,14 @@
                                 <!-- Pengesahan Kepala Sekolah -->
                                 <div class="dp-back-sign">
                                     <div>{{ $setting->kota ?? 'Kupang' }}, {{ date('Y') }}</div>
-                                    <div style="font-weight:700;">Kepala Sekolah,</div>
-                                    <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
-                                    <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                    <div class="sign-stamp-area">
+                                    @if (!empty($stampel_url))
+                                        <img class="sign-stamp" src="{{ $stampel_url }}" alt="Cap Sekolah">
+                                    @endif
+                                        <div style="font-weight:700;">Kepala Sekolah,</div>
+                                        <div class="dp-sign-name">{{ $setting->kepsek ?? 'Kepala Sekolah' }}</div>
+                                        <div>NIP. {{ $setting->nip ?? '-' }}</div>
+                                    </div>
                                 </div>
 
                                 <div class="dp-barcode-wrap">
