@@ -40,6 +40,10 @@
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-colors no-underline">
                 <i class="bi bi-printer"></i> Cetak
             </a>
+            <a href="{{ url('admin/jurnal/rekap-kelas?bulan=' . (int) $bulan . '&tahun=' . (int) $tahun) }}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+                <i class="bi bi-journal-text"></i> Rekap per Kelas
+            </a>
             <a href="{{ url('admin/jurnal') }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
                 <i class="bi bi-arrow-left"></i> Monitoring Harian

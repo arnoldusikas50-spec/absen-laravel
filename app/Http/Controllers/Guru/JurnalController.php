@@ -918,7 +918,7 @@ class JurnalController extends BaseController
 
         try {
             if ($in['id_jurnal'] > 0) {
-                $this->jurnalModel->newQuery()->where('id', $in['id_jurnal'])->update($payload);
+                $this->jurnalModel->newQuery()->where('id_jurnal', $in['id_jurnal'])->update($payload);
                 $idJurnal = $in['id_jurnal'];
 
                 // Isi berubah → persetujuan/penolakan lama tidak boleh melekat
@@ -1179,7 +1179,7 @@ class JurnalController extends BaseController
                 .'Sunting isinya bila ada yang perlu dikoreksi — jurnal akan masuk antrean validasi ulang dan setelah itu dapat dihapus.');
         }
 
-        $this->jurnalModel->where('id', (int) $id)->delete();
+        $this->jurnalModel->where('id_jurnal', (int) $id)->delete();
 
         return redirect()->to($this->journalIndexUrl())->with('success', 'Jurnal mengajar berhasil dihapus.');
     }
@@ -1205,6 +1205,273 @@ class JurnalController extends BaseController
         }
 
         return 'guru/jurnal?'.http_build_query($params);
+    }
+
+    /* ==================================================================
+     |  Rekap per kelas
+     |================================================================= */
+
+    /**
+     * Rekap jurnal per kelas untuk guru yang sedang login.
+     * Hanya memuat jurnal milik guru ini pada kelas/mapel yang diampu.
+     * GET /guru/jurnal/rekap-kelas
+     */
+    public function rekapKelasGuru()
+    {
+        $tData = $this->getTeacherData();
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
+
+        $guru = $tData['guru'];
+        if (! $guru) {
+            return redirect()->to('dashboard')->with('error', 'Profil Guru tidak ditemukan. Harap hubungi admin.');
+        }
+
+        $r = $this->rekapKelasDataGuru($tData, $guru);
+
+        $printParams = array_filter([
+            'bulan' => $r['bulan'],
+            'tahun' => $r['tahun'],
+            'id_kelas' => $r['id_kelas'] ?: null,
+            'id_mapel' => $r['id_mapel'] ?: null,
+        ], static fn ($v): bool => $v !== null && $v !== '');
+
+        return view('guru.jurnal.rekap_kelas', [
+            'title' => 'Rekap Jurnal per Kelas',
+            'user' => $tData['user'],
+            'setting' => $this->getSettingRow(),
+            'tp_active' => $r['tp'],
+            'smt_active' => $r['smt'],
+            'bulan' => $r['bulan'],
+            'tahun' => $r['tahun'],
+            'kelases' => $r['kelases'],
+            'kelas' => $r['kelas'],
+            'gurus' => $r['gurus'],
+            'mapels' => $r['mapels'],
+            'id_kelas_pilih' => $r['id_kelas'],
+            'id_guru_pilih' => $r['id_guru'],
+            'id_mapel_pilih' => $r['id_mapel'],
+            'jurnals' => $r['jurnals'],
+            'per_guru' => $r['per_guru'],
+            'total_pertemuan' => $r['total_pertemuan'],
+            'total_guru' => $r['total_guru'],
+            'total_mapel' => $r['total_mapel'],
+            'fase' => $r['fase'],
+            'absen_map' => $r['absenMap'],
+            'print_url' => url('guru/jurnal/rekap-kelas/cetak') . '?' . http_build_query($printParams),
+        ]);
+    }
+
+    /**
+     * Versi cetak/simpan-PDF rekap jurnal per kelas milik guru yang login.
+     * GET /guru/jurnal/rekap-kelas/cetak
+     */
+    public function rekapKelasGuruCetak()
+    {
+        $tData = $this->getTeacherData();
+        if (! $tData || ! $tData['user']) {
+            return redirect()->to('auth');
+        }
+
+        $guru = $tData['guru'];
+        if (! $guru) {
+            return redirect()->to('dashboard')->with('error', 'Profil Guru tidak ditemukan.');
+        }
+
+        $r = $this->rekapKelasDataGuru($tData, $guru);
+
+        return view('admin.jurnal.rekap_kelas_cetak', [
+            'setting' => $this->getSettingRow(),
+            'tp_active' => $r['tp'],
+            'smt_active' => $r['smt'],
+            'bulan' => $r['bulan'],
+            'tahun' => $r['tahun'],
+            'kelas' => $r['kelas'],
+            'gurus' => $r['gurus'],
+            'mapels' => $r['mapels'],
+            'id_guru_pilih' => $r['id_guru'],
+            'id_mapel_pilih' => $r['id_mapel'],
+            'jurnals' => $r['jurnals'],
+            'per_guru' => $r['per_guru'],
+            'total_pertemuan' => $r['total_pertemuan'],
+            'total_guru' => $r['total_guru'],
+            'total_mapel' => $r['total_mapel'],
+            'fase' => $r['fase'],
+            'absen_map' => $r['absenMap'],
+        ]);
+    }
+
+    /**
+     * Data rekap jurnal per kelas milik guru yang login. Bentuknya sama dengan
+     * rekapKelasData() admin, tetapi id_guru dan kelas selalu dibatasi pada
+     * penugasan guru tersebut sehingga tidak bisa membaca kelas guru lain.
+     *
+     * @return array<string,mixed>
+     */
+    private function rekapKelasDataGuru(array $tData, object $guru): array
+    {
+        $idGuru = (int) $guru->id_guru;
+        $idTp = (int) ($tData['tp']->id_tp ?? 1);
+        $idSmt = (int) ($tData['smt']->id_smt ?? 1);
+        $db = DB::connection();
+
+        $f = $this->filterPeriode();
+        $bulan = (int) $f['bulan'];
+        $tahun = (int) $f['tahun'];
+
+        // Kelas & mapel yang diampu guru ini pada periode aktif.
+        $kelasIds = [];
+        $mapelPerKelas = [];
+        foreach (array_keys($this->elearningModel->getGuruAssignedPairs($idGuru, $idTp, $idSmt)) as $pair) {
+            $parts = explode(':', (string) $pair, 2);
+            $kelasId = (int) ($parts[0] ?? 0);
+            $mapelId = (int) ($parts[1] ?? 0);
+            if ($kelasId <= 0) {
+                continue;
+            }
+            $kelasIds[$kelasId] = true;
+            if ($mapelId > 0) {
+                $mapelPerKelas[$kelasId][$mapelId] = true;
+            }
+        }
+
+        // Fallback: kelas yang pernah dijurnal guru ini pada bulan terpilih,
+        // agar penugasan yang belum diisi tidak membuat halaman kosong.
+        if (empty($kelasIds)) {
+            foreach ($this->jurnalModel->getRiwayatBulan($idGuru, $idTp, $idSmt, $f['mulai'], $f['selesai']) as $row) {
+                $kelasId = (int) ($row->id_kelas ?? 0);
+                if ($kelasId > 0) {
+                    $kelasIds[$kelasId] = true;
+                }
+            }
+        }
+
+        $kelases = empty($kelasIds) ? [] : $db->table('master_kelas')
+            ->select('id_kelas', 'nama_kelas')
+            ->whereIn('id_kelas', array_keys($kelasIds))
+            ->orderBy('nama_kelas', 'ASC')
+            ->get()->all();
+
+        $idKelas = $f['id_kelas'] > 0 && isset($kelasIds[$f['id_kelas']])
+            ? $f['id_kelas']
+            : (int) (array_key_first($kelasIds) ?? 0);
+
+        $mapelDiampu = $idKelas > 0 ? array_keys($mapelPerKelas[$idKelas] ?? []) : [];
+        $idMapel = $f['id_mapel'] > 0 && in_array($f['id_mapel'], $mapelDiampu, true)
+            ? $f['id_mapel']
+            : 0;
+
+        $kelas = $idKelas > 0
+            ? $db->table('master_kelas')->where('id_kelas', $idKelas)->first()
+            : null;
+
+        $jurnals = $idKelas > 0
+            ? $this->jurnalModel->getRiwayatBulan(
+                $idGuru, $idTp, $idSmt, $f['mulai'], $f['selesai'],
+                ['id_kelas' => $idKelas, 'id_mapel' => $idMapel],
+                true
+            )
+            : [];
+
+        $mapels = empty($mapelDiampu) ? [] : $db->table('master_mapel')
+            ->select('id_mapel', 'nama_mapel')
+            ->whereIn('id_mapel', $mapelDiampu)
+            ->orderBy('nama_mapel', 'ASC')
+            ->get()->all();
+
+        $namaMapelTerpakai = [];
+        foreach ($jurnals as $j) {
+            $j->nama_guru = (string) $guru->nama_guru;
+            $namaMapel = trim((string) ($j->nama_mapel ?? ''));
+            if ($namaMapel !== '') {
+                $namaMapelTerpakai[$namaMapel] = true;
+            }
+        }
+
+        return [
+            'tp' => $tData['tp'],
+            'smt' => $tData['smt'],
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'kelases' => $kelases,
+            'kelas' => $kelas,
+            'gurus' => [$guru],
+            'mapels' => $mapels,
+            'id_kelas' => $idKelas,
+            'id_guru' => $idGuru,
+            'id_mapel' => $idMapel,
+            'jurnals' => $jurnals,
+            'per_guru' => empty($jurnals) ? [] : [[
+                'id_guru' => $idGuru,
+                'nama' => (string) $guru->nama_guru,
+                'nip' => (string) ($guru->nip ?? ''),
+                'mapel' => array_keys($namaMapelTerpakai),
+                'pertemuan' => count($jurnals),
+                'terakhir' => (string) ($jurnals[count($jurnals) - 1]->tanggal ?? ''),
+            ]],
+            'total_pertemuan' => count($jurnals),
+            'total_guru' => empty($jurnals) ? 0 : 1,
+            'total_mapel' => count($namaMapelTerpakai),
+            'fase' => $this->faseKelas((string) ($kelas->nama_kelas ?? '')),
+            'absenMap' => $this->namaSiswaAbsen($jurnals),
+        ];
+    }
+
+    /**
+     * Fase Kurikulum Merdeka dari nama kelas: X = E, XI/XII = F, 7-9 = D.
+     */
+    private function faseKelas(string $namaKelas): string
+    {
+        $nama = strtoupper(trim($namaKelas));
+        if (preg_match('/^(XII|XI|X|12|11|10|9|8|7)\b/', $nama, $m) !== 1) {
+            return '-';
+        }
+
+        return match ($m[1]) {
+            'X', '10' => 'E',
+            'XI', 'XII', '11', '12' => 'F',
+            default => 'D',
+        };
+    }
+
+    /**
+     * Nama siswa untuk kolom "tidak hadir" dari JSON id siswa pada jurnal.
+     *
+     * @param  array<int, object>  $jurnals
+     * @return array<int, string>
+     */
+    private function namaSiswaAbsen(array $jurnals): array
+    {
+        $ids = [];
+        foreach ($jurnals as $j) {
+            $decoded = json_decode(trim((string) ($j->siswa_absent ?? '')), true);
+            if (! is_array($decoded)) {
+                continue;
+            }
+            foreach ($decoded as $sid) {
+                if ((int) $sid > 0) {
+                    $ids[(int) $sid] = true;
+                }
+            }
+        }
+        if (empty($ids)) {
+            return [];
+        }
+
+        $map = [];
+        try {
+            foreach (DB::connection()->table('master_siswa')
+                ->select('id_siswa', 'nama')
+                ->whereIn('id_siswa', array_keys($ids))
+                ->get() as $s) {
+                $map[(int) $s->id_siswa] = (string) $s->nama;
+            }
+        } catch (\Throwable $e) {
+            Log::error('[Guru\\Jurnal] gagal membaca nama siswa tidak hadir: '.$e->getMessage());
+        }
+
+        return $map;
     }
 
     /* ==================================================================

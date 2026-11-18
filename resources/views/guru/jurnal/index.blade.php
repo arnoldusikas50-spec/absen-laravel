@@ -82,6 +82,12 @@
         </div>
     </div>
     <div class="flex items-center gap-1.5">
+        <a href="{{ url('guru/jurnal/rekap-kelas') }}"
+           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold no-underline transition-colors"
+           title="Rekap Jurnal per Kelas">
+            <i class="bi bi-table text-xs"></i>
+            <span>Rekap Kelas</span>
+        </a>
         <a href="{{ url('guru/jurnal/cetak?bulan=' . $bulan_pilih . '&tahun=' . $tahun_pilih . ($id_kelas_pilih ? '&id_kelas=' . $id_kelas_pilih : '') . ($id_mapel_pilih ? '&id_mapel=' . $id_mapel_pilih : '')) }}" target="_blank"
            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition-colors no-underline" title="Cetak Rekap">
             <i class="bi bi-printer"></i>

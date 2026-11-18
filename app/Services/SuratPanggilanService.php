@@ -56,6 +56,13 @@ class SuratPanggilanService
         7 => 'Tingkat III (7 Hari Alpha)',
     ];
 
+    /** Angka Romawi tingkat, untuk pesan notifikasi yang harus ringkas. */
+    public const LABEL_SINGKAT = [
+        3 => 'I',
+        5 => 'II',
+        7 => 'III',
+    ];
+
     // ── data bulan untuk perhitungan ──────────────────────────────────
 
     /**

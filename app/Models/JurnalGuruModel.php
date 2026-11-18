@@ -47,12 +47,18 @@ class JurnalGuruModel extends Model
         'updated_at',
     ];
 
-    // Initialize: Check and create table/columns if not exists
-    // TODO: tabel guru_jurnal belum ada migrasinya
-    public function initialize()
+    /**
+     * Pastikan tabel dan kolom-kolom tambahan yang muncul setelah rilis awal
+     * sudah ada. Migrasi resmi (create_guru_jurnal_table) sudah mencakup
+     * seluruh kolom, sehingga method ini hanya relevan untuk instalasi lama
+     * yang di-upgrade tanpa menjalankan ulang migrasi.
+     *
+     * Pemeriksaan kolom-per-kolom di-skip bila semua kolom kunci sudah ada,
+     * sehingga overhead di produksi hanya satu query INFORMATION_SCHEMA.
+     */
+    public function initialize(): void
     {
         if (! Schema::hasTable($this->getTable())) {
-            // Create Table
             Schema::create($this->getTable(), function (Blueprint $table) {
                 $table->bigIncrements('id_jurnal');
                 $table->integer('id_guru');
@@ -67,13 +73,13 @@ class JurnalGuruModel extends Model
                 $table->text('tujuan_pembelajaran')->nullable();
                 $table->string('model_belajar', 100)->nullable();
                 $table->text('kegiatan_belajar')->nullable();
-                $table->text('profil_pancasila')->nullable(); // JSON
+                $table->text('profil_pancasila')->nullable();
                 $table->string('jenis_asesmen', 50)->nullable();
                 $table->text('refleksi')->nullable();
                 $table->text('media_alat')->nullable();
-                $table->text('siswa_absent')->nullable(); // JSON
+                $table->text('siswa_absent')->nullable();
                 $table->text('tindak_lanjut')->nullable();
-                $table->text('catatan_khusus')->nullable(); // Keep for backward compat or other notes
+                $table->text('catatan_khusus')->nullable();
                 $table->string('validasi_status', 20)->default('PENDING');
                 $table->integer('validasi_oleh')->nullable();
                 $table->dateTime('validasi_pada')->nullable();
@@ -84,60 +90,46 @@ class JurnalGuruModel extends Model
                 $table->index('id_kelas');
                 $table->index('tanggal');
             });
-        } else {
-            // Add new columns if missing (Migration style)
-            $fieldsToAdd = [
-                // Tautan jurnal ke slot jadwal. Tabel lama (sebelum quick-pick
-                // dari kartu jadwal) tidak punya kolom ini sama sekali, dan
-                // tanpa kolom-nya insert jurnal dari jadwal langsung error.
-                'id_jadwal' => function (Blueprint $table) {
-                    $table->integer('id_jadwal')->nullable();
-                },
-                'model_belajar' => function (Blueprint $table) {
-                    $table->string('model_belajar', 100)->nullable();
-                },
-                'profil_pancasila' => function (Blueprint $table) {
-                    $table->text('profil_pancasila')->nullable(); // JSON
-                },
-                'jenis_asesmen' => function (Blueprint $table) {
-                    $table->string('jenis_asesmen', 50)->nullable();
-                },
-                'tindak_lanjut' => function (Blueprint $table) {
-                    $table->text('tindak_lanjut')->nullable();
-                },
-                // Validasi isian jurnal oleh guru piket / kepala sekolah.
-                // Default 'PENDING' terisi otomatis untuk baris lama oleh MySQL.
-                'validasi_status' => function (Blueprint $table) {
-                    $table->string('validasi_status', 20)->default('PENDING');
-                },
-                'validasi_oleh' => function (Blueprint $table) {
-                    $table->integer('validasi_oleh')->nullable();
-                },
-                'validasi_pada' => function (Blueprint $table) {
-                    $table->dateTime('validasi_pada')->nullable();
-                },
-                'validasi_catatan' => function (Blueprint $table) {
-                    $table->string('validasi_catatan', 500)->nullable();
-                },
-            ];
 
-            $missing = [];
-            foreach ($fieldsToAdd as $field => $definition) {
-                if (! Schema::hasColumn($this->getTable(), $field)) {
-                    $missing[$field] = $definition;
-                }
-            }
+            return;
+        }
 
-            if (! empty($missing)) {
-                try {
-                    Schema::table($this->getTable(), function (Blueprint $table) use ($missing) {
-                        foreach ($missing as $definition) {
-                            $definition($table);
-                        }
-                    });
-                } catch (\Throwable $e) {
-                    // Ignore if already exists
-                }
+        // Kolom-kolom yang ditambahkan setelah skema awal. Dicek hanya bila
+        // kolom kunci terakhir ('validasi_catatan') belum ada — artinya ini
+        // instalasi lama yang belum di-upgrade penuh.
+        if (Schema::hasColumn($this->getTable(), 'validasi_catatan')) {
+            return;
+        }
+
+        $fieldsToAdd = [
+            // Tautan jurnal ke slot jadwal; wajib ada agar insert via kartu
+            // jadwal tidak error kolom tidak ditemukan.
+            'id_jadwal' => fn (Blueprint $t) => $t->integer('id_jadwal')->nullable(),
+            'model_belajar' => fn (Blueprint $t) => $t->string('model_belajar', 100)->nullable(),
+            'profil_pancasila' => fn (Blueprint $t) => $t->text('profil_pancasila')->nullable(),
+            'jenis_asesmen' => fn (Blueprint $t) => $t->string('jenis_asesmen', 50)->nullable(),
+            'tindak_lanjut' => fn (Blueprint $t) => $t->text('tindak_lanjut')->nullable(),
+            'validasi_status' => fn (Blueprint $t) => $t->string('validasi_status', 20)->default('PENDING'),
+            'validasi_oleh' => fn (Blueprint $t) => $t->integer('validasi_oleh')->nullable(),
+            'validasi_pada' => fn (Blueprint $t) => $t->dateTime('validasi_pada')->nullable(),
+            'validasi_catatan' => fn (Blueprint $t) => $t->string('validasi_catatan', 500)->nullable(),
+        ];
+
+        $missing = array_filter(
+            $fieldsToAdd,
+            fn (string $field): bool => ! Schema::hasColumn($this->getTable(), $field),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if (! empty($missing)) {
+            try {
+                Schema::table($this->getTable(), function (Blueprint $table) use ($missing): void {
+                    foreach ($missing as $definition) {
+                        $definition($table);
+                    }
+                });
+            } catch (\Throwable) {
+                // Kolom sudah ada (race condition) — abaikan.
             }
         }
     }
@@ -170,7 +162,6 @@ class JurnalGuruModel extends Model
      * tidak boleh dihitung sebagai pemenuhan slot Selasa. WEEKDAY() bernilai
      * 0 untuk Senin, sehingga +1 sama dengan id_hari ISO (1=Senin).
      */
-    // TODO: tabel guru_jurnal, kelas_jadwal_mapel belum ada migrasinya
     public function detachStaleJadwalLinks(int $tp, int $smt): int
     {
         if ($tp <= 0 || $smt <= 0) {
@@ -202,7 +193,6 @@ class JurnalGuruModel extends Model
      *
      * @return array{kode:string,status:string} kode: ok|berubah|hilang
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function setValidasi(int $idJurnal, string $status, int $olehUserId, ?string $catatan = null, array $dariStatus = []): array
     {
         if (! in_array($status, self::validasiStatusList(), true)) {
@@ -235,16 +225,11 @@ class JurnalGuruModel extends Model
     }
 
     /**
-     * Kembalikan jurnal ke antrean validasi — dipakai saat guru mengubah
-     * isinya, supaya persetujuan lama tidak melekat pada teks yang berbeda.
-     */
-    /**
      * Jurnal kembali ke antrean validasi. Keputusan lama (siapa & kapan)
      * dilepas, tetapi catatannya sengaja dipertahankan: guru yang memperbaiki
      * jurnal yang ditolak butuh alasan penolakannya tetap terbaca, dan catatan
      * ini akan tertimpa sendiri begitu validator menilai lagi.
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function resetValidasi(int $idJurnal): void
     {
         DB::table($this->getTable())
@@ -256,7 +241,6 @@ class JurnalGuruModel extends Model
             ]);
     }
 
-    // TODO: tabel guru_jurnal, master_kelas, master_mapel belum ada migrasinya
     public function getJurnalGuru($id_guru, $tp, $smt, $bulan = null)
     {
         $builder = DB::table($this->getTable().' as j');
@@ -275,7 +259,6 @@ class JurnalGuruModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel guru_jurnal, master_kelas, master_mapel belum ada migrasinya
     public function getJurnalById($id_jurnal)
     {
         return DB::table($this->getTable().' as j')
@@ -298,7 +281,6 @@ class JurnalGuruModel extends Model
      *
      * @param  array{id_kelas?:int,id_mapel?:int,q?:string}  $filter
      */
-    // TODO: tabel guru_jurnal, master_kelas, master_mapel belum ada migrasinya
     public function getRiwayatBulan(int $idGuru, int $idTp, int $idSmt, string $mulai, string $selesai, array $filter = [], bool $kronologis = false): array
     {
         $builder = DB::table($this->getTable().' as j')
@@ -336,7 +318,6 @@ class JurnalGuruModel extends Model
      * Statistik ringkas guru dalam satu query: total jurnal bulan terpilih,
      * jurnal hari ini, dan aktivitas 7 hari terakhir.
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function getStatistik(int $idGuru, int $idTp, int $idSmt, string $mulai, string $selesai): object
     {
         $today = date('Y-m-d');
@@ -357,7 +338,6 @@ class JurnalGuruModel extends Model
     /**
      * Baris jurnal per ID, dipetakan [id_jurnal] => row agar lookup O(1).
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function getByIds(array $ids): array
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
@@ -378,7 +358,6 @@ class JurnalGuruModel extends Model
      * tiap baris jurnal. Memakai parser yang sama dengan monitoring piket agar
      * nilai "[]", JSON ID, dan "Nihil" tidak tampil mentah di daftar.
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function lampirkanRingkasanAbsen(array $jurnals): void
     {
         if (empty($jurnals)) {
@@ -432,7 +411,6 @@ class JurnalGuruModel extends Model
      * Detail satu jurnal lengkap dengan nama guru, kelas, dan mapel
      * (dipakai modal rincian, halaman detail, dan cetak tunggal).
      */
-    // TODO: tabel guru_jurnal, master_guru, master_kelas, master_mapel belum ada migrasinya
     public function getJurnalDetail(int $id): ?object
     {
         return DB::table($this->getTable().' as j')
@@ -445,7 +423,6 @@ class JurnalGuruModel extends Model
     }
 
     /** Jurnal milik guru tertentu — penjaga kepemilikan pada form edit. */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function findMilikGuru(int $id, int $idGuru): ?object
     {
         return DB::table($this->getTable())
@@ -455,7 +432,6 @@ class JurnalGuruModel extends Model
     }
 
     /** Sumber salin: jurnal milik guru pada periode aktif. */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function findSumberSalin(int $id, int $idGuru, int $idTp, int $idSmt): ?object
     {
         return DB::table($this->getTable())
@@ -467,7 +443,6 @@ class JurnalGuruModel extends Model
     }
 
     /** Jurnal terakhir guru pada periode aktif (tombol salin cepat di form). */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function jurnalTerakhir(int $idGuru, int $idTp, int $idSmt): ?object
     {
         return DB::table($this->getTable())
@@ -491,7 +466,6 @@ class JurnalGuruModel extends Model
      * satu yang pernah terhubung ke slot; sisanya menggantung dan sesinya
      * terlihat belum dijurnal.
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya
     public function adaJurnalGanda(int $idGuru, int $idTp, int $idSmt, string $tanggal, string $jamKe, int $idKelas, int $idMapel, int $abaikanId = 0): bool
     {
         $jamBaru = self::normalizeJamKe($jamKe);
@@ -531,7 +505,6 @@ class JurnalGuruModel extends Model
      *
      * @return array<int,array{slot:object,sudah_dijurnal:bool,id_jurnal:int}>
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya (slot jadwal via ElearningModel::getJadwalKbmGuruHariIni menyentuh kelas_jadwal_mapel, master_kelas, master_mapel yang juga belum ada migrasinya)
     public function getStatusJurnalHarian(int $idGuru, int $idTp, int $idSmt, int $hari, string $tanggal, bool $hanyaTervalidasi = false): array
     {
         if ($idGuru <= 0 || $tanggal === '') {
@@ -724,7 +697,6 @@ class JurnalGuruModel extends Model
      *
      * @return array<int,object> baris jadwal yang belum memenuhi gerbang
      */
-    // TODO: tabel guru_jurnal belum ada migrasinya (via getStatusJurnalHarian)
     public function getSesiBelumDijurnal(int $idGuru, int $idTp, int $idSmt, int $hari, string $tanggal, string $batasWaktu = '', bool $hanyaTervalidasi = false): array
     {
         $batas = substr(trim($batasWaktu), 0, 5);

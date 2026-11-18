@@ -619,6 +619,8 @@ Route::get('admin/jurnal/detail/{id}', [App\Http\Controllers\Admin\JurnalControl
 Route::get('admin/jurnal/rekap', [App\Http\Controllers\Admin\JurnalController::class, 'rekap'])->middleware(['auth', 'role:admin'])->name('admin.jurnal.rekap');
 Route::get('admin/jurnal/rekap/export', [App\Http\Controllers\Admin\JurnalController::class, 'rekapExport'])->middleware(['auth', 'role:admin'])->name('admin.jurnal.rekap.export.rekap_export');
 Route::get('admin/jurnal/rekap/cetak', [App\Http\Controllers\Admin\JurnalController::class, 'rekapCetak'])->middleware(['auth', 'role:admin'])->name('admin.jurnal.rekap.cetak.rekap_cetak');
+Route::get('admin/jurnal/rekap-kelas', [App\Http\Controllers\Admin\JurnalController::class, 'rekapKelas'])->middleware(['auth', 'role:admin'])->name('admin.jurnal.rekap_kelas');
+Route::get('admin/jurnal/rekap-kelas/cetak', [App\Http\Controllers\Admin\JurnalController::class, 'rekapKelasCetak'])->middleware(['auth', 'role:admin'])->name('admin.jurnal.rekap_kelas.cetak');
 Route::get('integrasi/dapodik', [DapodikController::class, 'index'])->middleware(['auth', 'role:admin'])->name('integrasi.dapodik.index');
 Route::post('integrasi/dapodik/saveSettings', [DapodikController::class, 'saveSettings'])->middleware(['auth', 'role:admin'])->name('integrasi.dapodik.saveSettings.save_settings');
 Route::post('integrasi/dapodik/testConnection', [DapodikController::class, 'testConnection'])->middleware(['auth', 'role:admin'])->name('integrasi.dapodik.testConnection.test_connection');
@@ -647,3 +649,5 @@ Route::redirect('dinas', '/admin/presensi/dinas');
 Route::redirect('admin/dinas', '/admin/presensi/dinas');
 Route::redirect('admin/presensi/kalender', '/admin/kalender');
 Route::redirect('kalender', '/admin/kalender');
+Route::get('guru/jurnal/rekap-kelas', [JurnalController::class, 'rekapKelasGuru'])->middleware(['auth', 'role:guru,admin'])->name('guru.jurnal.rekap_kelas');
+Route::get('guru/jurnal/rekap-kelas/cetak', [JurnalController::class, 'rekapKelasGuruCetak'])->middleware(['auth', 'role:guru,admin'])->name('guru.jurnal.rekap_kelas.cetak');

@@ -78,6 +78,7 @@ if ($userRole == '1') {
                     'sub' => [
                         ['name' => 'Monitoring Jurnal',    'link' => 'admin/jurnal',               'icon' => 'bi-journal-text'],
                         ['name' => 'Rekap Jurnal Guru',    'link' => 'admin/jurnal/rekap',         'icon' => 'bi-file-earmark-check'],
+                        ['name' => 'Rekap Jurnal per Kelas', 'link' => 'admin/jurnal/rekap-kelas', 'icon' => 'bi-printer'],
                     ],
                 ],
                 [
@@ -259,6 +260,7 @@ if ($userRole == '1') {
             'items' => [
                 ['name' => 'Monitoring Jurnal', 'link' => 'admin/jurnal',       'icon' => 'bi-journal-text'],
                 ['name' => 'Rekap Jurnal Guru', 'link' => 'admin/jurnal/rekap', 'icon' => 'bi-file-earmark-check'],
+                ['name' => 'Rekap Jurnal per Kelas', 'link' => 'admin/jurnal/rekap-kelas', 'icon' => 'bi-printer'],
             ],
         ];
     }

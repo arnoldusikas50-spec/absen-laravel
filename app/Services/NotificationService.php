@@ -1504,24 +1504,29 @@ class NotificationService
      * Surat panggilan siswa terbit — kirim ke grup sekolah dan wali kelas
      * terkait secara personal.
      *
+     * Pesan selalu memuat NAMA siswa dan kelasnya. Sebelumnya yang tercetak
+     * hanya "Tingkat 5 — Alpha 6" di grup dan "(siswa #12)" di DM: wali
+     * kelas harus membuka aplikasi dulu untuk tahu murid mana yang dipanggil,
+     * dan pesan grup tidak menyebut nama sama sekali.
+     *
      * @param  array<int, array{id_siswa:int, level:int, alpha:int, terlambat:int, id_user_wali?:int}>  $daftar
      * @return int banyak notifikasi personal (ke wali kelas) yang terkirim
      */
     public function notifySuratPanggilan(array $daftar, string $bulan, string $tahun): int
     {
         $kirim = 0;
+        $periode = $this->periodePanggilan($bulan, $tahun);
+        $info = $this->infoSiswaPanggilan($daftar);
 
         // ── Grup sekolah ──────────────────────────────────
         $count = count($daftar);
         $msg = "📋 <b>SURAT PANGGILAN ORANG TUA</b>\n"
-             .'Bulan: '.$this->plain($bulan)."/{$tahun}\n"
+             .'Periode: '.$periode."\n"
              ."Jumlah: {$count} siswa\n"
              .'Waktu: '.date('d/m/Y H:i');
 
         foreach ($daftar as $d) {
-            $msg .= "\n• Tingkat ".(int) $d['level']
-                  .' — Alpha '.(int) $d['alpha']
-                  .', Terlambat '.(int) $d['terlambat'];
+            $msg .= "\n\n".$this->barisPanggilan($d, $info);
         }
 
         $this->notifyGrup('panggilan', $msg);
@@ -1539,17 +1544,14 @@ class NotificationService
 
         foreach ($perWali as $idUser => $items) {
             $msg = "📋 <b>SURAT PANGGILAN ORANG TUA — Wali Kelas</b>\n"
-                 .'Bulan: '.$this->plain($bulan)."/{$tahun}\n"
-                 ."Berikut siswa di kelas Anda yang mendapat surat panggilan:\n\n";
+                 .'Periode: '.$periode."\n\n"
+                 ."Berikut siswa di kelas Anda yang mendapat surat panggilan:\n";
 
             foreach ($items as $it) {
-                $msg .= '• Tingkat '.(int) $it['level']
-                      .' — Alpha '.(int) $it['alpha']
-                      .', Terlambat '.(int) $it['terlambat']
-                      .' (siswa #'.(int) $it['id_siswa'].")\n";
+                $msg .= "\n".$this->barisPanggilan($it, $info);
             }
 
-            $msg .= "\nSilakan hubungi orang tua/wali siswa terkait.\n"
+            $msg .= "\n\nSilakan hubungi orang tua/wali siswa terkait.\n"
                  .'Waktu: '.date('d/m/Y H:i');
 
             if ($this->notifyPersonal('panggilan', $idUser, $msg, 'panggilan', false)) {
@@ -1558,6 +1560,103 @@ class NotificationService
         }
 
         return $kirim;
+    }
+
+    /**
+     * Satu entri siswa untuk notifikasi surat panggilan.
+     *
+     * Bentuk: nama (kelas) — Tingkat II, lalu baris kedua angka alpha dan
+     * keterlambatan. Nama tetap muncul walau baris murid sudah tidak ada di
+     * master_siswa (fallback "Siswa #id") supaya pesan tidak pernah kosong.
+     */
+    private function barisPanggilan(array $d, array $info): string
+    {
+        $id = (int) ($d['id_siswa'] ?? 0);
+        $nama = trim((string) ($info[$id]['nama'] ?? ''));
+        $kelas = trim((string) ($info[$id]['kelas'] ?? ''));
+
+        $label = $nama !== ''
+            ? '<b>'.$this->plain($this->clip($nama, 40)).'</b>'
+            : 'Siswa #'.$id;
+
+        if ($kelas !== '') {
+            $label .= ' ('.$this->plain($this->clip($kelas, 20)).')';
+        }
+
+        return $label
+            .' — '.$this->tingkatPanggilan((int) ($d['level'] ?? 0))
+            ."\n".'Alpha '.(int) ($d['alpha'] ?? 0)
+            .' hari, terlambat '.(int) ($d['terlambat'] ?? 0).' kali';
+    }
+
+    /**
+     * Nama & kelas siswa untuk daftar panggilan — satu query untuk semua id.
+     *
+     * Kegagalan baca tidak boleh membatalkan notifikasi yang sudah layak
+     * dikirim: pesan tetap berjalan dengan fallback "Siswa #id".
+     *
+     * @return array<int, array{nama:string, kelas:string}>
+     */
+    private function infoSiswaPanggilan(array $daftar): array
+    {
+        $ids = [];
+        foreach ($daftar as $d) {
+            $id = (int) ($d['id_siswa'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        if (empty($ids)) {
+            return [];
+        }
+
+        $info = [];
+        try {
+            $rows = DB::table('master_siswa as s')
+                ->select('s.id_siswa', 's.nama', 'k.nama_kelas')
+                ->leftJoin('kelas_siswa as ks', 'ks.id_siswa', '=', 's.id_siswa')
+                ->leftJoin('master_kelas as k', 'k.id_kelas', '=', 'ks.id_kelas')
+                ->whereIn('s.id_siswa', array_values(array_unique($ids)))
+                ->get()->all();
+
+            foreach ($rows as $r) {
+                $id = (int) $r->id_siswa;
+                $info[$id] ??= ['nama' => '', 'kelas' => ''];
+                if ($info[$id]['nama'] === '') {
+                    $info[$id]['nama'] = (string) ($r->nama ?? '');
+                }
+                if ($info[$id]['kelas'] === '' && ! empty($r->nama_kelas)) {
+                    $info[$id]['kelas'] = (string) $r->nama_kelas;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('[Notification] gagal membaca nama siswa surat panggilan: '.$e->getMessage());
+        }
+
+        return $info;
+    }
+
+    /** "November 2026" dari nomor bulan dan tahun. */
+    private function periodePanggilan(string $bulan, string $tahun): string
+    {
+        $nama = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        $n = (int) $bulan;
+
+        return trim(($nama[$n] ?? $this->plain($bulan)).' '.(int) $tahun);
+    }
+
+    /** Tingkat panggilan dalam angka Romawi singkat (I/II/III). */
+    private function tingkatPanggilan(int $level): string
+    {
+        if ($level <= 0) {
+            return 'Tingkat -';
+        }
+
+        return 'Tingkat '.(SuratPanggilanService::LABEL_SINGKAT[$level] ?? $level);
     }
 
     /**
