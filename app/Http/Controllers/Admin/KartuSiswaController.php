@@ -422,6 +422,12 @@ class KartuSiswaController extends BaseController
         if (! in_array($desain, ['landscape', 'portrait', 'duplex', 'duplex_portrait'], true)) {
             $desain = 'duplex';
         }
+        // Template latar kartu: vektor (desain bawaan) atau PNG hasil unggahan /settings
+        [$template, $kartuBgDepan, $kartuBgBelakang] = self::resolveKartuTemplate(
+            $setting,
+            $desain,
+            $this->request->query('template')
+        );
 
         $data = [
             'judul' => 'Cetak Kartu Absen Siswa',
@@ -441,6 +447,9 @@ class KartuSiswaController extends BaseController
             'stampel_url' => self::resolveStampelUrl($setting),
             'base_path' => $basePath,
             'desain' => $desain,
+            'template' => $template,
+            'kartu_bg_depan' => $kartuBgDepan,
+            'kartu_bg_belakang' => $kartuBgBelakang,
             'mode' => $this->modeCetak(),
             'flip' => $this->arahFlip(),
             'grid' => self::konfigurasiGrid($desain === 'duplex_portrait'),
@@ -574,6 +583,13 @@ class KartuSiswaController extends BaseController
             $desain = $desain === 'portrait' ? 'duplex_portrait' : 'duplex';
         }
 
+        // Template latar kartu: vektor (desain bawaan) atau PNG hasil unggahan /settings
+        [$template, $kartuBgDepan, $kartuBgBelakang] = self::resolveKartuTemplate(
+            $setting,
+            $desain,
+            $this->request->query('template')
+        );
+
         $mode = $this->modeCetak();
         $flip = $this->arahFlip();
 
@@ -600,6 +616,9 @@ class KartuSiswaController extends BaseController
             'logo_url' => self::resolveLogoUrl($setting),
             'stampel_url' => self::resolveStampelUrl($setting),
             'desain' => $desain,
+            'template' => $template,
+            'kartu_bg_depan' => $kartuBgDepan,
+            'kartu_bg_belakang' => $kartuBgBelakang,
             'mode' => $mode,
             'flip' => $flip,
             'grid' => $grid,
@@ -780,5 +799,52 @@ class KartuSiswaController extends BaseController
         }
 
         return null;
+    }
+
+    /**
+     * Helper URL latar kartu PNG (kolom setting.kartu_bg_depan /
+     * kartu_bg_belakang, diatur di /settings). Mengembalikan null bila belum
+     * diunggah atau filenya tidak ada, sehingga template vektor tetap dipakai.
+     */
+    public static function resolveKartuBgUrl(?object $setting, string $field): ?string
+    {
+        if (! $setting || empty($setting->{$field})) {
+            return null;
+        }
+
+        $clean = ltrim(str_replace('\\', '/', (string) $setting->{$field}), '/');
+        if (strpos($clean, '..') !== false) {
+            return null;
+        }
+        if (file_exists(public_path().'/'.$clean)) {
+            return url($clean);
+        }
+
+        return null;
+    }
+
+    /**
+     * Template kartu duplex portrait: 'vektor' (desain bawaan) atau 'png'
+     * (latar hasil unggahan di /settings). Template PNG hanya aktif bila
+     * kedua latar (depan + belakang) tersedia dan desainnya duplex_portrait;
+     * selain itu jatuh kembali ke vektor.
+     *
+     * @return array{0: string, 1: ?string, 2: ?string} [template, url depan, url belakang]
+     */
+    public static function resolveKartuTemplate(?object $setting, string $desain, ?string $param = null): array
+    {
+        $bgDepan = self::resolveKartuBgUrl($setting, 'kartu_bg_depan');
+        $bgBelakang = self::resolveKartuBgUrl($setting, 'kartu_bg_belakang');
+
+        $template = strtolower(trim((string) ($param ?? 'vektor')));
+        if (! in_array($template, ['vektor', 'png'], true)) {
+            $template = 'vektor';
+        }
+
+        if ($template === 'png' && (! $bgDepan || ! $bgBelakang || $desain !== 'duplex_portrait')) {
+            $template = 'vektor';
+        }
+
+        return [$template, $bgDepan, $bgBelakang];
     }
 }

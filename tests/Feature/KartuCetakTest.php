@@ -201,4 +201,104 @@ class KartuCetakTest extends TestCase
         $response->assertSee('card-grid', false);
         $response->assertDontSee('class="ktp-page"', false);
     }
+
+    /**
+     * Buat berkas PNG latar kartu palsu di uploads/settings/ dan isi kolom
+     * setting.kartu_bg_depan / kartu_bg_belakang. Nama unik supaya tidak
+     * menimpa latar asli milik sekolah.
+     *
+     * @return list<string> daftar path relatif yang dibuat
+     */
+    private function buatLatarKartuPalsu(): array
+    {
+        $paths = [
+            'uploads/settings/test-kartu-bg-depan-'.uniqid().'.png',
+            'uploads/settings/test-kartu-bg-belakang-'.uniqid().'.png',
+        ];
+
+        foreach ($paths as $path) {
+            file_put_contents(public_path($path), base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+            ));
+        }
+
+        DB::table('setting')->insert([
+            'sekolah' => 'SMA NEGERI 1 UJI COBA',
+            'kartu_bg_depan' => $paths[0],
+            'kartu_bg_belakang' => $paths[1],
+        ]);
+
+        return $paths;
+    }
+
+    private function hapusLatarKartuPalsu(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if (file_exists(public_path($path))) {
+                unlink(public_path($path));
+            }
+        }
+    }
+
+    public function test_kartu_siswa_template_png_memakai_latar_dan_menyembunyikan_vektor(): void
+    {
+        $this->loginAsAdmin();
+        $this->siapkanKelasDanSiswa(1);
+        $latar = $this->buatLatarKartuPalsu();
+
+        try {
+            $response = $this->get('/admin/presensi/siswa/kartu/cetak?id_kelas=10&desain=duplex_portrait&template=png');
+
+            $response->assertStatus(200);
+            // Root kartu diberi penanda template PNG + latar dirender <img>.
+            $response->assertSee('class="card-dp card-dp-front card-dp-tpl-png"', false);
+            $response->assertSee('<img class="dp-bg-img"', false);
+            $response->assertSee('uploads/settings/', false);
+            // Hiasan vektor tidak ikut tercetak di atas latar PNG.
+            $response->assertDontSee('class="dp-header"', false);
+            $response->assertDontSee('class="dp-back-watermark"', false);
+        } finally {
+            $this->hapusLatarKartuPalsu($latar);
+        }
+    }
+
+    public function test_kartu_siswa_template_png_fallback_ke_vektor_tanpa_latar(): void
+    {
+        $this->loginAsAdmin();
+        $this->siapkanKelasDanSiswa(1);
+
+        DB::table('setting')->insert([
+            'sekolah' => 'SMA NEGERI 1 UJI COBA',
+        ]);
+
+        // Minta template PNG padahal belum ada latar terunggah → vektor.
+        $response = $this->get('/admin/presensi/siswa/kartu/cetak?id_kelas=10&desain=duplex_portrait&template=png');
+
+        $response->assertStatus(200);
+        $response->assertSee('class="card-dp card-dp-front"', false);
+        $response->assertDontSee('card-dp-front card-dp-tpl-png', false);
+        $response->assertDontSee('<img class="dp-bg-img"', false);
+        // Desain vektor utuh: kop & watermark tetap dirender.
+        $response->assertSee('class="dp-header"', false);
+        $response->assertSee('class="dp-back-watermark"', false);
+    }
+
+    public function test_kartu_siswa_template_png_hanya_untuk_duplex_portrait(): void
+    {
+        $this->loginAsAdmin();
+        $this->siapkanKelasDanSiswa(1);
+        $latar = $this->buatLatarKartuPalsu();
+
+        try {
+            // Desain landscape duplex tetap memakai kartu_dl — template PNG tidak berlaku.
+            $response = $this->get('/admin/presensi/siswa/kartu/cetak?id_kelas=10&desain=duplex&template=png');
+
+            $response->assertStatus(200);
+            $response->assertSee('class="card-dl card-dl-front"', false);
+            $response->assertDontSee('card-dp-front card-dp-tpl-png', false);
+            $response->assertDontSee('<img class="dp-bg-img"', false);
+        } finally {
+            $this->hapusLatarKartuPalsu($latar);
+        }
+    }
 }

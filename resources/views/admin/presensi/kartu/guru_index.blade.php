@@ -308,13 +308,13 @@
         position: relative;
     }
     .card-header-bar {
-        background: linear-gradient(135deg, #581c87 0%, #6b21a8 50%, var(--accent-600) 100%);
+        background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
         color: #ffffff;
         padding: 2mm 3mm;
         display: flex;
         align-items: center;
         gap: 2.5mm;
-        border-bottom: 2px solid #a855f7;
+        border-bottom: 2px solid #f0b429;
         flex-shrink: 0;
     }
     .card-logo {
@@ -342,7 +342,7 @@
         font-size: 6pt;
         font-weight: 700;
         letter-spacing: 0.8px;
-        color: #e9d5ff;
+        color: #8ecbf5;
         text-transform: uppercase;
         margin: 0;
         line-height: 1;
@@ -474,26 +474,152 @@
     .card-qr-label {
         font-size: 4.8pt;
         font-weight: 700;
-        color: var(--accent-600);
+        color: #1e56c8;
         letter-spacing: 0.5px;
         text-transform: uppercase;
         margin-top: 0.4mm;
         line-height: 1;
     }
     .card-footer-bar {
-        background: #faf5ff;
-        border-top: 1px solid #f3e8ff;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
         padding: 1mm 3mm;
         display: flex;
         align-items: center;
         justify-content: space-between;
         font-size: 5.5pt;
-        color: #6b21a8;
+        color: #1e56c8;
         flex-shrink: 0;
     }
     .card-footer-bar .badge-instansi {
         font-weight: 700;
-        color: #581c87;
+        color: #0f3593;
+    }
+
+    /* ── Kartu Guru Landscape — SISI BELAKANG ──────────────────────
+       Identik dengan CSS halaman cetak guru agar pratinjau = hasil cetak. */
+    .card-header-bar-back {
+        background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
+        color: #ffffff;
+        padding: 2mm 3mm;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 2.5mm;
+        border-bottom: 2px solid #f0b429;
+        flex-shrink: 0;
+    }
+    .card-back-title {
+        font-size: 8pt;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .card-back-side {
+        background: rgba(255,255,255,0.22);
+        border: 1px solid rgba(255,255,255,0.4);
+        font-size: 6pt;
+        font-weight: 700;
+        padding: 0.6mm 2mm;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .card-content-back {
+        flex: 1;
+        padding: 2.5mm 3mm;
+        display: flex;
+        align-items: stretch;
+        gap: 3mm;
+        background: #ffffff;
+    }
+    .card-back-data {
+        flex: 1;
+        min-width: 0;
+    }
+    .card-back-sub {
+        font-size: 6.5pt;
+        font-weight: 800;
+        color: #0f3593;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 1mm 0;
+    }
+    .card-back-table {
+        font-size: 6.5pt;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .card-back-table td {
+        padding: 0.4mm 0;
+        vertical-align: top;
+    }
+    .card-back-table .lbl {
+        width: 14mm;
+        color: #64748b;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .card-back-table .sep {
+        width: 2mm;
+        color: #94a3b8;
+        text-align: center;
+    }
+    .card-back-table .val {
+        color: #0f172a;
+        font-weight: 600;
+        word-break: break-word;
+    }
+    .card-back-qr {
+        width: 21mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-left: 1px solid #e2e8f0;
+        padding-left: 2.5mm;
+        flex-shrink: 0;
+    }
+    .card-back-qr-box {
+        width: 18mm;
+        height: 18mm;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 1px;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .card-back-qr-box canvas, .card-back-qr-box img {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+        margin: 0 auto;
+    }
+    .card-back-qr-label {
+        font-size: 4.8pt;
+        font-weight: 700;
+        color: #1e56c8;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-top: 1mm;
+        line-height: 1;
+    }
+    .card-footer-bar-back {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 1mm 3mm;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 5.5pt;
+        color: #1e56c8;
+        flex-shrink: 0;
+    }
+    .card-footer-bar-back .badge-instansi {
+        font-weight: 700;
+        color: #0f3593;
     }
 </style>
 @endsection
@@ -731,6 +857,11 @@
                         <div class="flex flex-col items-center gap-1.5">
                             <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_landscape')
+                        </div>
+                        <!-- KARTU (SISI BELAKANG) -->
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
+                            @include('admin.presensi.kartu.partials.kartu_guru_landscape_belakang')
                         </div>
                     </div>
                 </div>

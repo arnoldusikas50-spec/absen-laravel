@@ -208,6 +208,8 @@ class SettingsController extends BaseController
         'banner1',
         'banner2',
         'banner3',
+        'kartu_bg_depan',
+        'kartu_bg_belakang',
     ];
 
     /**

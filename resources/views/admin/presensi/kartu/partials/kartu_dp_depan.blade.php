@@ -4,8 +4,17 @@
 // sekolah, ombak biru muda & garis emas di bawah header, latar biru muda
 // bergaris lengkung, foto merah berbingkai putih, banner nama biru, data
 // NIS/Kelas, QR + "SCAN UNTUK INFORMASI", dan ombak biru-emas kanan bawah.
+//
+// Template latar: $template === 'png' memakai latar PNG hasil unggahan
+// /settings (kolom setting.kartu_bg_depan) — semua hiasan vektor/kop
+// disembunyikan, hanya data dinamis (foto, nama, data, QR) yang tetap.
+// Bila salah satu latar belum diunggah, controller sudah memaksa 'vektor'.
+$kartuTemplate = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
 ?>
-<div class="card-dp card-dp-front">
+<div class="card-dp card-dp-front<?php echo $kartuTemplate === 'png' ? ' card-dp-tpl-png' : ''; ?>">
+    @if ($kartuTemplate === 'png')
+        <img class="dp-bg-img" src="{{ $kartu_bg_depan }}" alt="Latar kartu depan">
+    @else
     <!-- Latar: garis lengkung halus (hanya di zona bawah, tidak menabrak foto & nama) -->
     <svg class="dp-streaks" viewBox="0 0 204 344" preserveAspectRatio="none" aria-hidden="true">
         <path d="M-24,258 C42,238 128,272 236,232" stroke="#cfe3f8" stroke-width="13" fill="none" opacity="0.55"/>
@@ -24,6 +33,7 @@
         </div>
         <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
     </div>
+    @endif
 
     <!-- Foto Siswa (latar merah pas foto, bingkai putih) -->
     <div class="dp-photo-wrap">
@@ -61,10 +71,12 @@
         </div>
     </div>
 
+    @if ($kartuTemplate !== 'png')
     <!-- Dekorasi: ombak biru + emas kanan bawah -->
     <svg class="dp-wave-bottom" viewBox="0 0 120 42" preserveAspectRatio="none" aria-hidden="true">
         <path d="M120,0 C88,14 52,28 0,42 L120,42 Z" fill="#1e56c8"/>
         <path d="M120,8 C92,20 56,32 20,42" fill="none" stroke="#f0b429" stroke-width="3"/>
         <path d="M120,16 C96,26 64,36 38,42" fill="none" stroke="#8ecbf5" stroke-width="2"/>
     </svg>
+    @endif
 </div>

@@ -22,6 +22,16 @@ class KartuGuruController extends BaseController
     private const BATAS_CETAK = 500;
 
     /**
+     * Kolom identitas yang dipakai kartu. Kolom hasil migrasi terbaru ikut
+     * didaftarkan di sini; kolomKartu() menyaringnya sesuai yang ada di tabel.
+     */
+    private const KOLOM_KARTU = [
+        'id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk',
+        'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username',
+        'tempat_lahir', 'tgl_lahir', 'pendidikan', 'nomor_rfid',
+    ];
+
+    /**
      * Halaman Utama / Preview Kartu Absen Guru / GTK
      */
     public function index()
@@ -45,7 +55,6 @@ class KartuGuruController extends BaseController
             }
         }
         $db = DB::connection();
-        $hasRfidGuru = Schema::hasColumn('master_guru', 'nomor_rfid');
 
         $guruOptions = [];
         $guruList = [];
@@ -71,9 +80,7 @@ class KartuGuruController extends BaseController
         // Query data guru yang akan ditampilkan
         if ($catatan === '') {
             try {
-                $builder = $db->table('master_guru')
-                    ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username', 'tempat_lahir', 'tgl_lahir', 'pendidikan')
-                    ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
+                $builder = $db->table('master_guru')->select(self::kolomKartu());
 
                 if ($idGuru > 0) {
                     $builder->where('id_guru', $idGuru);
@@ -163,16 +170,13 @@ class KartuGuruController extends BaseController
             }
         }
         $db = DB::connection();
-        $hasRfidGuru = Schema::hasColumn('master_guru', 'nomor_rfid');
 
         $guruList = [];
         $terpotong = false;
         $catatan = '';
 
         try {
-            $builder = $db->table('master_guru')
-                ->select('id_guru', 'id_user', 'nama_guru', 'nip', 'kode_guru', 'nuptk', 'jenis_ptk', 'tgs_tambahan', 'status_pegawai', 'jenis_kelamin', 'foto', 'username', 'tempat_lahir', 'tgl_lahir', 'pendidikan')
-                ->addSelect($hasRfidGuru ? ['nomor_rfid'] : []);
+            $builder = $db->table('master_guru')->select(self::kolomKartu());
 
             if ($idGuru > 0) {
                 $builder->where('id_guru', $idGuru);
@@ -260,6 +264,23 @@ class KartuGuruController extends BaseController
         }
 
         return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
+    }
+
+    /**
+     * Kolom kartu yang benar-benar ada di tabel master_guru.
+     *
+     * Kolom hasil migrasi terbaru (mis. `pendidikan`) dilewati bila migrasinya
+     * belum dijalankan di server ini. Dengan begitu kartu tetap tampil walau
+     * satu kolom opsional belum ada, bukan kosong karena SQLSTATE 42S22.
+     *
+     * @return string[]
+     */
+    private static function kolomKartu(): array
+    {
+        return array_values(array_filter(
+            self::KOLOM_KARTU,
+            static fn (string $kolom): bool => Schema::hasColumn('master_guru', $kolom),
+        ));
     }
 
     /**

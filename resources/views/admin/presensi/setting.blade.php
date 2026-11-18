@@ -536,9 +536,11 @@
                                 ['field' => 'stampel',       'label' => 'Cap / Stempel Sekolah', 'desc' => 'Stempel resmi dokumen (PNG)'],
                                 ['field' => 'tanda_tangan',  'label' => 'TTD Kepala Sekolah',   'desc' => 'Tanda tangan digital kepsek'],
                                 ['field' => 'kopsekolah',    'label' => 'Kop Surat Sekolah',    'desc' => 'Kop resmi cetak rapor & surat'],
+                                ['field' => 'kartu_bg_depan',    'label' => 'Latar Kartu Depan',    'desc' => 'Latar PNG kartu siswa sisi depan (rasio 54:85,6)'],
+                                ['field' => 'kartu_bg_belakang', 'label' => 'Latar Kartu Belakang', 'desc' => 'Latar PNG kartu siswa sisi belakang'],
                             ];
                     ?>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 <?php foreach ($dropifyUploads as $item) {
                                     // Tampilkan preview hanya bila file benar-benar ada di disk.
                                     // Path basi di DB (file sudah hilang) dirender kosong, bukan overlay gelap rusak.

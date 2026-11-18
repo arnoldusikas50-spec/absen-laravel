@@ -8,6 +8,11 @@
     $lembarList = is_array($lembar ?? null) ? $lembar : [];
     $partialDepan = $isPortrait ? 'admin.presensi.kartu.partials.kartu_dp_depan' : 'admin.presensi.kartu.partials.kartu_dl_depan';
     $partialBelakang = $isPortrait ? 'admin.presensi.kartu.partials.kartu_dp_belakang' : 'admin.presensi.kartu.partials.kartu_dl_belakang';
+    // Template latar kartu duplex portrait: 'vektor' atau 'png' (unggahan /settings).
+    $templateAktif = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
+    $templatePngSiap = $isPortrait && ! empty($kartu_bg_depan) && ! empty($kartu_bg_belakang);
+    // Admin bisa mengelola unggahan latar di menu Pengaturan; guru tidak punya akses.
+    $bisaSetelan = ! str_starts_with(request()->path(), 'guru');
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -741,6 +746,28 @@
         .card-dp-front {
             background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
         }
+        /* ═══ Template Latar PNG (kartu duplex portrait) ═══
+           Latar unggahan /settings menempel penuh di belakang konten;
+           hiasan vektor, kop, watermark, garis & ombak bawah disembunyikan. */
+        .dp-bg-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .card-dp-tpl-png .dp-header,
+        .card-dp-tpl-png .dp-streaks,
+        .card-dp-tpl-png .dp-wave-top,
+        .card-dp-tpl-png .dp-wave-bottom,
+        .card-dp-tpl-png .dp-back-header,
+        .card-dp-tpl-png .dp-back-watermark,
+        .card-dp-tpl-png .dp-info-divider,
+        .card-dp-tpl-png .dp-back-footer-wave-wrap {
+            display: none !important;
+        }
         /* Latar: garis lengkung halus */
         .dp-streaks {
             position: absolute;
@@ -1457,9 +1484,10 @@
     $qKelas = (int) ($_GET['id_kelas'] ?? 0);
     $qSiswa = (int) ($_GET['id_siswa'] ?? 0);
     $baseQs = 'id_kelas=' . $qKelas . ($qSiswa ? '&id_siswa=' . $qSiswa : '');
-    $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '');
-    $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '');
-    $qsFlip = static fn (string $f): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $f;
+    $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($d === 'duplex_portrait' ? '&template=' . $templateAktif : '');
+    $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($isPortrait ? '&template=' . $templateAktif : '');
+    $qsFlip = static fn (string $f): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $f . ($isPortrait ? '&template=' . $templateAktif : '');
+    $qsTemplate = static fn (string $t): string => '?' . $baseQs . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=' . $t;
     ?>
     <div class="top-bar no-print">
         <div class="top-bar-head">
@@ -1504,6 +1532,21 @@
                     </a>
                 </div>
             </div>
+            @if ($isPortrait)
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Template</span>
+                    <div class="seg">
+                        <a href="{{ $qsTemplate('vektor') }}" class="btn {{ $templateAktif === 'vektor' ? 'btn-active' : 'btn-secondary' }}" title="Desain vektor bawaan">
+                            <i class="bi bi-vector-pen"></i> Vektor
+                        </a>
+                        <a href="{{ $templatePngSiap ? $qsTemplate('png') : ($bisaSetelan ? url('setting') : '#') }}"
+                           {{ $templatePngSiap ? '' : ($bisaSetelan ? 'title="Unggah latar kartu depan &amp; belakang di menu Pengaturan dulu" style="opacity:.45;"' : 'aria-disabled="true" title="Latar kartu diunggah admin melalui menu Pengaturan" style="pointer-events:none;opacity:.45;"') }}
+                           class="btn {{ $templateAktif === 'png' ? 'btn-active' : 'btn-secondary' }}" title="Latar PNG hasil unggahan /settings">
+                            <i class="bi bi-image"></i> Latar PNG
+                        </a>
+                    </div>
+                </div>
+            @endif
             @if ($modeAktif === 'bolakbalik')
                 <div class="ctrl-group">
                     <span class="ctrl-label">Balik Kertas</span>

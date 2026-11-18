@@ -528,6 +528,29 @@
     .card-dp-front {
         background: linear-gradient(170deg, #eaf3fc 0%, #dbeafb 45%, #cfe4f9 100%);
     }
+    /* ═══ Template Latar PNG (kartu duplex portrait) ═══
+       .dp-bg-img menempel penuh di belakang semua konten; hiasan vektor,
+       kop, dan watermark disembunyikan agar latar unggahan /settings
+       tampil bersih — hanya data dinamis yang tercetak di atasnya. */
+    .dp-bg-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+        pointer-events: none;
+    }
+    .card-dp-tpl-png .dp-header,
+    .card-dp-tpl-png .dp-streaks,
+    .card-dp-tpl-png .dp-wave-top,
+    .card-dp-tpl-png .dp-wave-bottom,
+    .card-dp-tpl-png .dp-back-header,
+    .card-dp-tpl-png .dp-back-watermark,
+    .card-dp-tpl-png .dp-info-divider,
+    .card-dp-tpl-png .dp-back-footer-wave-wrap {
+        display: none !important;
+    }
     /* Latar: garis lengkung halus */
     .dp-streaks {
         position: absolute;
@@ -921,9 +944,21 @@
     $desainAktif = $desain ?? 'duplex';
     $modeAktif = in_array(($mode ?? 'lembar'), ['lembar', 'bolakbalik', 'ktp'], true) ? ($mode ?? 'lembar') : 'lembar';
     $flipAktif = ($flip ?? 'long') === 'short' ? 'short' : 'long';
+    // Template latar kartu duplex portrait: 'vektor' atau 'png' (unggahan /settings).
+    $templateAktif = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
+    // PNG hanya menempel pada duplex portrait dan bila kedua latarnya terunggah.
+    $templatePngSiap = $desainAktif === 'duplex_portrait'
+        && ! empty($kartu_bg_depan) && ! empty($kartu_bg_belakang);
     $qsCetak = 'id_kelas=' . $id_kelas . ($id_siswa ? '&id_siswa=' . $id_siswa : '');
-    // Bawa serta mode & arah flip saat berganti desain agar pilihannya tidak ter-reset.
-    $qsSertaan = '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '');
+    // Admin bisa mengelola unggahan latar di menu Pengaturan; guru tidak punya akses.
+    $bisaSetelan = str_starts_with((string) $basePath, 'admin');
+    $pngHref = $templatePngSiap
+        ? url($basePath . '?' . $qsCetak . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=png&v=5')
+        : ($bisaSetelan ? url('setting') : '#');
+    // Bawa serta mode, arah flip & template saat berganti desain agar pilihannya tidak ter-reset.
+    $qsSertaan = '&mode=' . $modeAktif
+        . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '')
+        . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : '');
 ?>
 <div class="fade-in-up p-4 md:p-6 space-y-6">
 
@@ -938,7 +973,7 @@
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
             <a id="btnCetakLembar"
-               href="{{ url($basePath . '/cetak?' . $qsCetak . '&desain=' . $desainAktif . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&v=5') }}"
+               href="{{ url($basePath . '/cetak?' . $qsCetak . '&desain=' . $desainAktif . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : '') . '&v=5') }}"
                target="_blank"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
                 <i class="bi bi-printer-fill"></i> Cetak Kartu
@@ -1038,6 +1073,35 @@
                 </div>
             @endif
         </div>
+
+        @if($desainAktif === 'duplex_portrait')
+        <!-- Pilihan Template Kartu (hanya duplex portrait) -->
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Template Kartu</label>
+            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan template kartu">
+                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=vektor&v=5') }}"
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $templateAktif === 'vektor' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-vector-pen"></i> Vektor
+                </a>
+                <a href="{{ $pngHref }}"
+                   {{ $templatePngSiap ? '' : ($bisaSetelan ? 'title="Unggah latar kartu depan &amp; belakang di menu Pengaturan dulu" style="opacity:.45;"' : 'aria-disabled="true" title="Latar kartu diunggah admin melalui menu Pengaturan" tabindex="-1" style="pointer-events:none;opacity:.45;"') }}
+                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $templateAktif === 'png' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                    <i class="bi bi-image"></i> Latar PNG
+                </a>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">
+                @if($templateAktif === 'png')
+                    <strong>Latar PNG :</strong> Desain memakai latar PNG yang diunggah di menu <strong>Pengaturan</strong> — kop, ombak, dan hiasan vektor disembunyikan, hanya data (foto, nama, QR, barcode) yang tercetak di atasnya.
+                @elseif($templatePngSiap)
+                    <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG sudah tersedia — pilih "Latar PNG" untuk memakainya.
+                @elseif($bisaSetelan)
+                    <strong>Vektor :</strong> Desain kartu bawaan. Belum ada latar PNG — <strong>klik "Latar PNG"</strong> untuk mengunggah Latar Depan &amp; Belakang di menu Pengaturan.
+                @else
+                    <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG hanya aktif bila admin mengunggah Latar Kartu Depan &amp; Belakang di menu Pengaturan.
+                @endif
+            </p>
+        </div>
+        @endif
         </div>
 
         <hr class="my-5 border-slate-100">
@@ -1357,12 +1421,6 @@
         <?php elseif ($desainAktif === 'duplex_portrait'): ?>
         <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <?php foreach ($siswa_list as $s): ?>
-                <?php
-                $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
-                $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
-                $nisnClean = \App\Services\KartuSiswaFormatter::nomorSiswa($s);
-                $barcodeVal = $s->qr_value;
-                ?>
                 <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
                      data-name="{{ strtolower($s->nama) }}"
                      data-nis="{{ strtolower($s->nis ?? '') }}"
@@ -1383,162 +1441,13 @@
                         <!-- SISI DEPAN (FRONT) PORTRAIT -->
                         <div class="flex flex-col items-center gap-1.5">
                             <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
-                            <div class="card-dp card-dp-front">
-                                <!-- Latar: garis lengkung halus (hanya di zona bawah, tidak menabrak foto & nama) -->
-                                <svg class="dp-streaks" viewBox="0 0 204 344" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M-24,258 C42,238 128,272 236,232" stroke="#cfe3f8" stroke-width="13" fill="none" opacity="0.55"/>
-                                    <path d="M-24,296 C52,276 138,304 236,268" stroke="#ddebfa" stroke-width="19" fill="none" opacity="0.5"/>
-                                </svg>
-                                <!-- Dekorasi: ombak biru muda + garis emas di bawah header -->
-                                <svg class="dp-wave-top" viewBox="0 0 204 36" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M0,0 L204,0 L204,6 C160,24 108,4 64,15 C38,22 16,24 0,30 Z" fill="#8ecbf5"/>
-                                    <path d="M0,0 L204,0 L204,2 C156,15 100,0 56,9 C30,14 12,16 0,20" fill="none" stroke="#f0b429" stroke-width="3"/>
-                                </svg>
-
-                                <!-- Kop: Logo + Nama Sekolah -->
-                                <div class="dp-header">
-                                    <div class="dp-logo-wrap">
-                                        <img src="{{ $logo_url }}" alt="Logo" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                                    </div>
-                                    <h4 class="dp-header-title">{{ $setting->sekolah ?? 'SMA NEGERI 2 AMFOANG TIMUR' }}</h4>
-                                </div>
-
-                                <!-- Foto Siswa (latar merah pas foto, bingkai putih) -->
-                                <div class="dp-photo-wrap">
-                                    <div class="dp-photo-box">
-                                        <img src="{{ $s->foto_url }}" alt="{{ $s->nama }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                                        <div class="dl-photo-placeholder" style="display:none;"><i class="bi bi-person-fill"></i></div>
-                                    </div>
-                                </div>
-
-                                <!-- Banner Nama -->
-                                <div class="dp-name-badge" title="{{ $s->nama }}">{{ $s->nama }}</div>
-
-                                <!-- Data Ringkas -->
-                                <table class="dp-meta-table">
-                                    <tr>
-                                        <td class="dp-meta-lbl">NIS/NISN</td>
-                                        <td class="dp-meta-sep">:</td>
-                                        <td class="dp-meta-val">{{ ($s->nis ? $s->nis . ' / ' : '') . ($s->nisn ?: '-') }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="dp-meta-lbl">Kelas</td>
-                                        <td class="dp-meta-sep">:</td>
-                                        <td class="dp-meta-val">{{ $s->nama_kelas }}</td>
-                                    </tr>
-                                </table>
-
-                                <!-- QR Section -->
-                                <div class="dp-qr-section">
-                                    <div class="dp-qr-card">
-                                        <div class="dp-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="64"></div>
-                                    </div>
-                                    <div class="dp-qr-divider"></div>
-                                    <div class="dp-qr-desc">
-                                        SCAN UNTUK<br>INFORMASI
-                                    </div>
-                                </div>
-
-                                <!-- Dekorasi: ombak biru + emas kanan bawah -->
-                                <svg class="dp-wave-bottom" viewBox="0 0 120 42" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M120,0 C88,14 52,28 0,42 L120,42 Z" fill="#1e56c8"/>
-                                    <path d="M120,8 C92,20 56,32 20,42" fill="none" stroke="#f0b429" stroke-width="3"/>
-                                    <path d="M120,16 C96,26 64,36 38,42" fill="none" stroke="#8ecbf5" stroke-width="2"/>
-                                </svg>
-                            </div>
+                            @include('admin.presensi.kartu.partials.kartu_dp_depan')
                         </div>
 
                         <!-- SISI BELAKANG (BACK) PORTRAIT -->
                         <div class="flex flex-col items-center gap-1.5">
                             <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
-                            <div class="card-dp card-dp-back">
-                                <!-- Kop: judul sisi belakang -->
-                                <div class="dp-back-header">
-                                    <h4 class="dp-back-title">DATA PESERTA DIDIK</h4>
-                                </div>
-                                <!-- Dekorasi: ombak biru muda + garis emas, menjorok tipis di bawah header -->
-                                <svg class="dp-wave-top dp-wave-top-back" viewBox="0 0 204 14" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M0,0 L204,0 L204,2 C160,11 108,3 64,8 C38,11 16,12 0,13.5 Z" fill="#8ecbf5"/>
-                                    <path d="M0,0 L204,0 L204,1 C156,8 100,1.5 56,6 C30,9 12,9.5 0,11" fill="none" stroke="#f0b429" stroke-width="2.5"/>
-                                </svg>
-
-                                <!-- Watermark -->
-                                <div class="dp-back-watermark">
-                                    <img src="{{ $logo_url }}" alt="Watermark" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
-                                </div>
-
-                                <div class="dp-back-body">
-                                    <!-- Data Siswa -->
-                                    <table class="dp-info-table">
-                                        <tr>
-                                            <td class="dp-lbl">Nama</td>
-                                            <td class="dp-sep">:</td>
-                                            <td class="dp-val" title="{{ $s->nama }}">{{ $s->nama }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dp-lbl">Jenis Kelamin</td>
-                                            <td class="dp-sep">:</td>
-                                            <td class="dp-val">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dp-lbl">Tempat Tgl Lahir</td>
-                                            <td class="dp-sep">:</td>
-                                            <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dp-lbl">NIS/NISN</td>
-                                            <td class="dp-sep">:</td>
-                                            <td class="dp-val">{{ ($s->nis ? $s->nis . ' / ' : '') . ($s->nisn ?: '-') }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="dp-lbl">Kelas</td>
-                                            <td class="dp-sep">:</td>
-                                            <td class="dp-val">{{ $s->nama_kelas }}</td>
-                                        </tr>
-                                    </table>
-
-                                    <!-- Garis biru -->
-                                    <div class="dp-info-divider"></div>
-
-                                    <!-- Tata Tertib -->
-                                    <div class="dp-rules-section">
-                                        <div class="dp-rules-pill">TATA TERTIB SISWA</div>
-                                        <div class="dp-rules-list">
-                                            <div class="dp-rule-item">
-                                                <span class="dp-rule-num">1.</span>
-                                                <span class="dp-rule-text">Siswa wajib membawa kartu pelajar setiap saat.</span>
-                                            </div>
-                                            <div class="dp-rule-item">
-                                                <span class="dp-rule-num">2.</span>
-                                                <span class="dp-rule-text">Kartu ini digunakan sebagai identitas resmi sekolah.</span>
-                                            </div>
-                                            <div class="dp-rule-item">
-                                                <span class="dp-rule-num">3.</span>
-                                                <span class="dp-rule-text">Jika kartu hilang, segera lapor ke pihak sekolah.</span>
-                                            </div>
-                                            <div class="dp-rule-item">
-                                                <span class="dp-rule-num">4.</span>
-                                                <span class="dp-rule-text">Kartu tidak boleh dipindahtangankan.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Barcode -->
-                                    <div class="dp-barcode-wrap">
-                                        <svg class="barcode-svg dp-barcode-svg" data-barcode="{{ $barcodeVal }}"></svg>
-                                        <span class="dp-barcode-text">{{ $barcodeVal }}</span>
-                                    </div>
-                                </div>
-
-                                <!-- Ombak bawah + motto -->
-                                <div class="dp-back-footer-wave-wrap">
-                                    <svg class="dp-back-footer-wave" viewBox="0 0 204 30" preserveAspectRatio="none" aria-hidden="true">
-                                        <path d="M0,10 C50,0 120,2 204,10 L204,30 L0,30 Z" fill="#0b3d91"/>
-                                        <path d="M0,9 C50,-1 120,1 204,9" fill="none" stroke="#f0b429" stroke-width="2.5"/>
-                                    </svg>
-                                    <div class="dp-footer-motto">Belajar, Berprestasi, Berakhlak Mulia</div>
-                                </div>
-                            </div>
+                            @include('admin.presensi.kartu.partials.kartu_dp_belakang')
                         </div>
                     </div>
                 </div>

@@ -451,6 +451,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                         <li>Gunakan resolusi tinggi agar logo dan banner tampil tajam pada laporan.
                         <li>Banner disarankan berukuran 1020x250 piksel dengan rasio 4:1.
                         <li>Format transparan (PNG) ideal untuk tanda tangan digital dan cap sekolah.
+                        <li>Latar kartu siswa disarankan rasio 54:85,6 (mis. 640 × 1016 px) — dipakai desain "Kartu Pelajar (Portrait)".
                     </ul>
                 </div>
 
@@ -462,6 +463,8 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
                         ['id' => 'set-logo-kiri', 'input_id' => 'logo-kiri', 'label' => 'Logo Kiri / Aplikasi', 'field' => 'logo_kiri'],
                         ['id' => 'set-logo-kanan', 'input_id' => 'logo-kanan', 'label' => 'Logo Kanan', 'field' => 'logo_kanan'],
                         ['id' => 'set-kopsekolah', 'input_id' => 'kopsekolah', 'label' => 'Kop Sekolah', 'field' => 'kopsekolah'],
+                        ['id' => 'set-kartu-bg-depan', 'input_id' => 'kartu-bg-depan', 'label' => 'Latar Kartu Siswa Depan (PNG)', 'field' => 'kartu_bg_depan'],
+                        ['id' => 'set-kartu-bg-belakang', 'input_id' => 'kartu-bg-belakang', 'label' => 'Latar Kartu Siswa Belakang (PNG)', 'field' => 'kartu_bg_belakang'],
                     ];
 
                     foreach ($uploadInputs as $item):
@@ -496,6 +499,8 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
         'ttdproktor': 'ttdproktor',
         'kodescan': 'kodescan',
         'kopsekolah': 'kopsekolah',
+        'kartu-bg-depan': 'kartu_bg_depan',
+        'kartu-bg-belakang': 'kartu_bg_belakang',
         'banner1': 'banner1',
         'banner2': 'banner2',
         'banner3': 'banner3'
@@ -553,6 +558,8 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
         logo_kiri: @json($settingData->logo_kiri ?? ''),
         kodescan: @json($settingData->kodescan ?? ''),
         kopsekolah: @json($settingData->kopsekolah ?? ''),
+        kartu_bg_depan: @json($settingData->kartu_bg_depan ?? ''),
+        kartu_bg_belakang: @json($settingData->kartu_bg_belakang ?? ''),
         stampel: @json($settingData->stampel ?? ''),
         ttdproktor: @json($settingData->ttdproktor ?? ''),
         tanda_tangan: @json($settingData->tanda_tangan ?? ''),

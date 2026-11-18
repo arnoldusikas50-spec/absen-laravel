@@ -22,7 +22,7 @@
         <!-- Foto -->
         <div class="card-photo-box">
             <img src="{{ $g->foto_url }}" alt="{{ $g->nama_guru }}"
-                 onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::inisial($g->nama_guru, 128, '#7c3aed') }}'">
+                 onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::inisial($g->nama_guru, 128, '#1e56c8') }}'">
         </div>
 
         <!-- Identitas -->
@@ -42,7 +42,7 @@
                 <tr>
                     <td class="label">TUGAS</td>
                     <td class="sep">:</td>
-                    <td class="val" style="font-family:inherit;font-weight:700;color:#6b21a8;">{{ $g->jabatan }}</td>
+                    <td class="val" style="font-family:inherit;font-weight:700;color:#1e56c8;">{{ $g->jabatan }}</td>
                 </tr>
             </table>
         </div>

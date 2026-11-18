@@ -49,6 +49,8 @@ class SettingsModel extends Model
         'banner1',
         'banner2',
         'banner3',
+        'kartu_bg_depan',
+        'kartu_bg_belakang',
         'tp_aktif',
         'smt_aktif',
         'tkn_siswa',

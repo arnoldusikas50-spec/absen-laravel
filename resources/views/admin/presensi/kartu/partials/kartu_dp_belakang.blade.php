@@ -4,11 +4,19 @@
 // ombak biru muda & garis emas, latar biru muda dengan watermark logo,
 // tabel data siswa, pil "TATA TERTIB SISWA" + daftar aturan, barcode, dan
 // ombak bawah dengan motto sekolah.
+//
+// Template latar: $template === 'png' memakai latar PNG hasil unggahan
+// /settings (kolom setting.kartu_bg_belakang) — kop, watermark, garis
+// pembatas dan ombak bawah disembunyikan; tabel, tata tertib & barcode tetap.
 $isLaki = ($s->jenis_kelamin ?? 'L') === 'L';
 $ttlClean = \App\Services\KartuSiswaFormatter::ttl($s);
 $barcodeVal = $s->qr_value;
+$kartuTemplate = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
 ?>
-<div class="card-dp card-dp-back">
+<div class="card-dp card-dp-back<?php echo $kartuTemplate === 'png' ? ' card-dp-tpl-png' : ''; ?>">
+    @if ($kartuTemplate === 'png')
+        <img class="dp-bg-img" src="{{ $kartu_bg_belakang }}" alt="Latar kartu belakang">
+    @else
     <!-- Kop: judul sisi belakang -->
     <div class="dp-back-header">
         <h4 class="dp-back-title">DATA PESERTA DIDIK</h4>
@@ -23,6 +31,7 @@ $barcodeVal = $s->qr_value;
     <div class="dp-back-watermark">
         <img src="{{ $logo_url }}" alt="Watermark" onerror="this.src='{{ asset('assets/img/logo.png') }}'">
     </div>
+    @endif
 
     <div class="dp-back-body">
         <!-- Data Siswa -->
@@ -87,6 +96,7 @@ $barcodeVal = $s->qr_value;
         </div>
     </div>
 
+    @if ($kartuTemplate !== 'png')
     <!-- Ombak bawah + motto -->
     <div class="dp-back-footer-wave-wrap">
         <svg class="dp-back-footer-wave" viewBox="0 0 204 30" preserveAspectRatio="none" aria-hidden="true">
@@ -95,4 +105,5 @@ $barcodeVal = $s->qr_value;
         </svg>
         <div class="dp-footer-motto">Belajar, Berprestasi, Berakhlak Mulia</div>
     </div>
+    @endif
 </div>
