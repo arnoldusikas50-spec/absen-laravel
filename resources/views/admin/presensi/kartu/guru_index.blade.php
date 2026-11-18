@@ -7,38 +7,15 @@
     }
     .card-preview:hover {
         transform: translateY(-3px);
-        box-shadow: 0 14px 28px -6px rgba(107, 33, 168, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 14px 28px -6px rgb(var(--primary-700-rgb, 30 64 175) / 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
     }
     .qr-box canvas, .qr-box img {
         margin: 0 auto;
         display: block;
-    }
-    .card-header-gtk-landscape {
-        background: linear-gradient(135deg, var(--accent-900) 0%, var(--purple-800) 50%, var(--indigo-700) 100%) !important;
-        color: #ffffff !important;
-        padding: 12px 14px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        border-bottom: 2px solid var(--accent-500);
-    }
-    .card-header-gtk-portrait {
-        background: linear-gradient(180deg, var(--accent-900) 0%, var(--accent-600) 55%, #581c87 100%) !important;
-        color: #ffffff !important;
-        border-bottom: 2px solid var(--accent-500);
-    }
-    .badge-gtk-glass {
-        background: rgba(255, 255, 255, 0.2) !important;
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
-        color: #ffffff !important;
-    }
-
-    /* Duplex pair: kartu depan + belakang berdampingan di preview */
-    .guru-duplex-pair {
-        display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        justify-content: center;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
     }
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -313,6 +290,211 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       KARTU GURU LANDSCAPE — CSS identik dengan halaman cetak (92 × 58 mm)
+       Dipakai oleh partial kartu_guru_landscape agar pratinjau 100% sama
+       dengan hasil cetak.
+    ═══════════════════════════════════════════════════════════════════ */
+    .id-card {
+        width: 92mm;
+        height: 58mm;
+        border: 1px dashed #94a3b8;
+        border-radius: 8px;
+        background: #ffffff;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+    .card-header-bar {
+        background: linear-gradient(135deg, #581c87 0%, #6b21a8 50%, var(--accent-600) 100%);
+        color: #ffffff;
+        padding: 2mm 3mm;
+        display: flex;
+        align-items: center;
+        gap: 2.5mm;
+        border-bottom: 2px solid #a855f7;
+        flex-shrink: 0;
+    }
+    .card-logo {
+        width: 8mm;
+        height: 8mm;
+        background: #ffffff;
+        border-radius: 5px;
+        padding: 1.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .card-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .card-header-text {
+        flex: 1;
+        min-width: 0;
+    }
+    .card-header-text .app-title {
+        font-size: 6pt;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: #e9d5ff;
+        text-transform: uppercase;
+        margin: 0;
+        line-height: 1;
+    }
+    .card-header-text .school-title {
+        font-size: 8pt;
+        font-weight: 800;
+        color: #ffffff;
+        margin: 0.5mm 0 0 0;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .card-header-badge {
+        background: rgba(255,255,255,0.22);
+        border: 1px solid rgba(255,255,255,0.4);
+        color: #ffffff;
+        font-size: 6.5pt;
+        font-weight: 800;
+        padding: 0.6mm 2mm;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+    }
+    .card-content {
+        flex: 1;
+        padding: 2.5mm 3mm;
+        display: flex;
+        align-items: center;
+        gap: 3mm;
+        background: #ffffff;
+    }
+    .card-photo-box {
+        width: 18mm;
+        height: 23mm;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        overflow: hidden;
+        background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .card-photo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .card-details {
+        flex: 1;
+        min-width: 0;
+    }
+    .card-name {
+        font-size: 8.5pt;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
+        margin: 0 0 1.5mm 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .card-table {
+        font-size: 6.5pt;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .card-table td {
+        padding: 0.4mm 0;
+        vertical-align: top;
+    }
+    .card-table .label {
+        color: #64748b;
+        font-weight: 700;
+        width: 14mm;
+    }
+    .card-table .sep {
+        color: #94a3b8;
+        width: 2mm;
+        text-align: center;
+    }
+    .card-table .val {
+        color: #0f172a;
+        font-weight: 600;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .card-qr-box {
+        width: 21mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-left: 1px solid #e2e8f0;
+        padding-left: 2.5mm;
+        flex-shrink: 0;
+    }
+    .card-qr-render {
+        width: 18mm;
+        height: 18mm;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 1px;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .card-qr-render canvas, .card-qr-render img {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        display: block;
+        margin: 0 auto;
+    }
+    .card-qr-code {
+        font-size: 5pt;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 1mm;
+        line-height: 1.1;
+        max-width: 22mm;
+        word-break: break-all;
+        letter-spacing: -0.2px;
+        text-align: center;
+    }
+    .card-qr-label {
+        font-size: 4.8pt;
+        font-weight: 700;
+        color: var(--accent-600);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-top: 0.4mm;
+        line-height: 1;
+    }
+    .card-footer-bar {
+        background: #faf5ff;
+        border-top: 1px solid #f3e8ff;
+        padding: 1mm 3mm;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 5.5pt;
+        color: #6b21a8;
+        flex-shrink: 0;
+    }
+    .card-footer-bar .badge-instansi {
+        font-weight: 700;
+        color: #581c87;
+    }
 </style>
 @endsection
 
@@ -322,7 +504,7 @@
     <!-- Header & Action -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
         <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-bold mb-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
                 <i class="bi bi-person-badge-fill"></i> Kartu Presensi Guru / GTK
             </div>
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Cetak Kartu Absen Guru QR</h1>
@@ -335,7 +517,7 @@
             <a id="btnCetakLembar"
                href="{{ url($basePath . '/cetak?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=' . $modeAktif . '&v=1') }}"
                target="_blank"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-purple-500/20 no-underline">
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
                 <i class="bi bi-printer-fill"></i> Cetak Kartu
             </a>
             <a href="{{ url('scanner') }}"
@@ -353,7 +535,7 @@
         ?>
         <!-- Judul Panel Opsi -->
         <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
-            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 text-blue-600 shrink-0">
                 <i class="bi bi-sliders"></i>
             </span>
             <div class="min-w-0">
@@ -368,11 +550,11 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain Kartu</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=landscape' . $qsSertaan) }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front"></i> Landscape
                 </a>
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=portrait' . $qsSertaan) }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card"></i> Portrait
                 </a>
             </div>
@@ -388,11 +570,11 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tata Letak Cetak</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan tata letak cetak">
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=grid') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'grid' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'grid' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-file-earmark-text"></i> Grid A4
                 </a>
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=ktp') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-purple-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front-fill"></i> Ukuran KTP
                 </a>
             </div>
@@ -416,7 +598,7 @@
             <!-- Pilih Guru (Per Orang / Semua) -->
             <div class="md:col-span-6">
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Guru / GTK</label>
-                <select name="id_guru" id="selectGuru" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-300">
+                <select name="id_guru" id="selectGuru" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
                     <option value="0">-- Semua Guru / GTK ({{ count($guru_options) }} Guru) --</option>
                     <?php foreach ($guru_options as $go): ?>
                         <option value="{{ $go->id_guru }}" {{ ($id_guru == $go->id_guru) ? 'selected' : '' }}>
@@ -432,7 +614,7 @@
                 <div class="relative">
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" id="searchInput" placeholder="Cari nama, NIP, atau kode guru..."
-                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:border-slate-300">
+                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
                 </div>
             </div>
         </form>
@@ -446,8 +628,8 @@
         <?php endif; ?>
 
         <?php if (!empty($terpotong)): ?>
-            <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-3 text-xs text-purple-800">
-                <i class="bi bi-info-circle-fill mt-0.5 text-purple-500"></i>
+            <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+                <i class="bi bi-info-circle-fill mt-0.5 text-blue-500"></i>
                 <p class="font-semibold leading-relaxed">
                     Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama supaya halaman tidak macet.
                     Pilih satu guru untuk mencetak sisanya.
@@ -457,7 +639,7 @@
 
         <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-purple-50 text-purple-700 font-bold text-[11px] border border-purple-100">
+                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
                     {{ count($guru_list) }}
                 </span>
                 <span class="font-semibold text-slate-600">kartu guru ditampilkan</span>
@@ -491,121 +673,65 @@
     <?php else: ?>
         <?php if ($desainAktif === 'portrait'): ?>
         <!-- Preview Portrait: kartu ID depan + belakang berdampingan -->
-        <div id="cardGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6 justify-items-center">
+        <div id="cardGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <?php foreach ($guru_list as $g): ?>
-                <div class="teacher-card-item card-preview flex flex-col items-center gap-2"
+                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
                      data-kode="{{ strtolower($g->kode_guru ?? '') }}">
-                    <div class="guru-duplex-pair">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+                            <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $g->nama_guru }}</h5>
+                            <span class="text-[10px] font-semibold text-slate-400 shrink-0">({{ $g->nip ?: ($g->kode_guru ?: 'GTK') }})</span>
+                        </div>
+                        <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
+                           target="_blank"
+                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60 shrink-0">
+                            <i class="bi bi-printer"></i> Cetak
+                        </a>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <!-- SISI DEPAN -->
                         <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Sisi Depan</span>
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_portrait')
                         </div>
+                        <!-- SISI BELAKANG -->
                         <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Sisi Belakang</span>
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_belakang')
                         </div>
                     </div>
-                    <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
-                       target="_blank"
-                       class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline text-[10px]">
-                        <i class="bi bi-printer"></i> Cetak Kartu Ini
-                    </a>
                 </div>
             <?php endforeach; ?>
         </div>
         <?php else: ?>
-        <!-- Preview Landscape: horizontal dengan foto -->
+        <!-- Preview Landscape: desain cetak asli (satu sisi, 92 × 58 mm) -->
         <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <?php foreach ($guru_list as $g): ?>
-                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs relative flex flex-col"
+                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
                      data-kode="{{ strtolower($g->kode_guru ?? '') }}">
-
-                    <!-- Card Header (Kop Kartu) -->
-                    <div class="card-header-gtk-landscape" style="background:linear-gradient(135deg,var(--accent-900) 0%,var(--purple-800) 50%,var(--indigo-700) 100%);color:#fff;">
-                        <div class="w-10 h-10 bg-white rounded-xl p-1 shrink-0 flex items-center justify-center shadow-xs">
-                            <img src="{{ $logo_url }}" alt="Logo" class="max-h-full max-w-full object-contain"
-                                 onerror="this.src='{{ asset('assets/img/logo.png') }}'">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+                            <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $g->nama_guru }}</h5>
+                            <span class="text-[10px] font-semibold text-slate-400 shrink-0">({{ $g->nip ?: ($g->kode_guru ?: 'GTK') }})</span>
                         </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-[8.5px] font-bold tracking-wider uppercase leading-none" style="color: #e9d5ff;">KARTU PRESENSI DIGITAL</p>
-                            <h4 class="text-xs font-black text-white truncate mt-0.5 leading-snug" style="color: #ffffff;" title="{{ $setting->sekolah ?? 'SEKOLAH' }}">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
-                            <p class="text-[8.5px] font-medium leading-tight truncate mt-0.5" style="color: var(--accent-200);">{{ $setting->kota ?? '' }}{{ !empty($setting->kota) ? ' • ' : '' }}GTK DIGITAL</p>
-                        </div>
-                        <div class="shrink-0 badge-gtk-glass px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase tracking-wider text-white">
-                            GURU / GTK
-                        </div>
-                    </div>
-
-                    <!-- Card Body -->
-                    <div class="p-4 flex gap-3.5 items-center flex-1">
-                        <!-- Foto Guru & Status Pegawai -->
-                        <div class="flex flex-col items-center shrink-0 w-20">
-                            <div class="w-20 h-24 rounded-xl overflow-hidden border-2 border-purple-100 shadow-xs bg-slate-50 flex items-center justify-center">
-                                <img src="{{ $g->foto_url }}" alt="{{ $g->nama_guru }}"
-                                     class="w-full h-full object-cover"
-                                     onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::inisial($g->nama_guru, 128, '#7c3aed') }}'">
-                            </div>
-                            <?php
-                            $sp = strtoupper(trim((string)($g->status_pegawai ?? '')));
-                            $spClass = 'bg-purple-50 text-purple-700 border-purple-200';
-                            if (strpos($sp, 'PNS') !== false) {
-                                $spClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                            } elseif (strpos($sp, 'PPPK') !== false) {
-                                $spClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
-                            } elseif (strpos($sp, 'HONOR') !== false || strpos($sp, 'GTT') !== false || strpos($sp, 'PTT') !== false) {
-                                $spClass = 'bg-amber-50 text-amber-700 border-amber-200';
-                            }
-                            ?>
-                            <span class="mt-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded-md border text-center w-full leading-tight {{ $spClass }}" title="{{ $g->status_pegawai ?: 'PENDIDIK' }}">
-                                {{ $g->status_pegawai ?: 'PENDIDIK' }}
-                            </span>
-                        </div>
-
-                        <!-- Info Guru -->
-                        <div class="flex-1 min-w-0">
-                            <h5 class="text-sm font-extrabold text-slate-900 leading-snug line-clamp-2" title="{{ $g->nama_guru }}">
-                                {{ $g->nama_guru }}
-                            </h5>
-                            <div class="mt-2.5 space-y-1.5 text-xs">
-                                <div class="flex items-center text-slate-600">
-                                    <span class="w-14 shrink-0 text-[10px] font-bold text-slate-400 uppercase tracking-wider">NIP</span>
-                                    <span class="font-mono font-bold text-slate-900 truncate">: {{ $g->nip ?: '-' }}</span>
-                                </div>
-                                <div class="flex items-center text-slate-600">
-                                    <span class="w-14 shrink-0 text-[10px] font-bold text-slate-400 uppercase tracking-wider">NUPTK</span>
-                                    <span class="font-mono text-slate-700 truncate">: {{ $g->nuptk ?: '-' }}</span>
-                                </div>
-                                <div class="flex items-center text-slate-600">
-                                    <span class="w-14 shrink-0 text-[10px] font-bold text-slate-400 uppercase tracking-wider">TUGAS</span>
-                                    <span class="font-semibold text-purple-700 truncate">: {{ $g->jabatan }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- QR Code Box -->
-                        <div class="shrink-0 flex flex-col items-center justify-center pl-3 border-l border-slate-100">
-                            <div class="qr-box p-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs"
-                                 data-code="{{ $g->qr_value }}"
-                                 data-size="80"
-                                 id="qr-preview-{{ $g->id_guru }}"
-                                 style="width:92px;height:92px;display:flex;align-items:center;justify-content:center;"></div>
-                            <span class="font-mono font-bold text-slate-800 text-[8.5px] mt-1 text-center tracking-tight break-all max-w-[95px]" title="{{ $g->qr_value }}">{{ $g->qr_value }}</span>
-                            <span class="text-[7.5px] font-extrabold text-purple-600 uppercase tracking-wider mt-0.5">Scan Absen</span>
-                        </div>
-                    </div>
-
-                    <!-- Card Footer & Single Print Button -->
-                    <div class="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                        <span class="text-slate-400 truncate max-w-[170px]">Gunakan scan di Kiosk Presensi</span>
                         <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=landscape&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
-                           class="inline-flex items-center gap-1.5 font-bold text-purple-600 hover:text-purple-700 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors no-underline">
-                            <i class="bi bi-printer"></i> Cetak Kartu Ini
+                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60 shrink-0">
+                            <i class="bi bi-printer"></i> Cetak
                         </a>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <!-- KARTU (SISI DEPAN) -->
+                        <div class="flex flex-col items-center gap-1.5">
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
+                            @include('admin.presensi.kartu.partials.kartu_guru_landscape')
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
