@@ -91,7 +91,7 @@ class UsersModel extends Model
     public function getUserGuru($tp, $smt)
     {
         $builder = DB::table('master_guru as a');
-        $builder->select('a.id_guru', 'a.nama_guru', 'a.username', 'a.password', 'a.foto', 'c.level', 'e.id', 'e.active');
+        $builder->select('a.id_guru', 'a.nama_guru', 'a.username', 'a.foto', 'c.level', 'e.id', 'e.active');
         $builder->selectRaw('(SELECT COUNT(login) FROM login_attempts WHERE login_attempts.login = a.username) AS reset');
 
         $school_uuid = session()->get('school_uuid');
@@ -120,7 +120,7 @@ class UsersModel extends Model
     public function getDetailGuru($id)
     {
         $builder = DB::table('master_guru as a');
-        $builder->select('a.id_guru', 'a.nama_guru', 'a.username', 'a.password', 'a.email', 'c.level', 'e.id', 'e.active');
+        $builder->select('a.id_guru', 'a.nama_guru', 'a.username', 'a.email', 'c.level', 'e.id', 'e.active');
         $builder->leftJoin('jabatan_guru as b', 'a.id_guru', '=', 'b.id_guru');
         $builder->leftJoin('level_guru as c', 'b.id_jabatan', '=', 'c.id_level');
         $builder->leftJoin('users as e', 'a.username', '=', 'e.username');
@@ -171,7 +171,7 @@ class UsersModel extends Model
     public function getUserSiswaPage($id_tp, $id_smt, $offset, $limit, $search = null, $sort = null, $order = null, $reset = false)
     {
         $builder = DB::table('master_siswa as a');
-        $builder->select('a.id_siswa', 'a.nis', 'a.foto', 'a.nama', 'a.username', 'a.password', 'd.id_kelas', 'f.nama_kelas', 'us.active');
+        $builder->select('a.id_siswa', 'a.nis', 'a.foto', 'a.nama', 'a.username', 'd.id_kelas', 'f.nama_kelas', 'us.active');
         $builder->selectRaw('(SELECT COUNT(login) FROM login_attempts WHERE login_attempts.login = a.username) AS reset');
 
         $school_uuid = session()->get('school_uuid');
@@ -245,7 +245,7 @@ class UsersModel extends Model
     public function getUserSiswa($tp, $smt)
     {
         $builder = DB::table('master_siswa as a');
-        $builder->select('a.id_siswa', 'a.nis', 'a.nama', 'a.username', 'a.password', 'c.nama_kelas', 'd.id', 'd.active');
+        $builder->select('a.id_siswa', 'a.nis', 'a.nama', 'a.username', 'c.nama_kelas', 'd.id', 'd.active');
 
         $school_uuid = session()->get('school_uuid');
         if ($school_uuid && Schema::hasColumn('master_siswa', 'sync_school_uuid')) {

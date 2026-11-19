@@ -523,7 +523,8 @@ class DapodikSyncService
                     $updated++;
                 } else {
                     $data['username'] = $username;
-                    $data['password'] = $username;
+                    // Kolom legacy password tidak diisi: akun login dibuat
+                    // terpisah dan di-hash; sandi plaintext tidak disimpan.
                     $tersimpan = DB::table('master_guru')->insert($data);
                     if ($tersimpan === false) {
                         $gagal++;
@@ -789,9 +790,8 @@ class DapodikSyncService
                     if (Schema::hasColumn('master_siswa', 'kelas_awal')) {
                         $data['kelas_awal'] = 1;
                     }
-                    // Akun dibuat terpisah (Usersiswa) dan men-hash nilai ini,
-                    // jadi sandi awal default tetap plaintext di master.
-                    $data['password'] = $username;
+                    // Akun login dibuat terpisah (Usersiswa) dan men-hash
+                    // sandi awalnya; kolom legacy password tidak diisi.
                     try {
                         DB::table('master_siswa')->insert($data);
                     } catch (QueryException $e) {

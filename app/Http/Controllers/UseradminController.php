@@ -265,8 +265,16 @@ class UseradminController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'File sudah pernah diproses — muat ulang halaman lalu unggah lagi.']);
         }
 
-        $ext = strtolower($file->getClientOriginalExtension());
-        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+        // Ekstensi simpan diturunkan dari MIME asli (sudah disaring mime_in),
+        // bukan nama file dari klien.
+        $extMap = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+        $ext = $extMap[(string) $file->getMimeType()] ?? null;
+        if ($ext === null) {
             return $this->response->setJSON(['status' => false, 'message' => 'Format file tidak diizinkan. Gunakan JPG, PNG, WEBP, atau GIF.']);
         }
 

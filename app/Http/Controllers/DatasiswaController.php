@@ -330,6 +330,7 @@ class DatasiswaController extends BaseController
 
         $nis = trim((string) $this->request->input('nis'));
         $jk = strtoupper(trim((string) $this->request->input('jenis_kelamin')));
+        $plainPassword = (string) $this->request->input('password');
         $insert = [
             'nama' => strtoupper($nama_siswa),
             'nis' => $nis,
@@ -339,7 +340,6 @@ class DatasiswaController extends BaseController
             'kelas_awal' => mb_substr(trim((string) $this->request->input('kelas_awal')), 0, 50),
             'tahun_masuk' => $tanggalMasuk,
             'username' => trim((string) $this->request->input('username')),
-            'password' => (string) $this->request->input('password'),
             'foto' => null,
         ];
 
@@ -370,7 +370,7 @@ class DatasiswaController extends BaseController
             // Register user
             $userData = [
                 'username' => $insert['username'],
-                'password' => password_hash($insert['password'], PASSWORD_BCRYPT),
+                'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
                 'first_name' => $first_name,
                 'last_name' => $last_name,
                 'active' => 1,
@@ -1008,11 +1008,12 @@ class DatasiswaController extends BaseController
 
         DB::beginTransaction();
         try {
-            // Hapus field target_kelas dari data yang akan diinsert ke master_siswa
+            // Hapus field yang bukan kolom master_siswa: target_kelas hanya
+            // untuk mapping, password hanya untuk hash akun users.
             $cleanForInsert = [];
             foreach ($clean as $c) {
                 $insertData = $c;
-                unset($insertData['target_kelas']);
+                unset($insertData['target_kelas'], $insertData['password']);
                 $cleanForInsert[] = $insertData;
             }
 
@@ -1487,10 +1488,8 @@ class DatasiswaController extends BaseController
             return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
         }
 
-        // Update in master_siswa
-        $this->updateMasterData('master_siswa', ['password' => $password], 'id_siswa', $id_siswa);
-
-        // Update in users table
+        // Password hanya disimpan sebagai hash di users; kolom legacy
+        // master_siswa.password tidak lagi diisi.
         $db = DB::connection();
         $db->table('users')
             ->where('username', $siswa->username)

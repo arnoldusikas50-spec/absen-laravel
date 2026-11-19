@@ -52,25 +52,6 @@ class UsersiswaController extends BaseController
         return view('users.siswa.data', $data);
     }
 
-    /**
-     * Kolom password berisi kredensial login plaintext — hanya admin yang
-     * boleh menerimanya.
-     */
-    private function redactPasswords(array $rows): void
-    {
-        if ($this->isAdmin()) {
-            return;
-        }
-        foreach ($rows as &$row) {
-            if (is_object($row) && property_exists($row, 'password')) {
-                $row->password = '********';
-            } elseif (is_array($row) && array_key_exists('password', $row)) {
-                $row['password'] = '********';
-            }
-        }
-        unset($row);
-    }
-
     // JSON Data endpoint for Datatables
     public function data()
     {
@@ -83,7 +64,6 @@ class UsersiswaController extends BaseController
             return $this->response->setJSON([]);
         }
         $rows = $this->users->getUserSiswa($tp->id_tp, $smt->id_smt);
-        $this->redactPasswords($rows);
 
         return $this->response->setJSON($rows);
     }
@@ -163,7 +143,9 @@ class UsersiswaController extends BaseController
                         'msg' => 'Username '.$siswa->username.' dipakai '.count($duplikat).' data siswa — perbaiki dulu datanya',
                     ]);
                 }
-                $plainPassword = trim((string) ($siswa->password ?? ''));
+                // Sandi awal mengikuti kebijakan reset (NISN), bukan kolom
+                // master_siswa.password yang sudah tidak diisi lagi.
+                $plainPassword = trim((string) ($siswa->nisn ?? ''));
                 if ($plainPassword === '') {
                     $plainPassword = '123456';
                 }
@@ -201,7 +183,8 @@ class UsersiswaController extends BaseController
 
     /**
      * Reset password siswa ke default = NISN (khusus admin).
-     * Update hash di users + plaintext legacy di master_siswa.
+     * Hanya hash di tabel users yang ditulis; kolom master_siswa.password
+     * adalah sisa CI4 dan tidak lagi dibaca maupun ditulis.
      *
      * Nilai NISN sengaja TIDAK dikembalikan ke klien: pesan API ini terbaca di
      * layar siapa pun yang berdiri di belakang admin, dan NISN adalah password
@@ -235,22 +218,13 @@ class UsersiswaController extends BaseController
             return $this->response->setJSON(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
         }
 
-        // users dan master_siswa harus berubah bersamaan: kalau hanya salah satu
-        // yang tertulis, login memakai hash baru sementara cermin plaintext masih
-        // lama (atau sebaliknya), dan admin tetap melihat pesan "berhasil".
-        //
-        // PENTING: DB::beginTransaction() di Laravel mengembalikan void (bukan
-        // bool seperti CI4), sehingga pola "$dibuka = DB::beginTransaction()"
-        // + "if ($dibuka) { DB::commit(); }" membuat commit/rollback TIDAK
-        // pernah jalan -> transaksi dibiarkan terbuka dan MySQL melakukan
-        // implicit rollback di akhir request (data hilang senyap walau respons
-        // status true). Gunakan DB::transaction() agar commit/rollback otomatis.
+        // Password hanya disimpan sebagai hash di users. Menulis cermin
+        // plaintext ke master_siswa membuat sandi ikut bocor lewat backup/CSV.
         try {
-            DB::transaction(function () use ($db, $account, $nisn, $username) {
+            DB::transaction(function () use ($db, $account, $nisn) {
                 $db->table('users')->where('id', (int) $account->id)->update([
                     'password' => password_hash($nisn, PASSWORD_BCRYPT),
                 ]);
-                $db->table('master_siswa')->where('username', $username)->update(['password' => $nisn]);
             });
         } catch (\Throwable $e) {
             Log::error('[Usersiswa::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
@@ -309,7 +283,7 @@ class UsersiswaController extends BaseController
                 $existing[trim((string) $u->username)] = true;
             }
             $seen = [];
-            foreach ($db->table('master_siswa')->select('username', 'nama', 'password')->get() as $s) {
+            foreach ($db->table('master_siswa')->select('username', 'nama', 'nisn')->get() as $s) {
                 $uname = trim((string) ($s->username ?? ''));
                 if ($uname === '' || isset($existing[$uname])) {
                     continue;
@@ -320,7 +294,7 @@ class UsersiswaController extends BaseController
                     continue;
                 } // duplikat di master
                 $seen[$uname] = true;
-                $plain = trim((string) ($s->password ?? ''));
+                $plain = trim((string) ($s->nisn ?? ''));
                 if ($plain === '') {
                     $plain = '123456';
                 }

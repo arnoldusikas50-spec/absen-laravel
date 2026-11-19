@@ -115,7 +115,12 @@ class TelegramBotController extends BaseController
         if ($botToken === '') {
             return $this->response->setStatusCode(200);
         }
-        $secret = trim((string) ($this->request->query('secret') ?? ''));
+        // Header resmi Telegram (secret_token saat setWebhook) diutamakan;
+        // query tetap diterima untuk instalasi lama yang belum memakai header.
+        $secret = trim((string) ($this->request->header('X-Telegram-Bot-Api-Secret-Token') ?? ''));
+        if ($secret === '') {
+            $secret = trim((string) ($this->request->query('secret') ?? ''));
+        }
         if ($secret === '' || ! hash_equals($this->webhookSecret($botToken), $secret)) {
             return $this->response->setStatusCode(403);
         }

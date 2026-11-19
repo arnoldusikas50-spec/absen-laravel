@@ -19,6 +19,7 @@ use App\Services\SiswaDendaService;
 use App\Services\SiswaPoinService;
 use App\Services\SuratPanggilanService;
 use App\Services\SuratTeguranService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,9 @@ class CronControllerController extends BaseController
 
     protected AttendancePenaltyService $penaltyService;
 
+    /** Dipakai `cron:run`: memanggil handler langsung tanpa HTTP/secret. */
+    protected bool $internalRun = false;
+
     public function __construct()
     {
         parent::__construct();
@@ -57,6 +61,33 @@ class CronControllerController extends BaseController
     public function index()
     {
         return redirect()->to('dashboard');
+    }
+
+    /**
+     * Jalankan handler cron di dalam proses tanpa HTTP.
+     *
+     * Dipakai Artisan `cron:run` (scheduler Laravel) supaya job yang dulu
+     * hanya bisa dipicu curl kini tidak lagi bergantung pada web server,
+     * DNS, dan CRON_SECRET_KEY. Hanya method yang memang endpoint cron
+     * yang boleh dipanggil.
+     *
+     * @param  array<string, string>  $params  query string yang sama seperti endpoint HTTP
+     */
+    public function runInternal(string $method, array $params = [])
+    {
+        $diizinkan = [
+            'dailyProcess', 'rekapPiket', 'markAlpha', 'poinSiswa',
+            'semesterRecap', 'weeklyDendaRecap', 'monthlyPdf',
+            'ucapanPagi', 'ucapanSore', 'apelKesadaran',
+        ];
+        if (! in_array($method, $diizinkan, true)) {
+            throw new \InvalidArgumentException('Method cron tidak dikenal: '.$method);
+        }
+
+        $this->internalRun = true;
+        $this->request = Request::create('/', 'GET', $params);
+
+        return $this->{$method}();
     }
 
     /**
@@ -333,6 +364,12 @@ class CronControllerController extends BaseController
      */
     private function validateKey(): bool
     {
+        // `cron:run` memanggil handler di proses yang sama: tidak ada request
+        // jaringan yang perlu diautentikasi, dan CRON_SECRET_KEY boleh kosong.
+        if ($this->internalRun) {
+            return true;
+        }
+
         // Ambil key dari header Authorization: Bearer <key> atau query ?key=
         $key = $this->request->query('key');
         if ($key === null) {

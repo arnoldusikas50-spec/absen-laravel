@@ -130,7 +130,12 @@ class WhatsappWebhookController extends BaseController
             return $this->response->setStatusCode(200);
         }
 
-        $secret = trim((string) ($this->request->query('secret') ?? ''));
+        // Header diutamakan agar secret tidak tertinggal di URL/access log;
+        // query tetap diterima untuk gateway yang belum mendukung header.
+        $secret = trim((string) ($this->request->header('X-Webhook-Secret') ?? ''));
+        if ($secret === '') {
+            $secret = trim((string) ($this->request->query('secret') ?? ''));
+        }
         if ($secret === '' || ! hash_equals(self::webhookSecret($openwaKey), $secret)) {
             Log::warning('[openwa-webhook] secret tidak cocok, ditolak.');
 

@@ -175,7 +175,7 @@
 
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        const headers = ["No.", "Nama", "Username", "Password", "Jabatan", "Reset Login", "Status", "Aksi"];
+        const headers = ["No.", "Nama", "Username", "Jabatan", "Reset Login", "Status", "Aksi"];
 
         headers.forEach((headerText, index) => {
             const th = document.createElement("th");
@@ -211,12 +211,6 @@
             cellUsername.className = "text-center align-middle";
             cellUsername.textContent = guru.username;
             row.appendChild(cellUsername);
-
-            // password
-            const cellPass = document.createElement("td");
-            cellPass.className = "text-center align-middle";
-            cellPass.textContent = guru.password;
-            row.appendChild(cellPass);
 
             // Jabatan
             const cellLvl = document.createElement("td");

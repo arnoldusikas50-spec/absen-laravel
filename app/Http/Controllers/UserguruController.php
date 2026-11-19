@@ -189,10 +189,9 @@ class UserguruController extends BaseController
             $first_name = $nama[0] ?? 'Guru';
             $last_name = count($nama) > 1 ? implode(' ', array_slice($nama, 1)) : '';
 
-            $plainPassword = trim((string) ($guru->password ?? ''));
-            if ($plainPassword === '') {
-                $plainPassword = '123456';
-            }
+            // Sandi awal akun guru baru = default admin; master_guru.password
+            // adalah kolom legacy yang tidak lagi diisi/dibaca.
+            $plainPassword = '123456';
 
             $user = [
                 'username' => $username,
@@ -247,11 +246,11 @@ class UserguruController extends BaseController
 
     /**
      * Reset password guru ke default "123456" (khusus admin).
-     * Update hash di users + plaintext legacy di master_guru.
+     * Hanya hash di tabel users yang ditulis; kolom master_guru.password
+     * adalah sisa CI4 dan tidak lagi dibaca maupun ditulis.
      *
      * Nilai default tidak disertakan di respons: pesannya muncul di layar admin
-     * dan bisa terbaca orang lain, sementara kolom password master_guru masih
-     * plaintext.
+     * dan bisa terbaca orang lain.
      */
     public function reset_password()
     {
@@ -271,9 +270,8 @@ class UserguruController extends BaseController
         }
 
         $default = '123456';
-        // users (hash) dan master_guru (cermin plaintext) adalah satu kesatuan:
-        // tulis separuh membuat guru bisa login dengan password lama lewat
-        // jalur yang masih membaca master_guru.
+        // Password hanya disimpan sebagai hash di users. Menulis cermin
+        // plaintext ke master_guru membuat sandi ikut bocor lewat backup/CSV.
         //
         // PENTING: DB::beginTransaction() di Laravel mengembalikan void (bukan
         // bool seperti CI4), sehingga pola "$dibuka = DB::beginTransaction()"
@@ -282,13 +280,10 @@ class UserguruController extends BaseController
         // implicit rollback di akhir request (data hilang senyap walau respons
         // status true). Gunakan DB::transaction() agar commit/rollback otomatis.
         try {
-            DB::transaction(function () use ($db, $account, $default, $username) {
+            DB::transaction(function () use ($db, $account, $default) {
                 $db->table('users')->where('id', (int) $account->id)->update([
                     'password' => password_hash($default, PASSWORD_BCRYPT),
                 ]);
-                if (Schema::hasTable('master_guru')) {
-                    $db->table('master_guru')->where('username', $username)->update(['password' => $default]);
-                }
             });
         } catch (\Throwable $e) {
             Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
@@ -351,7 +346,7 @@ class UserguruController extends BaseController
 
                         $user = [
                             'username' => $username,
-                            'password' => password_hash(trim($guru->password ?? '123456'), PASSWORD_BCRYPT),
+                            'password' => password_hash('123456', PASSWORD_BCRYPT),
                             'first_name' => $firstName,
                             'last_name' => $lastName,
                             'email' => $username.'@guru.sekolah',

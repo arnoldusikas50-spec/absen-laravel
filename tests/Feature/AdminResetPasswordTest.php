@@ -74,7 +74,11 @@ class AdminResetPasswordTest extends TestCase
             password_verify('123456', DB::table('users')->where('id', $guruUserId)->value('password')),
             'Hash password di tabel users tidak berubah ke default 123456.'
         );
-        $this->assertSame('123456', DB::table('master_guru')->where('username', 'guru_rp')->value('password'));
+        $this->assertSame(
+            'lama',
+            DB::table('master_guru')->where('username', 'guru_rp')->value('password'),
+            'Kolom legacy master_guru.password tidak boleh ditulisi plaintext.'
+        );
     }
 
     public function test_admin_dapat_reset_password_siswa(): void
@@ -115,6 +119,10 @@ class AdminResetPasswordTest extends TestCase
             password_verify('0012345678', DB::table('users')->where('id', $siswaUserId)->value('password')),
             'Hash password siswa tidak berubah ke NISN.'
         );
-        $this->assertSame('0012345678', DB::table('master_siswa')->where('username', '0012345678')->value('password'));
+        $this->assertSame(
+            'lama',
+            DB::table('master_siswa')->where('username', '0012345678')->value('password'),
+            'Kolom legacy master_siswa.password tidak boleh ditulisi plaintext.'
+        );
     }
 }

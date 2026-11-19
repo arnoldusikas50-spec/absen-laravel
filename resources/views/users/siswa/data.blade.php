@@ -83,7 +83,6 @@
                                 <th class="align-middle">Nama</th>
                                 <th class="text-center align-middle">Kelas</th>
                                 <th class="align-middle">Username</th>
-                                <th class="align-middle">Password</th>
                                 <th class="text-center align-middle">Reset Login</th>
                                 <?php if ($is_admin): ?>
                                     <th class="align-middle text-center">Status/Aksi</th>
@@ -337,7 +336,6 @@
             </td>
             <td class="align-middle text-center"><span class="badge-tw badge-secondary">${kls}</span></td>
             <td class="align-middle">${siswa.username}</td>
-            <td class="align-middle text-break">${siswa.password}</td>
             <td class="text-center align-middle">
                 <button type="button" class="btn-tw btn-sm ${siswa.reset == '0' ? 'btn-secondary' : 'btn-danger'} shadow-sm btn-reset" ${siswa.reset == '0' ? 'disabled' : ''} data-id="${siswa.id_siswa}" data-username="${siswa.username}" data-nama="${siswa.nama}" title="Reset Login"> 
                     <i class="bi bi-arrow-repeat text-white"></i>
@@ -367,7 +365,7 @@
             $('#total-entri').html(`${loaded} ~ ${to - 1} dari ${data.total} entri`);
         } else {
             $('#total-entri').html(`0 ~ 0 dari 0 entri`);
-            let colCount = isAdmin === '1' ? 8 : 7;
+            let colCount = isAdmin === '1' ? 7 : 6;
             html += `<tr><td colspan="${colCount}" class="text-center align-middle">Tidak ada data siswa</td><tr>`;
         }
 

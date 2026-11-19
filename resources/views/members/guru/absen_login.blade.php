@@ -308,6 +308,7 @@
 
             <!-- Login Form -->
             <form id="formLogin">
+                @csrf
                 <!-- Username / NIP -->
                 <div class="input-group-custom">
                     <i class="bi bi-person-fill input-icon-left"></i>

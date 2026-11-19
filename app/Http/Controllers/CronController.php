@@ -20,8 +20,16 @@ class CronController extends BaseController
      */
     public function dapodik_sync()
     {
-        // Validasi secret key — mencegah akses publik sembarangan
-        $key = $this->request->query('key') ?? '';
+        // Validasi secret key — mencegah akses publik sembarangan.
+        // Header Authorization: Bearer diutamakan agar key tidak tercatat di
+        // URL/access log; query tetap diterima untuk crontab lama.
+        $key = $this->request->query('key');
+        if ($key === null) {
+            $authHeader = $this->request->header('Authorization');
+            if ($authHeader !== null && str_starts_with($authHeader, 'Bearer ')) {
+                $key = trim(substr($authHeader, 7));
+            }
+        }
         $raw = env('CRON_SECRET_KEY');
         $raw = is_string($raw) ? trim($raw) : '';
 

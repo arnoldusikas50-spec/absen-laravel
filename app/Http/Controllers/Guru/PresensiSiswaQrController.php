@@ -83,7 +83,9 @@ class PresensiSiswaQrController extends BaseController
     }
 
     /**
-     * Validasi security hash (toleransi hari ini dan kemarin).
+     * Validasi security hash — hanya untuk hari ini.
+     * Toleransi hari kemarin (jendela replay 24+ jam) dihapus: halaman yang
+     * dibuka melewati tengah malam akan di-redirect dan menerima hash baru.
      * Terima format baru 32-char dan legacy 16-char (prefix) selama transisi.
      */
     public static function isValidHash(?string $hash, int $userId): bool
@@ -92,20 +94,13 @@ class PresensiSiswaQrController extends BaseController
         if ($hash === '' || strlen($hash) < 8 || strlen($hash) > 64) {
             return false;
         }
-        $today = date('Y-m-d');
-        $yesterday = date('Y-m-d', strtotime('-1 day'));
-        foreach ([$today, $yesterday] as $d) {
-            $expected = self::generateHash($userId, $d);
-            if (hash_equals($expected, $hash)) {
-                return true;
-            }
-            // Legacy 16-char: prefix dari hash baru.
-            if (hash_equals(substr($expected, 0, 16), substr($hash, 0, 16)) && strlen($hash) >= 16 && strlen($expected) >= 16) {
-                // Hanya terima bila 16 char pertama cocok persis dan panjang hash 16.
-                if (strlen($hash) === 16 && hash_equals(substr($expected, 0, 16), $hash)) {
-                    return true;
-                }
-            }
+        $expected = self::generateHash($userId);
+        if (hash_equals($expected, $hash)) {
+            return true;
+        }
+        // Legacy 16-char: prefix dari hash baru, hanya bila panjangnya tepat 16.
+        if (strlen($hash) === 16 && hash_equals(substr($expected, 0, 16), $hash)) {
+            return true;
         }
 
         return false;

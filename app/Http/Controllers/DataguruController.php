@@ -14,6 +14,7 @@ use App\Models\UserNotifikasiModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * Dataguru Controller - Migrated from CI3
@@ -293,7 +294,6 @@ class DataguruController extends BaseController
                 'nama_guru' => strtoupper(trim($nama_guru)),
                 'kode_guru' => mb_substr(trim((string) $this->request->input('kode_guru')), 0, 30),
                 'username' => trim($username),
-                'password' => trim($password),
                 'foto' => null,
                 // 'status' => 1 // Removed: column does not exist
             ];
@@ -514,31 +514,37 @@ class DataguruController extends BaseController
                 mkdir($docPathAbs, 0755, true);
             }
 
-            // Validasi file dokumen: gambar/PDF ≤ 2MB
-            $allowedDocExt = ['jpg', 'jpeg', 'png', 'pdf'];
-            $isValidDoc = function ($file) use ($allowedDocExt) {
-                if (! $file || ! $file->isValid() || false /* was: $file->hasMoved() */) {
-                    return false;
-                }
-                if ($file->getSize() > 2 * 1024 * 1024) {
-                    return false;
+            // Validasi dokumen memakai MIME asli (finfo), bukan ekstensi dari
+            // klien. Ekstensi file simpan juga diturunkan dari MIME: hashName()
+            // mengikuti MIME sehingga file "ktp.jpg" berisi kode PHP bisa
+            // tersimpan sebagai .php di webroot.
+            $allowedDocMime = [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'application/pdf' => 'pdf',
+            ];
+            $docExt = function ($file) use ($allowedDocMime): ?string {
+                if (! $file || ! $file->isValid() || $file->getSize() > 2 * 1024 * 1024) {
+                    return null;
                 }
 
-                return in_array(strtolower($file->getClientOriginalExtension()), $allowedDocExt, true);
+                return $allowedDocMime[(string) $file->getMimeType()] ?? null;
             };
 
             // Upload KTP
             $fileKtp = $this->request->file('ktp_id');
-            if ($isValidDoc($fileKtp)) {
-                $newName = 'ktp_'.$fileKtp->hashName();
+            $extKtp = $docExt($fileKtp);
+            if ($extKtp !== null) {
+                $newName = 'ktp_'.Str::random(40).'.'.$extKtp;
                 $fileKtp->move($docPathAbs, $newName);
                 $dokumen['ktp'] = $docPathRel.$newName;
             }
 
             // Upload KK
             $fileKk = $this->request->file('kk_id');
-            if ($isValidDoc($fileKk)) {
-                $newName = 'kk_'.$fileKk->hashName();
+            $extKk = $docExt($fileKk);
+            if ($extKk !== null) {
+                $newName = 'kk_'.Str::random(40).'.'.$extKk;
                 $fileKk->move($docPathAbs, $newName);
                 $dokumen['kk'] = $docPathRel.$newName;
             }
@@ -553,8 +559,9 @@ class DataguruController extends BaseController
                     } // Safety check
 
                     foreach ($sertiFiles as $file) {
-                        if ($isValidDoc($file)) {
-                            $newName = 'sert_'.$file->hashName();
+                        $extSerti = $docExt($file);
+                        if ($extSerti !== null) {
+                            $newName = 'sert_'.Str::random(40).'.'.$extSerti;
                             $file->move($docPathAbs, $newName);
                             $sertiPaths[] = $docPathRel.$newName;
                         }
@@ -1143,7 +1150,6 @@ class DataguruController extends BaseController
                     'nip' => $v['nip'],
                     'kode_guru' => $v['kode_guru'],
                     'username' => $v['username'],
-                    'password' => $v['password'],
                     'foto' => null,
                 ]);
                 $imported++;
@@ -1969,7 +1975,6 @@ class DataguruController extends BaseController
         $changedPassword = false;
         if ($password !== '') {
             $userUpdate['password'] = password_hash($password, PASSWORD_BCRYPT);
-            $guruUpdate['password'] = $password; // plaintext legacy di master_guru
             $changedPassword = true;
         }
         $db->table('users')->where('id', $guru->id_user)->update($userUpdate);
@@ -2194,7 +2199,13 @@ class DataguruController extends BaseController
         DB::beginTransaction();
         try {
             foreach ($clean as $row) {
-                $db->table('master_guru')->where('id_guru', $row['id_guru'])->update($row);
+                // Password tetap dipakai untuk menghitung baris berubah dan
+                // di-hash ke users di bawah, tetapi kolom legacy master_guru
+                // tidak lagi diisi.
+                unset($row['password']);
+                if (count($row) > 1) {
+                    $db->table('master_guru')->where('id_guru', $row['id_guru'])->update($row);
+                }
             }
 
             foreach ($gantiPassword as $idUser => $plain) {

@@ -399,9 +399,9 @@
                 const wb = new ExcelJS.Workbook();
                 const sheet = wb.addWorksheet('Update Data Guru');
 
-                sheet.addRow(['NO', 'ID', 'NIP', 'NAMA GURU', 'L/P', 'USERNAME', 'PASSWORD']);
+                sheet.addRow(['NO', 'ID', 'NIP', 'NAMA GURU', 'L/P', 'USERNAME']);
                 res.guru.forEach(g => {
-                    sheet.addRow([g.no, g.id_guru, g.nip, g.nama_guru, g.jenis_kelamin, g.username, g.password]);
+                    sheet.addRow([g.no, g.id_guru, g.nip, g.nama_guru, g.jenis_kelamin, g.username]);
                 });
 
                 sheet.getRow(1).font = { bold: true };

@@ -346,13 +346,22 @@ class AttendancePenaltyService
         $monthEnd = date('Y-m-t', strtotime($monthStart));
 
         if ($lock) {
+            // Kunci baris induk dulu. FOR UPDATE pada SUM() tidak mengunci apa pun
+            // ketika bulan ini belum punya baris (atau isolation READ COMMITTED),
+            // sehingga dua request paralel bisa sama-sama lolos cap. Baris users
+            // selalu ada, jadi lock-nya nyata dan berlaku antar-caller.
+            DB::table('users')->where('id', $userId)->lockForUpdate()->value('id');
+
             $sql = 'SELECT COALESCE(SUM(denda), 0) AS used FROM absensi_harian WHERE user_id = ? AND tgl >= ? AND tgl <= ?';
             $params = [$userId, $monthStart, $monthEnd];
             if ($excludeId) {
                 $sql .= ' AND id != ?';
                 $params[] = $excludeId;
             }
-            $sql .= ' FOR UPDATE';
+            // SQLite tidak mendukung FOR UPDATE (dipakai test suite).
+            if (DB::connection()->getDriverName() === 'mysql') {
+                $sql .= ' FOR UPDATE';
+            }
             $used = (float) (DB::selectOne($sql, $params)->used ?? 0);
         } else {
             $builder = DB::table('absensi_harian')

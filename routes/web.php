@@ -40,15 +40,15 @@ use Illuminate\Support\Facades\Route;
 
 // Port dari CodeIgniter 4 app/Config/Routes.php — URL dipertahankan 1:1.
 // Filter CI4 -> middleware: auth | role:<role> (lihat RoleMiddleware).
-// Rute POST yang dikecualikan CSRF di CI4 (auth/login, presensi/auth,
-// scanner/scan, ...) memakai ->withoutMiddleware(VerifyCsrfToken).
-
+// Rute POST yang dikecualikan CSRF di CI4 kini dilindungi CSRF seperti form
+// lain: kedua halaman login mengirim token (form backend memakai @csrf,
+// form presensi guru memakai input _token hasil csrf_token()).
 Route::get('/', [AuthController::class, 'index'])->name('home');
 
 Route::get('qr/{any}', [AttendanceController::class, 'qrPage'])->name('qr.qr_page');
 Route::get('healthz', [HealthController::class, 'index'])->name('healthz.index');
 Route::get('presensi/ranking', [AttendanceController::class, 'ranking'])->middleware(['auth', 'role:guru'])->name('presensi.ranking');
-Route::post('presensi/auth', [AttendanceController::class, 'loginAuth'])->withoutMiddleware([VerifyCsrfToken::class])->name('presensi.auth.login_auth');
+Route::post('presensi/auth', [AttendanceController::class, 'loginAuth'])->name('presensi.auth.login_auth');
 Route::get('presensi/logout', [AttendanceController::class, 'logoutApp'])->middleware(['auth'])->name('presensi.logout.logout_app');
 Route::get('presensi/google', [AttendanceController::class, 'google'])->name('presensi.google');
 Route::get('presensi/google-callback', [AttendanceController::class, 'googleCallback'])->name('presensi.google-callback.google_callback');
@@ -218,7 +218,7 @@ Route::get('admin/sistem/backup-json', [PresensiAdminController::class, 'backupD
 Route::post('admin/sistem/restore-json', [PresensiAdminController::class, 'restoreDataJson'])->middleware(['auth', 'role:admin'])->name('admin.sistem.restore-json.restore_data_json');
 Route::get('auth', [AuthController::class, 'index'])->name('login');
 Route::get('auth/siswa', [AuthController::class, 'siswa'])->name('auth.siswa');
-Route::post('auth/login', [AuthController::class, 'login'])->withoutMiddleware([VerifyCsrfToken::class])->name('auth.login');
+Route::post('auth/login', [AuthController::class, 'login'])->name('auth.login');
 Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout.2');
 Route::get('dashboard/checkTokenJadwal', [DashboardController::class, 'checkTokenJadwal'])->middleware(['auth', 'role:admin'])->name('dashboard.checkTokenJadwal.check_token_jadwal');
 Route::post('dashboard/gantitahun', [DashboardController::class, 'gantiTahun'])->middleware(['auth', 'role:admin'])->name('dashboard.gantitahun.ganti_tahun');

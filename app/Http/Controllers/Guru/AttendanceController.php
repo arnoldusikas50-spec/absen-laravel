@@ -818,7 +818,9 @@ class AttendanceController extends BaseController
                 if ($accuracy < 0) {
                     return $this->respond(false, 'Akurasi GPS tidak valid');
                 }
-                if ($accuracy > 10000) {
+                // Akurasi >1 km tidak lagi bisa dijadikan dasar geofence;
+                // samakan ambang dengan jalur NFC (NfcAttendanceService).
+                if ($accuracy > 1000) {
                     return $this->respond(false, 'Akurasi GPS terlalu rendah. Nyalakan GPS dan coba lagi.');
                 }
 
@@ -1449,7 +1451,9 @@ class AttendanceController extends BaseController
                 if ($accuracy < 0) {
                     return $this->respond(false, 'Akurasi GPS tidak valid');
                 }
-                if ($accuracy > 10000) {
+                // Akurasi >1 km tidak lagi bisa dijadikan dasar geofence;
+                // samakan ambang dengan jalur NFC (NfcAttendanceService).
+                if ($accuracy > 1000) {
                     return $this->respond(false, 'Akurasi GPS terlalu rendah. Nyalakan GPS dan coba lagi.');
                 }
 
@@ -4188,7 +4192,7 @@ class AttendanceController extends BaseController
         if ($accuracy < 0) {
             return $this->respond(false, 'Akurasi GPS tidak valid');
         }
-        if ($accuracy > 10000) {
+        if ($accuracy > 1000) {
             return $this->respond(false, 'Akurasi GPS terlalu rendah. Nyalakan GPS dan coba lagi.');
         }
         $mockCheck = $this->detectMockLocation($lat, $lng, $accuracy);
