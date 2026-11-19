@@ -42,12 +42,12 @@ $kartuTemplate = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
                 <td class="dp-val" title="{{ $s->nama }}">{{ $s->nama }}</td>
             </tr>
             <tr>
-                <td class="dp-lbl">Jenis Kelamin</td>
+                <td class="dp-lbl">JK</td>
                 <td class="dp-sep">:</td>
                 <td class="dp-val">{{ $isLaki ? 'Laki-laki' : 'Perempuan' }}</td>
             </tr>
             <tr>
-                <td class="dp-lbl">Tempat Tgl Lahir</td>
+                <td class="dp-lbl">TTL</td>
                 <td class="dp-sep">:</td>
                 <td class="dp-val ttl-wrap" title="{{ $ttlClean }}">{{ $ttlClean }}</td>
             </tr>

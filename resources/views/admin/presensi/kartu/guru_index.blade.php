@@ -222,11 +222,29 @@
         justify-content: center;
         margin-top: 5px;
     }
+    .gback-qr-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .gback-qr-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 30px;
+        padding: 2px;
+        background: #ffffff;
+        border-radius: 4px;
+        object-fit: contain;
+    }
     .gback-qr-box {
         width: 90px;
         height: 90px;
         background: #ffffff;
-        border: 3px solid #2f7dd1;
+        border: 3px solid #2f80ed;
         border-radius: 8px;
         padding: 4px;
         display: flex;
@@ -475,12 +493,30 @@
         padding-left: 2.5mm;
         flex-shrink: 0;
     }
+    .card-qr-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .card-qr-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6mm;
+        height: 6mm;
+        padding: 0.4mm;
+        background: #ffffff;
+        border-radius: 0.8mm;
+        object-fit: contain;
+    }
     .card-qr-render {
         width: 18mm;
         height: 18mm;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        padding: 1px;
+        border: 0.5mm solid #2f80ed;
+        border-radius: 1.6mm;
+        padding: 0.6mm;
         background: #ffffff;
         display: flex;
         align-items: center;
@@ -613,12 +649,30 @@
         padding-left: 2.5mm;
         flex-shrink: 0;
     }
+    .card-back-qr-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .card-back-qr-logo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6mm;
+        height: 6mm;
+        padding: 0.4mm;
+        background: #ffffff;
+        border-radius: 0.8mm;
+        object-fit: contain;
+    }
     .card-back-qr-box {
         width: 18mm;
         height: 18mm;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        padding: 1px;
+        border: 0.5mm solid #2f80ed;
+        border-radius: 1.6mm;
+        padding: 0.6mm;
         background: #ffffff;
         display: flex;
         align-items: center;
@@ -658,19 +712,40 @@
 @endsection
 
 @section('content')
+<?php
+    // Guru memakai halaman ini untuk kartunya sendiri; admin mengelola semua kartu.
+    $basePath = $base_path ?? 'admin/presensi/guru/kartu';
+    $bisaSetelan = str_starts_with((string) $basePath, 'admin');
+?>
 <div class="fade-in-up p-4 md:p-6 space-y-6">
 
     <!-- Header & Action -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
         <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-person-badge-fill"></i> Kartu Presensi Guru / GTK
+                <i class="bi bi-person-badge-fill"></i> {{ $bisaSetelan ? 'Kartu Presensi Guru / GTK' : 'Kartu Presensi Saya' }}
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Cetak Kartu Absen Guru QR</h1>
-            <p class="text-xs text-slate-500 mt-1">Cetak kartu ID presensi Guru & Tenaga Kependidikan dengan QR Code standar untuk scan absensi mandiri di scanner kiosk.</p>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $bisaSetelan ? 'Cetak Kartu Absen Guru QR' : 'Kartu Absen Saya' }}</h1>
+            <p class="text-xs text-slate-500 mt-1">
+                {{ $bisaSetelan
+                    ? 'Cetak kartu ID presensi Guru & Tenaga Kependidikan dengan QR Code standar untuk scan absensi mandiri di scanner kiosk.'
+                    : 'Kartu ID presensi Anda dengan QR Code standar — tunjukkan saat absensi mandiri di scanner kiosk.' }}
+            </p>
+            <div class="mt-4 flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/70 px-2.5 py-1 text-blue-700">
+                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] text-white">1</span> Pilih desain
+                </span>
+                <i class="bi bi-chevron-right text-slate-300"></i>
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
+                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">2</span> {{ $bisaSetelan ? 'Pilih guru' : 'Kartu saya' }}
+                </span>
+                <i class="bi bi-chevron-right text-slate-300"></i>
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
+                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">3</span> Cetak
+                </span>
+            </div>
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
-            <?php $basePath = $base_path ?? 'admin/presensi/guru/kartu'; ?>
             <?php $desainAktif = $desain ?? 'landscape'; ?>
             <?php $modeAktif = in_array(($mode ?? 'grid'), ['grid', 'ktp'], true) ? ($mode ?? 'grid') : 'grid'; ?>
             <a id="btnCetakLembar"
@@ -679,7 +754,7 @@
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
                 <i class="bi bi-printer-fill"></i> Cetak Kartu
             </a>
-            <a href="{{ url('scanner') }}"
+            <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (session('user_id') ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) session('user_id')) : '')) }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
                 <i class="bi bi-camera-fill"></i> Buka Scanner QR
             </a>
@@ -703,16 +778,20 @@
             </div>
         </div>
 
-        <div class="space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <!-- Pilihan Desain Kartu -->
         <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain Kartu</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=landscape' . $qsSertaan) }}"
+                   aria-current="{{ $desainAktif === 'landscape' ? 'page' : 'false' }}"
+                   title="Kartu horizontal 9,2 × 5,8 cm dengan foto, NIP, dan QR Code"
                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'landscape' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front"></i> Landscape
                 </a>
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=portrait' . $qsSertaan) }}"
+                   aria-current="{{ $desainAktif === 'portrait' ? 'page' : 'false' }}"
+                   title="Kartu vertikal 5,8 × 9,2 cm dengan QR Code besar"
                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card"></i> Portrait
                 </a>
@@ -729,10 +808,14 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tata Letak Cetak</label>
             <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan tata letak cetak">
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=grid') }}"
+                   aria-current="{{ $modeAktif === 'grid' ? 'page' : 'false' }}"
+                   title="Beberapa kartu per lembar A4 — hemat kertas"
                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'grid' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-file-earmark-text"></i> Grid A4
                 </a>
                 <a href="{{ url($basePath . '?' . ($id_guru ? 'id_guru=' . $id_guru . '&' : '') . 'desain=' . $desainAktif . '&mode=ktp') }}"
+                   aria-current="{{ $modeAktif === 'ktp' ? 'page' : 'false' }}"
+                   title="Kertas disetel otomatis ke kartu ID-1 CR80 (85,6 × 54 mm)"
                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
                     <i class="bi bi-credit-card-2-front-fill"></i> Ukuran KTP
                 </a>
@@ -743,11 +826,19 @@
                     : 'Grid A4: beberapa kartu per lembar A4, hemat kertas dan mudah dipotong.' }}
             </p>
         </div>
+
+        <div class="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-3 text-[11px] text-blue-800" style="grid-column: 1 / -1;">
+            <i class="bi bi-lightbulb-fill mt-0.5 text-blue-500"></i>
+            <p class="font-semibold leading-relaxed m-0">
+                Hasil cetak terbaik: gunakan skala <strong>100%</strong>, pilih kertas <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>, dan aktifkan <strong>Background graphics</strong>.
+            </p>
+        </div>
         </div>
 
         <hr class="my-5 border-slate-100">
 
         <!-- Filter Data -->
+        @if ($bisaSetelan)
         <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Filter Data Guru</label>
         <form method="get" action="{{ url($basePath) }}" id="filterForm" data-base="{{ url($basePath) }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -773,11 +864,52 @@
                 <div class="relative">
                     <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" id="searchInput" placeholder="Cari nama, NIP, atau kode guru..."
-                           class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
+                           aria-label="Cari nama, NIP, atau kode guru"
+                           class="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
+                    <button type="button" id="clearSearch" aria-label="Bersihkan pencarian"
+                            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
+                        <i class="bi bi-x-circle-fill text-[13px]"></i>
+                    </button>
                 </div>
+            </div>
+
+            <div class="flex items-center justify-end pt-1" style="grid-column: 1 / -1;">
+                <button type="button" id="resetFilter"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset filter
+                </button>
             </div>
         </form>
         </div>
+        @else
+        @php
+            $guruSendiri = $guru_list[0] ?? null;
+            $inisialSendiri = $guruSendiri
+                ? collect(preg_split('/\s+/', trim((string) $guruSendiri->nama_guru)))
+                    ->filter()
+                    ->take(2)
+                    ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                    ->implode('')
+                : '?';
+        @endphp
+        <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Kartu Anda</label>
+            <div class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white text-xs font-extrabold tracking-wide">{{ $inisialSendiri }}</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-extrabold text-slate-800 leading-tight truncate m-0">{{ $guruSendiri->nama_guru ?? '-' }}</p>
+                    <p class="text-[11px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
+                        NIP: {{ $guruSendiri->nip ?? '-' }}
+                        <span class="text-slate-300 mx-1">•</span>{{ $guruSendiri->jabatan ?? 'Guru / Tenaga Pendidik' }}
+                    </p>
+                </div>
+                <span class="shrink-0 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700">Kartu saya</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5 mb-0">
+                <i class="bi bi-shield-lock me-1"></i> Kartu ini terhubung dengan akun Anda. Hubungi admin bila data belum sesuai.
+            </p>
+        </div>
+        @endif
 
         <?php if (!empty($catatan)): ?>
             <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
@@ -795,23 +927,6 @@
                 </p>
             </div>
         <?php endif; ?>
-
-        <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
-            <div class="flex items-center gap-2">
-                <span id="jumlahTampil" class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
-                    {{ count($guru_list) }}
-                </span>
-                <span class="font-semibold text-slate-600">kartu guru ditampilkan</span>
-                @if (!empty($terpotong))
-                    <span class="text-slate-400">(dari daftar yang dipotong)</span>
-                @endif
-            </div>
-            <div class="flex items-center gap-2">
-                <i class="bi bi-building text-slate-400"></i>
-                <span class="text-slate-400">Instansi</span>
-                <strong class="text-slate-700">{{ $setting->sekolah ?? 'Sekolah' }}</strong>
-            </div>
-        </div>
     </div>
 
     <!-- Live Card Grid Preview -->
@@ -828,6 +943,12 @@
                     Silakan periksa master data guru di menu Data Guru.
                 <?php endif; ?>
             </p>
+            <?php if (str_starts_with($basePath, 'admin/')): ?>
+                <a href="{{ url('dataguru') }}"
+                   class="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors no-underline">
+                    <i class="bi bi-person-video3"></i> Buka Data Guru
+                </a>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <?php if ($desainAktif === 'portrait'): ?>
@@ -847,10 +968,10 @@
                     @endphp
                     <div class="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100">
                         <div class="flex items-center gap-3 min-w-0">
-                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-700 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
                             <div class="min-w-0">
-                                <h5 class="text-[12.5px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
-                                <p class="text-[10.5px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
+                                <h5 class="text-[12px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
+                                <p class="text-[10px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
                                     <span class="font-mono text-slate-600">{{ $g->nip ?: ($g->kode_guru ?: 'GTK') }}</span>
                                     <span class="text-slate-300 mx-1">•</span>{{ $g->jabatan }}
                                 </p>
@@ -894,10 +1015,10 @@
                     @endphp
                     <div class="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100">
                         <div class="flex items-center gap-3 min-w-0">
-                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-700 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
                             <div class="min-w-0">
-                                <h5 class="text-[12.5px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
-                                <p class="text-[10.5px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
+                                <h5 class="text-[12px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
+                                <p class="text-[10px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
                                     <span class="font-mono text-slate-600">{{ $g->nip ?: ($g->kode_guru ?: 'GTK') }}</span>
                                     <span class="text-slate-300 mx-1">•</span>{{ $g->jabatan }}
                                 </p>
@@ -932,6 +1053,10 @@
             </div>
             <h3 class="text-sm font-bold text-slate-800">Tidak ada kartu yang cocok</h3>
             <p class="text-xs text-slate-500 mt-1">Ubah kata kunci pencarian nama, NIP, atau kode guru.</p>
+            <button type="button" id="btnResetCari"
+                    class="inline-flex items-center gap-1.5 mt-4 px-3.5 py-2 rounded-xl text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition-colors">
+                <i class="bi bi-arrow-counterclockwise"></i> Bersihkan pencarian
+            </button>
         </div>
     <?php endif; ?>
 
@@ -956,9 +1081,9 @@ $(document).ready(function() {
                     text: String(code),
                     width: size,
                     height: size,
-                    colorDark: "#1e1b4b",
+                    colorDark: "#09265e",
                     colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M
+                    correctLevel: QRCode.CorrectLevel.H
                 });
             } catch (e) {
                 $(el).html('<span class="font-mono text-xs font-bold">' + $('<div>').text(code).html() + '</span>');
@@ -1006,11 +1131,46 @@ $(document).ready(function() {
             }
         });
 
-        $('#jumlahTampil').text(tampil);
         $('#emptyFilter').toggleClass('hidden', tampil > 0);
     }
 
-    $('#searchInput').on('keyup', filterKartu);
+    function syncSearchUi() {
+        $('#clearSearch').toggleClass('hidden', $('#searchInput').val().trim() === '');
+    }
+
+    $('#searchInput').on('input', function() {
+        syncSearchUi();
+        filterKartu();
+    }).on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            // Pencarian berjalan realtime; Enter tidak perlu mengirim form
+            // (mengirim form justru menghapus kata kunci yang sedang diketik).
+            e.preventDefault();
+            return;
+        }
+        if (e.key === 'Escape') {
+            $(this).val('');
+            syncSearchUi();
+            filterKartu();
+        }
+    });
+
+    function resetCari() {
+        $('#searchInput').val('');
+        syncSearchUi();
+        filterKartu();
+        $('#searchInput').trigger('focus');
+    }
+
+    $('#clearSearch, #btnResetCari').on('click', resetCari);
+
+    $('#resetFilter').on('click', function() {
+        const desain = $('#inputDesain').val() || 'landscape';
+        const mode = $('#inputMode').val() || 'grid';
+        window.location.href = basePath + '?desain=' + encodeURIComponent(desain) + '&mode=' + encodeURIComponent(mode);
+    });
+
+    syncSearchUi();
 });
 </script>
 @endsection

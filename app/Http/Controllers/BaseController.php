@@ -33,8 +33,11 @@ use Illuminate\Support\Facades\Validator;
  */
 class BaseController extends Controller
 {
-    /** @var Request */
-    protected $request;
+    /**
+     * Request pengganti khusus (mis. CronControllerController yang membuat
+     * request sintetis). Bila null, $this->request selalu request aktif.
+     */
+    protected ?Request $requestOverride = null;
 
     /** @var CiSession */
     protected $session;
@@ -57,7 +60,9 @@ class BaseController extends Controller
         // Kunci timezone aplikasi: seluruh logika presensi memakai Asia/Makassar.
         date_default_timezone_set('Asia/Makassar');
 
-        $this->request = request();
+        // $this->request tidak di-cache di sini: router meng-cache instance
+        // controller, jadi cache request bisa basi pada request berikutnya
+        // (mis. dua request dalam satu feature test). Lihat __get().
         $this->session = new CiSession;
         $this->response = new CiResponse;
 
@@ -947,6 +952,28 @@ class BaseController extends Controller
             return false;
         }
     }
+
+    public function __get($key)
+    {
+        if ($key === 'request') {
+            return $this->requestOverride ?? request();
+        }
+
+        trigger_error('Undefined property: '.static::class.'::$'.$key, E_USER_WARNING);
+
+        return null;
+    }
+
+    public function __set($key, $value): void
+    {
+        if ($key === 'request' && $value instanceof Request) {
+            $this->requestOverride = $value;
+
+            return;
+        }
+
+        $this->{$key} = $value;
+    }
 }
 
 // ======================================================================
@@ -1031,11 +1058,21 @@ class CiSession
 
     public function __get($key)
     {
+        if ($key === 'request') {
+            return $this->requestOverride ?? request();
+        }
+
         return $this->get($key);
     }
 
     public function __set($key, $value): void
     {
+        if ($key === 'request' && $value instanceof Request) {
+            $this->requestOverride = $value;
+
+            return;
+        }
+
         $this->set($key, $value);
     }
 }

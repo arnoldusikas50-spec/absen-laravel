@@ -980,7 +980,10 @@ class CronControllerController extends BaseController
                 $db->table('presensi_siswa')
                     ->where('tgl', $tgl)
                     ->whereNotNull('jam_masuk')
-                    ->whereRaw("(jam_keluar IS NULL OR jam_keluar = '')")
+                    ->where(function ($q) {
+                        $q->whereNull('jam_keluar')
+                            ->orWhere('jam_keluar', '00:00:00');
+                    })
                     ->whereRaw("UPPER(TRIM(status)) IN ('HADIR','HADIR TELAT','TERLAMBAT')")
                     ->where('pulang_tidak_tercatat', 0)
                     ->update(['pulang_tidak_tercatat' => 1]);

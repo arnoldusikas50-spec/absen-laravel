@@ -11,8 +11,22 @@
     // Template latar kartu duplex portrait: 'vektor' atau 'png' (unggahan /settings).
     $templateAktif = ($template ?? 'vektor') === 'png' ? 'png' : 'vektor';
     $templatePngSiap = $isPortrait && ! empty($kartu_bg_depan) && ! empty($kartu_bg_belakang);
+    // Prefix role-aware: admin dan guru memakai halaman preview yang berbeda.
+    $basePath = $base_path ?? (str_starts_with(request()->path(), 'guru/') ? 'guru/presensi-siswa/kartu' : 'admin/presensi/siswa/kartu');
     // Admin bisa mengelola unggahan latar di menu Pengaturan; guru tidak punya akses.
-    $bisaSetelan = ! str_starts_with(request()->path(), 'guru');
+    $bisaSetelan = ! str_starts_with($basePath, 'guru/');
+    $qKelas = (int) request()->query('id_kelas', 0);
+    $qSiswa = (int) request()->query('id_siswa', 0);
+    // URL kembali yang deterministik (tidak bergantung riwayat browser).
+    $previewQuery = array_filter([
+        'id_kelas' => $qKelas > 0 ? $qKelas : null,
+        'id_siswa' => $qSiswa > 0 ? $qSiswa : null,
+        'desain' => $desainAktif,
+        'mode' => $modeAktif,
+        'flip' => $modeAktif === 'bolakbalik' ? $flipAktif : null,
+        'template' => $isPortrait ? $templateAktif : null,
+    ], static fn ($nilai): bool => $nilai !== null);
+    $previewUrl = url($basePath).'?'.http_build_query($previewQuery);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -95,9 +109,14 @@
             background-color: #e2e8f0;
         }
         .btn-active {
-            background-color: #1e40af !important;
+            background-color: #1d4ed8 !important;
             color: #ffffff !important;
-            box-shadow: 0 2px 6px rgba(30,64,175,0.3);
+            box-shadow: 0 2px 6px rgba(29,78,216,0.3);
+        }
+        @media (max-width: 640px) {
+            .top-bar-head { align-items: flex-start; }
+            .btn-group { width: 100%; }
+            .btn-group .btn { flex: 1; justify-content: center; }
         }
 
         /* ── Top bar terstruktur (layar) ──────────────────────────────── */
@@ -127,7 +146,7 @@
             gap: 5px;
             font-size: 11px;
             font-weight: 800;
-            color: #1e40af;
+            color: #1d4ed8;
             background: #eff6ff;
             border: 1px solid #bfdbfe;
             padding: 3px 10px;
@@ -758,7 +777,7 @@
             z-index: 0;
             pointer-events: none;
         }
-        .card-dp-tpl-png .dp-header,
+        .card-dp-tpl-png .dp-kop,
         .card-dp-tpl-png .dp-streaks,
         .card-dp-tpl-png .dp-wave-top,
         .card-dp-tpl-png .dp-wave-bottom,
@@ -793,47 +812,60 @@
             top: 40px;
             height: 13px;
         }
-        .dp-header {
-            height: 68px;
-            background: linear-gradient(135deg, #0b3d91 0%, #1450b4 55%, #1e56c8 100%);
-            padding: 7px 10px 6px 10px;
-            display: flex;
-            align-items: center;
-            gap: 9px;
+        /* Kop rata tengah: logo, dinas, nama sekolah, alamat */
+        .dp-kop {
             position: relative;
             z-index: 2;
+            margin: 2px 12px 0 12px;
+            text-align: center;
+            flex-shrink: 0;
         }
-        .dp-logo-wrap {
-            width: 38px;
-            height: 38px;
+        .dp-kop-logo {
+            width: 32px;
+            height: 32px;
+            margin: 0 auto 3px auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
         }
-        .dp-logo-wrap img {
+        .dp-kop-logo img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
         }
-        .dp-header-titles {
-            flex: 1;
-            min-width: 0;
+        .dp-kop-dinas {
+            font-size: 8.5px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            color: #16325c;
+            margin: 0;
+            line-height: 1.1;
         }
-        .dp-header-title {
+        .dp-kop-school {
             font-size: 11px;
             font-weight: 900;
-            color: #ffffff;
+            color: #16325c;
             text-transform: uppercase;
-            letter-spacing: 0.2px;
-            line-height: 1.12;
-            margin: 0;
-            text-shadow: 0 1px 3px rgba(4, 24, 62, 0.45);
+            margin: 2px auto 0 auto;
+            line-height: 1.15;
+            max-width: 190px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             word-break: break-word;
+        }
+        .dp-kop-address {
+            font-size: 7.5px;
+            font-weight: 700;
+            color: #1f3c66;
+            margin: 2px auto 0 auto;
+            line-height: 1.25;
+            max-width: 190px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.1px;
         }
 
         .dp-photo-wrap {
@@ -841,11 +873,11 @@
             z-index: 2;
             display: flex;
             justify-content: center;
-            margin-top: 8px;
+            margin-top: 3px;
         }
         .dp-photo-box {
             width: 82px;
-            height: 98px;
+            height: 84px;
             background: #e23434;
             border-radius: 9px;
             overflow: hidden;
@@ -864,14 +896,14 @@
         .dp-name-badge {
             position: relative;
             z-index: 2;
-            margin: 9px 14px 0 14px;
+            margin: 4px 12px 0 12px;
             background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
             color: #ffffff;
-            font-size: 11px;
+            font-size: 10.5px;
             font-weight: 900;
             text-transform: uppercase;
-            padding: 5px 10px;
-            border-radius: 8px;
+            padding: 5px 8px;
+            border-radius: 7px;
             text-align: center;
             word-break: break-word;
             display: -webkit-box;
@@ -880,30 +912,30 @@
             overflow: hidden;
             box-shadow: 0 2px 7px rgba(15,53,147,0.35);
             letter-spacing: 0.1px;
-            line-height: 1.25;
+            line-height: 1.2;
         }
 
         .dp-meta-table {
             position: relative;
             z-index: 2;
-            margin: 6px auto 0 auto;
-            width: 168px;
+            margin: 3px auto 0 auto;
+            width: 180px;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 10px;
-            line-height: 1.3;
+            font-size: 9.5px;
+            line-height: 1.25;
         }
         .dp-meta-table td {
             padding: 1px 0;
             vertical-align: middle;
         }
         .dp-meta-table .dp-meta-lbl {
-            width: 54px;
+            width: 46px;
             font-weight: 800;
             color: #123a75;
         }
         .dp-meta-table .dp-meta-sep {
-            width: 11px;
+            width: 9px;
             font-weight: 800;
             color: #123a75;
             text-align: center;
@@ -920,25 +952,43 @@
         .dp-qr-section {
             position: relative;
             z-index: 2;
-            margin: auto 12px 12px 12px;
+            margin: auto 12px 7px 12px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         .dp-qr-card {
             background: #ffffff;
-            border: 1.5px solid #bfdbfe;
-            border-radius: 10px;
-            padding: 4px;
+            border: 2px solid #2f80ed;
+            border-radius: 8px;
+            padding: 3px;
             box-shadow: 0 2px 8px rgba(37,99,235,0.16);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
+        .dp-qr-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dp-qr-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 22px;
+            height: 22px;
+            padding: 2px;
+            background: #ffffff;
+            border-radius: 3px;
+            object-fit: contain;
+        }
         .dp-qr-box {
-            width: 56px;
-            height: 56px;
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -950,7 +1000,7 @@
         }
         .dp-qr-divider {
             width: 2.5px;
-            height: 44px;
+            height: 58px;
             background: #1e56c8;
             border-radius: 2px;
             flex-shrink: 0;
@@ -1001,6 +1051,7 @@
             position: relative;
             z-index: 2;
             flex: 1;
+            min-height: 0;
             padding: 6px 12px 0 12px;
             display: flex;
             flex-direction: column;
@@ -1028,22 +1079,22 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 9.5px;
-            line-height: 1.3;
+            font-size: 8.5px;
+            line-height: 1.25;
         }
         .dp-info-table td {
-            padding: 2px 0;
+            padding: 1px 0;
             vertical-align: top;
         }
         .dp-info-table .dp-lbl {
-            width: 76px;
-            font-size: 9px;
+            width: 44px;
+            font-size: 8.5px;
             font-weight: 800;
             color: #123a75;
             white-space: nowrap;
         }
         .dp-info-table .dp-sep {
-            width: 11px;
+            width: 9px;
             font-weight: 800;
             color: #123a75;
             text-align: center;
@@ -1052,7 +1103,7 @@
             padding-left: 2px;
             font-weight: 800;
             color: #123a75;
-            line-height: 1.3;
+            line-height: 1.25;
             word-break: break-word;
         }
 
@@ -1063,26 +1114,26 @@
             height: 2px;
             background: #1e56c8;
             border-radius: 1px;
-            margin: 5px 0 0 0;
+            margin: 4px 0 0 0;
         }
 
         .dp-rules-section {
             position: relative;
             z-index: 2;
-            margin-top: 6px;
+            margin-top: 5px;
             text-align: center;
         }
         .dp-rules-pill {
             background: linear-gradient(135deg, #0f3593 0%, #1e56c8 100%);
             color: #ffffff;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            padding: 3px 14px;
+            padding: 2px 12px;
             border-radius: 9999px;
             display: inline-block;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             box-shadow: 0 2px 6px rgba(15,53,147,0.3);
         }
         .dp-rules-list {
@@ -1090,19 +1141,19 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px;
             text-align: left;
         }
         .dp-rule-item {
             display: flex;
             align-items: flex-start;
-            font-size: 8.5px;
+            font-size: 8px;
             color: #16325c;
-            line-height: 1.35;
+            line-height: 1.25;
             font-weight: 600;
         }
         .dp-rule-num {
-            width: 12px;
+            width: 11px;
             flex-shrink: 0;
             font-weight: 800;
             color: #123a75;
@@ -1119,11 +1170,11 @@
             align-items: center;
             gap: 1px;
             margin-top: auto;
-            padding-top: 5px;
+            padding-top: 4px;
         }
         .dp-barcode-svg {
             width: 150px;
-            height: 18px;
+            height: 16px;
         }
         .dp-barcode-svg rect {
             fill: #123a75;
@@ -1242,21 +1293,24 @@
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
-            .dp-header { height: 18mm !important; padding: 1.8mm 2.6mm 1.5mm 2.6mm !important; }
+            .dp-kop { margin: 0.8mm 3.2mm 0 3.2mm !important; }
+            .dp-kop-logo { width: 7.5mm !important; height: 7.5mm !important; margin-bottom: 0.6mm !important; }
+            .dp-kop-dinas { font-size: 5.6pt !important; }
+            .dp-kop-school { font-size: 6.6pt !important; line-height: 1.15 !important; margin-top: 0.3mm !important; max-width: 47mm !important; }
+            .dp-kop-address { font-size: 4.6pt !important; margin-top: 0.3mm !important; max-width: 47mm !important; }
             .dp-wave-top { top: 17mm !important; height: 9.5mm !important; }
             .dp-wave-top-back { top: 10.2mm !important; height: 3.8mm !important; }
-            .dp-logo-wrap { width: 10mm !important; height: 10mm !important; }
-            .dp-header-title { font-size: 8pt !important; line-height: 1.12 !important; }
             .dp-photo-wrap { margin-top: 2mm !important; }
-            .dp-photo-box { width: 22mm !important; height: 26mm !important; border-radius: 2.4mm !important; border-width: 0.8mm !important; }
-            .dp-name-badge { font-size: 7.8pt !important; margin: 2mm 3.2mm 0 3.2mm !important; padding: 1.2mm 2.4mm !important; border-radius: 1.8mm !important; line-height: 1.2 !important; -webkit-line-clamp: 2 !important; }
-            .dp-meta-table { font-size: 7.5pt !important; margin: 1.6mm auto 0 auto !important; width: 44.5mm !important; }
+            .dp-photo-box { width: 21mm !important; height: 23mm !important; border-radius: 2.4mm !important; border-width: 0.8mm !important; }
+            .dp-name-badge { font-size: 7.8pt !important; margin: 1.5mm 3.2mm 0 3.2mm !important; padding: 1.2mm 2.4mm !important; border-radius: 1.8mm !important; line-height: 1.2 !important; -webkit-line-clamp: 2 !important; }
+            .dp-meta-table { font-size: 7.5pt !important; margin: 1.2mm auto 0 auto !important; width: 44.5mm !important; }
             .dp-meta-table .dp-meta-lbl { width: 14.3mm !important; }
             .dp-meta-table .dp-meta-sep { width: 2.9mm !important; }
-            .dp-qr-section { margin: auto 3.2mm 3.2mm 3.2mm !important; gap: 2.6mm !important; }
-            .dp-qr-card { padding: 1mm !important; border-radius: 2.6mm !important; }
-            .dp-qr-box { width: 14.8mm !important; height: 14.8mm !important; }
-            .dp-qr-divider { height: 11.6mm !important; width: 0.66mm !important; }
+            .dp-qr-section { margin: auto 3.2mm 3mm 3.2mm !important; gap: 2.6mm !important; }
+            .dp-qr-card { padding: 0.8mm !important; border-radius: 2.2mm !important; border-width: 0.5mm !important; }
+            .dp-qr-logo { width: 5.8mm !important; height: 5.8mm !important; padding: 0.5mm !important; border-radius: 0.8mm !important; }
+            .dp-qr-box { width: 17mm !important; height: 17mm !important; }
+            .dp-qr-divider { height: 14mm !important; width: 0.66mm !important; }
             .dp-qr-desc { font-size: 7pt !important; }
             .dp-wave-bottom { width: 31.7mm !important; height: 11.1mm !important; }
 
@@ -1265,7 +1319,7 @@
             .dp-back-body { padding: 1.6mm 3.2mm 0 3.2mm !important; }
             .dp-info-table { font-size: 7.1pt !important; line-height: 1.3 !important; }
             .dp-info-table td { padding: 0.5mm 0 !important; }
-            .dp-info-table .dp-lbl { width: 20mm !important; font-size: 6.7pt !important; }
+            .dp-info-table .dp-lbl { width: 13mm !important; font-size: 6.7pt !important; }
             .dp-info-table .dp-sep { width: 2.9mm !important; }
             .dp-info-divider { height: 0.55mm !important; margin-top: 1.3mm !important; }
             .dp-rules-section { margin-top: 1.6mm !important; }
@@ -1481,8 +1535,6 @@
 
     <!-- Top Action Bar (Screen Only) -->
     <?php
-    $qKelas = (int) ($_GET['id_kelas'] ?? 0);
-    $qSiswa = (int) ($_GET['id_siswa'] ?? 0);
     $baseQs = 'id_kelas=' . $qKelas . ($qSiswa ? '&id_siswa=' . $qSiswa : '');
     $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($d === 'duplex_portrait' ? '&template=' . $templateAktif : '');
     $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($isPortrait ? '&template=' . $templateAktif : '');
@@ -1493,13 +1545,13 @@
         <div class="top-bar-head">
             <div class="top-bar-title">
                 <i class="bi bi-printer-fill"></i> Siap Cetak
-                <span class="top-bar-count">{{ count($siswa_list) }} Kartu</span>
+                <span class="top-bar-count">{{ count($siswa_list) }} Kartu Siswa</span>
                 <span class="top-bar-count muted">{{ $nama_kelas }}</span>
             </div>
             <div class="btn-group">
-                <button onclick="window.history.back()" class="btn btn-secondary">
+                <a href="{{ $previewUrl }}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Kembali
-                </button>
+                </a>
                 <button onclick="window.print()" class="btn btn-primary">
                     <i class="bi bi-printer"></i> Cetak Sekarang
                 </button>
@@ -1592,7 +1644,7 @@
                 <p style="font-size:12px;color:#64748b;margin:0 0 16px 0;">
                     Pilih kelas / siswa lain pada halaman preview kartu, lalu buka kembali halaman cetak ini.
                 </p>
-                <button onclick="window.history.back()" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</button>
+                <a href="{{ $previewUrl }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</a>
             </div>
         <?php endif; ?>
 
@@ -1747,7 +1799,7 @@
                             height: size * 2,
                             colorDark: "#09265e",
                             colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.M
+                            correctLevel: QRCode.CorrectLevel.H
                         });
                     } catch (e) {
                         box.textContent = code;

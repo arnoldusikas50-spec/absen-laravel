@@ -4,7 +4,12 @@
     $modeAktif = ($mode ?? 'grid') === 'ktp' ? 'ktp' : 'grid';
     $ktpLebarMm = 85.6;
     $ktpTinggiMm = 54.0;
-    $qsBase = 'desain=' . $desainAktif;
+    // Prefix role-aware: admin (menu admin) atau guru (Kartu QR Saya).
+    $basePath = $base_path ?? 'admin/presensi/guru/kartu';
+    $idGuru = (int) request()->query('id_guru', 0);
+    $qsGuru = $idGuru > 0 ? 'id_guru=' . $idGuru . '&' : '';
+    $previewUrl = url($basePath) . '?' . $qsGuru . 'desain=' . $desainAktif . '&mode=' . $modeAktif;
+    $cetakBase = url($basePath . '/cetak') . '?' . $qsGuru;
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -22,7 +27,7 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
             color: #0f172a;
             margin: 0;
             padding: 20px;
@@ -30,7 +35,7 @@
 
         /* Top Action Bar (Screen Only) */
         .top-bar {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto 20px auto;
             background: #ffffff;
             padding: 16px 20px;
@@ -86,6 +91,11 @@
             background-color: #1d4ed8 !important;
             color: #ffffff !important;
             box-shadow: 0 2px 6px rgba(29,78,216,0.3);
+        }
+        @media (max-width: 640px) {
+            .top-bar-head { align-items: flex-start; }
+            .btn-group { width: 100%; }
+            .btn-group .btn { flex: 1; justify-content: center; }
         }
 
         /* ── Top bar terstruktur (layar) ──────────────────────────────── */
@@ -509,11 +519,29 @@
             justify-content: center;
             margin-top: 1.2mm;
         }
+        .gback-qr-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gback-qr-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 7mm;
+            height: 7mm;
+            padding: 0.5mm;
+            background: #ffffff;
+            border-radius: 1mm;
+            object-fit: contain;
+        }
         .gback-qr-box {
             width: 22mm;
             height: 22mm;
             background: #ffffff;
-            border: 0.7mm solid #2f7dd1;
+            border: 0.7mm solid #2f80ed;
             border-radius: 2mm;
             padding: 0.8mm;
             display: flex;
@@ -683,12 +711,30 @@
             padding-left: 2.5mm;
             flex-shrink: 0;
         }
+        .card-qr-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-qr-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6mm;
+            height: 6mm;
+            padding: 0.4mm;
+            background: #ffffff;
+            border-radius: 0.8mm;
+            object-fit: contain;
+        }
         .card-qr-render {
             width: 18mm;
             height: 18mm;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 1px;
+            border: 0.5mm solid #2f80ed;
+            border-radius: 1.6mm;
+            padding: 0.6mm;
             background: #ffffff;
             display: flex;
             align-items: center;
@@ -822,12 +868,30 @@
             padding-left: 2.5mm;
             flex-shrink: 0;
         }
+        .card-back-qr-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-back-qr-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6mm;
+            height: 6mm;
+            padding: 0.4mm;
+            background: #ffffff;
+            border-radius: 0.8mm;
+            object-fit: contain;
+        }
         .card-back-qr-box {
             width: 18mm;
             height: 18mm;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 1px;
+            border: 0.5mm solid #2f80ed;
+            border-radius: 1.6mm;
+            padding: 0.6mm;
             background: #ffffff;
             display: flex;
             align-items: center;
@@ -1030,7 +1094,7 @@
                 <span class="top-bar-count muted">{{ $judul_cetak }}</span>
             </div>
             <div class="btn-group">
-                <a href="{{ url('admin/presensi/guru/kartu?' . $qsBase . '&mode=' . $modeAktif) }}" class="btn btn-secondary">
+                <a href="{{ $previewUrl }}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Kembali
                 </a>
                 <button onclick="window.print()" class="btn btn-primary">
@@ -1043,10 +1107,10 @@
             <div class="ctrl-group">
                 <span class="ctrl-label">Desain</span>
                 <div class="seg">
-                    <a href="{{ url('admin/presensi/guru/kartu/cetak?desain=landscape&mode=' . $modeAktif) }}" class="btn {{ $desainAktif === 'landscape' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 9.2 × 5.8 cm">
+                    <a href="{{ $cetakBase . 'desain=landscape&mode=' . $modeAktif }}" class="btn {{ $desainAktif === 'landscape' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 9.2 × 5.8 cm">
                         <i class="bi bi-layers-fill"></i> Landscape
                     </a>
-                    <a href="{{ url('admin/presensi/guru/kartu/cetak?desain=portrait&mode=' . $modeAktif) }}" class="btn {{ $desainAktif === 'portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.8 × 9.2 cm">
+                    <a href="{{ $cetakBase . 'desain=portrait&mode=' . $modeAktif }}" class="btn {{ $desainAktif === 'portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.8 × 9.2 cm">
                         <i class="bi bi-card-heading"></i> Portrait
                     </a>
                 </div>
@@ -1054,10 +1118,10 @@
             <div class="ctrl-group">
                 <span class="ctrl-label">Tata Letak</span>
                 <div class="seg">
-                    <a href="{{ url('admin/presensi/guru/kartu/cetak?' . $qsBase . '&mode=grid') }}" class="btn {{ $modeAktif === 'grid' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 — beberapa kartu per lembar">
+                    <a href="{{ $cetakBase . 'desain=' . $desainAktif . '&mode=grid' }}" class="btn {{ $modeAktif === 'grid' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 — beberapa kartu per lembar">
                         <i class="bi bi-grid-3x3-gap"></i> Grid A4
                     </a>
-                    <a href="{{ url('admin/presensi/guru/kartu/cetak?' . $qsBase . '&mode=ktp') }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
+                    <a href="{{ $cetakBase . 'desain=' . $desainAktif . '&mode=ktp' }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
                         <i class="bi bi-credit-card-2-front"></i> Ukuran KTP
                     </a>
                 </div>
@@ -1092,7 +1156,7 @@
                         Guru yang dipilih tidak ditemukan pada master data guru. Periksa kembali filternya di halaman preview.
                     <?php endif; ?>
                 </p>
-                <a href="{{ url('admin/presensi/guru/kartu') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</a>
+                <a href="{{ $previewUrl }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</a>
             </div>
         <?php endif; ?>
 
@@ -1170,9 +1234,9 @@
                             text: code,
                             width: size,
                             height: size,
-                            colorDark: "#0f172a",
+                            colorDark: "#09265e",
                             colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.M
+                            correctLevel: QRCode.CorrectLevel.H
                         });
                     } catch (e) {
                         // Jangan sisipkan nilai mentah ke innerHTML — kode kartu

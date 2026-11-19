@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
  * - Cetak semua guru (format lembar A4 / grid)
  * - Cetak per guru (individu)
  * - Preview interaktif dengan live QR code rendering (Landscape / Portrait)
- * - Cetak kartu guru mandiri (kartuSaya)
+ * - Kartu mandiri guru (index/cetak dengan role guru, hanya kartu sendiri)
  */
 class KartuGuruController extends BaseController
 {
@@ -113,7 +113,9 @@ class KartuGuruController extends BaseController
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
 
-        $basePath = 'admin/presensi/guru/kartu';
+        // Admin mengelola semua kartu lewat menu admin; guru hanya kartunya
+        // sendiri lewat menu "Kartu QR Saya" (route role:guru).
+        $basePath = $isStaffPenuh ? 'admin/presensi/guru/kartu' : 'guru/kartu-saya';
 
         // Pilihan desain: landscape (dengan foto) | portrait (tanpa foto, QR besar)
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'landscape')));
@@ -232,6 +234,7 @@ class KartuGuruController extends BaseController
             'smt_active' => $smt,
             'guru_list' => $guruList,
             'judul_cetak' => $judulCetak,
+            'base_path' => $isStaffPenuh ? 'admin/presensi/guru/kartu' : 'guru/kartu-saya',
             'is_single' => ($idGuru > 0 && count($guruList) === 1),
             'terpotong' => $terpotong,
             'batas_cetak' => self::BATAS_CETAK,
@@ -242,28 +245,6 @@ class KartuGuruController extends BaseController
         ];
 
         return view('admin.presensi.kartu.guru_cetak', $data);
-    }
-
-    /**
-     * Lihat Kartu QR Saya (Khusus Akun Guru)
-     */
-    public function kartuSaya()
-    {
-        $user = $this->getUser();
-        if (! $user) {
-            return redirect()->to('auth');
-        }
-        if (! $this->isGuru()) {
-            return redirect()->to('dashboard')->with('error', 'Akses ditolak');
-        }
-
-        $idGuru = $this->currentGuruId((int) $user->id);
-
-        if ($idGuru > 0) {
-            return redirect()->to('admin/presensi/guru/kartu?id_guru='.$idGuru);
-        }
-
-        return redirect()->to('dashboard')->with('error', 'Data guru tidak ditemukan');
     }
 
     /**

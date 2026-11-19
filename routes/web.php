@@ -321,7 +321,8 @@ Route::get('guru/presensi-siswa/kartu/cetak', [KartuSiswaController::class, 'cet
 Route::get('guru/presensi-siswa/kartu/siswa/{id}', [KartuSiswaController::class, 'getSiswaByKelas'])->middleware(['auth', 'role:guru,admin'])->name('guru.presensi-siswa.kartu.siswa.get_siswa_by_kelas');
 Route::get('admin/presensi/guru/kartu', [KartuGuruController::class, 'index'])->middleware(['auth', 'role:admin'])->name('admin.presensi.guru.kartu.index');
 Route::get('admin/presensi/guru/kartu/cetak', [KartuGuruController::class, 'cetak'])->middleware(['auth', 'role:admin'])->name('admin.presensi.guru.kartu.cetak');
-Route::get('guru/kartu-saya', [KartuGuruController::class, 'kartuSaya'])->middleware(['auth', 'role:guru'])->name('guru.kartu-saya.kartu_saya');
+Route::get('guru/kartu-saya', [KartuGuruController::class, 'index'])->middleware(['auth', 'role:guru'])->name('guru.kartu-saya.index');
+Route::get('guru/kartu-saya/cetak', [KartuGuruController::class, 'cetak'])->middleware(['auth', 'role:guru'])->name('guru.kartu-saya.cetak');
 Route::get('datakelas', [DatakelasController::class, 'index'])->middleware(['auth', 'role:admin'])->name('datakelas.index');
 Route::get('datakelas/detail/{id}', [DatakelasController::class, 'detail'])->middleware(['auth', 'role:admin'])->name('datakelas.detail');
 Route::get('datakelas/add', [DatakelasController::class, 'add'])->middleware(['auth', 'role:admin'])->name('datakelas.add');

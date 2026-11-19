@@ -69,9 +69,12 @@ $pendidikanGuru = trim((string) ($g->pendidikan ?? ''));
         </tr>
     </table>
 
-    <!-- QR Code absensi -->
+    <!-- QR Code absensi (bingkai biru membulat + logo sekolah di tengah) -->
     <div class="gback-qr">
-        <div class="gback-qr-box qr-box" data-code="{{ $g->qr_value }}" data-size="100"></div>
+        <div class="gback-qr-wrap">
+            <div class="gback-qr-box qr-box" data-code="{{ $g->qr_value }}" data-size="256"></div>
+            <img class="gback-qr-logo" src="{{ $logo_url }}" alt="Logo" onerror="this.style.display='none'">
+        </div>
     </div>
 
     <!-- Motto -->

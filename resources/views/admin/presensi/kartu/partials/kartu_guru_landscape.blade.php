@@ -62,9 +62,12 @@ if (str_contains($statusRaw, 'PPPK')) {
             </table>
         </div>
 
-        <!-- QR Code -->
+        <!-- QR Code (bingkai biru membulat + logo sekolah di tengah) -->
         <div class="card-qr-box">
-            <div class="card-qr-render qr-box" data-code="{{ $g->qr_value }}" data-size="64"></div>
+            <div class="card-qr-wrap">
+                <div class="card-qr-render qr-box" data-code="{{ $g->qr_value }}" data-size="224"></div>
+                <img class="card-qr-logo" src="{{ $logo_url }}" alt="Logo" onerror="this.style.display='none'">
+            </div>
             <div class="card-qr-code">{{ $g->qr_value }}</div>
             <div class="card-qr-label">Scan Absen</div>
         </div>

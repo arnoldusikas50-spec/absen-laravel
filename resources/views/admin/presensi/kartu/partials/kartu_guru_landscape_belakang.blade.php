@@ -53,9 +53,12 @@ $statusGuru = $g->status_pegawai ?: 'Pendidik';
             </table>
         </div>
 
-        <!-- Kolom kanan: QR Code absensi -->
+        <!-- Kolom kanan: QR Code absensi (bingkai biru membulat + logo sekolah di tengah) -->
         <div class="card-back-qr">
-            <div class="card-back-qr-box qr-box" data-code="{{ $g->qr_value }}" data-size="56"></div>
+            <div class="card-back-qr-wrap">
+                <div class="card-back-qr-box qr-box" data-code="{{ $g->qr_value }}" data-size="224"></div>
+                <img class="card-back-qr-logo" src="{{ $logo_url }}" alt="Logo" onerror="this.style.display='none'">
+            </div>
             <div class="card-back-qr-label">SCAN ABSEN</div>
         </div>
     </div>

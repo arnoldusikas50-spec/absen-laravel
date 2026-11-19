@@ -417,10 +417,11 @@ class KartuSiswaController extends BaseController
         $isGuru = $this->isGuru();
         $basePath = $isGuru ? 'guru/presensi-siswa/kartu' : 'admin/presensi/siswa/kartu';
 
-        // Pilihan desain: landscape | portrait | duplex (2 sisi PVC) | duplex_portrait
+        // Desain pratinjau hanya 2 sisi: duplex (landscape) | duplex_portrait.
+        // Nilai lama 'landscape'/'portrait' diarahkan agar tautan lama tetap aman.
         $desain = strtolower(trim((string) ($this->request->query('desain') ?? 'duplex')));
-        if (! in_array($desain, ['landscape', 'portrait', 'duplex', 'duplex_portrait'], true)) {
-            $desain = 'duplex';
+        if (! in_array($desain, self::DESAIN_CETAK, true)) {
+            $desain = $desain === 'portrait' ? 'duplex_portrait' : 'duplex';
         }
         // Template latar kartu: vektor (desain bawaan) atau PNG hasil unggahan /settings
         [$template, $kartuBgDepan, $kartuBgBelakang] = self::resolveKartuTemplate(
@@ -609,6 +610,7 @@ class KartuSiswaController extends BaseController
             'smt_active' => $smt,
             'siswa_list' => $siswaList,
             'nama_kelas' => $namaKelasPilih,
+            'base_path' => $this->isGuru() ? 'guru/presensi-siswa/kartu' : 'admin/presensi/siswa/kartu',
             'is_single' => ($idSiswa > 0 && count($siswaList) === 1),
             'terpotong' => $terpotong,
             'batas_cetak' => self::BATAS_CETAK,
