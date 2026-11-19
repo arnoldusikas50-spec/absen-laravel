@@ -82,6 +82,10 @@
     }
     .alpha-seg-btn:focus-visible, .seg-btn:focus-visible { outline: 2px solid var(--brand-600); outline-offset: 1px; }
 
+    /* ── Daftar siswa perlu ditindaklanjuti ─────── */
+    .alpha-rows.alpha-collapsed > .alpha-row:nth-child(n+4) { display: none; }
+    .alpha-rows.alpha-expanded { max-height: 320px; overflow-y: auto; }
+
     /* ── Lipatan (progressive disclosure) ───────── */
     details.piket-fold > summary { list-style: none; cursor: pointer; }
     details.piket-fold > summary::-webkit-details-marker { display: none; }
@@ -156,9 +160,31 @@ $alphaMinggu = array_values($alphaData['minggu'] ?? []);
 $alphaBatas  = (int) ($alphaData['batas'] ?? 3);
 $alphaLabelBulan  = (string) ($alphaData['label_bulan'] ?? '');
 $alphaLabelMinggu = (string) ($alphaData['label_minggu'] ?? '');
-$alphaTotal = count($alphaBulan) + count($alphaMinggu);
-$alphaPreview = array_slice($alphaBulan, 0, 3);
-if (empty($alphaPreview)) $alphaPreview = array_slice($alphaMinggu, 0, 3);
+
+// Hitung unik per siswa — satu siswa yang muncul di periode bulan & minggu
+// tetap dihitung satu pada badge jumlah.
+$alphaUnik = [];
+foreach (array_merge($alphaBulan, $alphaMinggu) as $sa) {
+    $kunci = (string) ($sa['id_siswa'] ?? $sa['nis'] ?? $sa['nama'] ?? '');
+    if ($kunci !== '') {
+        $alphaUnik[$kunci] = true;
+    }
+}
+$alphaTotal = count($alphaUnik);
+
+// Periode awal: bulan bila ada, selain itu minggu.
+$alphaTabAwal = !empty($alphaBulan) ? 'bulan' : 'minggu';
+$alphaTabs = [
+    'bulan' => [
+        'items'  => $alphaBulan,
+        'kosong' => 'Nihil bulan ini' . ($alphaLabelBulan !== '' ? ' (' . $alphaLabelBulan . ')' : '') . '.',
+    ],
+    'minggu' => [
+        'items'  => $alphaMinggu,
+        'kosong' => 'Nihil minggu ini' . ($alphaLabelMinggu !== '' ? ' (' . $alphaLabelMinggu . ')' : '') . '.',
+    ],
+];
+$alphaAwalJumlah = count($alphaTabs[$alphaTabAwal]['items']);
 
 $hariUrutan = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 $hariIniIndo = $hariList[date('w')];
@@ -421,16 +447,33 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
     </div>
 
     <?php if ($alphaTotal > 0): ?>
-    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+    <div id="alpha-card" class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden" data-expanded="false">
         <p class="text-[11px] text-slate-500 m-0 px-4 pt-3 leading-relaxed">
             <strong class="text-slate-700">Siswa aktif</strong> absen
             <strong class="text-rose-600">lebih dari {{ $alphaBatas }} hari</strong> — hubungi wali kelas / orang tua.
         </p>
-        <div class="divide-y divide-slate-50 mt-1">
-            <?php foreach ($alphaPreview as $sa):
+        <div class="px-3 pt-2.5">
+            <div class="alpha-seg-wrap" role="tablist" aria-label="Periode ketidakhadiran">
+                <button type="button" role="tab" aria-selected="{{ $alphaTabAwal === 'bulan' ? 'true' : 'false' }}"
+                    onclick="switchAlphaTab('bulan', this)" data-atab="bulan" data-count="{{ count($alphaBulan) }}"
+                    class="alpha-seg-btn {{ $alphaTabAwal === 'bulan' ? 'alpha-seg-active' : '' }}">
+                    Bulan Ini {{ count($alphaBulan) }}
+                </button>
+                <button type="button" role="tab" aria-selected="{{ $alphaTabAwal === 'minggu' ? 'true' : 'false' }}"
+                    onclick="switchAlphaTab('minggu', this)" data-atab="minggu" data-count="{{ count($alphaMinggu) }}"
+                    class="alpha-seg-btn {{ $alphaTabAwal === 'minggu' ? 'alpha-seg-active' : '' }}">
+                    Minggu Ini {{ count($alphaMinggu) }}
+                </button>
+            </div>
+        </div>
+        <?php foreach ($alphaTabs as $alphaKey => $alphaTab): ?>
+        <div id="alpha-list-{{ $alphaKey }}"
+            class="alpha-rows alpha-collapsed divide-y divide-slate-50 mt-1 {{ $alphaKey !== $alphaTabAwal ? 'hidden' : '' }}">
+            <?php if (!empty($alphaTab['items'])): ?>
+            <?php foreach ($alphaTab['items'] as $sa):
                 $tglInfo = !empty($sa['tanggal']) ? 'Tidak hadir: ' . implode(', ', array_map(static fn($t) => date('d/m', strtotime($t)), (array) $sa['tanggal'])) : '';
             ?>
-            <div class="flex items-center gap-3 px-4 py-2.5" {{ $tglInfo !== '' ? 'title="' . esc($tglInfo) . '"' : '' }}>
+            <div class="alpha-row flex items-center gap-3 px-3 py-2.5" {{ $tglInfo !== '' ? 'title="' . esc($tglInfo) . '"' : '' }}>
                 <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
                     {{ piketInitials($sa['nama'] ?? '?') }}
                 </div>
@@ -438,77 +481,28 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
                     <p class="font-semibold text-slate-800 text-xs m-0 truncate">{{ $sa['nama'] ?? '-' }}</p>
                     <p class="text-[10px] text-slate-400 m-0 mt-0.5 truncate">{{ $sa['nama_kelas'] ?? '—' }}<?php if (!empty($sa['nis'])): ?> • {{ $sa['nis'] }}<?php endif; ?></p>
                 </div>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold flex-shrink-0">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold flex-shrink-0 tabular-nums">
                     {{ (int) ($sa['alpha'] ?? 0) }} hari
                 </span>
             </div>
             <?php endforeach; ?>
+            <?php else: ?>
+            <p class="text-[11px] text-slate-400 text-center m-0 py-5">{{ $alphaTab['kosong'] }}</p>
+            <?php endif; ?>
         </div>
-        <details class="piket-fold border-t border-slate-100">
-            <summary class="flex items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-extrabold text-rose-600">
-                Lihat semua (bulan {{ count($alphaBulan) }} • minggu {{ count($alphaMinggu) }})
-                <i class="bi bi-chevron-right text-[10px] fold-chev"></i>
-            </summary>
-            <div class="px-2 pb-2">
-                <div class="alpha-seg-wrap" role="tablist" aria-label="Periode ketidakhadiran">
-                    <button type="button" role="tab" aria-selected="true" onclick="switchAlphaTab('bulan', this)"
-                        class="alpha-seg-btn alpha-seg-active" data-atab="bulan">
-                        Bulan Ini {{ count($alphaBulan) }}
-                    </button>
-                    <button type="button" role="tab" aria-selected="false" onclick="switchAlphaTab('minggu', this)"
-                        class="alpha-seg-btn" data-atab="minggu">
-                        Minggu Ini {{ count($alphaMinggu) }}
-                    </button>
-                </div>
-                <div id="alpha-list-bulan" class="divide-y divide-slate-50 max-h-80 overflow-y-auto mt-1">
-                    <?php if (!empty($alphaBulan)): ?>
-                    <?php foreach ($alphaBulan as $sa):
-                        $tglInfo = !empty($sa['tanggal']) ? 'Tidak hadir: ' . implode(', ', array_map(static fn($t) => date('d/m', strtotime($t)), (array) $sa['tanggal'])) : '';
-                    ?>
-                    <div class="flex items-center gap-3 px-2 py-2.5" {{ $tglInfo !== '' ? 'title="' . esc($tglInfo) . '"' : '' }}>
-                        <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
-                            {{ piketInitials($sa['nama'] ?? '?') }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-slate-800 text-xs m-0 truncate">{{ $sa['nama'] ?? '-' }}</p>
-                            <p class="text-[10px] text-slate-400 m-0 mt-0.5 truncate">{{ $sa['nama_kelas'] ?? '—' }}<?php if (!empty($sa['nis'])): ?> • {{ $sa['nis'] }}<?php endif; ?></p>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold flex-shrink-0">
-                            {{ (int) ($sa['alpha'] ?? 0) }} hari
-                        </span>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php else: ?>
-                    <p class="text-[11px] text-slate-400 text-center m-0 py-5">Nihil bulan ini{{ $alphaLabelBulan !== '' ? ' (' . esc($alphaLabelBulan) . ')' : '' }}.</p>
-                    <?php endif; ?>
-                </div>
-                <div id="alpha-list-minggu" class="hidden divide-y divide-slate-50 max-h-80 overflow-y-auto mt-1">
-                    <?php if (!empty($alphaMinggu)): ?>
-                    <?php foreach ($alphaMinggu as $sa):
-                        $tglInfo = !empty($sa['tanggal']) ? 'Tidak hadir: ' . implode(', ', array_map(static fn($t) => date('d/m', strtotime($t)), (array) $sa['tanggal'])) : '';
-                    ?>
-                    <div class="flex items-center gap-3 px-2 py-2.5" {{ $tglInfo !== '' ? 'title="' . esc($tglInfo) . '"' : '' }}>
-                        <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
-                            {{ piketInitials($sa['nama'] ?? '?') }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-slate-800 text-xs m-0 truncate">{{ $sa['nama'] ?? '-' }}</p>
-                            <p class="text-[10px] text-slate-400 m-0 mt-0.5 truncate">{{ $sa['nama_kelas'] ?? '—' }}<?php if (!empty($sa['nis'])): ?> • {{ $sa['nis'] }}<?php endif; ?></p>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold flex-shrink-0">
-                            {{ (int) ($sa['alpha'] ?? 0) }} hari
-                        </span>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php else: ?>
-                    <p class="text-[11px] text-slate-400 text-center m-0 py-5">Nihil minggu ini{{ $alphaLabelMinggu !== '' ? ' (' . esc($alphaLabelMinggu) . ')' : '' }}.</p>
-                    <?php endif; ?>
-                </div>
-                <p class="text-[10px] text-slate-400 m-0 px-2 py-2 leading-relaxed">
-                    Hari efektif, libur dikecualikan. Hari ini belum dihitung.
-                </p>
-            </div>
-        </details>
+        <?php endforeach; ?>
+        <div class="border-t border-slate-100">
+            <button type="button" id="alphaToggleBtn" onclick="toggleAlphaList()"
+                class="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-[11px] font-extrabold text-rose-600 bg-transparent border-0 cursor-pointer {{ $alphaAwalJumlah <= 3 ? 'hidden' : '' }}">
+                <span id="alphaToggleMore">Lihat semua <span id="alphaToggleCount">{{ $alphaAwalJumlah }} siswa</span>
+                    <i class="bi bi-chevron-down text-[10px]"></i></span>
+                <span id="alphaToggleLess" class="hidden">Tampilkan lebih sedikit
+                    <i class="bi bi-chevron-up text-[10px]"></i></span>
+            </button>
+        </div>
+        <p class="text-[10px] text-slate-400 m-0 px-4 pb-2.5 leading-relaxed">
+            Hari efektif, libur dikecualikan. Hari ini belum dihitung.
+        </p>
     </div>
 
     <?php else: ?>
@@ -821,7 +815,32 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
     };
     document.getElementById('guruSearchInput')?.addEventListener('input', applyGuruFilter);
 
-    // ── Tab periode siswa sering tidak hadir ──
+    // ── Tab & expand daftar siswa perlu ditindaklanjuti ──
+    var alphaCard = document.getElementById('alpha-card');
+    function syncAlphaToggle() {
+        if (!alphaCard) return;
+        var expanded = alphaCard.getAttribute('data-expanded') === 'true';
+        var activeTab = alphaCard.querySelector('.alpha-seg-btn.alpha-seg-active');
+        var jumlah = activeTab ? parseInt(activeTab.getAttribute('data-count') || '0', 10) : 0;
+        var btn = document.getElementById('alphaToggleBtn');
+        if (btn) btn.classList.toggle('hidden', jumlah <= 3);
+        var count = document.getElementById('alphaToggleCount');
+        if (count) count.textContent = jumlah + ' siswa';
+        var more = document.getElementById('alphaToggleMore');
+        var less = document.getElementById('alphaToggleLess');
+        if (more) more.classList.toggle('hidden', expanded);
+        if (less) less.classList.toggle('hidden', !expanded);
+    }
+    window.toggleAlphaList = function () {
+        if (!alphaCard) return;
+        var expanded = alphaCard.getAttribute('data-expanded') === 'true';
+        alphaCard.setAttribute('data-expanded', expanded ? 'false' : 'true');
+        document.querySelectorAll('#alpha-card .alpha-rows').forEach(function (el) {
+            el.classList.toggle('alpha-collapsed', expanded);
+            el.classList.toggle('alpha-expanded', !expanded);
+        });
+        syncAlphaToggle();
+    };
     window.switchAlphaTab = function (tab, btn) {
         document.querySelectorAll('.alpha-seg-btn').forEach(function (t) {
             t.classList.remove('alpha-seg-active');
@@ -836,7 +855,9 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
             var el = document.getElementById('alpha-list-' + k);
             if (el) el.classList.toggle('hidden', k !== tab);
         });
+        syncAlphaToggle();
     };
+    syncAlphaToggle();
 
     // ── Jadwal hari lain: collapsed by default ────
     var jadwalExpanded = false;

@@ -222,7 +222,7 @@ class PiketController extends BaseController
                 (int) $this->tp->id_tp,
                 (int) $this->smt->id_smt,
                 3,
-                30
+                100
             );
         } catch (\Throwable $e) {
             Log::error('[Piket::index] sering alpha: '.$e->getMessage());
