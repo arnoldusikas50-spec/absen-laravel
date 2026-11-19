@@ -1063,6 +1063,15 @@ $fotoUrl = function ($path) {
                     </button>
                 </div>
                 <img src="" id="photoPreview" class="max-w-full h-auto rounded-2xl shadow-md border border-white" alt="Foto Absen" style="max-height: 400px; object-fit: contain;">
+                <div id="photoFallback" class="hidden w-full max-w-xs">
+                    <div class="h-52 rounded-2xl bg-white border border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 text-center px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl">
+                            <i class="bi bi-image"></i>
+                        </div>
+                        <p class="m-0 text-xs font-bold text-slate-600">Foto tidak tersedia</p>
+                        <p class="m-0 text-[10px] text-slate-400 leading-relaxed">Berkas foto mungkin sudah dihapus atau gagal dimuat dari server.</p>
+                    </div>
+                </div>
             </div>
             <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
                 <button type="button" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors" data-ui-dismiss="modal">
@@ -1386,8 +1395,25 @@ $fotoUrl = function ($path) {
             var tabIn = document.getElementById('tabFotoIn');
             var tabOut = document.getElementById('tabFotoOut');
             var url = which === 'out' ? photoState.out : photoState.in;
+            var img = document.getElementById('photoPreview');
+            var fallback = document.getElementById('photoFallback');
 
-            document.getElementById('photoPreview').src = url;
+            // Foto bisa saja sudah terhapus di server: tampilkan keterangan,
+            // bukan ikon gambar rusak.
+            img.removeAttribute('src');
+            img.classList.remove('hidden');
+            fallback.classList.add('hidden');
+            img.onerror = function () {
+                img.classList.add('hidden');
+                fallback.classList.remove('hidden');
+            };
+            if (url) {
+                img.src = url;
+            } else {
+                img.classList.add('hidden');
+                fallback.classList.remove('hidden');
+            }
+
             document.getElementById('photoTitle').textContent = 'Foto ' + (which === 'out' ? 'Pulang' : 'Datang') + ' - ' + photoState.name;
             document.getElementById('photoMeta').textContent = 'Waktu: ' + (which === 'out' ? photoState.tOut : photoState.tIn) + ' | Lokasi: ' + photoState.loc;
 

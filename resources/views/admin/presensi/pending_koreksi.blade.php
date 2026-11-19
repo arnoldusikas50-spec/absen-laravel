@@ -3,6 +3,22 @@
 @section('styles')
 <style>
     .num-tabular { font-variant-numeric: tabular-nums; }
+    /* ── Icon box centering (pola lembur/izin) ── */
+    .ic-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ic-box i,
+    .ic-box .bi {
+        vertical-align: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* ── Filter chips (pola izin) ── */
     .filter-chip {
         display: inline-flex; align-items: center; gap: .35rem;
         padding: .3rem .75rem; border-radius: 9999px; font-size: .75rem; font-weight: 700;
@@ -11,11 +27,20 @@
     }
     .filter-chip:hover { border-color: var(--primary-600); color: var(--primary-600); }
     .filter-chip.active { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
+    .filter-chip.active .chip-count { background: rgba(255,255,255,0.25); color: #fff; }
+    .chip-count {
+        background: #f1f5f9; color: #475569;
+        font-size: 0.68rem; font-weight: 800;
+        padding: 0.05rem 0.4rem; border-radius: 9999px;
+        min-width: 18px; text-align: center;
+    }
+    .filter-chip .dot { width: 8px; height: 8px; border-radius: 9999px; display: inline-block; }
+    /* ── Row hover (pola izin) ── */
+    #koreksiTable tbody tr:hover td, #historyTable tbody tr:hover td { background: #f8fafc; }
     .reason-text {
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
         overflow: hidden; max-width: 240px;
     }
-    .empty-state { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; }
     @media (max-width: 640px) {
         .content-area { padding: 0.5rem 0.75rem 1.25rem; }
         .card-tw-body { padding: 0.875rem; }
@@ -55,6 +80,17 @@ $statusMap = [
 ];
 $history = $history ?? [];
 $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => null, 'history' => count($history)];
+$oldestText = !empty($summaryKoreksi['oldest']) ? date('d/m/Y H:i', strtotime($summaryKoreksi['oldest'])) : '—';
+$jumlahField = [];
+foreach ($pending as $pf) {
+    $kunciField = (string) ($pf->field_name ?? '');
+    $jumlahField[$kunciField] = ($jumlahField[$kunciField] ?? 0) + 1;
+}
+$jumlahStatus = ['approved' => 0, 'rejected' => 0];
+foreach ($history as $hh) {
+    if (($hh->status ?? '') === 'approved') $jumlahStatus['approved']++;
+    elseif (($hh->status ?? '') === 'rejected') $jumlahStatus['rejected']++;
+}
 ?>
 
 <div class="fade-in-up p-4 md:p-6 space-y-6">
@@ -68,13 +104,17 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Koreksi Absensi</h1>
             <p class="text-xs text-slate-500 mt-1">Tinjau dan setujui permintaan koreksi kehadiran dari guru.</p>
         </div>
-        <nav class="flex items-center gap-1.5 text-xs text-slate-500">
-            <a href="{{ url('dashboard') }}" class="hover:text-blue-600 font-semibold no-underline"><i class="bi bi-house-door mr-1"></i>Dashboard</a>
-            <span class="text-slate-300">/</span>
-            <a href="{{ url('admin/presensi') }}" class="hover:text-blue-600 font-semibold no-underline">Presensi</a>
-            <span class="text-slate-300">/</span>
-            <span class="font-bold text-amber-600">Koreksi</span>
-        </nav>
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{{ url('admin/presensi/dinas') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+                <i class="bi bi-briefcase text-cyan-600"></i> Verifikasi Dinas
+            </a>
+            <a href="{{ url('admin/presensi/izin') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+                <i class="bi bi-file-earmark-medical text-cyan-600"></i> Verifikasi Izin/Sakit
+            </a>
+            <a href="{{ url('admin/presensi') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </div>
     </div>
 
     <?php if (!empty($pending)): ?>
@@ -84,33 +124,77 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
     </div>
     <?php endif; ?>
 
+    <!-- Ringkasan -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) $summaryKoreksi['pending'] }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-calendar-event text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Pengajuan Tertua</div>
+                <div class="text-sm font-extrabold text-slate-900 num-tabular leading-tight">{{ $oldestText }}</div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Sudah Diproses</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) $summaryKoreksi['history'] }} <span class="text-xs font-normal text-slate-400">keputusan</span></div>
+            </div>
+        </div>
+    </div>
+
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-list-check"></i>
-                </div>
+        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="ic-box w-8 h-8 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                    <i class="bi bi-list-check text-sm"></i>
+                </span>
                 <div>
                     <h2 class="text-sm font-extrabold text-slate-900">Daftar Permintaan Koreksi</h2>
                     <p class="text-[11px] text-slate-400">Tinjau selisih waktu sebelum menyetujui</p>
                 </div>
             </div>
             <?php if (!empty($pending)): ?>
-            <div class="flex gap-2 flex-wrap items-center" role="group" aria-label="Filter field">
-                <button type="button" class="filter-chip active" data-field="">Semua</button>
-                <button type="button" class="filter-chip" data-field="jam_masuk"><i class="bi bi-box-arrow-in-right"></i>Masuk</button>
-                <button type="button" class="filter-chip" data-field="jam_pulang"><i class="bi bi-box-arrow-right"></i>Pulang</button>
+            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="searchKoreksiInput"
+                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Cari nama / NIP / tanggal..." autocomplete="off">
+                <button type="button" id="clearKoreksiSearch"
+                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
+                        title="Bersihkan pencarian">
+                    <i class="bi bi-x text-xs"></i>
+                </button>
             </div>
             <?php endif; ?>
         </div>
 
-        <div class="p-5">
-            <div id="emptyState" class="{{ empty($pending) ? '' : 'hidden' }} text-center py-16">
-                <div class="bg-emerald-100 rounded-full inline-flex p-6 mb-6">
-                    <i class="bi bi-check-lg text-emerald-600 text-5xl"></i>
-                </div>
-                <h3 class="text-xl font-semibold text-slate-400 mb-2">Tidak ada permintaan koreksi</h3>
-                <p class="text-slate-400 text-sm">Semua permintaan koreksi telah diproses.</p>
+        <?php if (!empty($pending)): ?>
+        <div class="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-1.5 items-center" id="koreksiChips">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">FIELD</span>
+            <button type="button" class="filter-chip active" data-field="">
+                Semua <span class="chip-count">{{ count($pending) }}</span>
+            </button>
+            <button type="button" class="filter-chip" data-field="jam_masuk">
+                <i class="bi bi-box-arrow-in-right"></i>Masuk <span class="chip-count">{{ $jumlahField['jam_masuk'] ?? 0 }}</span>
+            </button>
+            <button type="button" class="filter-chip" data-field="jam_pulang">
+                <i class="bi bi-box-arrow-right"></i>Pulang <span class="chip-count">{{ $jumlahField['jam_pulang'] ?? 0 }}</span>
+            </button>
+        </div>
+        <?php endif; ?>
+
+        <div class="p-0">
+            <div id="emptyState" class="{{ empty($pending) ? '' : 'hidden' }} text-center py-16 text-slate-400">
+                <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
+                <p class="font-medium text-slate-600">Tidak ada permintaan koreksi</p>
+                <p class="text-xs mt-1">Semua permintaan koreksi telah diproses.</p>
             </div>
 
             <?php if (!empty($pending)): ?>
@@ -146,8 +230,17 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
                             $om = $toMin($oldHm ?? '');
                             $nm = $toMin($newHm ?? '');
                             if ($om !== null && $nm !== null) $dMin = $nm - $om;
+                            $searchTxt = implode(' ', array_filter([
+                                $p->nama_guru ?? '',
+                                $p->nip ?? '',
+                                !empty($p->tgl) ? date('d/m/Y', strtotime($p->tgl)) : '',
+                                $fInfo['label'],
+                                $oldHm ?? 'Kosong',
+                                $newHm ?? '',
+                                $p->reason ?? '',
+                            ]));
                         ?>
-                        <tr id="row-{{ (int) $p->id }}" data-id="{{ (int) $p->id }}" data-field="{{ $p->field_name ?? '' }}">
+                        <tr id="row-{{ (int) $p->id }}" data-id="{{ (int) $p->id }}" data-field="{{ $p->field_name ?? '' }}" data-search="{{ $searchTxt }}">
                             <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
                             <td>
                                 <?php if ($attMissing): ?>
@@ -212,35 +305,62 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
                     </tbody>
                 </table>
             </div>
+
+            <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                <span id="koreksiCount">Menampilkan {{ count($pending) }} data</span>
+                <span>Setujui untuk menghitung ulang status &amp; poin</span>
+            </div>
             <?php endif; ?>
         </div>
     </div>
 
     <!-- Riwayat -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                    <i class="bi bi-clock-history"></i>
-                </div>
+        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="ic-box w-8 h-8 rounded-xl bg-slate-100 text-slate-500 shrink-0">
+                    <i class="bi bi-clock-history text-sm"></i>
+                </span>
                 <div>
                     <h2 class="text-sm font-extrabold text-slate-900">Riwayat Keputusan</h2>
                     <p class="text-[11px] text-slate-400">100 koreksi terakhir yang disetujui / ditolak</p>
                 </div>
             </div>
             <?php if (!empty($history)): ?>
-            <div class="flex gap-2 flex-wrap items-center" role="group" aria-label="Filter status riwayat">
-                <button type="button" class="filter-chip hfilter active" data-hstatus="">Semua</button>
-                <button type="button" class="filter-chip hfilter" data-hstatus="approved">Disetujui</button>
-                <button type="button" class="filter-chip hfilter" data-hstatus="rejected">Ditolak</button>
+            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="searchRiwayatInput"
+                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Cari nama / NIP / tanggal..." autocomplete="off">
+                <button type="button" id="clearRiwayatSearch"
+                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
+                        title="Bersihkan pencarian">
+                    <i class="bi bi-x text-xs"></i>
+                </button>
             </div>
             <?php endif; ?>
         </div>
-        <div class="p-5">
+
+        <?php if (!empty($history)): ?>
+        <div class="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-1.5 items-center" id="riwayatChips">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">STATUS</span>
+            <button type="button" class="filter-chip active" data-hstatus="">
+                Semua <span class="chip-count">{{ count($history) }}</span>
+            </button>
+            <button type="button" class="filter-chip" data-hstatus="approved">
+                <span class="dot" style="background:#16a34a"></span>Disetujui <span class="chip-count">{{ $jumlahStatus['approved'] }}</span>
+            </button>
+            <button type="button" class="filter-chip" data-hstatus="rejected">
+                <span class="dot" style="background:#dc2626"></span>Ditolak <span class="chip-count">{{ $jumlahStatus['rejected'] }}</span>
+            </button>
+        </div>
+        <?php endif; ?>
+
+        <div class="p-0">
             <?php if (empty($history)): ?>
-                <div class="empty-state">
-                    <i class="bi bi-inbox"></i>
-                    <div class="font-bold text-slate-600">Belum ada riwayat</div>
+                <div class="text-center py-16 text-slate-400">
+                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
+                    <p class="font-medium text-slate-600">Belum ada riwayat</p>
                 </div>
             <?php else: ?>
                 <div class="table-responsive-tw">
@@ -261,8 +381,17 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
                                 $hb = ($h->status === 'approved') ? 'badge-success' : 'badge-danger';
                                 $hl = ($h->status === 'approved') ? 'Disetujui' : 'Ditolak';
                                 $fLbl = $fieldInfo[$h->field_name]['label'] ?? $h->field_name;
+                                $searchH = implode(' ', array_filter([
+                                    $h->nama_guru ?? '',
+                                    !empty($h->tgl) ? date('d/m/Y', strtotime($h->tgl)) : '',
+                                    $fLbl,
+                                    $fmtWaktu($h->old_value ?? null, $h->tgl ?? null) ?? '',
+                                    $fmtWaktu($h->new_value ?? null, $h->tgl ?? null) ?? '',
+                                    $h->admin_note ?? '',
+                                    $hl,
+                                ]));
                             ?>
-                            <tr data-hstatus="{{ $h->status }}">
+                            <tr data-hstatus="{{ $h->status }}" data-search="{{ $searchH }}">
                                 <td class="pl-4 whitespace-nowrap">{{ !empty($h->tgl) ? date('d/m/Y', strtotime($h->tgl)) : '<span class="text-slate-300">absen dihapus</span>' }}</td>
                                 <td class="font-bold text-slate-800">{{ $h->nama_guru ?? '-' }}</td>
                                 <td>{{ $fLbl }}</td>
@@ -278,6 +407,11 @@ $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => 
                         </tbody>
                     </table>
                 </div>
+
+                <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                    <span id="riwayatCount">Menampilkan {{ count($history) }} data</span>
+                    <span>100 keputusan terakhir</span>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -292,52 +426,91 @@ $(document).ready(function () {
     var CSRF = {};
     CSRF['{{ $csrfName }}'] = '{{ $csrfHash }}';
 
-    var koreksiDT = null, historyDT = null;
-    if (window.jQuery && $.fn.DataTable) {
-        if ($('#koreksiTable').length && !$.fn.DataTable.isDataTable('#koreksiTable')) {
-            koreksiDT = $('#koreksiTable').DataTable({
-                pageLength: 15, lengthMenu: [15, 30, 50],
-                order: [[8, 'desc']], language: window.dt_lang_id || {},
-                columnDefs: [{ orderable: false, targets: [4, 5, 6, 9] }]
-            });
+    var activeField = '';
+    var activeStatus = '';
+
+    function applyKoreksiFilter() {
+        var kw = ($('#searchKoreksiInput').val() || '').toLowerCase().trim();
+        $('#clearKoreksiSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
+        var shown = 0;
+        $('#koreksiTable tbody tr[data-search]').each(function () {
+            var search = String($(this).data('search') || '').toLowerCase();
+            var field = $(this).data('field') || '';
+            var visible = (!activeField || field === activeField) && (!kw || search.indexOf(kw) !== -1);
+            $(this).toggle(visible);
+            if (visible) shown++;
+        });
+        var $empty = $('#koreksiEmptyFilter');
+        if (shown === 0 && $('#koreksiTable tbody tr[data-search]').length > 0) {
+            if ($empty.length === 0) {
+                $('#koreksiTable tbody').append(
+                    '<tr id="koreksiEmptyFilter"><td colspan="10" class="text-center py-12 text-slate-400">' +
+                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
+                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>' +
+                    '<p class="text-xs mt-1">Coba ubah kata kunci atau filter field</p></td></tr>'
+                );
+            } else {
+                $empty.show();
+            }
+        } else {
+            $empty.hide();
         }
-        if ($('#historyTable').length && !$.fn.DataTable.isDataTable('#historyTable')) {
-            historyDT = $('#historyTable').DataTable({
-                pageLength: 15, lengthMenu: [15, 30, 50],
-                order: [[6, 'desc']], language: window.dt_lang_id || {}
-            });
-        }
+        $('#koreksiCount').text('Menampilkan ' + shown + ' data');
     }
 
-    // Filter field pending (kolom Field = index 3)
-    $(document).on('click', '[data-field]', function (e) {
-        e.preventDefault();
-        var f = $(this).data('field') || '';
-        $('[data-field]').removeClass('active');
-        $(this).addClass('active');
-        if (koreksiDT) {
-            koreksiDT.column(3).search(f === 'jam_masuk' ? 'Jam Masuk' : (f === 'jam_pulang' ? 'Jam Pulang' : ''), true, false).draw();
+    function applyRiwayatFilter() {
+        var kw = ($('#searchRiwayatInput').val() || '').toLowerCase().trim();
+        $('#clearRiwayatSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
+        var shown = 0;
+        $('#historyTable tbody tr[data-search]').each(function () {
+            var search = String($(this).data('search') || '').toLowerCase();
+            var status = $(this).data('hstatus') || '';
+            var visible = (!activeStatus || status === activeStatus) && (!kw || search.indexOf(kw) !== -1);
+            $(this).toggle(visible);
+            if (visible) shown++;
+        });
+        var $empty = $('#riwayatEmptyFilter');
+        if (shown === 0 && $('#historyTable tbody tr[data-search]').length > 0) {
+            if ($empty.length === 0) {
+                $('#historyTable tbody').append(
+                    '<tr id="riwayatEmptyFilter"><td colspan="7" class="text-center py-12 text-slate-400">' +
+                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
+                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>' +
+                    '<p class="text-xs mt-1">Coba ubah kata kunci atau filter status</p></td></tr>'
+                );
+            } else {
+                $empty.show();
+            }
         } else {
-            $('#koreksiBody tr').each(function () {
-                $(this).toggle(!f || $(this).data('field') === f);
-            });
+            $empty.hide();
         }
+        $('#riwayatCount').text('Menampilkan ' + shown + ' data');
+    }
+
+    $('#koreksiChips').on('click', '.filter-chip', function () {
+        activeField = $(this).data('field') || '';
+        $('#koreksiChips .filter-chip').removeClass('active');
+        $(this).addClass('active');
+        applyKoreksiFilter();
     });
 
-    // Filter status riwayat (kolom Status = index 4)
-    $(document).on('click', '[data-hstatus]', function (e) {
-        e.preventDefault();
-        var st = $(this).data('hstatus') || '';
-        $('[data-hstatus]').removeClass('active');
+    $('#riwayatChips').on('click', '.filter-chip', function () {
+        activeStatus = $(this).data('hstatus') || '';
+        $('#riwayatChips .filter-chip').removeClass('active');
         $(this).addClass('active');
-        if (historyDT) {
-            historyDT.column(4).search(st === 'approved' ? '^Disetujui$' : (st === 'rejected' ? '^Ditolak$' : ''), true, false).draw();
-        } else {
-            $('#historyTable tbody tr').each(function () {
-                $(this).toggle(!st || $(this).data('hstatus') === st);
-            });
-        }
+        applyRiwayatFilter();
     });
+
+    $('#searchKoreksiInput').on('input', applyKoreksiFilter);
+    $('#clearKoreksiSearch').on('click', function () {
+        $('#searchKoreksiInput').val('').trigger('input').focus();
+    });
+    $('#searchRiwayatInput').on('input', applyRiwayatFilter);
+    $('#clearRiwayatSearch').on('click', function () {
+        $('#searchRiwayatInput').val('').trigger('input').focus();
+    });
+    applyKoreksiFilter();
+    applyRiwayatFilter();
 
     var setLoading = function ($btn, busy) {
         $btn.prop('disabled', busy);

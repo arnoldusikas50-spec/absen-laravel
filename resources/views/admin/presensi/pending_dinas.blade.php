@@ -296,7 +296,11 @@ $labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
                                         <?php if ($fotoAbsen): ?>
                                             <button type="button" class="btn-view-foto relative group cursor-pointer inline-block border-none bg-transparent p-0"
                                                 data-foto="{{ $fotoAbsen }}" data-nama="{{ $nama }}" title="Lihat foto">
-                                                <img src="{{ $fotoAbsen }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:scale-105 transition-transform" alt="Foto Absen" loading="lazy">
+                                                <img src="{{ $fotoAbsen }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:scale-105 transition-transform" alt="Foto Absen" loading="lazy"
+                                                     onerror="this.classList.add('hidden');var f=this.parentElement.querySelector('.foto-thumb-fallback');if(f){f.classList.remove('hidden');}">
+                                                <span class="foto-thumb-fallback hidden w-10 h-10 rounded-lg bg-slate-50 border border-dashed border-slate-300 text-slate-400" title="Foto tidak tersedia">
+                                                    <span class="w-10 h-10 flex items-center justify-center"><i class="bi bi-image text-xs"></i></span>
+                                                </span>
                                                 <div class="absolute inset-0 bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                                                     <i class="bi bi-zoom-in text-xs"></i>
                                                 </div>
@@ -426,7 +430,11 @@ $labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
                                         <?php if ($fotoAbsenH): ?>
                                             <button type="button" class="btn-view-foto relative group cursor-pointer inline-block border-none bg-transparent p-0"
                                                 data-foto="{{ $fotoAbsenH }}" data-nama="{{ $namaH }}" title="Lihat foto">
-                                                <img src="{{ $fotoAbsenH }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm" alt="Foto" loading="lazy">
+                                                <img src="{{ $fotoAbsenH }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm" alt="Foto" loading="lazy"
+                                                     onerror="this.classList.add('hidden');var f=this.parentElement.querySelector('.foto-thumb-fallback');if(f){f.classList.remove('hidden');}">
+                                                <span class="foto-thumb-fallback hidden w-10 h-10 rounded-lg bg-slate-50 border border-dashed border-slate-300 text-slate-400" title="Foto tidak tersedia">
+                                                    <span class="w-10 h-10 flex items-center justify-center"><i class="bi bi-image text-xs"></i></span>
+                                                </span>
                                             </button>
                                         <?php else: ?>
                                             <span class="text-slate-300 text-xs">-</span>
@@ -469,6 +477,13 @@ $labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
             </div>
             <div class="modal-body-tw p-6 text-center bg-slate-50/50">
                 <img id="previewFotoImg" src="" class="max-h-96 w-auto mx-auto rounded-xl border border-slate-200 shadow-sm object-contain" alt="Foto Absen">
+                <div id="fotoFallbackDinas" class="hidden w-full max-w-xs mx-auto">
+                    <div class="h-52 rounded-2xl bg-white border border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 text-center px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl"><i class="bi bi-image"></i></div>
+                        <p class="m-0 text-xs font-bold text-slate-600">Foto tidak tersedia</p>
+                        <p class="m-0 text-[10px] text-slate-400 leading-relaxed">Berkas foto mungkin sudah dihapus atau gagal dimuat dari server.</p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer-tw border-t border-slate-100 px-6 py-3 bg-slate-50 flex items-center justify-between">
                 <a id="btnBukaTabFoto" href="" target="_blank" class="btn-tw btn-light text-xs border">
@@ -555,8 +570,26 @@ $(document).ready(function() {
             fotoUrl = fotoUrl + '?t=' + Date.now();
         }
         $('#modalFotoTitle').text('Foto Dinas: ' + nama);
-        $('#previewFotoImg').attr('src', fotoUrl);
-        $('#btnBukaTabFoto').attr('href', fotoUrl);
+
+        var $img = $('#previewFotoImg');
+        var $fallback = $('#fotoFallbackDinas');
+        $img.off('error.foto').removeAttr('src').removeClass('hidden');
+        $fallback.addClass('hidden');
+
+        if (fotoUrl) {
+            // Foto bisa saja sudah terhapus di server: tampilkan keterangan,
+            // bukan ikon gambar rusak.
+            $img.on('error.foto', function () {
+                $(this).addClass('hidden');
+                $fallback.removeClass('hidden');
+            });
+            $img.attr('src', fotoUrl);
+        } else {
+            $img.addClass('hidden');
+            $fallback.removeClass('hidden');
+        }
+
+        $('#btnBukaTabFoto').attr('href', fotoUrl || '#');
         AdminUI.modal.open('#modalFotoDinas');
     }
 

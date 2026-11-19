@@ -190,7 +190,7 @@ $periodeLabel = ($bulanKey !== 'all' ? ($namaBulan[$bulanKey] ?? $bulan) : 'Semu
                 <?php if (empty($permits)): ?>
                     <tr>
                         <td colspan="9" class="text-center py-16 text-slate-400">
-                            <i class="bi bi-file-earmark-check text-5xl block mb-3 opacity-20"></i>
+                            <i class="bi bi-file-earmark-check text-5xl block mx-auto mb-3 opacity-20"></i>
                             <p class="font-medium">Belum ada data pengajuan pada periode ini</p>
                             <p class="text-xs mt-1">Periode: {{ $periodeLabel }}</p>
                             <button type="button" class="btn-tw btn-tw-sm btn-outline-primary mt-3 btn-open-manual">
@@ -585,6 +585,13 @@ $periodeLabel = ($bulanKey !== 'all' ? ($namaBulan[$bulanKey] ?? $bulan) : 'Semu
             <img id="buktiImg" src="" alt="Bukti"
                  class="max-w-full h-auto rounded-lg shadow-sm hidden mx-auto"
                  style="max-height:65vh;">
+            <div id="buktiFallback" class="hidden py-10">
+                <div class="w-14 h-14 rounded-2xl bg-white border border-dashed border-slate-300 text-slate-400 flex items-center justify-center text-2xl mx-auto mb-3">
+                    <i class="bi bi-image"></i>
+                </div>
+                <p class="text-slate-600 font-bold text-sm mb-1">Foto tidak tersedia</p>
+                <p class="text-xs text-slate-400">Berkas lampiran mungkin sudah dihapus atau gagal dimuat dari server.</p>
+            </div>
             <div id="buktiFile" class="hidden py-10">
                 <i class="bi bi-file-earmark-pdf text-5xl text-red-500 mb-3 block"></i>
                 <p class="text-slate-600 font-medium mb-4">Dokumen PDF / File Lampiran</p>
@@ -894,15 +901,30 @@ $(document).ready(function() {
     // ── Preview bukti ─────────────────────────────────────────────────────
     function viewBukti(url, nama) {
         $('#buktiTitle').html('<i class="bi bi-paperclip mr-2 text-blue-600"></i>Bukti: ').append(document.createTextNode(nama));
-        $('#buktiOpen').attr('href', url);
-        $('#buktiFileLink').attr('href', url);
+        $('#buktiOpen').attr('href', url || '#');
+        $('#buktiFileLink').attr('href', url || '#');
+
+        const $img = $('#buktiImg');
+        const $fallback = $('#buktiFallback');
+        $img.off('error.bukti').addClass('hidden').removeAttr('src');
+        $fallback.addClass('hidden');
+        $('#buktiFile').addClass('hidden');
+
+        if (!url) {
+            $fallback.removeClass('hidden');
+            AdminUI.modal.open('#buktiModal');
+            return;
+        }
 
         const isImage = /\.(jpe?g|png|gif|webp)(\?.*)?$/i.test(url);
         if (isImage) {
-            $('#buktiImg').attr('src', url).removeClass('hidden');
-            $('#buktiFile').addClass('hidden');
+            // Lampiran bisa saja sudah terhapus di server: tampilkan keterangan,
+            // bukan ikon gambar rusak.
+            $img.removeClass('hidden').on('error.bukti', function () {
+                $(this).addClass('hidden');
+                $fallback.removeClass('hidden');
+            }).attr('src', url);
         } else {
-            $('#buktiImg').addClass('hidden');
             $('#buktiFile').removeClass('hidden');
         }
         AdminUI.modal.open('#buktiModal');

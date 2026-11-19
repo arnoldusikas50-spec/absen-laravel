@@ -960,8 +960,8 @@
         .dp-qr-card {
             background: #ffffff;
             border: 2px solid #2f80ed;
-            border-radius: 8px;
-            padding: 3px;
+            border-radius: 9px;
+            padding: 4px;
             box-shadow: 0 2px 8px rgba(37,99,235,0.16);
             display: flex;
             align-items: center;
@@ -979,16 +979,16 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 22px;
-            height: 22px;
+            width: 27px;
+            height: 27px;
             padding: 2px;
             background: #ffffff;
-            border-radius: 3px;
+            border-radius: 4px;
             object-fit: contain;
         }
         .dp-qr-box {
-            width: 64px;
-            height: 64px;
+            width: 80px;
+            height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1000,18 +1000,18 @@
         }
         .dp-qr-divider {
             width: 2.5px;
-            height: 58px;
+            height: 72px;
             background: #1e56c8;
             border-radius: 2px;
             flex-shrink: 0;
         }
         .dp-qr-desc {
-            font-size: 9.5px;
+            font-size: 9px;
             font-weight: 900;
             color: #1e56c8;
             text-transform: uppercase;
             line-height: 1.3;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
         }
         .dp-wave-bottom {
             position: absolute;
@@ -1306,11 +1306,11 @@
             .dp-meta-table { font-size: 7.5pt !important; margin: 1.2mm auto 0 auto !important; width: 44.5mm !important; }
             .dp-meta-table .dp-meta-lbl { width: 14.3mm !important; }
             .dp-meta-table .dp-meta-sep { width: 2.9mm !important; }
-            .dp-qr-section { margin: auto 3.2mm 3mm 3.2mm !important; gap: 2.6mm !important; }
-            .dp-qr-card { padding: 0.8mm !important; border-radius: 2.2mm !important; border-width: 0.5mm !important; }
-            .dp-qr-logo { width: 5.8mm !important; height: 5.8mm !important; padding: 0.5mm !important; border-radius: 0.8mm !important; }
-            .dp-qr-box { width: 17mm !important; height: 17mm !important; }
-            .dp-qr-divider { height: 14mm !important; width: 0.66mm !important; }
+            .dp-qr-section { margin: auto 3.2mm 2.5mm 3.2mm !important; gap: 2.6mm !important; }
+            .dp-qr-card { padding: 1mm !important; border-radius: 2.5mm !important; border-width: 0.5mm !important; }
+            .dp-qr-logo { width: 7mm !important; height: 7mm !important; padding: 0.5mm !important; border-radius: 0.8mm !important; }
+            .dp-qr-box { width: 21mm !important; height: 21mm !important; }
+            .dp-qr-divider { height: 17.5mm !important; width: 0.66mm !important; }
             .dp-qr-desc { font-size: 7pt !important; }
             .dp-wave-bottom { width: 31.7mm !important; height: 11.1mm !important; }
 

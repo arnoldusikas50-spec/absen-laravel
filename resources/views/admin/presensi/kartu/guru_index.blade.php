@@ -64,7 +64,7 @@
        KARTU GURU BELAKANG (preview)
     ═══════════════════════════════════════════════════════════════════ */
     .id-card-guru-back {
-        padding: 8px 14px 40px 14px;
+        padding: 4px 14px 36px 14px;
     }
     /* Dekorasi bersama dua sisi: lingkaran biru kiri atas & ombak bawah */
     .gdeco-circle {
@@ -147,7 +147,7 @@
         align-items: center;
         gap: 6px;
         width: 100%;
-        margin-top: 6px;
+        margin-top: 5px;
     }
     .gpill-line {
         flex: 1;
@@ -172,7 +172,7 @@
         position: relative;
         z-index: 1;
         width: 100%;
-        margin-top: 5px;
+        margin-top: 2px;
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -191,10 +191,10 @@
         table-layout: fixed;
         font-size: 10px;
         line-height: 1.3;
-        margin-top: 5px;
+        margin-top: 2px;
     }
     .gback-table td {
-        padding: 1.5px 0;
+        padding: 1px 0;
         vertical-align: top;
     }
     .gback-table .lbl {
@@ -220,7 +220,7 @@
         z-index: 1;
         display: flex;
         justify-content: center;
-        margin-top: 5px;
+        margin-top: 2px;
     }
     .gback-qr-wrap {
         position: relative;
@@ -233,20 +233,20 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 30px;
-        height: 30px;
+        width: 34px;
+        height: 34px;
         padding: 2px;
         background: #ffffff;
-        border-radius: 4px;
+        border-radius: 5px;
         object-fit: contain;
     }
     .gback-qr-box {
-        width: 90px;
-        height: 90px;
+        width: 112px;
+        height: 112px;
         background: #ffffff;
         border: 3px solid #2f80ed;
-        border-radius: 8px;
-        padding: 4px;
+        border-radius: 10px;
+        padding: 5px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -268,7 +268,7 @@
         color: #1e56c8;
         text-align: center;
         line-height: 1.25;
-        margin: 4px 0 0 0;
+        margin: 1px 0 0 0;
     }
 
     /* ═══════════════════════════════════════════════════════════════════

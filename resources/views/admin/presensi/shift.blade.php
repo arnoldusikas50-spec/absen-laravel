@@ -38,7 +38,7 @@
             <div class="p-5">
                 <?php if (empty($shifts)): ?>
                 <div class="text-center py-12">
-                    <i class="bi bi-clock-history text-slate-300 text-5xl block mb-3"></i>
+                    <i class="bi bi-clock-history text-slate-300 text-5xl block mx-auto mb-3"></i>
                     <p class="text-slate-400 mb-0">Belum ada shift. Semua guru memakai jadwal global.</p>
                     <button type="button" class="btn-tw btn-tw-sm btn-primary mt-5 btn-add-shift">
                         <i class="bi bi-plus-lg mr-1"></i> Buat Shift Pertama

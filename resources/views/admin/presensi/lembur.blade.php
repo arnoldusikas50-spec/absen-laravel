@@ -141,7 +141,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
         <div class="p-0">
             <?php if (empty($pending)): ?>
                 <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-check-circle text-5xl block mb-3 opacity-20"></i>
+                    <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
                     <p class="font-medium text-slate-600">Tidak ada pengajuan menunggu</p>
                     <p class="text-xs mt-1">Semua pengajuan lembur sudah diproses.</p>
                 </div>
@@ -256,7 +256,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
                 </div>
             <?php else: ?>
                 <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-inbox text-5xl block mb-3 opacity-20"></i>
+                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
                     <p class="font-medium text-slate-600">Belum ada data lembur</p>
                     <p class="text-xs mt-1">Tidak ada pengajuan pada {{ $labelPeriode }}.</p>
                 </div>
@@ -285,7 +285,7 @@ $fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
         <div class="p-0">
             <?php if (empty($riwayat)): ?>
                 <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-inbox text-5xl block mb-3 opacity-20"></i>
+                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
                     <p class="font-medium text-slate-600">Belum ada riwayat</p>
                 </div>
             <?php else: ?>

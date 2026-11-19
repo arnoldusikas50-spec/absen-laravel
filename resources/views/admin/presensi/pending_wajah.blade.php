@@ -6,6 +6,29 @@
         font-variant-numeric: tabular-nums;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
+    /* ── Icon box centering (pola lembur/izin) ── */
+    .ic-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ic-box i,
+    .ic-box .bi {
+        vertical-align: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .chip-count {
+        background: #f1f5f9; color: #475569;
+        font-size: 0.68rem; font-weight: 800;
+        padding: 0.05rem 0.4rem; border-radius: 9999px;
+        min-width: 18px; text-align: center;
+    }
+    /* ── Row hover (pola izin) ── */
+    #pendingWajahTable tbody tr:hover td, #wajahHistoryTable tbody tr:hover td { background: #f8fafc; }
 </style>
 @endsection
 
@@ -29,43 +52,97 @@
         </div>
     </div>
 
+    <!-- Ringkasan -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) ($stats['pending'] ?? 0) }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Disetujui Hari Ini</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) ($stats['approved_today'] ?? 0) }} <span class="text-xs font-normal text-slate-400">wajah</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-person-badge text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Belum Punya Wajah</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) ($stats['belum_wajah'] ?? 0) }} <span class="text-xs font-normal text-slate-400">guru</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
+            <span class="ic-box w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 shrink-0"><i class="bi bi-people text-lg"></i></span>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold">Total Guru Aktif</div>
+                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) ($stats['total_guru'] ?? 0) }} <span class="text-xs font-normal text-slate-400">orang</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Pending Requests -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-2 p-5 border-b border-slate-100">
-            <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
-                <i class="bi bi-hourglass-split text-sm"></i>
-            </span>
-            <h2 class="text-sm font-extrabold text-slate-900">Permintaan Registrasi Ulang Wajah</h2>
-            <span class="ml-auto badge-tw badge-warning rounded-full text-[11px]">
-                {{ $stats['pending'] ?? 0 }} Menunggu
-            </span>
+        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="ic-box w-8 h-8 rounded-xl bg-amber-50 text-amber-500 shrink-0">
+                    <i class="bi bi-hourglass-split text-sm"></i>
+                </span>
+                <div>
+                    <h2 class="text-sm font-extrabold text-slate-900">Permintaan Registrasi Ulang Wajah</h2>
+                    <p class="text-[11px] text-slate-400">Setujui untuk mengaktifkan wajah baru guru</p>
+                </div>
+            </div>
+            <?php if (count($pending) > 0): ?>
+            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="searchWajahInput"
+                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Cari nama / NIP..." autocomplete="off">
+                <button type="button" id="clearWajahSearch"
+                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
+                        title="Bersihkan pencarian">
+                    <i class="bi bi-x text-xs"></i>
+                </button>
+            </div>
+            <?php endif; ?>
         </div>
-        <div class="p-5">
-            <?php if (empty($pending)): ?>
-                <div class="text-center py-12">
-                    <div class="bg-emerald-50 rounded-full inline-flex p-4 mb-4">
-                        <i class="bi bi-check-lg text-emerald-600 text-4xl"></i>
-                    </div>
-                    <h6 class="font-bold text-slate-500 mb-1">Tidak ada pengajuan menunggu</h6>
-                    <p class="text-slate-400 text-sm mb-0">Semua pengajuan registrasi ulang wajah telah diproses.</p>
+        <div class="p-0">
+            <?php if (count($pending) === 0): ?>
+                <div class="text-center py-16 text-slate-400">
+                    <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
+                    <p class="font-medium text-slate-600">Tidak ada pengajuan menunggu</p>
+                    <p class="text-xs mt-1">Semua pengajuan registrasi ulang wajah telah diproses.</p>
                 </div>
             <?php else: ?>
                 <div class="table-responsive-tw">
-                    <table class="table-tw">
+                    <table class="table-tw" id="pendingWajahTable">
                         <thead>
                             <tr>
-                                <th class="text-center w-10">#</th>
+                                <th class="pl-4 text-center w-10">#</th>
                                 <th>Nama Guru</th>
                                 <th>NIP</th>
                                 <th>Tanggal Pengajuan</th>
                                 <th class="text-center">Status Wajah Lama</th>
-                                <th class="text-right" style="min-width: 150px;">Aksi</th>
+                                <th class="text-right pr-4" style="min-width: 150px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="pendingWajahBody">
                             <?php foreach ($pending as $i => $p): ?>
-                            <tr id="row-{{ (int) $p->id }}" class="pending-row">
-                                <td class="text-center text-slate-400 text-xs">{{ $i + 1 }}</td>
+                            <?php
+                                $namaWajah = $p->nama_guru ?: trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? ''));
+                                $searchWajah = implode(' ', array_filter([
+                                    $namaWajah,
+                                    $p->username ?? '',
+                                    $p->nip ?? '',
+                                    !empty($p->created_at) ? date('d/m/Y H:i', strtotime($p->created_at)) : '',
+                                ]));
+                            ?>
+                            <tr id="row-{{ (int) $p->id }}" class="pending-row" data-search="{{ $searchWajah }}">
+                                <td class="pl-4 text-center text-slate-400 text-xs">{{ $i + 1 }}</td>
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <?php
@@ -82,15 +159,15 @@
                                         }
                                         ?>
                                         <?php if ($foto): ?>
-                                            <img src="{{ $foto }}" class="rounded-full object-cover" width="36" height="36" alt="Foto guru" loading="lazy">
+                                            <img src="{{ $foto }}" class="rounded-full object-cover shrink-0" width="36" height="36" alt="Foto guru" loading="lazy">
                                         <?php else: ?>
                                             <div class="rounded-full bg-blue-50 flex items-center justify-center shrink-0" style="width:36px;height:36px;">
                                                 <i class="bi bi-person text-blue-600"></i>
                                             </div>
                                         <?php endif; ?>
                                         <div class="min-w-0">
-                                            <span class="font-bold text-slate-800 text-sm block truncate">{{ $p->nama_guru ?: trim($p->first_name . ' ' . $p->last_name) }}</span>
-                                            <span class="text-xs text-slate-400">@{{ $p->username }}</span>
+                                            <span class="font-bold text-slate-800 text-sm block truncate">{{ $namaWajah }}</span>
+                                            <span class="text-xs text-slate-400">{{ '@' . ($p->username ?? '') }}</span>
                                         </div>
                                     </div>
                                 </td>
@@ -105,7 +182,7 @@
                                         <i class="bi bi-exclamation-triangle mr-1"></i>Sudah pernah daftar
                                     </span>
                                 </td>
-                                <td class="text-right">
+                                <td class="pr-4 text-right">
                                     <div class="inline-flex gap-2 items-center">
                                         <button type="button" class="btn-tw btn-tw-sm btn-success btn-approve-wajah" data-id="{{ (int) $p->id }}" title="Setujui & aktifkan wajah baru">
                                             <i class="bi bi-check-lg mr-1"></i> Setujui
@@ -120,19 +197,28 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                    <span id="wajahCount">Menampilkan {{ count($pending) }} data</span>
+                    <span>Setujui untuk mengaktifkan wajah baru</span>
+                </div>
             <?php endif; ?>
         </div>
     </div>
 
     <!-- Audit History -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex items-center gap-2 p-5 border-b border-slate-100">
-            <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <i class="bi bi-clock-history text-sm"></i>
-            </span>
-            <h2 class="text-sm font-extrabold text-slate-900">Riwayat Pengajuan yang Telah Diproses</h2>
-            <?php if (!empty($history)): ?>
-            <span class="badge-tw badge-secondary rounded-full text-[11px]">{{ count($history) }} data</span>
+        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="ic-box w-8 h-8 rounded-xl bg-slate-100 text-slate-500 shrink-0">
+                    <i class="bi bi-clock-history text-sm"></i>
+                </span>
+                <div>
+                    <h2 class="text-sm font-extrabold text-slate-900">Riwayat Pengajuan yang Telah Diproses</h2>
+                    <p class="text-[11px] text-slate-400">15 pengajuan terakhir yang disetujui / ditolak</p>
+                </div>
+            </div>
+            <?php if (count($history) > 0): ?>
             <button type="button" id="btnClearWajahHistory"
                 class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
                 title="Hapus seluruh riwayat yang telah diproses">
@@ -140,12 +226,16 @@
             </button>
             <?php endif; ?>
         </div>
-        <div class="p-5">
-            <?php if (empty($history)): ?>
-                <p class="text-slate-400 text-sm mb-0">Belum ada pengajuan wajah yang diproses.</p>
+        <div class="p-0">
+            <?php if (count($history) === 0): ?>
+                <div class="text-center py-16 text-slate-400">
+                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
+                    <p class="font-medium text-slate-600">Belum ada riwayat</p>
+                    <p class="text-xs mt-1">Pengajuan wajah yang diproses akan muncul di sini.</p>
+                </div>
             <?php else: ?>
                 <div class="table-responsive-tw">
-                    <table class="table-tw">
+                    <table class="table-tw" id="wajahHistoryTable">
                         <thead>
                             <tr>
                                 <th>Guru</th>
@@ -160,7 +250,7 @@
                             <tr id="history-row-{{ (int) $h->id }}">
                                 <td>
                                     <span class="font-bold text-slate-800 text-sm block">{{ $h->nama_guru ?: trim($h->first_name . ' ' . $h->last_name) }}</span>
-                                    <span class="text-xs text-slate-400">@{{ $h->username }}</span>
+                                    <span class="text-xs text-slate-400">{{ '@' . ($h->username ?? '') }}</span>
                                 </td>
                                 <td class="text-sm text-slate-400 whitespace-nowrap">{{ date('d/m/Y H:i', strtotime($h->updated_at)) }}</td>
                                 <td class="text-center">
@@ -190,6 +280,11 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                    <span id="wajahHistoryCount">Menampilkan {{ count($history) }} data</span>
+                    <span>15 riwayat terakhir</span>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -215,6 +310,40 @@ $(document).ready(function() {
             }
         });
     }
+
+    // ── Pencarian pengajuan (pola izin) ─────────────────────
+    function applyWajahFilter() {
+        const kw = ($('#searchWajahInput').val() || '').toLowerCase().trim();
+        $('#clearWajahSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
+        let shown = 0;
+        $('#pendingWajahTable tbody tr[data-search]').each(function () {
+            const search = String($(this).data('search') || '').toLowerCase();
+            const visible = !kw || search.indexOf(kw) !== -1;
+            $(this).toggle(visible);
+            if (visible) shown++;
+        });
+        const $empty = $('#wajahEmptyFilter');
+        if (shown === 0 && $('#pendingWajahTable tbody tr[data-search]').length > 0) {
+            if ($empty.length === 0) {
+                $('#pendingWajahTable tbody').append(
+                    '<tr id="wajahEmptyFilter"><td colspan="6" class="text-center py-12 text-slate-400">' +
+                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
+                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok</p>' +
+                    '<p class="text-xs mt-1">Coba ubah kata kunci pencarian</p></td></tr>'
+                );
+            } else {
+                $empty.show();
+            }
+        } else {
+            $empty.hide();
+        }
+        $('#wajahCount').text('Menampilkan ' + shown + ' data');
+    }
+
+    $('#searchWajahInput').on('input', applyWajahFilter);
+    $('#clearWajahSearch').on('click', function () {
+        $('#searchWajahInput').val('').trigger('input').focus();
+    });
 
     function approveWajah(id) {
         Swal.fire({

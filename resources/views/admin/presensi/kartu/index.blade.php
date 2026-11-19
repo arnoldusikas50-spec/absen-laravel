@@ -748,8 +748,8 @@
     .dp-qr-card {
         background: #ffffff;
         border: 2px solid #2f80ed;
-        border-radius: 8px;
-        padding: 3px;
+        border-radius: 9px;
+        padding: 4px;
         box-shadow: 0 2px 8px rgba(37,99,235,0.16);
         display: flex;
         align-items: center;
@@ -767,16 +767,16 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 22px;
-        height: 22px;
+        width: 27px;
+        height: 27px;
         padding: 2px;
         background: #ffffff;
-        border-radius: 3px;
+        border-radius: 4px;
         object-fit: contain;
     }
     .dp-qr-box {
-        width: 64px;
-        height: 64px;
+        width: 80px;
+        height: 80px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -788,18 +788,18 @@
     }
     .dp-qr-divider {
         width: 2.5px;
-        height: 58px;
+        height: 72px;
         background: #1e56c8;
         border-radius: 2px;
         flex-shrink: 0;
     }
     .dp-qr-desc {
-        font-size: 9.5px;
+        font-size: 9px;
         font-weight: 900;
         color: #1e56c8;
         text-transform: uppercase;
         line-height: 1.3;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.2px;
     }
     .dp-wave-bottom {
         position: absolute;

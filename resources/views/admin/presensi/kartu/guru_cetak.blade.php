@@ -373,7 +373,7 @@
             align-items: center;
             gap: 1.5mm;
             width: 100%;
-            margin: 1.4mm 0 0 0;
+            margin: 1.2mm 0 0 0;
         }
         .gpill-line {
             flex: 1;
@@ -461,7 +461,7 @@
         /* Sisi belakang: latar & layout */
         .id-card-guru-back {
             background: linear-gradient(165deg, #f5fbff 0%, #e8f2fc 55%, #d8eafa 100%);
-            padding: 1.8mm 3.5mm 10mm 3.5mm;
+            padding: 1mm 3.5mm 10mm 3.5mm;
         }
 
         /* Sisi belakang: garis ganda biru di bawah kop */
@@ -469,7 +469,7 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            margin: 1.2mm 0 0 0;
+            margin: 0.6mm 0 0 0;
             display: flex;
             flex-direction: column;
             gap: 0.5mm;
@@ -488,10 +488,10 @@
             table-layout: fixed;
             font-size: 6.8pt;
             line-height: 1.3;
-            margin-top: 1.2mm;
+            margin-top: 0.6mm;
         }
         .gback-table td {
-            padding: 0.4mm 0;
+            padding: 0.15mm 0;
             vertical-align: top;
         }
         .gback-table .lbl {
@@ -517,7 +517,7 @@
             z-index: 1;
             display: flex;
             justify-content: center;
-            margin-top: 1.2mm;
+            margin-top: 0.4mm;
         }
         .gback-qr-wrap {
             position: relative;
@@ -530,20 +530,20 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 7mm;
-            height: 7mm;
-            padding: 0.5mm;
+            width: 8.5mm;
+            height: 8.5mm;
+            padding: 0.6mm;
             background: #ffffff;
-            border-radius: 1mm;
+            border-radius: 1.2mm;
             object-fit: contain;
         }
         .gback-qr-box {
-            width: 22mm;
-            height: 22mm;
+            width: 27mm;
+            height: 27mm;
             background: #ffffff;
             border: 0.7mm solid #2f80ed;
-            border-radius: 2mm;
-            padding: 0.8mm;
+            border-radius: 2.5mm;
+            padding: 1mm;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -565,7 +565,7 @@
             color: #1e56c8;
             text-align: center;
             line-height: 1.25;
-            margin: 1mm 0 0 0;
+            margin: 0.4mm 0 0 0;
         }
 
         /* Landscape Card Layout */

@@ -68,13 +68,13 @@ $alamatSekolah = trim(implode(', ', array_filter([
     <div class="dp-qr-section">
         <div class="dp-qr-card">
             <div class="dp-qr-wrap">
-                <div class="dp-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="128"></div>
+                <div class="dp-qr-box qr-print-box" data-code="{{ $s->qr_value }}" data-size="256"></div>
                 <img class="dp-qr-logo" src="{{ $logo_url }}" alt="Logo" onerror="this.style.display='none'">
             </div>
         </div>
         <div class="dp-qr-divider"></div>
         <div class="dp-qr-desc">
-            SCAN UNTUK<br>INFORMASI
+            SCAN UNTUK<br>ABSEN
         </div>
     </div>
 
