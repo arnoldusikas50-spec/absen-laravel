@@ -1337,7 +1337,7 @@
 
     <!-- Toggle Button -->
     <div class="flex justify-center px-4 mb-1">
-        <button type="button" class="btn-toggle-menu" id="btnToggleMenu" onclick="toggleExtraMenu()" aria-expanded="false" aria-controls="extraMenuContainer">
+        <button type="button" class="btn-toggle-menu" id="btnToggleMenu" aria-expanded="false" aria-controls="extraMenuContainer">
             <span id="toggleMenuText">Menu Lainnya</span>
             <i class="bi bi-chevron-down ms-1" id="toggleMenuIcon" aria-hidden="true"></i>
         </button>
@@ -3491,6 +3491,11 @@
             }
         });
     }
+
+    // Listener delegasi dipasang dari script ini, bukan onclick inline pada
+    // tombol, agar klik sebelum script bawah selesai dimuat tidak melempar
+    // "toggleExtraMenu is not defined" di HP lambat.
+    $(document).on('click', '#btnToggleMenu', toggleExtraMenu);
 
     // Pull to Refresh logic (Minimal implementation)
     let startY = 0;

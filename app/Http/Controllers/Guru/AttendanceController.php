@@ -5924,7 +5924,6 @@ class AttendanceController extends BaseController
 
     public function ranking()
     {
-        Log::debug('Ranking API called: '.$this->request->getUri());
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }

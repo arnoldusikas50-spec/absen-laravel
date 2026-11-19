@@ -1962,9 +1962,15 @@ class PresensiSiswaQrController extends BaseController
                 }
             } catch (\Throwable $e) {
             }
-            $kioskMsg = $this->checkKioskToken();
-            if ($kioskMsg !== null) {
-                return $this->response->setStatusCode(403)->setJSON(['status' => false, 'data' => [], 'message' => $kioskMsg]);
+            // Halaman scanner milik staf yang sedang login memakai endpoint ini
+            // untuk feed 25 detik; mereka tidak perlu token kiosk (sama seperti
+            // scanQr). Siswa/tamu tetap wajib token yang diatur admin.
+            $stafLogin = $this->isLoggedIn() && ($this->isAdmin() || $this->isGuru());
+            if (! $stafLogin) {
+                $kioskMsg = $this->checkKioskToken();
+                if ($kioskMsg !== null) {
+                    return $this->response->setStatusCode(403)->setJSON(['status' => false, 'data' => [], 'message' => $kioskMsg]);
+                }
             }
         }
 

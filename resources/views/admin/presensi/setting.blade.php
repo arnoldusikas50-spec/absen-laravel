@@ -1553,12 +1553,12 @@
                                         </div>
                                         <p class="text-[11px] text-slate-400">Contoh: 05:30–18:00 WITA. Berlaku untuk halaman <code>/scanner</code> &amp; <code>/guru/presensi-siswa</code>. Selain itu scan masuk mengikuti jadwal masuk hari ini (dibuka 1 jam sebelum, ditutup 3 jam setelah) dan scan pulang langsung dibuka setelah jendela masuk ditutup — sama seperti absen wajah. Jam selesai berlaku dua arah: lewat jam itu scan masuk <b>dan</b> pulang ditolak, dan cron <code>/cron/daily</code> menandai siswa yang masuk tanpa pulang sebagai &quot;pulang tidak tercatat&quot; (jam keluar tetap kosong, tidak diisi otomatis).</p>
                                         <div>
-                                            <label class="form-label-tw">Token Kiosk /scanner (opsional)</label>
+                                            <label class="form-label-tw">Token Kiosk /scanner (wajib untuk kiosk publik)</label>
                                             <?php $tokenKioskAktif = trim((string) ($absenSetting->qr_kiosk_token ?? '')) !== ''; ?>
                                             <div class="mb-2">
-                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold {{ $tokenKioskAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
-                                                    <i class="bi {{ $tokenKioskAktif ? 'bi-shield-lock-fill' : 'bi-unlock' }}"></i>
-                                                    {{ $tokenKioskAktif ? 'Token terpasang — /scanner terkunci' : 'Belum ada token — /scanner terbuka untuk umum' }}
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold {{ $tokenKioskAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                                                    <i class="bi {{ $tokenKioskAktif ? 'bi-shield-lock-fill' : 'bi-shield-exclamation' }}"></i>
+                                                    {{ $tokenKioskAktif ? 'Token terpasang — /scanner terkunci' : 'Belum ada token — /scanner publik ditolak' }}
                                                 </span>
                                             </div>
                                             <input type="password" class="form-control-tw font-mono" name="qr_kiosk_token" value=""
@@ -1570,7 +1570,7 @@
                                                 Hapus token (buka kembali /scanner untuk umum)
                                             </label>
                                             <?php } ?>
-                                            <p class="text-[11px] text-slate-400 mt-1">Bila terpasang, <b>seluruh</b> jalur publik <code>/scanner</code> — halaman kiosk, <code>/scanner/scan</code>, dan <code>/scanner/history</code> — menolak permintaan tanpa token. Daftarkan perangkat kiosk sekali lewat <code>/scanner?k=TOKEN</code> atau kolom buka-kunci di halaman itu; setelahnya perangkat dikenali sendiri. Kolom ini write-only: nilai token tidak pernah ditampilkan kembali, dan menyimpan form tanpa mengisi kolom tidak mengubahnya.</p>
+                                            <p class="text-[11px] text-slate-400 mt-1">Bila terpasang, <b>seluruh</b> jalur publik <code>/scanner</code> — halaman kiosk, <code>/scanner/scan</code>, dan <code>/scanner/history</code> — menolak permintaan tanpa token. Daftarkan perangkat kiosk sekali lewat <code>/scanner?k=TOKEN</code> atau kolom buka-kunci di halaman itu; setelahnya perangkat dikenali sendiri. Kolom ini write-only: nilai token tidak pernah ditampilkan kembali, dan menyimpan form tanpa mengisi kolom tidak mengubahnya. Selama token kosong, halaman <code>/scanner</code> publik beserta endpoint scan/riwayatnya <b>menolak akses</b> (kecuali admin/guru yang sedang login).</p>
                                         </div>
                                     </div>
                                 </div>

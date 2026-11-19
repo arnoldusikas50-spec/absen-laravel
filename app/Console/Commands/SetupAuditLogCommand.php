@@ -32,7 +32,7 @@ class SetupAuditLogCommand extends Command
             $table->unsignedInteger('record_id')->nullable();
             $table->unsignedInteger('target_user_id')->nullable()->comment('ID user pemilik data (misal: guru)');
             $table->unsignedInteger('actor_id')->nullable()->comment('ID user yang melakukan perubahan (misal: admin)');
-            $table->string('action', 20); // CREATE, UPDATE, DELETE
+            $table->string('action', 255); // CREATE, UPDATE, DELETE, atau deskripsi aksi cron
             $table->text('old_values')->nullable();
             $table->text('new_values')->nullable();
             $table->string('reason', 255)->nullable();

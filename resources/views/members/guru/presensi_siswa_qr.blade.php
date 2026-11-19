@@ -2522,7 +2522,11 @@ $csrfHash  = csrf_token();
                     }
                 }, 1500);
 
-                processRfidScan(rawUid, selectedMode);
+                // selectedMode hanya lokal di handleManualSubmit; di sini
+                // ambil ulang dari radio (fallback ke state global `mode`).
+                refreshModeTabs();
+                const scanMode = $('input[name="manual_mode"]:checked').val() || mode;
+                processRfidScan(rawUid, scanMode);
             };
 
             nfcReader.onreadingerror = () => {

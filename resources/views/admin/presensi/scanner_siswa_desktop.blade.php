@@ -755,6 +755,7 @@
         let countdownTimer   = null;
         let countdownInterval = null;
         let modeRefreshTimer = null;
+        let feedTimer        = null;
 
         let audioCtx         = null;
         let indonesianVoice  = null;
@@ -1489,6 +1490,19 @@
                     }));
                 }
                 if (res && res.stats) updateStats(res.stats);
+            }).fail(function (xhr) {
+                // Token kiosk kosong/invalid: hentikan polling agar log server
+                // tidak dibanjiri peringatan tiap 25 detik, lalu beri tahu operator.
+                if (xhr.status === 403 || xhr.status === 503) {
+                    if (feedTimer) { clearInterval(feedTimer); feedTimer = null; }
+                    $('#attendanceLogList').html(`
+                        <div class="py-12 px-4 text-center text-xs text-slate-400">
+                            <i class="fa-solid fa-lock text-2xl mb-2 block text-rose-400"></i>
+                            <p class="font-bold text-white m-0 mb-1">Feed terkunci</p>
+                            <p class="m-0">Token Kiosk belum diisi admin. Muat ulang halaman setelah token diatur di Pengaturan &rarr; Presensi.</p>
+                        </div>
+                    `);
+                }
             });
         }
 
@@ -1601,7 +1615,7 @@
             loadFeed();
             focusBarcodeInput();
 
-            setInterval(loadFeed, 25000);
+            feedTimer = setInterval(loadFeed, 25000);
             setInterval(refreshModes, 15000);
             setInterval(updateModeIndicator, 60000);
         });

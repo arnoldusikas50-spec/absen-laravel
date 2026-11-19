@@ -262,6 +262,9 @@
                     </div>
 
                     <div class="flex items-center gap-2 font-mono-num text-[11px] text-slate-400">
+                        <span id="gps-chip" class="px-2.5 py-1 rounded-full bg-slate-900/70 text-slate-400 text-[10px] font-bold border border-slate-700/80">
+                            <i class="fa-solid fa-location-dot mr-1"></i> GPS…
+                        </span>
                         <span id="nfc-chip" class="hidden px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
                             <i class="fa-solid fa-wifi mr-1"></i> NFC
                         </span>
@@ -390,11 +393,12 @@
                     <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center text-4xl sm:text-5xl mb-4 shadow-lg shadow-rose-500/15">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
-                    <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Kartu Tidak Terdaftar!</h2>
-                    <p class="text-slate-400 text-xs sm:text-sm mb-3">
+                    <h2 id="errorTitle" class="text-xl sm:text-2xl font-bold text-white mb-2">Kartu Tidak Terdaftar!</h2>
+                    <p id="errorUidLine" class="text-slate-400 text-xs sm:text-sm mb-3">
                         UID Kartu <span id="unknownUid" class="font-mono-num text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">XX:XX:XX:XX</span> belum terdaftar pada database Siswa maupun Guru.
                     </p>
-                    <p class="text-[11px] text-slate-500 m-0">Silakan hubungi bagian Tata Usaha atau Admin Sekolah untuk mendaftarkan kartu.</p>
+                    <p id="scanErrorMessage" class="hidden text-slate-300 text-xs sm:text-sm mb-3 font-semibold"></p>
+                    <p id="errorHelpLine" class="text-[11px] text-slate-500 m-0">Silakan hubungi bagian Tata Usaha atau Admin Sekolah untuk mendaftarkan kartu.</p>
                 </div>
 
             </div>
@@ -713,7 +717,49 @@
             }
         });
 
-        // ── 5. Eksekusi Scan RFID ke Backend ──
+        // ── 5. GPS Kiosk ─────────────────────────────────
+        // Validasi geofence scan siswa mewajibkan koordinat; tanpa ini
+        // kartu siswa yang terdaftar pun ditolak "Lokasi kiosk belum terkunci".
+        let kioskLoc = { lat: null, lng: null, accuracy: null };
+
+        function updateGpsPill() {
+            const $chip = $('#gps-chip');
+            if (kioskLoc.lat === null) {
+                $chip.attr('class', 'px-2.5 py-1 rounded-full bg-slate-900/70 text-slate-400 text-[10px] font-bold border border-slate-700/80');
+                $chip.html('<i class="fa-solid fa-location-dot mr-1"></i> GPS…');
+            } else {
+                $chip.attr('class', 'px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold border border-emerald-500/30');
+                $chip.html('<i class="fa-solid fa-location-dot mr-1"></i> GPS ±' + Math.round(kioskLoc.accuracy || 0) + 'm');
+            }
+        }
+
+        function startGpsWatch() {
+            if (!('geolocation' in navigator)) {
+                $('#gps-chip').html('<i class="fa-solid fa-location-dot mr-1"></i> Tanpa GPS');
+                return;
+            }
+            try {
+                navigator.geolocation.watchPosition(
+                    function (pos) {
+                        kioskLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                        updateGpsPill();
+                    },
+                    function () {
+                        if (kioskLoc.lat === null) {
+                            $('#gps-chip')
+                                .attr('class', 'px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[10px] font-bold border border-rose-500/30')
+                                .html('<i class="fa-solid fa-location-dot mr-1"></i> GPS ditolak');
+                        } else {
+                            updateGpsPill();
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+                );
+            } catch (e) { updateGpsPill(); }
+            updateGpsPill();
+        }
+
+        // ── 6. Eksekusi Scan RFID ke Backend ──
         window.processRfidScan = function (rfidCode) {
             const cleanCode = (rfidCode || '').trim();
             if (!cleanCode || isProcessing) return;
@@ -736,7 +782,10 @@
                 data: {
                     _token: CSRF_TOKEN,
                     rfid_value: cleanCode,
-                    mode: mode
+                    mode: mode,
+                    lat: kioskLoc.lat,
+                    lng: kioskLoc.lng,
+                    accuracy: kioskLoc.accuracy
                 },
                 dataType: 'json',
                 success: function (res) {
@@ -753,7 +802,7 @@
                 error: function (xhr) {
                     isProcessing = false;
                     $('#reader-status').text('Standby');
-                    let msg = 'Nomor kartu belum terdaftar';
+                    let msg = 'Gagal memproses scan (HTTP ' + (xhr ? xhr.status : 0) + '). Coba lagi.';
                     try {
                         const parsed = JSON.parse(xhr.responseText);
                         if (parsed.message) msg = parsed.message;
@@ -764,7 +813,7 @@
             });
         };
 
-        // ── 6. Render Hasil Scan Berhasil (Siswa & Guru) ──
+        // ── 7. Render Hasil Scan Berhasil (Siswa & Guru) ──
         function renderScanSuccess(res, rfidCode, currentMode) {
             const isGuru = !!(res.guru || res.role === 'guru');
             const person = res.guru || res.siswa || {};
@@ -884,7 +933,10 @@
             startResetCountdown(4000);
         }
 
-        // ── 7. Render Hasil Scan Error (Kartu Tidak Terdaftar) ──
+        // ── 8. Render Hasil Scan Error ──
+        // Server bisa menolak karena kartu benar-benar tidak terdaftar ATAU
+        // alasan lain (geofence, jadwal, libur, token). Tampilkan pesan asli
+        // server agar operator tidak menyimpulkan "kartu belum didaftarkan".
         function renderScanError(res, rfidCode) {
             const $standby = $('#standbyView');
             const $result = $('#resultView');
@@ -892,10 +944,17 @@
             const $container = $('#scannerContainer');
             const $glow = $('#glowEffect');
 
+            const msg = (res && res.message) ? String(res.message).trim() : '';
+            const notFound = msg === '' || /nomor kartu (tidak|belum) terdaftar/i.test(msg);
+
             $standby.addClass('hidden');
             $result.addClass('hidden').removeClass('flex');
             $error.removeClass('hidden').addClass('flex');
 
+            $('#errorTitle').text(notFound ? 'Kartu Tidak Terdaftar!' : 'Absen Gagal');
+            $('#errorUidLine').toggleClass('hidden', !notFound);
+            $('#errorHelpLine').toggleClass('hidden', !notFound);
+            $('#scanErrorMessage').toggleClass('hidden', notFound).text(notFound ? '' : msg);
             $('#unknownUid').text(rfidCode || 'TIDAK TERBACA');
             $container.attr('class', 'flex-1 glass-panel state-error border-2 border-rose-500/80 rounded-3xl p-6 sm:p-8 md:p-9 flex flex-col items-center justify-between relative overflow-hidden transition-all duration-300 shadow-2xl shadow-rose-500/15 min-h-[400px] sm:min-h-[480px]');
             $glow.attr('class', 'absolute inset-0 bg-gradient-to-b from-rose-500/15 to-transparent pointer-events-none');
@@ -951,7 +1010,7 @@
             return (parts[0][0] + parts[1][0]).toUpperCase();
         }
 
-        // ── 8. Render Riwayat Kehadiran (Live Feed) ──
+        // ── 9. Render Riwayat Kehadiran (Live Feed) ──
         function prependAttendanceLog(log) {
             attendanceLogs.unshift(log);
             if (attendanceLogs.length > 20) attendanceLogs.pop();
@@ -1022,7 +1081,7 @@
             $('#statSudahPulang').text(keluar);
         }
 
-        // ── 9. Sinkronisasi Polling History Backend ──
+        // ── 10. Sinkronisasi Polling History Backend ──
         function pollHistory() {
             $.ajax({
                 url: HISTORY_URL,
@@ -1055,7 +1114,7 @@
             });
         }
 
-        // ── 10. Web NFC API (Sensor NFC Android) ──
+        // ── 11. Web NFC API (Sensor NFC Android) ──
         // Web NFC (NDEFReader) hanya tersedia di Chrome Android pada konteks
         // aman (HTTPS/localhost), dan ndef.scan() WAJIB dipicu gesture
         // pengguna. Pemanggilan otomatis saat halaman dimuat selalu ditolak
@@ -1131,7 +1190,7 @@
             $('#reader-status').text(window.isSecureContext ? 'Browser tanpa NFC' : 'NFC butuh HTTPS');
         }
 
-        // ── 11. Modal Input Manual UID / NIS ──
+        // ── 12. Modal Input Manual UID / NIS ──
         window.promptManualUid = function () {
             Swal.fire({
                 title: 'Input Manual UID / NIS',
@@ -1153,7 +1212,7 @@
             });
         };
 
-        // ── 12. Fullscreen Toggle ──
+        // ── 13. Fullscreen Toggle ──
         window.toggleFullscreen = function () {
             const icon = document.getElementById('fullscreenIcon');
             if (!document.fullscreenElement) {
@@ -1169,6 +1228,7 @@
         $(document).ready(function () {
             syncSoundIcon();
             updateModeIndicator();
+            startGpsWatch();
             focusWedgeInput();
             pollHistory();
             setInterval(() => {
