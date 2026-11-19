@@ -72,13 +72,21 @@
 
     /* Monitoring KBM — tile tautan ke Input Presensi terfilter */
     .mon-tile-link {
-        display: block; text-align: center; padding: 10px 4px 9px;
-        text-decoration: none; background: transparent;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 62px; padding: 9px 3px 8px;
+        text-align: center; text-decoration: none; background: transparent;
         transition: background 0.15s ease;
     }
     .mon-tile-link:hover { background: #f8fafc; }
     .mon-tile-link:active { background: #eef2ff; }
     .mon-tile-link:focus-visible { outline: 2px solid var(--accent-500); outline-offset: -2px; }
+    .mon-tile-value { font-size: 16px; line-height: 1; font-weight: 800; }
+    .mon-tile-label {
+        display: flex; align-items: flex-start; justify-content: center;
+        min-height: 19px; margin-top: 5px;
+        font-size: 8px; line-height: 1.2; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .01em;
+    }
 
     @media (prefers-reduced-motion: reduce) {
         .chev, .report-class-card, .date-nav-chip, .mon-tile-link { transition: none; }
@@ -318,29 +326,29 @@
         <?php else: ?>
         <div class="grid grid-cols-5 divide-x divide-slate-100 border-t border-slate-100">
             <a href="{{ $monIssueBase }}&issue=tanpa_jurnal" class="mon-tile-link"
-               title="Slot jadwal yang belum memiliki jurnal mengajar">
-                <span class="block text-base font-extrabold leading-none {{ $monKosong > 0 ? 'text-rose-600' : 'text-slate-300' }}">{{ $monKosong }}</span>
-                <span class="block text-[8px] font-bold uppercase tracking-tight mt-1 {{ $monKosong > 0 ? 'text-rose-500' : 'text-slate-400' }}">Tanpa Jurnal</span>
+               aria-label="Tanpa Jurnal: {{ $monKosong }} slot jadwal yang belum memiliki jurnal mengajar">
+                <span class="mon-tile-value {{ $monKosong > 0 ? 'text-rose-600' : 'text-slate-300' }}">{{ $monKosong }}</span>
+                <span class="mon-tile-label {{ $monKosong > 0 ? 'text-rose-500' : 'text-slate-400' }}">Tanpa Jurnal</span>
             </a>
             <a href="{{ $monIssueBase }}&issue=tanpa_scan" class="mon-tile-link"
-               title="Slot berjurnal tetapi guru pelaksana belum scan masuk">
-                <span class="block text-base font-extrabold leading-none {{ $monTanpaScan > 0 ? 'text-amber-600' : 'text-slate-300' }}">{{ $monTanpaScan }}</span>
-                <span class="block text-[8px] font-bold uppercase tracking-tight mt-1 {{ $monTanpaScan > 0 ? 'text-amber-500' : 'text-slate-400' }}">Tanpa Scan</span>
+               aria-label="Tanpa Scan: {{ $monTanpaScan }} slot berjurnal tetapi guru pelaksana belum scan masuk">
+                <span class="mon-tile-value {{ $monTanpaScan > 0 ? 'text-amber-600' : 'text-slate-300' }}">{{ $monTanpaScan }}</span>
+                <span class="mon-tile-label {{ $monTanpaScan > 0 ? 'text-amber-500' : 'text-slate-400' }}">Tanpa Scan</span>
             </a>
             <a href="{{ $monIssueBase }}&issue=pengganti" class="mon-tile-link"
-               title="Slot yang dijurnal oleh guru pengganti">
-                <span class="block text-base font-extrabold leading-none {{ $monPengganti > 0 ? 'text-violet-700' : 'text-slate-300' }}">{{ $monPengganti }}</span>
-                <span class="block text-[8px] font-bold uppercase tracking-tight mt-1 {{ $monPengganti > 0 ? 'text-violet-500' : 'text-slate-400' }}">Pengganti</span>
+               aria-label="Pengganti: {{ $monPengganti }} slot yang dijurnal oleh guru pengganti">
+                <span class="mon-tile-value {{ $monPengganti > 0 ? 'text-violet-700' : 'text-slate-300' }}">{{ $monPengganti }}</span>
+                <span class="mon-tile-label {{ $monPengganti > 0 ? 'text-violet-500' : 'text-slate-400' }}">Pengganti</span>
             </a>
             <a href="{{ $monIssueBase }}&issue=absen_siswa" class="mon-tile-link"
-               title="Slot yang mencatat siswa tidak hadir di jurnal">
-                <span class="block text-base font-extrabold leading-none {{ $monSiswaAbsen > 0 ? 'text-sky-600' : 'text-slate-300' }}">{{ $monSiswaAbsen }}</span>
-                <span class="block text-[8px] font-bold uppercase tracking-tight mt-1 {{ $monSiswaAbsen > 0 ? 'text-sky-500' : 'text-slate-400' }}">Siswa Absen</span>
+               aria-label="Siswa Absen: {{ $monSiswaAbsen }} slot yang mencatat siswa tidak hadir di jurnal">
+                <span class="mon-tile-value {{ $monSiswaAbsen > 0 ? 'text-sky-600' : 'text-slate-300' }}">{{ $monSiswaAbsen }}</span>
+                <span class="mon-tile-label {{ $monSiswaAbsen > 0 ? 'text-sky-500' : 'text-slate-400' }}">Siswa Absen</span>
             </a>
             <a href="{{ $monIssueBase }}&issue=perlu_validasi" class="mon-tile-link"
-               title="Jurnal yang sudah diisi tetapi belum dinilai guru piket / kepala sekolah">
-                <span class="block text-base font-extrabold leading-none {{ $monPerluNilai > 0 ? 'text-emerald-600' : 'text-slate-300' }}">{{ $monPerluNilai }}</span>
-                <span class="block text-[8px] font-bold uppercase tracking-tight mt-1 {{ $monPerluNilai > 0 ? 'text-emerald-600' : 'text-slate-400' }}">Perlu Nilai</span>
+               aria-label="Perlu Nilai: {{ $monPerluNilai }} jurnal yang sudah diisi tetapi belum divalidasi">
+                <span class="mon-tile-value {{ $monPerluNilai > 0 ? 'text-emerald-600' : 'text-slate-300' }}">{{ $monPerluNilai }}</span>
+                <span class="mon-tile-label {{ $monPerluNilai > 0 ? 'text-emerald-600' : 'text-slate-400' }}">Perlu Nilai</span>
             </a>
         </div>
         <p class="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 font-medium m-0 flex items-start gap-1.5 leading-tight">
