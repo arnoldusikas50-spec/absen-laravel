@@ -3935,7 +3935,7 @@ class PresensiAdminController extends BaseController
             $botToken = trim((string) ($absenSet->telegram_bot_token ?? ''));
             if ($botToken !== '') {
                 $secret = TelegramBotController::webhookSecret($botToken);
-                $whExpected = rtrim(url(), '/').'/api/telegram/webhook?secret='.$secret;
+                $whExpected = rtrim(url('/'), '/').'/api/telegram/webhook?secret='.$secret;
                 $whSetUrl = 'https://api.telegram.org/bot'.$botToken.'/setWebhook?url='.urlencode($whExpected);
             }
         } catch (\Throwable $e) {

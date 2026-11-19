@@ -103,12 +103,12 @@ class WhatsappWebhookController extends BaseController
 
         return $this->json(true, 'OK', [
             'secret' => $secret,
-            'webhook_url' => rtrim(url(), '/').'/api/whatsapp/webhook?secret='.$secret,
+            'webhook_url' => rtrim(url('/'), '/').'/api/whatsapp/webhook?secret='.$secret,
             'base_url' => $svc->baseUrl(),
             'events' => self::WANTED_EVENTS,
             'curl' => 'curl -X POST "'.$svc->baseUrl().'/api/sessions/{sessionId}/webhooks" '
                 .'-H "Content-Type: application/json" -H "X-API-Key: '.$openwaKey.'" '
-                .'-d \'{"url":"'.rtrim(url(), '/').'/api/whatsapp/webhook?secret='.$secret.'",'
+                .'-d \'{"url":"'.rtrim(url('/'), '/').'/api/whatsapp/webhook?secret='.$secret.'",'
                 .'"events":'.json_encode(self::WANTED_EVENTS).',"secret":"ganti-dengan-secret-anda"}\'',
             'status' => $svc->getStatus(),
         ]);

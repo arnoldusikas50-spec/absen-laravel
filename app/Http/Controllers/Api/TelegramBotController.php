@@ -71,7 +71,7 @@ class TelegramBotController extends BaseController
 
         return $this->json(true, 'OK', [
             'secret' => $secret,
-            'webhook_url' => rtrim(url(), '/').'/api/telegram/webhook?secret='.$secret,
+            'webhook_url' => rtrim(url('/'), '/').'/api/telegram/webhook?secret='.$secret,
             'bot' => (new NotificationService)->getBotUsername() ?: '(panggil setelah webhook aktif)',
         ]);
     }
