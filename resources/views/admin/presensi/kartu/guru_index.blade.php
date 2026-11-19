@@ -6,8 +6,34 @@
         transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
     .card-preview:hover {
-        transform: translateY(-3px);
+        transform: translateY(-2px);
         box-shadow: 0 14px 28px -6px rgb(var(--primary-700-rgb, 30 64 175) / 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+    }
+    /* Panggung pratinjau: kertas netral supaya tepi putih kartu tetap terlihat. */
+    .card-stage {
+        background: #f8fafc;
+        border: 1px solid #e8edf5;
+        border-radius: 12px;
+        padding: 10px 10px 12px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .card-stage-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #1d4ed8;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        padding: 2px 9px;
+        line-height: 1.4;
     }
     .qr-box canvas, .qr-box img {
         margin: 0 auto;
@@ -339,13 +365,16 @@
         min-width: 0;
     }
     .card-header-text .app-title {
-        font-size: 6pt;
+        font-size: 5.2pt;
         font-weight: 700;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.45px;
         color: #8ecbf5;
         text-transform: uppercase;
         margin: 0;
         line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .card-header-text .school-title {
         font-size: 8pt;
@@ -361,13 +390,17 @@
         background: rgba(255,255,255,0.22);
         border: 1px solid rgba(255,255,255,0.4);
         color: #ffffff;
-        font-size: 6.5pt;
+        font-size: 5.6pt;
         font-weight: 800;
-        padding: 0.6mm 2mm;
+        padding: 0.5mm 1.8mm;
         border-radius: 4px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
         flex-shrink: 0;
+        max-width: 18mm;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .card-content {
         flex: 1;
@@ -765,7 +798,7 @@
 
         <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
+                <span id="jumlahTampil" class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
                     {{ count($guru_list) }}
                 </span>
                 <span class="font-semibold text-slate-600">kartu guru ditampilkan</span>
@@ -799,17 +832,29 @@
     <?php else: ?>
         <?php if ($desainAktif === 'portrait'): ?>
         <!-- Preview Portrait: kartu ID depan + belakang berdampingan -->
-        <div id="cardGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div id="cardGrid" class="grid grid-cols-1 gap-5 mx-auto {{ $desainAktif === 'portrait' ? 'max-w-3xl' : 'max-w-4xl' }}">
             <?php foreach ($guru_list as $g): ?>
-                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
+                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
                      data-kode="{{ strtolower($g->kode_guru ?? '') }}">
-                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
-                            <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $g->nama_guru }}</h5>
-                            <span class="text-[10px] font-semibold text-slate-400 shrink-0">({{ $g->nip ?: ($g->kode_guru ?: 'GTK') }})</span>
+                    @php
+                        $inisialGuru = collect(preg_split('/\s+/', trim((string) $g->nama_guru)))
+                            ->filter()
+                            ->take(2)
+                            ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                            ->implode('');
+                    @endphp
+                    <div class="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
+                            <div class="min-w-0">
+                                <h5 class="text-[12.5px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
+                                <p class="text-[10.5px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
+                                    <span class="font-mono text-slate-600">{{ $g->nip ?: ($g->kode_guru ?: 'GTK') }}</span>
+                                    <span class="text-slate-300 mx-1">•</span>{{ $g->jabatan }}
+                                </p>
+                            </div>
                         </div>
                         <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=portrait&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
@@ -817,15 +862,15 @@
                             <i class="bi bi-printer"></i> Cetak
                         </a>
                     </div>
-                    <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div class="p-4 flex flex-wrap items-center justify-center gap-4">
                         <!-- SISI DEPAN -->
-                        <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
+                        <div class="card-stage">
+                            <span class="card-stage-label"><i class="bi bi-credit-card"></i> Sisi Depan</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_portrait')
                         </div>
                         <!-- SISI BELAKANG -->
-                        <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
+                        <div class="card-stage">
+                            <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_belakang')
                         </div>
                     </div>
@@ -834,17 +879,29 @@
         </div>
         <?php else: ?>
         <!-- Preview Landscape: desain cetak asli (satu sisi, 92 × 58 mm) -->
-        <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div id="cardGrid" class="grid grid-cols-1 gap-5 mx-auto {{ $desainAktif === 'portrait' ? 'max-w-3xl' : 'max-w-4xl' }}">
             <?php foreach ($guru_list as $g): ?>
-                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
+                <div class="teacher-card-item card-preview bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
                      data-kode="{{ strtolower($g->kode_guru ?? '') }}">
-                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
-                            <h5 class="text-xs font-extrabold text-slate-800 line-clamp-1 m-0">{{ $g->nama_guru }}</h5>
-                            <span class="text-[10px] font-semibold text-slate-400 shrink-0">({{ $g->nip ?: ($g->kode_guru ?: 'GTK') }})</span>
+                    @php
+                        $inisialGuru = collect(preg_split('/\s+/', trim((string) $g->nama_guru)))
+                            ->filter()
+                            ->take(2)
+                            ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                            ->implode('');
+                    @endphp
+                    <div class="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialGuru }}</span>
+                            <div class="min-w-0">
+                                <h5 class="text-[12.5px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</h5>
+                                <p class="text-[10.5px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
+                                    <span class="font-mono text-slate-600">{{ $g->nip ?: ($g->kode_guru ?: 'GTK') }}</span>
+                                    <span class="text-slate-300 mx-1">•</span>{{ $g->jabatan }}
+                                </p>
+                            </div>
                         </div>
                         <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=landscape&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
@@ -852,15 +909,15 @@
                             <i class="bi bi-printer"></i> Cetak
                         </a>
                     </div>
-                    <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div class="p-4 flex flex-wrap items-center justify-center gap-4">
                         <!-- KARTU (SISI DEPAN) -->
-                        <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Depan</span>
+                        <div class="card-stage">
+                            <span class="card-stage-label"><i class="bi bi-credit-card-2-front"></i> Sisi Depan</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_landscape')
                         </div>
                         <!-- KARTU (SISI BELAKANG) -->
-                        <div class="flex flex-col items-center gap-1.5">
-                            <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Sisi Belakang</span>
+                        <div class="card-stage">
+                            <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
                             @include('admin.presensi.kartu.partials.kartu_guru_landscape_belakang')
                         </div>
                     </div>
@@ -868,6 +925,14 @@
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
+
+        <div id="emptyFilter" class="hidden bg-white rounded-3xl p-10 text-center border border-slate-200/80">
+            <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 text-xl mx-auto mb-3">
+                <i class="bi bi-search"></i>
+            </div>
+            <h3 class="text-sm font-bold text-slate-800">Tidak ada kartu yang cocok</h3>
+            <p class="text-xs text-slate-500 mt-1">Ubah kata kunci pencarian nama, NIP, atau kode guru.</p>
+        </div>
     <?php endif; ?>
 
 </div>
@@ -919,9 +984,13 @@ $(document).ready(function() {
         $('#filterForm').submit();
     });
 
-    // Realtime search filter nama / NIP / kode di preview grid
-    $('#searchInput').on('keyup', function() {
-        const query = $(this).val().toLowerCase().trim();
+    // Realtime search filter nama / NIP / kode di preview grid.
+    // Hitungan dan pesan "tidak ada hasil" ikut diperbarui supaya jumlah di
+    // panel filter tidak lagi menyesatkan saat pencarian menyaring kartu.
+    function filterKartu() {
+        const query = $('#searchInput').val().toLowerCase().trim();
+        let tampil = 0;
+
         $('.teacher-card-item').each(function() {
             // jQuery .data() mengubah string angka jadi Number, jadi .includes()
             // melempar TypeError dan membatalkan seluruh loop filter.
@@ -930,13 +999,18 @@ $(document).ready(function() {
             const nip  = String($(this).data('nip') || '');
             const kode = String($(this).data('kode') || '');
 
-            if (name.includes(query) || nip.includes(query) || kode.includes(query)) {
-                $(this).show();
-            } else {
-                $(this).hide();
+            const cocok = name.includes(query) || nip.includes(query) || kode.includes(query);
+            $(this).toggle(cocok);
+            if (cocok) {
+                tampil++;
             }
         });
-    });
+
+        $('#jumlahTampil').text(tampil);
+        $('#emptyFilter').toggleClass('hidden', tampil > 0);
+    }
+
+    $('#searchInput').on('keyup', filterKartu);
 });
 </script>
 @endsection

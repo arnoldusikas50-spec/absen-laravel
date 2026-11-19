@@ -1,6 +1,21 @@
 <?php
 // Partial kartu guru / GTK landscape (92 × 58 mm).
 // Dipakai bersama oleh tata letak grid A4 dan mode cetak langsung ukuran KTP.
+//
+// Badge kop memakai status pendek (PNS / PPPK / HONOR). Status lengkap seperti
+// "TENAGA HONOR SEKOLAH" tidak muat di kop 92 mm dan dulu menghimpit nama
+// sekolah sampai terpotong; status penuh tetap tercetak di sisi belakang.
+$statusRaw = strtoupper(trim((string) ($g->status_pegawai ?? '')));
+$statusPendek = 'GTK';
+if (str_contains($statusRaw, 'PPPK')) {
+    $statusPendek = 'PPPK';
+} elseif (str_contains($statusRaw, 'PNS')) {
+    $statusPendek = 'PNS';
+} elseif (str_contains($statusRaw, 'HONOR')) {
+    $statusPendek = 'HONOR';
+} elseif ($statusRaw !== '') {
+    $statusPendek = mb_substr($statusRaw, 0, 10);
+}
 ?>
 <div class="id-card">
     <!-- Kop Kartu -->
@@ -12,8 +27,8 @@
             <p class="app-title">KARTU PRESENSI DIGITAL GURU / GTK</p>
             <h4 class="school-title">{{ $setting->sekolah ?? 'SEKOLAH' }}</h4>
         </div>
-        <div class="card-header-badge">
-            {{ $g->status_pegawai ?: 'GTK' }}
+        <div class="card-header-badge" title="{{ $g->status_pegawai ?: 'GTK' }}">
+            {{ $statusPendek }}
         </div>
     </div>
 

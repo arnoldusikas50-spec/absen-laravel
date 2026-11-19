@@ -26,7 +26,7 @@ $statusGuru = $g->status_pegawai ?: 'Pendidik';
                     <td class="val" title="{{ $g->nama_guru }}">{{ $g->nama_guru }}</td>
                 </tr>
                 <tr>
-                    <td class="lbl">NIPK</td>
+                    <td class="lbl">NIP</td>
                     <td class="sep">:</td>
                     <td class="val">{{ $nipGuru }}</td>
                 </tr>

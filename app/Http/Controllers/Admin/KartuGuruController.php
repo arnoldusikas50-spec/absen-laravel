@@ -199,7 +199,7 @@ class KartuGuruController extends BaseController
         foreach ($guruList as $g) {
             $g->qr_value = self::nomorKartuGuru($g);
             $g->foto_url = self::resolveFotoUrl($g->foto, $g->nama_guru);
-            $g->jabatan = ! empty($g->tgs_tambahan) ? $g->tgs_tambahan : (! empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / GTK');
+            $g->jabatan = ! empty($g->tgs_tambahan) ? $g->tgs_tambahan : (! empty($g->jenis_ptk) ? $g->jenis_ptk : 'Guru / Tenaga Pendidik');
         }
 
         $setting = $this->getSettingRow();
@@ -334,7 +334,7 @@ class KartuGuruController extends BaseController
      */
     public static function resolveFotoUrl(?string $foto, ?string $nama): string
     {
-        return AvatarService::tampilan($foto, $nama ?: 'Guru', '#7c3aed');
+        return AvatarService::tampilan($foto, $nama ?: 'Guru', '#1e56c8');
     }
 
     /**

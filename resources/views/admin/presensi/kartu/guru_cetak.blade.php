@@ -192,11 +192,14 @@
             padding: 6mm;
         }
 
-        /* Grid Cards: 2 Columns on A4 for Landscape */
+        /* Grid Cards: satu pasang duplex (depan + belakang) per baris.
+           Dua pasang landscape = 2 × 188 mm (> 198 mm area cetak A4) sehingga
+           dulu kartu ketiga terpotong di tepi kanan kertas. */
         .card-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 5mm;
+            justify-items: center;
         }
         /* Grid Cards: 1 column for Portrait (depan + belakang berpasangan) */
         .card-grid-portrait {
@@ -563,20 +566,23 @@
         .card-logo img {
             max-width: 100%;
             max-height: 100%;
-            object-contain: contain;
+            object-fit: contain;
         }
         .card-header-text {
             flex: 1;
             min-width: 0;
         }
         .card-header-text .app-title {
-            font-size: 6pt;
+            font-size: 5.2pt;
             font-weight: 700;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.45px;
             color: #8ecbf5;
             text-transform: uppercase;
             margin: 0;
             line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .card-header-text .school-title {
             font-size: 8pt;
@@ -592,13 +598,17 @@
             background: rgba(255,255,255,0.22);
             border: 1px solid rgba(255,255,255,0.4);
             color: #ffffff;
-            font-size: 6.5pt;
+            font-size: 5.6pt;
             font-weight: 800;
-            padding: 0.6mm 2mm;
+            padding: 0.5mm 1.8mm;
             border-radius: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             flex-shrink: 0;
+            max-width: 18mm;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .card-content {
             flex: 1;
