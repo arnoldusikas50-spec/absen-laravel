@@ -721,21 +721,21 @@
         const SCAN_URL = '{{ $scan_url }}';
         const HISTORY_URL = '{{ $history_url }}';
         const CSRF_TOKEN = '{{ csrf_token() }}';
-        const DEFAULT_PHOTO = {!! json_encode(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+        const DEFAULT_PHOTO = {!! json_script(\App\Services\AvatarService::inisial('Scan', 128, '#0f172a'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
         const MODE_TAB = {
             masukOpen:  {{ !empty($mode_tab['masuk_open']) ? 'true' : 'false' }},
             pulangOpen: {{ !empty($mode_tab['pulang_open']) ? 'true' : 'false' }},
-            defaultMode: {!! json_encode(($mode_tab['default_mode'] ?? 'masuk') === 'keluar' ? 'keluar' : 'masuk') !!},
-            masukMsg:   {!! json_encode($mode_tab['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            pulangMsg:  {!! json_encode($mode_tab['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            jamMasuk:   {!! json_encode($mode_tab['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            bukaMasuk:  {!! json_encode($mode_tab['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            tutupMasuk: {!! json_encode($mode_tab['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            jamPulang:  {!! json_encode($mode_tab['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            bukaPulang: {!! json_encode($mode_tab['buka_pulang'] ?? ($mode_tab['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE) !!},
+            defaultMode: {!! json_script(($mode_tab['default_mode'] ?? 'masuk') === 'keluar' ? 'keluar' : 'masuk') !!},
+            masukMsg:   {!! json_script($mode_tab['masuk_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            pulangMsg:  {!! json_script($mode_tab['pulang_msg'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            jamMasuk:   {!! json_script($mode_tab['jam_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            bukaMasuk:  {!! json_script($mode_tab['buka_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            tutupMasuk: {!! json_script($mode_tab['tutup_masuk'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            jamPulang:  {!! json_script($mode_tab['jam_pulang'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            bukaPulang: {!! json_script($mode_tab['buka_pulang'] ?? ($mode_tab['jam_pulang'] ?? ''), JSON_UNESCAPED_UNICODE) !!},
             qrAktif:    {{ !empty($mode_tab['qr_aktif']) ? 'true' : 'false' }},
-            qrMulai:    {!! json_encode($mode_tab['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE) !!},
-            qrSelesai:  {!! json_encode($mode_tab['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE) !!}
+            qrMulai:    {!! json_script($mode_tab['qr_mulai'] ?? '', JSON_UNESCAPED_UNICODE) !!},
+            qrSelesai:  {!! json_script($mode_tab['qr_selesai'] ?? '', JSON_UNESCAPED_UNICODE) !!}
         };
 
         let activeMode       = 'auto';

@@ -465,3 +465,23 @@ if (! function_exists('attendance_tahun_tertua')) {
         return $tahun;
     }
 }
+
+if (! function_exists('json_script')) {
+    /**
+     * JSON yang aman disisipkan ke dalam blok <script>.
+     *
+     * json_encode() polos tidak meng-escape "<", ">", "&", "'" dan '"',
+     * sehingga nilai dari database (nama, keterangan, pesan pengaturan)
+     * bisa menutup tag </script> dan mengeksekusi JS di sesi admin.
+     */
+    function json_script(mixed $data, int $extraFlags = 0): string
+    {
+        $json = json_encode(
+            $data,
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                | JSON_INVALID_UTF8_SUBSTITUTE | $extraFlags
+        );
+
+        return $json === false ? 'null' : $json;
+    }
+}

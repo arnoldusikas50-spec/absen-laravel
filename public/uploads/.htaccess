@@ -1,0 +1,7 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Berkas unggahan tidak boleh pernah dieksekusi sebagai skrip, apa pun
+    # ekstensinya. Pola ini juga menutup sisa celah bila ada endpoint upload
+    # lama yang masih memakai ekstensi kiriman klien.
+    RewriteRule \.(?:php[0-9]?|phtml|phar|pl|py|cgi|sh)$ - [F,L,NC]
+</IfModule>

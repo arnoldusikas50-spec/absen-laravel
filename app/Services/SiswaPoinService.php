@@ -185,7 +185,7 @@ class SiswaPoinService
      *
      * @return array{status:bool, message:string, poin:int, skor:?int, skipped:bool}
      */
-    public function recalc(int $presensiId): array
+    public function recalc(int $presensiId, bool $lempar = false): array
     {
         if ($presensiId <= 0) {
             return $this->hasil('ID presensi tidak valid', 0);
@@ -373,6 +373,10 @@ class SiswaPoinService
             }
             Log::error('[SiswaPoinService::recalc#'.$presensiId.'] '.$e->getMessage());
 
+            if ($lempar) {
+                throw $e;
+            }
+
             return $this->hasil('Gagal menghitung poin otomatis', 0);
         }
     }
@@ -515,24 +519,6 @@ class SiswaPoinService
     }
 
     // ── Pintasan untuk dipanggil dari controller ───────────────────
-
-    /**
-     * Hitung ulang poin dari sebuah baris presensi. Tidak pernah melempar
-     * error ke pemanggil — kegagalan poin tidak boleh membatalkan absensi.
-     */
-    public static function sinkron(?int $presensiId = null, ?int $idSiswa = null, ?string $tgl = null): void
-    {
-        try {
-            $svc = new self;
-            if ($presensiId !== null && $presensiId > 0) {
-                $svc->recalc($presensiId);
-            } elseif ($idSiswa !== null && $idSiswa > 0 && $tgl !== null) {
-                $svc->recalcSiswaTanggal($idSiswa, $tgl);
-            }
-        } catch (\Throwable $e) {
-            Log::error('[SiswaPoinService::sinkron] '.$e->getMessage());
-        }
-    }
 
     /**
      * Setelah baris presensi dihapus, buang pengurangan point-nya.

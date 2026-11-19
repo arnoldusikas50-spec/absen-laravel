@@ -92,21 +92,38 @@ class ProfilsekolahController extends BaseController
             return $this->respond(false, 'File tidak valid');
         }
 
-        $allowedTypes = ['image/gif', 'image/jpg', 'image/jpeg', 'image/png'];
-        if (! in_array($file->getMimeType(), $allowedTypes)) {
+        // Ekstensi diturunkan dari MIME isi file, bukan dari nama kiriman
+        // klien: poliglot JPEG+PHP bernama "logo.php" lolos pemeriksaan MIME
+        // sebelumnya dan disimpan dengan ekstensi .php di document root,
+        // sehingga dieksekusi oleh handler PHP di .htaccess.
+        $mime = strtolower((string) $file->getMimeType());
+        $allowedExt = [
+            'image/gif' => 'gif',
+            'image/jpg' => 'jpg',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+        ];
+        if (! isset($allowedExt[$mime])) {
             return $this->respond(false, 'Tipe file tidak diizinkan');
         }
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->respond(false, 'Ukuran file maksimal 5 MB');
+        }
+        // Pastikan isinya benar-benar gambar, bukan sekadar header palsu.
+        if (@getimagesize($file->getPathname()) === false) {
+            return $this->respond(false, 'File bukan gambar yang valid');
+        }
 
-        $school_uuid = $this->session->get('school_uuid') ?? 'default';
+        $school_uuid = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($this->session->get('school_uuid') ?? 'default')) ?: 'default';
         // $logo datang dari segmen URL (:segment) yang masih boleh berisi
         // backslash; di Windows '\' menyelesaikan path, jadi nama field dibersihkan
         // agar file tidak pernah bisa ditulis di luar uploads/settings/.
         $logo = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $logo);
-        $newName = $logo.'_'.$school_uuid.'.'.$file->getClientOriginalExtension();
+        $newName = $logo.'_'.$school_uuid.'.'.$allowedExt[$mime];
 
         $uploadPath = public_path().'/'.'uploads/settings/';
         if (! is_dir($uploadPath)) {
-            mkdir($uploadPath, 0777, true);
+            mkdir($uploadPath, 0755, true);
         }
 
         if ($file->move($uploadPath, $newName, true)) {

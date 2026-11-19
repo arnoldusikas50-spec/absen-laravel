@@ -93,20 +93,31 @@ class NfcAttendanceService
             ];
         }
 
-        // 5. Validasi geofence (jika GPS tersedia dan tabel lokasi dikonfigurasi)
-        if ($lat !== null && $lng !== null) {
-            $geoCheck = $this->validateGeofence($lat, $lng, $accuracy, $setting);
-            if (! $geoCheck['ok']) {
-                $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $geoCheck['message'], null, $nama);
+        // 5. Validasi geofence. GPS wajib: tanpa koordinat, geofence
+        // tidak bisa ditegakkan dan kartu dapat dipakai dari mana saja.
+        if ($lat === null || $lng === null) {
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'GPS tidak dikirim', null, $nama);
 
-                return [
-                    'success' => false,
-                    'message' => $geoCheck['message'],
-                    'status' => 'OUT_OF_RANGE',
-                    'nama' => $nama,
-                    'tipe' => $tipeUser,
-                ];
-            }
+            return [
+                'success' => false,
+                'message' => 'Lokasi GPS wajib dikirim untuk absensi NFC.',
+                'status' => 'GPS_REQUIRED',
+                'nama' => $nama,
+                'tipe' => $tipeUser,
+            ];
+        }
+
+        $geoCheck = $this->validateGeofence($lat, $lng, $accuracy, $setting);
+        if (! $geoCheck['ok']) {
+            $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $geoCheck['message'], null, $nama);
+
+            return [
+                'success' => false,
+                'message' => $geoCheck['message'],
+                'status' => 'OUT_OF_RANGE',
+                'nama' => $nama,
+                'tipe' => $tipeUser,
+            ];
         }
 
         // 6. Proses absensi berdasarkan tipe user
@@ -412,7 +423,7 @@ class NfcAttendanceService
             // Validasi lokasi
             $lokasiId = null;
             $jarak = null;
-            if ($lat && $lng) {
+            if ($lat !== null && $lng !== null) {
                 $lokasi = $this->findNearestLocation($lat, $lng, $setting);
                 if ($lokasi) {
                     $lokasiId = $lokasi->id;
@@ -496,7 +507,7 @@ class NfcAttendanceService
             // Validasi lokasi
             $lokasiId = null;
             $jarak = null;
-            if ($lat && $lng) {
+            if ($lat !== null && $lng !== null) {
                 $lokasi = $this->findNearestLocation($lat, $lng, $setting);
                 if ($lokasi) {
                     $lokasiId = $lokasi->id;
@@ -651,8 +662,9 @@ class NfcAttendanceService
         }
 
         if (! Schema::hasTable('absensi_lokasi')) {
-            // Jika tidak ada tabel lokasi, lewati geofence (opsional)
-            return ['ok' => true];
+            // Fail closed: tanpa tabel lokasi, geofence tidak bisa ditegakkan
+            // dan absensi NFC harus ditolak, bukan dilewatkan diam-diam.
+            return ['ok' => false, 'message' => 'Konfigurasi lokasi sekolah belum tersedia. Hubungi admin.'];
         }
 
         $locations = DB::table('absensi_lokasi')->get();
@@ -666,12 +678,15 @@ class NfcAttendanceService
         }
 
         foreach ($locations as $loc) {
-            if ($loc->latitude && $loc->longitude) {
+            // Kolom tabel adalah lat/lng (lihat migrasi absensi_lokasi).
+            // Sebelumnya kode membaca latitude/longitude yang tidak ada,
+            // sehingga setiap scan ber-GPS selalu dianggap di luar area.
+            if ($loc->lat !== null && $loc->lng !== null) {
                 $radius = (int) ($loc->radius_meter ?? $defaultRadius);
                 if ($radius <= 0) {
                     $radius = $defaultRadius;
                 }
-                $distance = $this->haversineDistance($lat, $lng, (float) $loc->latitude, (float) $loc->longitude);
+                $distance = $this->haversineDistance($lat, $lng, (float) $loc->lat, (float) $loc->lng);
                 if ($distance <= $radius) {
                     return ['ok' => true];
                 }
@@ -698,8 +713,8 @@ class NfcAttendanceService
         $minDistance = PHP_INT_MAX;
 
         foreach ($locations as $loc) {
-            if ($loc->latitude && $loc->longitude) {
-                $distance = $this->haversineDistance($lat, $lng, $loc->latitude, $loc->longitude);
+            if ($loc->lat !== null && $loc->lng !== null) {
+                $distance = $this->haversineDistance($lat, $lng, (float) $loc->lat, (float) $loc->lng);
                 if ($distance <= $radius && $distance < $minDistance) {
                     $minDistance = $distance;
                     $nearest = $loc;

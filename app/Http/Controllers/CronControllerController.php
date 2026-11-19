@@ -1893,7 +1893,7 @@ class CronControllerController extends BaseController
                     // sama tidak boleh tertimpa nilai lama. Penjaga WHERE membuat
                     // baris yang sudah kebagian penalti, atau yang lebih dulu
                     // punya jam pulang, tidak tersentuh (affectedRows = 0).
-                    $db->select(
+                    $terupdate = $db->update(
                         "UPDATE absensi_harian
                             SET points = COALESCE(points, 0) - ?,
                                 pulang_tidak_tercatat = 1,
@@ -1904,7 +1904,7 @@ class CronControllerController extends BaseController
                         [$poin, $poin, (int) $r->id]
                     );
 
-                    if (1 === 0) {
+                    if ($terupdate === 0) {
                         DB::commit();
 
                         continue;

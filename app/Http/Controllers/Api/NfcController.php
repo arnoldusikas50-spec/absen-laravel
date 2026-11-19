@@ -26,11 +26,11 @@ class NfcController extends BaseController
      *
      * @bodyParam nfc_uid string required UID kartu NFC yang di-scan
      * @bodyParam jenis_scan string required 'masuk' atau 'pulang'
-     * @bodyParam lat float optional Latitude GPS dari perangkat
-     * @bodyParam lng float optional Longitude GPS dari perangkat
+     * @bodyParam lat float required Latitude GPS dari perangkat
+     * @bodyParam lng float required Longitude GPS dari perangkat
      * @bodyParam accuracy int optional Akurasi GPS dalam meter
      * @bodyParam device_id string optional ID unik perangkat Android
-     * @bodyParam api_key string required API key untuk autentikasi
+     * @bodyParam api_key string required API key (boleh dikirim via header X-API-KEY)
      *
      * @response {
      *   "success": true,
@@ -45,27 +45,41 @@ class NfcController extends BaseController
      */
     public function scan(Request $request)
     {
-        // Rate limiting: max 10 request per menit per device/IP
-        $key = 'nfc_scan_'.md5(($request->input('device_id') ?: $request->ip()));
-
-        if (RateLimiter::tooManyAttempts($key, 10)) {
+        // Rate limiting dua lapis: per-IP membatasi volume total, per-device
+        // mencegah satu perangkat menyapu banyak kartu. device_id dikirim
+        // klien, jadi tidak boleh menjadi satu-satunya kunci (mudah diacak).
+        $ipKey = 'nfc_scan_ip_'.md5((string) $request->ip());
+        if (RateLimiter::tooManyAttempts($ipKey, 120)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Terlalu banyak permintaan. Tunggu beberapa saat.',
                 'status' => 'RATE_LIMITED',
             ], 429);
         }
+        RateLimiter::hit($ipKey, 60);
 
-        RateLimiter::hit($key, 60);
+        $deviceKey = 'nfc_scan_dev_'.md5(trim((string) $request->input('device_id')) ?: (string) $request->ip());
+        if (RateLimiter::tooManyAttempts($deviceKey, 10)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terlalu banyak permintaan dari perangkat ini. Tunggu beberapa saat.',
+                'status' => 'RATE_LIMITED',
+            ], 429);
+        }
+        RateLimiter::hit($deviceKey, 60);
 
-        // Validasi input
+        // Validasi input. 0 adalah nilai sah (lintang 0 / akurasi 0 = mock),
+        // jadi jangan memakai falsy-check yang mengubahnya menjadi null.
         $nfcUid = trim((string) $request->input('nfc_uid'));
         $jenisScan = strtolower(trim((string) $request->input('jenis_scan')));
-        $lat = $request->input('lat') ? (float) $request->input('lat') : null;
-        $lng = $request->input('lng') ? (float) $request->input('lng') : null;
-        $accuracy = $request->input('accuracy') ? (int) $request->input('accuracy') : null;
+        $latRaw = $request->input('lat');
+        $lngRaw = $request->input('lng');
+        $accRaw = $request->input('accuracy');
+        $lat = is_numeric($latRaw) ? (float) $latRaw : null;
+        $lng = is_numeric($lngRaw) ? (float) $lngRaw : null;
+        $accuracy = is_numeric($accRaw) ? (int) $accRaw : null;
         $deviceId = trim((string) $request->input('device_id'));
-        $apiKey = trim((string) $request->input('api_key'));
+        $apiKey = trim((string) ($request->input('api_key') ?? $request->header('X-API-KEY') ?? ''));
 
         // Validasi wajib
         if (empty($nfcUid)) {
@@ -93,15 +107,21 @@ class NfcController extends BaseController
             ], 401);
         }
 
-        // Validasi GPS (opsional tapi direkomendasikan)
-        if ($lat !== null && $lng !== null) {
-            if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Koordinat GPS tidak valid',
-                    'status' => 'INVALID_GPS',
-                ], 400);
-            }
+        // GPS wajib: tanpa koordinat, geofence di NfcAttendanceService
+        // dilewati dan kartu bisa dipakai dari mana saja.
+        if ($lat === null || $lng === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lokasi GPS wajib dikirim (lat dan lng).',
+                'status' => 'GPS_REQUIRED',
+            ], 422);
+        }
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Koordinat GPS tidak valid',
+                'status' => 'INVALID_GPS',
+            ], 400);
         }
 
         // Proses scan
@@ -144,7 +164,7 @@ class NfcController extends BaseController
     public function checkCard(Request $request)
     {
         $nfcUid = trim((string) $request->input('nfc_uid'));
-        $apiKey = trim((string) $request->input('api_key'));
+        $apiKey = trim((string) ($request->input('api_key') ?? $request->header('X-API-KEY') ?? ''));
 
         if (empty($nfcUid)) {
             return response()->json([
@@ -196,7 +216,7 @@ class NfcController extends BaseController
      */
     public function listCards(Request $request)
     {
-        $apiKey = trim((string) $request->input('api_key'));
+        $apiKey = trim((string) ($request->input('api_key') ?? $request->header('X-API-KEY') ?? ''));
 
         if (! $this->validateApiKey($apiKey)) {
             return response()->json([

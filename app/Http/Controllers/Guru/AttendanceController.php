@@ -1940,8 +1940,8 @@ class AttendanceController extends BaseController
             $checkoutBuilder = $db->table('absensi_harian');
             $checkoutBuilder->where('id', $todayAttendance->id);
             $checkoutBuilder->whereNull('jam_pulang');
-            $checkoutBuilder->update($updateData);
-            if (1 === 0) {
+            $terupdate = $checkoutBuilder->update($updateData);
+            if ($terupdate === 0) {
                 DB::rollBack();
 
                 return ['ok' => false, 'message' => 'Anda sudah absen pulang'];
@@ -8316,7 +8316,7 @@ class AttendanceController extends BaseController
                     'ack_text' => substr((string) $this->request->input('konfirmasi'), 0, 60),
                 ]);
 
-            if (! $updated && 1 === 0) {
+            if (! $updated) {
                 return $this->respond(false, 'Surat tidak ditemukan atau sudah dikonfirmasi.');
             }
 

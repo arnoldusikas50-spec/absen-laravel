@@ -1165,7 +1165,10 @@ class NotificationService
 
         $ket = trim((string) $keterangan);
         if ($ket !== '') {
-            $msg .= 'Alasan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'))."\n";
+            if (mb_strlen($ket) > 1000) {
+                $ket = mb_substr($ket, 0, 999).'…';
+            }
+            $msg .= 'Alasan: '.$this->plain($ket)."\n";
         }
 
         $msg .= "─────────────────\n"
@@ -1231,7 +1234,10 @@ class NotificationService
 
         $ket = trim((string) $reason);
         if ($ket !== '') {
-            $msg .= 'Alasan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'))."\n";
+            if (mb_strlen($ket) > 1000) {
+                $ket = mb_substr($ket, 0, 999).'…';
+            }
+            $msg .= 'Alasan: '.$this->plain($ket)."\n";
         }
 
         $msg .= "─────────────────\n"
@@ -1459,7 +1465,9 @@ class NotificationService
     }
 
     /**
-     * Blok catatan admin, dikecilkan agar tidak membanjiri grup.
+     * Blok catatan admin / alasan keputusan.
+     * Tidak memotong kalimat agar alasan penolakan dan catatan lengkap terbaca guru dan admin.
+     * Diberi batas aman 1000 karakter agar tidak melebihi kuota pesan Telegram/WA.
      */
     private function catatanBlock(?string $catatan, string $prefix = 'Catatan: '): string
     {
@@ -1468,7 +1476,11 @@ class NotificationService
             return '';
         }
 
-        return $prefix.$this->clip(mb_strimwidth($this->plain($c), 0, 200, '…'))."\n";
+        if (mb_strlen($c) > 1000) {
+            $c = mb_substr($c, 0, 999).'…';
+        }
+
+        return $prefix.$this->plain($c)."\n";
     }
 
     public function notifyDinasApproved(string $namaGuru, string $tanggal, ?int $userId = null, ?string $catatan = null): void
@@ -1732,7 +1744,10 @@ class NotificationService
 
         $ket = trim((string) $keterangan);
         if ($ket !== '') {
-            $msg .= 'Keterangan: '.$this->clip(mb_strimwidth($this->plain($ket), 0, 200, '…'), 200)."\n";
+            if (mb_strlen($ket) > 1000) {
+                $ket = mb_substr($ket, 0, 999).'…';
+            }
+            $msg .= 'Keterangan: '.$this->plain($ket)."\n";
         }
 
         $msg .= "─────────────────\n"
@@ -2263,7 +2278,7 @@ class NotificationService
             }
             foreach (array_slice($absenIzin, 0, 30) as $g) {
                 $msg .= '• '.$this->plain((string) ($g['nama'] ?? 'Guru'))
-                     .' — '.$this->clip($this->plain((string) ($g['alasan'] ?? 'Tanpa keterangan')), 80)."\n";
+                     .' — '.$this->clip($this->plain((string) ($g['alasan'] ?? 'Tanpa keterangan')), 200)."\n";
             }
             if (count($absenIzin) > 30) {
                 $msg .= '… dan '.(count($absenIzin) - 30)." guru lainnya\n";

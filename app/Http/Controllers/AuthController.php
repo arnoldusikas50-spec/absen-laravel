@@ -9,6 +9,7 @@ use App\Models\SettingsModel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -109,6 +110,17 @@ class AuthController extends BaseController
                     return $this->respond(false, $message);
                 }
 
+                // Throttle tambahan per-IP: lockout di atas hanya mengunci satu
+                // username, sehingga penyerang bisa menyemprot banyak username.
+                // Hanya kegagalan yang dihitung agar login massal sah (mis. satu
+                // IP NAT sekolah) tidak ikut terkunci.
+                $ipKey = 'login_ip_'.md5((string) $this->request->ip());
+                if (RateLimiter::tooManyAttempts($ipKey, 30)) {
+                    $message = 'Terlalu banyak percobaan login dari jaringan ini. Silakan tunggu 5 menit.';
+
+                    return $this->respond(false, $message);
+                }
+
                 // Get user
                 $user = $this->findUserForLogin($username);
 
@@ -185,12 +197,15 @@ class AuthController extends BaseController
                                 'login' => $username,
                                 'time' => time(),
                             ]);
+                            RateLimiter::hit($ipKey, $detikKunci);
                             $message = 'Username atau Password salah!';
                         }
                     } else {
+                        RateLimiter::hit($ipKey, $detikKunci);
                         $message = 'Akun Anda dinonaktifkan!';
                     }
                 } else {
+                    RateLimiter::hit($ipKey, $detikKunci);
                     $message = 'Akun tidak terdaftar!';
                 }
             }

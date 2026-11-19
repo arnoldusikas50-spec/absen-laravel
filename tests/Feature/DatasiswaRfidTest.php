@@ -202,6 +202,8 @@ class DatasiswaRfidTest extends TestCase
 
     public function test_scanner_scan_endpoint_handles_unregistered_rfid(): void
     {
+        $this->loginAsAdmin();
+
         $response = $this->postJson('/scanner/scan', [
             'rfid_value' => '99999999',
             'mode' => 'masuk',
@@ -216,6 +218,19 @@ class DatasiswaRfidTest extends TestCase
             'type' => 'error',
         ]);
         $this->assertStringContainsString('Nomor kartu tidak terdaftar', (string) $response->json('message'));
+    }
+
+    public function test_scanner_scan_rejects_anonymous_when_kiosk_token_unset(): void
+    {
+        $response = $this->postJson('/scanner/scan', [
+            'rfid_value' => '99999999',
+            'mode' => 'masuk',
+            'lat' => -10.123456,
+            'lng' => 123.123456,
+            'accuracy' => 15,
+        ]);
+
+        $response->assertStatus(403);
     }
 
     public function test_assign_rfid_guru_successfully_saves_and_normalizes_uid(): void

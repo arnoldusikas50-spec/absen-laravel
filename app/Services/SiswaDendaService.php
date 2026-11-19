@@ -371,7 +371,7 @@ class SiswaDendaService
      *
      * @return array{status:bool, message:string, denda:float, diubah:bool}
      */
-    public function recalc(int $presensiId): array
+    public function recalc(int $presensiId, bool $lempar = false): array
     {
         if ($presensiId <= 0) {
             return $this->hasil('ID presensi tidak valid', 0.0);
@@ -408,6 +408,10 @@ class SiswaDendaService
             ];
         } catch (\Throwable $e) {
             Log::error('[SiswaDendaService::recalc#'.$presensiId.'] '.$e->getMessage());
+
+            if ($lempar) {
+                throw $e;
+            }
 
             return $this->hasil('Gagal menghitung denda', 0.0);
         }
@@ -838,25 +842,5 @@ class SiswaDendaService
     private function hasil(string $msg, float $denda): array
     {
         return ['status' => false, 'message' => $msg, 'denda' => $denda, 'diubah' => false];
-    }
-
-    // ── Pintasan untuk dipanggil dari controller ───────────────────
-
-    /**
-     * Hitung ulang denda dari sebuah baris presensi. Tidak pernah melempar
-     * error ke pemanggil — kegagalan denda tidak boleh membatalkan absensi.
-     */
-    public static function sinkron(?int $presensiId = null, ?string $tanggal = null): void
-    {
-        try {
-            $svc = new self;
-            if ($presensiId !== null && $presensiId > 0) {
-                $svc->recalc($presensiId);
-            } elseif ($tanggal !== null && trim($tanggal) !== '') {
-                $svc->recalcHari($tanggal);
-            }
-        } catch (\Throwable $e) {
-            Log::error('[SiswaDendaService::sinkron] '.$e->getMessage());
-        }
     }
 }

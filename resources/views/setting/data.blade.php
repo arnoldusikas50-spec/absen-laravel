@@ -568,7 +568,7 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
         banner3: @json($settingData->banner3 ?? '')
     };
 
-    const satuanPend = {!! json_encode($satuan)!!};
+    const satuanPend = {!! json_script($satuan) !!};
 
     function submitSetting() {
         $('#savesetting').submit();

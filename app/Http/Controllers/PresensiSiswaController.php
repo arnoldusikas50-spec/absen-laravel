@@ -8,7 +8,7 @@ use App\Models\DropdownModel;
 use App\Models\SiswaPresensiModel;
 use App\Services\AttendancePolicy;
 use App\Services\PresensiBdrService;
-use App\Services\SiswaDendaService;
+use App\Services\PresensiSiswaSyncService;
 use App\Services\SiswaPoinService;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\DB;
@@ -679,8 +679,7 @@ class PresensiSiswaController extends BaseController
             // Poin dan denda dihitung setelah commit supaya keduanya tidak
             // berdiri di atas data yang belum benar-benar tersimpan.
             foreach ($savedIds as $sid) {
-                SiswaPoinService::sinkron($sid);
-                SiswaDendaService::sinkron($sid);
+                PresensiSiswaSyncService::sinkron($sid);
             }
 
             $msg = "Presensi {$saved} siswa berhasil disimpan";
@@ -791,11 +790,11 @@ class PresensiSiswaController extends BaseController
                 }
                 // Guard idempoten: update hanya bila jam_masuk masih kosong,
                 // agar submit paralel tidak menulis ganda lalu sinkron poin ganda.
-                $db->table('presensi_siswa')
+                $terupdate = $db->table('presensi_siswa')
                     ->where('id', $existing->id)
                     ->whereNull('jam_masuk')
                     ->update($manualIn);
-                if (1 === 0) {
+                if ($terupdate === 0) {
                     $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
 
                     return $this->response->setJSON([
@@ -803,8 +802,7 @@ class PresensiSiswaController extends BaseController
                         'message' => 'Siswa sudah check-in pada '.substr((string) ($finalIn->jam_masuk ?? $jamMasuk), 0, 5),
                     ]);
                 }
-                SiswaPoinService::sinkron((int) $existing->id);
-                SiswaDendaService::sinkron((int) $existing->id);
+                PresensiSiswaSyncService::sinkron((int) $existing->id);
             } else {
                 try {
                     $rowIn = [
@@ -837,8 +835,7 @@ class PresensiSiswaController extends BaseController
                     }
                     throw $e;
                 }
-                SiswaPoinService::sinkron((int) DB::getPdo()->lastInsertId());
-                SiswaDendaService::sinkron((int) DB::getPdo()->lastInsertId());
+                PresensiSiswaSyncService::sinkron((int) DB::getPdo()->lastInsertId());
             }
 
             return $this->response->setJSON([
@@ -961,18 +958,17 @@ class PresensiSiswaController extends BaseController
             }
             // Guard idempoten: jangan timpa jam_keluar yang sudah terisi
             // (double-submit/check-out paralel) — update hanya bila masih kosong.
-            $db->table('presensi_siswa')
+            $terupdate = $db->table('presensi_siswa')
                 ->where('id', $existing->id)
                 ->whereNull('jam_keluar')
                 ->update($manualOut);
-            if (1 === 0) {
+            if ($terupdate === 0) {
                 return $this->response->setJSON([
                     'status' => false,
                     'message' => 'Siswa sudah check-out (dicegah saat menyimpan)',
                 ]);
             }
-            SiswaPoinService::sinkron((int) $existing->id);
-            SiswaDendaService::sinkron((int) $existing->id);
+            PresensiSiswaSyncService::sinkron((int) $existing->id);
 
             return $this->response->setJSON([
                 'status' => true,
@@ -1087,8 +1083,7 @@ class PresensiSiswaController extends BaseController
             $db->table('presensi_siswa')->where('id', $existing->id)->update($updateData);
 
             // Koreksi jam bisa mengubah status keterlambatan → poin dihitung ulang.
-            SiswaPoinService::sinkron((int) $existing->id);
-            SiswaDendaService::sinkron((int) $existing->id);
+            PresensiSiswaSyncService::sinkron((int) $existing->id);
 
             return $this->response->setJSON(['status' => true, 'message' => 'Jam berhasil diperbarui', 'promoted' => ($updateData['status'] ?? null) === 'HADIR']);
         } catch (\Exception $e) {

@@ -4,8 +4,7 @@ namespace App\Models;
 
 use App\Services\AttendancePolicy;
 use App\Services\PresensiBdrService;
-use App\Services\SiswaDendaService;
-use App\Services\SiswaPoinService;
+use App\Services\PresensiSiswaSyncService;
 use App\Services\SuratPanggilanService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -465,11 +464,7 @@ class PiketModel extends Model
         }
 
         foreach ($poinIds as $sid) {
-            try {
-                SiswaPoinService::sinkron($sid);
-                SiswaDendaService::sinkron($sid);
-            } catch (\Throwable $e) {
-            }
+            PresensiSiswaSyncService::sinkron($sid);
         }
 
         return $hasil;
@@ -865,11 +860,7 @@ class PiketModel extends Model
             }
 
             foreach ($poinIds as $presensiId) {
-                try {
-                    SiswaPoinService::sinkron($presensiId);
-                    SiswaDendaService::sinkron($presensiId);
-                } catch (\Throwable $e) {
-                }
+                PresensiSiswaSyncService::sinkron($presensiId);
             }
         } catch (\Throwable $e) {
             Log::error('[PiketModel::terapkanBdr] '.$e->getMessage());
@@ -2027,8 +2018,7 @@ class PiketModel extends Model
                 $baris = DB::table('presensi_siswa')
                     ->select('id')->where('id_siswa', $sid)->where('tgl', $tanggal)->first();
                 if ($baris) {
-                    SiswaPoinService::sinkron((int) $baris->id);
-                    SiswaDendaService::sinkron((int) $baris->id);
+                    PresensiSiswaSyncService::sinkron((int) $baris->id);
                 }
             } catch (\Throwable $e) {
             }

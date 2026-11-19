@@ -12,8 +12,7 @@ use App\Services\AttendancePenaltyService;
 use App\Services\AttendancePolicy;
 use App\Services\AvatarService;
 use App\Services\GuruTerawalService;
-use App\Services\SiswaDendaService;
-use App\Services\SiswaPoinService;
+use App\Services\PresensiSiswaSyncService;
 use App\Services\WajibJurnalPulangService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -131,18 +130,22 @@ class PresensiSiswaQrController extends BaseController
     }
 
     /**
-     * Token kiosk opsional untuk jalur publik (/scanner).
-     * Bila kolom absensi_setting.qr_kiosk_token diisi admin, SEMUA jalur publik
-     * wajib membawa token yang sama: header X-Kiosk-Token, field `k`
-     * (POST/GET), atau cookie gerbang perangkat (lihat pasangKioskGate()).
+     * Token kiosk untuk jalur publik (/scanner).
+     * SEMUA jalur publik wajib membawa token yang sama: header X-Kiosk-Token,
+     * field `k` (POST/GET), atau cookie gerbang perangkat (lihat
+     * pasangKioskGate()). Token kosong TIDAK lagi berarti "terbuka":
+     * endpoint publik ditolak sampai admin mengisi tokennya.
      *
-     * @return string|null pesan penolakan, atau null bila lolos/tidak diaktifkan
+     * @return string|null pesan penolakan, atau null bila lolos
      */
     protected function checkKioskToken(): ?string
     {
         $expected = $this->tokenKioskDiset();
+        if ($expected === null) {
+            return 'Pengaturan kiosk tidak dapat dibaca. Coba lagi atau hubungi admin.';
+        }
         if ($expected === '') {
-            return null;
+            return 'Token kiosk belum dikonfigurasi. Admin harus mengisi Token Kiosk QR di Pengaturan → Presensi sebelum scanner publik dapat dipakai.';
         }
 
         if ($this->kioskGateLolos($expected)) {
@@ -161,14 +164,16 @@ class PresensiSiswaQrController extends BaseController
     }
 
     /**
-     * Token yang dikonfigurasi admin. '' = fitur mati (endpoint publik terbuka,
-     * persis seperti sebelum kolom ini ada).
+     * Token yang dikonfigurasi admin.
+     * - string  : token aktif
+     * - ''      : belum diatur → jalur publik DITOLAK (fail-closed)
+     * - null    : gagal membaca DB → jalur publik DITOLAK
      *
      * Sengaja TIDAK dipakai `setting()` biasa: halaman kiosk memuat setting
      * lengkap berkali-kali dan kolom ini harus tetap terbaca walau form
      * pengaturan belum pernah disimpan lagi setelah migrasi.
      */
-    protected function tokenKioskDiset(): string
+    protected function tokenKioskDiset(): ?string
     {
         try {
             $db = DB::connection();
@@ -183,24 +188,23 @@ class PresensiSiswaQrController extends BaseController
 
             $token = trim((string) ($row->qr_kiosk_token ?? ''));
             if ($token === '') {
-                // Sekali per request cycle: pengingat bahwa endpoint publik ini
-                // menerima QR/NIS mentah tanpa token sampai admin mengisinya.
+                // Sekali per request cycle: pengingat bahwa jalur publik kini
+                // terkunci sampai admin mengisi token kiosk.
                 static $sudahDilaporkan = false;
                 if (! $sudahDilaporkan) {
                     $sudahDilaporkan = true;
-                    Log::warning('[PresensiSiswaQr] qr_kiosk_token kosong — endpoint scan publik menerima QR/NIS tanpa token. Isi token kiosk di pengaturan presensi.');
+                    Log::warning('[PresensiSiswaQr] qr_kiosk_token kosong — jalur scan publik ditolak sampai token diisi admin.');
                 }
             }
 
             return $token;
         } catch (\Throwable $e) {
-            // Fail-open supaya gerbang sekolah tetap bisa scan saat basis data
-            // bermasalah, tapi tidak lagi diam-diam: tanpa catatan ini
-            // kegagalan baca terlihat persis sama dengan "token tidak aktif".
-            Log::error('[PresensiSiswaQr] gagal membaca qr_kiosk_token, endpoint publik dibiarkan terbuka: '
+            // Fail-closed: tanpa token yang bisa diverifikasi, endpoint publik
+            // tidak boleh menerima QR/NIS mentah.
+            Log::error('[PresensiSiswaQr] gagal membaca qr_kiosk_token, jalur publik ditolak: '
                 .$e->getMessage());
 
-            return '';
+            return null;
         }
     }
 
@@ -867,6 +871,15 @@ class PresensiSiswaQrController extends BaseController
         // tidak perlu mengetik token ulang tiap reload.
         $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
         $gateBaru = false;
+        if (! $isLoggedIn && ($tokenKiosk === null || $tokenKiosk === '')) {
+            return $this->response->setStatusCode($tokenKiosk === null ? 503 : 403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+                'judul' => 'Scanner Publik Belum Diaktifkan',
+                'action' => $this->urlKiosk($idKelas),
+                'pesan' => $tokenKiosk === null
+                    ? 'Pengaturan kiosk tidak dapat dibaca. Coba lagi beberapa saat.'
+                    : 'Admin belum mengisi Token Kiosk QR (Pengaturan → Presensi). Scanner publik sengaja dikunci sampai token diisi.',
+            ]));
+        }
         if ($tokenKiosk !== '') {
             $tokenUrl = trim((string) ($this->request->query('k') ?? ''));
             if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
@@ -1004,6 +1017,15 @@ class PresensiSiswaQrController extends BaseController
 
         $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
         $gateBaru = false;
+        if (! $isLoggedIn && ($tokenKiosk === null || $tokenKiosk === '')) {
+            return $this->response->setStatusCode($tokenKiosk === null ? 503 : 403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+                'judul' => 'Kiosk RFID / NFC Belum Diaktifkan',
+                'action' => $this->urlKiosk($idKelas),
+                'pesan' => $tokenKiosk === null
+                    ? 'Pengaturan kiosk tidak dapat dibaca. Coba lagi beberapa saat.'
+                    : 'Admin belum mengisi Token Kiosk QR (Pengaturan → Presensi). Kiosk publik sengaja dikunci sampai token diisi.',
+            ]));
+        }
         if ($tokenKiosk !== '') {
             $tokenUrl = trim((string) ($this->request->query('k') ?? ''));
             if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
@@ -1124,8 +1146,11 @@ class PresensiSiswaQrController extends BaseController
         $target = $this->urlKiosk($idKelas);
         $tokenKiosk = $this->tokenKioskDiset();
 
+        if ($tokenKiosk === null) {
+            return redirect()->to($target)->with('kiosk_kunci_gagal', 'Pengaturan kiosk tidak dapat dibaca. Coba lagi beberapa saat.');
+        }
         if ($tokenKiosk === '') {
-            return redirect()->to($target);
+            return redirect()->to($target)->with('kiosk_kunci_gagal', 'Token kiosk belum diatur admin. Scanner publik belum dapat diaktifkan.');
         }
 
         $token = trim((string) ($this->request->input('k') ?? ''));
@@ -1191,8 +1216,9 @@ class PresensiSiswaQrController extends BaseController
                     'message' => 'Token keamanan (hash) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.',
                 ]);
             }
-        } else {
-            // Jalur publik (/scanner): token kiosk opsional bila admin mengaktifkannya.
+        } elseif (! $this->isLoggedIn()) {
+            // Jalur publik (/scanner): user yang sudah login tidak perlu token
+            // kiosk; tamu wajib membawa token yang diatur admin.
             $kioskMsg = $this->checkKioskToken();
             if ($kioskMsg !== null) {
                 return $this->response->setStatusCode(403)->setJSON([
@@ -2331,11 +2357,11 @@ class PresensiSiswaQrController extends BaseController
             // Guard idempoten: dua scan masuk paralel atas baris yang sama
             // tidak boleh sama-sama menulis jam_masuk lalu menjalankan sinkron
             // poin/sync telat ganda. Update hanya bila jam_masuk masih kosong.
-            $db->table('presensi_siswa')
+            $terupdate = $db->table('presensi_siswa')
                 ->where('id', $existing->id)
                 ->whereNull('jam_masuk')
                 ->update($updateData);
-            if (1 === 0) {
+            if ($terupdate === 0) {
                 $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
 
                 return $this->response->setJSON([
@@ -2345,8 +2371,7 @@ class PresensiSiswaQrController extends BaseController
                     'siswa' => $this->formatSiswaInfo($siswa, $existing, $idKelas),
                 ]);
             }
-            SiswaPoinService::sinkron((int) $existing->id);
-            SiswaDendaService::sinkron((int) $existing->id);
+            PresensiSiswaSyncService::sinkron((int) $existing->id);
             // Sinkron otomatis status TELAT ke arsip piket (best-effort):
             // hanya mengisi bila piket belum mencatat siswa ini.
             try {
@@ -2388,8 +2413,7 @@ class PresensiSiswaQrController extends BaseController
                 }
                 throw $e;
             }
-            SiswaPoinService::sinkron((int) DB::getPdo()->lastInsertId());
-            SiswaDendaService::sinkron((int) DB::getPdo()->lastInsertId());
+            PresensiSiswaSyncService::sinkron((int) DB::getPdo()->lastInsertId());
             // Sinkron otomatis status TELAT ke arsip piket (best-effort):
             // hanya mengisi bila piket belum mencatat siswa ini.
             try {
@@ -2476,7 +2500,7 @@ class PresensiSiswaQrController extends BaseController
         }
         // Guard idempoten: update hanya bila jam_keluar masih kosong sehingga
         // dua scan keluar paralel tidak saling menimpa (last-write-wins).
-        $db->table('presensi_siswa')
+        $terupdate = $db->table('presensi_siswa')
             ->where('id', $existing->id)
             ->whereNull('jam_keluar')
             ->update([
@@ -2485,7 +2509,7 @@ class PresensiSiswaQrController extends BaseController
                 'id_guru' => ! empty($existing->id_guru) ? $existing->id_guru : $idGuru,
                 'updated_at' => date('Y-m-d H:i:s'),
             ] + $locOut);
-        if (1 === 0) {
+        if ($terupdate === 0) {
             $finalOut = $db->table('presensi_siswa')->select('jam_keluar')->where('id', $existing->id)->first();
             $shown = ! empty($finalOut->jam_keluar) ? substr($finalOut->jam_keluar, 0, 5) : substr($jam, 0, 5);
 
@@ -2497,8 +2521,7 @@ class PresensiSiswaQrController extends BaseController
             ]);
         }
         try {
-            SiswaPoinService::sinkron((int) $existing->id);
-            SiswaDendaService::sinkron((int) $existing->id);
+            PresensiSiswaSyncService::sinkron((int) $existing->id);
         } catch (\Throwable $e) {
             Log::error('[PresensiSiswaQr::processCheckOut] sinkron poin: '.$e->getMessage());
         }
@@ -3159,7 +3182,7 @@ class PresensiSiswaQrController extends BaseController
         ];
         $updateData = array_intersect_key($rawUpdate, $fieldSet);
 
-        $db->table('absensi_harian')
+        $terupdate = $db->table('absensi_harian')
             ->where('id', $existing->id)
             ->whereNull('jam_pulang')
             ->update($updateData);
@@ -3168,7 +3191,7 @@ class PresensiSiswaQrController extends BaseController
         // kalau scan paralel (dua perangkat, atau retry dari antrean offline)
         // sudah menulis pulang lebih dulu. Tanpa dicek, responsnya tetap
         // "berhasil" padahal denda/poin yang barusan dihitung tidak tersimpan.
-        if (1 === 0) {
+        if ($terupdate === 0) {
             $setelah = $db->table('absensi_harian')->where('id', $existing->id)->first();
             $pulangTersimpan = $setelah && ! empty($setelah->jam_pulang)
                 ? (strlen((string) $setelah->jam_pulang) >= 16
