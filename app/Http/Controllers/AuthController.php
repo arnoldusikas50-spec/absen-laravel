@@ -8,12 +8,12 @@ use App\Models\LogModel;
 use App\Models\SettingsModel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Auth Controller - Migrated from CI3 Auth controller
  * Handles user authentication (login, logout, registration)
  */
 class AuthController extends BaseController
@@ -36,14 +36,13 @@ class AuthController extends BaseController
      */
     public function index()
     {
-        // Jika sudah login, arahkan sesuai role (seperti GuestFilter CI4:
         // siswa -> siswa/presensi, guru -> presensi, lainnya -> dashboard).
-        if ($this->session->get('is_login')) {
-            $this->loginGuard((int) $this->session->get('user_id'));
+        if (auth()->check()) {
+            $this->loginGuard((int) auth()->id());
 
             return redirect()->to($this->determineRedirect(
                 (object) [
-                    'role_name' => $this->session->get('role_name'),
+                    'role_name' => auth()->user()?->role_name,
                     'company' => $this->session->get('school_uuid'),
                 ],
                 false
@@ -83,8 +82,8 @@ class AuthController extends BaseController
             if (strtolower($this->request->method()) === 'post') {
                 // Validation — tidak perlu login_variant lagi
                 $rules = [
-                    'username' => 'required|min_length[3]|max_length[50]',
-                    'password' => 'required|min_length[4]|max_length[50]',
+                    'username' => 'required|string|min:3|max:50',
+                    'password' => 'required|string|min:4|max:50',
                 ];
 
                 if (! $this->validate($rules)) {
@@ -132,14 +131,13 @@ class AuthController extends BaseController
                     $isSiswa = $dataUser !== null;
 
                     // PDO mengembalikan kolom integer sebagai int, bukan string
-                    // seperti MySQLi di CI4 — bandingkan sebagai string.
                     if ($isSiswa && isset($dataUser->status) && (string) $dataUser->status !== '1') {
                         return $this->respond(false, 'Akun Anda dinonaktifkan!');
                     }
 
                     if ((string) $user->active === '1') {
                         // Verify password
-                        if (password_verify($password, $user->password)) {
+                        if (Hash::check((string) $password, (string) $user->password)) {
                             $role = $user->role;
 
                             // Set session data
@@ -276,13 +274,8 @@ class AuthController extends BaseController
         return redirect()->to('auth')->with('success', 'Anda telah berhasil keluar.');
     }
 
-    // ------------------------------------------------------------------
-    // AuthModel CI4 diimplementasikan di sini karena model Laravel
-    // (App\Models\AuthModel) belum mem-port method-methodnya.
-    // ------------------------------------------------------------------
-
     /**
-     * CI4 AuthModel::login() — user + info role (users_groups + groups).
+     * Cari user aktif beserta nama grup untuk proses login.
      */
     private function findUserForLogin(string $username): ?object
     {
@@ -300,9 +293,6 @@ class AuthController extends BaseController
         }
     }
 
-    /**
-     * CI4 AuthModel::user() — baris users berdasarkan id.
-     */
     private function findUserById(int $id): ?object
     {
         try {
@@ -312,9 +302,6 @@ class AuthController extends BaseController
         }
     }
 
-    /**
-     * CI4 AuthModel::isAktif() — status siswa (master_siswa + buku_induk).
-     */
     private function findSiswaAktif(string $username): ?object
     {
         try {
@@ -328,9 +315,6 @@ class AuthController extends BaseController
         }
     }
 
-    /**
-     * CI4 AuthModel::cekErrorLogin() — percobaan login gagal dalam jendela detik.
-     */
     private function cekErrorLogin(string $username, ?int $dalamDetik = null): array
     {
         try {
@@ -350,9 +334,6 @@ class AuthController extends BaseController
         }
     }
 
-    /**
-     * CI4 AuthModel::errorLogin() — catat percobaan login gagal.
-     */
     private function recordErrorLogin(array $data): bool
     {
         try {
@@ -366,9 +347,6 @@ class AuthController extends BaseController
         }
     }
 
-    /**
-     * CI4 AuthModel::resetErrorLogin() — hapus riwayat percobaan gagal.
-     */
     private function resetErrorLogin(string $username): bool
     {
         try {
@@ -385,7 +363,6 @@ class AuthController extends BaseController
     /**
      * Masukkan user ke guard 'web' Laravel (dipakai middleware 'auth' dan
      * RoleMiddleware). Dipanggil setelah login sukses dan saat halaman /auth
-     * dikunjungi dengan session CI4 (mis. setelah RememberLogin::restore(),
      * yang hanya mengisi session, bukan guard).
      */
     private function loginGuard(int $userId): void

@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * absensi_setting diperlakukan singleton oleh seluruh kode, tetapi setiap
- * `spark migrate` yang berjalan ulang melewati migrasi pembuatnya dan
  * menyisipkan baris default baru. Karena itu tabel pernah berisi 3 baris
  * dengan jam masuk, hari libur, dan denda alpha yang berbeda, dan pembacaan
  * tanpa ORDER BY mengambil baris mana pun.
@@ -17,7 +16,6 @@ use Illuminate\Support\Facades\Schema;
  * tidak selaras, `php artisan migrate` tidak bisa dijalankan, jadi pembersihan
  * harus bisa dipanggil sendiri.
  *
- * Port dari CodeIgniter 4 ke Laravel 13. Parameter $db dipertahankan demi
  * kompatibilitas pemanggil lama namun tidak lagi dipakai — semua akses
  * memakai DB/Schema facade. Guard kolom generated + UNIQUE index memakai
  * DB::statement() (MySQL).

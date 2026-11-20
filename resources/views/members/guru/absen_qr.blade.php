@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QR Presensi — {{ $qr ? esc($qr->nama_acara) : 'Tidak Valid' }}</title>
+    <title>QR Presensi — {!! $qr ? e($qr->nama_acara) : 'Tidak Valid' !!}</title>
     <link href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
     <style type="text/css">
         body {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -64,7 +64,7 @@
         <div class="qr-icon {{ $qr ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500' }}">
             <i class="bi {{ $qr ? 'bi-qr-code-scan' : 'bi-x-circle-fill' }}"></i>
         </div>
-        <h1 class="text-center text-lg font-extrabold text-slate-900 leading-snug">{{ $qr ? esc($qr->nama_acara) : 'QR Tidak Valid' }}</h1>
+        <h1 class="text-center text-lg font-extrabold text-slate-900 leading-snug">{!! $qr ? e($qr->nama_acara) : 'QR Tidak Valid' !!}</h1>
         <?php if ($qr): ?>
         <p class="text-center text-xs text-slate-500 mt-1">
             {{ date('d/m/Y', strtotime($qr->tanggal)) }} &middot; {{ substr($qr->jam_mulai, 0, 5) }} - {{ substr($qr->jam_selesai, 0, 5) }}

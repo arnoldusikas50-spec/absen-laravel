@@ -6,16 +6,14 @@ use App\Services\SiswaDendaService;
 use Illuminate\Console\Command;
 
 /**
- * Porting CI4 App\Commands\SyncDendaSiswa (php spark denda:sync-siswa).
- *
  * Hitung ulang denda siswa satu bulan.
  *
  * Tanpa argumen bulan berjalan yang dikerjakan. Nominal hanya bisa tersimpan
  * pada baris presensi yang ada; alpha tanpa baris tetap muncul di kolom Denda
  * rekap (dihitung saat rekap dibaca) dan dilaporkan di sini supaya selisihnya
- * tidak disangka bug. Command ini manual (tidak ada jadwal cron-nya di
- * CRONTAB.MD — jangan dikacaukan dengan /cron/poin-siswa 19:30 yang
- * menghitung ulang POIN siswa, bukan denda).
+ * tidak disangka bug. Command ini manual (tidak dijadwalkan — jangan
+ * dikacaukan dengan /cron/poin-siswa 19:30 yang menghitung ulang POIN siswa,
+ * bukan denda).
  */
 class SyncDendaSiswaCommand extends Command
 {

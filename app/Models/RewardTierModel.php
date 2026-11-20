@@ -5,10 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/RewardTierModel.php
  * Tabel: reward_tiers
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class RewardTierModel extends Model
 {

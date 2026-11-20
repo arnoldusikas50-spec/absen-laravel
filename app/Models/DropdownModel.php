@@ -6,12 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/DropdownModel.php
  * Tabel: master_guru
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (master_guru).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class DropdownModel extends Model
 {
@@ -22,7 +18,6 @@ class DropdownModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel bulan belum ada migrasinya
     public function getBulan()
     {
         $result = DB::table('bulan')->get()->all();
@@ -46,7 +41,6 @@ class DropdownModel extends Model
         return [];
     }
 
-    // TODO: tabel master_kelompok_mapel belum ada migrasinya
     public function getDataKelompokMapel()
     {
         $result = DB::table('master_kelompok_mapel')->orderBy('kode_kel_mapel')->get()->all();
@@ -58,7 +52,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getAllMapel()
     {
         $result = DB::table('master_mapel')
@@ -76,7 +69,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getAllKelas($tp, $smt, $level = null)
     {
         $builder = DB::table('master_kelas')
@@ -102,7 +94,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getAllKelasByArrayId($tp, $smt, $arrId)
     {
         if (empty($arrId)) {
@@ -125,7 +116,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_guru, users belum ada migrasinya
     public function getAllGuru()
     {
         $result = DB::table('master_guru as a')
@@ -143,7 +133,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel level_guru belum ada migrasinya
     public function getAllLevelGuru()
     {
         $result = DB::table('level_guru')->get()->all();
@@ -157,7 +146,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_ekstra belum ada migrasinya
     public function getAllEkskul()
     {
         $result = DB::table('master_ekstra')->orderBy('nama_ekstra')->get()->all();
@@ -171,7 +159,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_ekstra belum ada migrasinya
     public function getAllKodeEkskul()
     {
         $result = DB::table('master_ekstra')->orderBy('nama_ekstra')->get()->all();
@@ -185,7 +172,6 @@ class DropdownModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_jurusan belum ada migrasinya
     public function getDataJurusan()
     {
         $result = DB::table('master_jurusan')->get()->all();
@@ -212,7 +198,6 @@ class DropdownModel extends Model
         return $levels;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getNamaKelasById($tp, $smt, $id_kelas)
     {
         $result = DB::table('master_kelas')

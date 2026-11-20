@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 /**
  * SuratNomor — generator nomor surat otomatis.
  *
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB facade).
  * Format default: SP/421.3/{kode_sekolah}/{nomor_urut}/{tahun}
  */
 class SuratNomor

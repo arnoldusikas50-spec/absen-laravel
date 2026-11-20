@@ -21,7 +21,7 @@
 
     <!-- Font Awesome 6 Icons & SweetAlert2 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
     {{-- Utility yang dipakai halaman kiosk (arbitrary value, varian sm/md/lg,
          dan warna transparan) tidak ada di build tailwind.css lama. --}}
     <link rel="stylesheet" href="{{ asset('assets/app/css/kiosk-ui.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/kiosk-ui.css') }}">

@@ -26,8 +26,6 @@ use Illuminate\Support\Facades\Schema;
  * Penulisan ganda: `user_notifikasi.wa_number` (sumber runtime, dibaca
  * service notifikasi) dan `master_guru.wa_number` (catatan/display admin,
  * persis seperti telegram_id).
- *
- * Port dari CodeIgniter 4 ke Laravel 13 (DB/Schema/Log facade).
  */
 class WhatsAppLink
 {

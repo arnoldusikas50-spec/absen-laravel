@@ -245,7 +245,7 @@
             console.log("data:", $(this).serialize());
 
             let formData = new FormData($(this)[0]);
-            await ajaxPost(base_url + "useradmin/create", formData, function (error, response) {
+            await ajaxPost(appUrl + "useradmin/create", formData, function (error, response) {
                 $('#createAdminModal').appModal('hide');
 
                 if (error) {
@@ -305,7 +305,7 @@
             confirmButtonText: "Hapus!"
         }).then(async result => {
             if (result.value) {
-                ajaxGet(base_url + "useradmin/delete/" + id, function (error, response) {
+                ajaxGet(appUrl + "useradmin/delete/" + id, function (error, response) {
                     if (error) {
                         console.log('error', error);
                         Swal.fire({

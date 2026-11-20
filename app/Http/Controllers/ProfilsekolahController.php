@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * ProfilSekolah Controller - Migrated from CI3
  * Handles school profile management
  */
 class ProfilsekolahController extends BaseController
@@ -40,7 +39,7 @@ class ProfilsekolahController extends BaseController
         // padahal Auth.php menyetaknya untuk SEMUA role dari users.company —
         // begitu kolom itu terisi, guru/siswa bisa mengubah profil sekolah.
         if (! $this->isAdmin()) {
-            return $this->showError('Hanya Admin Sekolah yang dapat mengakses halaman ini.', 403);
+            abort(403, 'Hanya Admin Sekolah yang dapat mengakses halaman ini.');
         }
 
         $user = $this->getUser();

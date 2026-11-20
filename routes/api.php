@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\TelegramBotController;
 use App\Http\Controllers\Api\WhatsappWebhookController;
 use Illuminate\Support\Facades\Route;
 
-// Port dari grup $routes->group('api') di CI4 Routes.php.
 // Auth via API key di controller (tanpa CSRF / tanpa session).
 
 Route::get('rekap-harian', [RekapHarianController::class, 'harian'])->name('api.rekap-harian.harian');

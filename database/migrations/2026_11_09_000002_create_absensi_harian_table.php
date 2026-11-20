@@ -5,8 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari migrasi CodeIgniter 4 — tabel `absensi_harian`.
- * Skema konsolidasi (hasil akhir) dari migrasi-migrasi CI4 berikut:
  *  - 2026-01-08-000001_CreateAttendanceTables.php
  *  - 20260110000000_UpdateAbsensiTables.php
  *  - 20260110020000_AddGpsAccuracyColumn.php
@@ -21,10 +19,7 @@ use Illuminate\Support\Facades\Schema;
  *  - 20261019000000_HardenIzinKuota.php
  *  - 20261105000000_AddPenaltiLupaPulangGuru.php
  *
- * Catatan: kolom dibuat dengan tipe MySQL yang sama seperti CI4
  * (INT/VARCHAR/TEXT/DATETIME/DATE/DECIMAL/TINYINT(1)/ENUM/JSON).
- * Tidak ada foreign key di migrasi CI4, jadi tidak ada FK di sini.
- * Skema disesuaikan dengan database produksi (dump absen.sql, 9 Nov 2026) — koreksi atas port awal dari migrasi CI4.
  */
 return new class extends Migration
 {

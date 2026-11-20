@@ -102,13 +102,8 @@ class CbttokenController extends BaseController
         }
     }
 
-    // ------------------------------------------------------------------
-    // CbtModel CI4 diimplementasikan di sini karena model Laravel
-    // (App\Models\CbtModel) belum mem-port method-methodnya.
-    // ------------------------------------------------------------------
-
     /**
-     * CI4 CbtModel::getToken() — baris pertama tabel `cbt_token`.
+     * Ambil token CBT aktif dari database.
      */
     private function getToken()
     {
@@ -126,7 +121,6 @@ class CbttokenController extends BaseController
     }
 
     /**
-     * CI4 CbtModel::saveToken() — update token bila sudah ada, insert bila
      * tabel masih kosong (satu token saja, tanpa riwayat).
      */
     private function saveToken(array $data)

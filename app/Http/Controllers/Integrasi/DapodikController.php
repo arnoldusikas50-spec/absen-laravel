@@ -247,7 +247,7 @@ class DapodikController extends BaseController
         }
 
         $client = new DapodikClient;
-        $userId = session()->get('id_user') ?? session()->get('user_id');
+        $userId = auth()->id() ?? auth()->id();
 
         try {
             switch ($entitas) {

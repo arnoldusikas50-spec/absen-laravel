@@ -3,7 +3,6 @@
 namespace App\Libraries;
 
 /**
- * RouterOS API Class — port dari CodeIgniter 4 ke Laravel 13 (disalin 1:1;
  * kode ini murni socket PHP tanpa pemanggilan framework, belum diuji
  * terhadap perangkat MikroTik di sini).
  * Based on standard routeros-api

@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
  * Konstruktor tetap menerima $db opsional; $db diabaikan (DB facade dipakai).
  *
  * Penerbitan dan sinkronisasi surat teguran guru.

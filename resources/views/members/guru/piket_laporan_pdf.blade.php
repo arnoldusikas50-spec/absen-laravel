@@ -157,8 +157,8 @@
         <tr>
             <td style="text-align: center;">
                 <div class="school-name">{{ $setting->nama_sekolah ?? 'SEKOLAH' }}</div>
-                <div class="school-sub">{{ $setting->alamat ?? '' }} {{ !empty($setting->telepon) ? '• Telp: ' . esc($setting->telepon) : '' }}</div>
-                <div class="school-sub">{{ !empty($setting->website) ? esc($setting->website) : '' }}</div>
+                <div class="school-sub">{{ $setting->alamat ?? '' }} {!! !empty($setting->telepon) ? '• Telp: ' . e($setting->telepon) : '' !!}</div>
+                <div class="school-sub">{!! !empty($setting->website) ? e($setting->website) : '' !!}</div>
             </td>
         </tr>
     </table>
@@ -305,8 +305,8 @@
                 ?>
                 <tr>
                     <td>{{ $g->nama_guru ?? '-' }}</td>
-                    <td class="text-center">{{ !empty($g->jam_masuk) ? esc(substr((string)$g->jam_masuk, 0, 5)) : '-' }}</td>
-                    <td class="text-center">{{ !empty($g->jam_pulang) ? esc(substr((string)$g->jam_pulang, 0, 5)) : '-' }}</td>
+                    <td class="text-center">{!! !empty($g->jam_masuk) ? e(substr((string)$g->jam_masuk, 0, 5)) : '-' !!}</td>
+                    <td class="text-center">{!! !empty($g->jam_pulang) ? e(substr((string)$g->jam_pulang, 0, 5)) : '-' !!}</td>
                     <td class="text-center"><span class="badge-status {{ $badge }}">{{ $kat }}</span></td>
                 </tr>
                 <?php endforeach; ?>
@@ -453,7 +453,7 @@
             <tbody>
                 <?php foreach ($tamu as $t): ?>
                 <tr>
-                    <td class="text-center">{{ substr($t->jam_masuk ?? '', 0, 5) }} {{ !empty($t->jam_keluar) ? '- ' . esc(substr($t->jam_keluar, 0, 5)) : '' }}</td>
+                    <td class="text-center">{{ substr($t->jam_masuk ?? '', 0, 5) }} {!! !empty($t->jam_keluar) ? '- ' . e(substr($t->jam_keluar, 0, 5)) : '' !!}</td>
                     <td><b>{{ $t->nama }}</b></td>
                     <td>{{ $t->instansi ?? '-' }}</td>
                     <td>Bertemu: <b>{{ $t->bertemu ?? '-' }}</b><br><small>{{ $t->keperluan ?? '-' }}</small></td>
@@ -488,7 +488,7 @@
                     }
                     ?>
                 </div>
-                <div>NIP. {{ (!empty($piket_crew[0]->nip) ? esc($piket_crew[0]->nip) : (!empty($guru->nip) ? esc($guru->nip) : '..................................')) }}</div>
+                <div>NIP. {!! (!empty($piket_crew[0]->nip) ? e($piket_crew[0]->nip) : (!empty($guru->nip) ? e($guru->nip) : '..................................')) !!}</div>
             </td>
         </tr>
     </table>

@@ -478,7 +478,7 @@ $smtVal  = e($smt_active->smt ?? '-');
             }).then(result => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: base_url + 'datakelas/hapus/' + kelasId,
+                        url: appUrl + 'datakelas/hapus/' + kelasId,
                         method: "POST",
                         dataType: "json",
                         beforeSend: () => Swal.showLoading(),
@@ -546,7 +546,7 @@ $smtVal  = e($smt_active->smt ?? '-');
             let formData = new FormData(this);
             formData.append('kelas', JSON.stringify(tempArrKelas));
             $.ajax({
-                url: base_url + 'datakelas/bulk_create',
+                url: appUrl + 'datakelas/bulk_create',
                 method: "POST",
                 data: formData,
                 processData: false,

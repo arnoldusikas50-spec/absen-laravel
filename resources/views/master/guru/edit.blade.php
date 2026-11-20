@@ -255,7 +255,7 @@ if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
                         style="height: 100px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc;">
                         <span class="text-xs"><i class="bi bi-pen mr-1"></i>Belum ada TTD</span>
                     </div>
-                    <img src="{{ !empty($guru->ttd) ? esc(url(ltrim($guru->ttd, '/')), 'attr') : '' }}" alt="TTD"
+                    <img src="{!! !empty($guru->ttd) ? e(url(ltrim($guru->ttd, '/'))) : '' !!}" alt="TTD"
                         id="img-ttd-preview"
                         class="max-w-full h-auto mx-auto {{ empty($guru->ttd) ? 'hidden' : 'block' }}"
                         style="max-height: 100px;">

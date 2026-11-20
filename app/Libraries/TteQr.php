@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Log;
  * QR berisi identitas dokumen + penandatangan + kode verifikasi
  * deterministik (cetakan ulang menghasilkan kode yang sama).
  *
- * Port dari CodeIgniter 4 ke Laravel 13 (log_message() -> Log facade).
  * Memakai paket endroid/qr-code yang sudah terpasang.
  */
 class TteQr

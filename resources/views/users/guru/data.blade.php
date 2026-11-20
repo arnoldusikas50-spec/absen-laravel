@@ -63,7 +63,7 @@
             let username = $(this).data("username");
             let nama = $(this).data("nama");
             $.ajax({
-                url: base_url + "userguru/reset_login",
+                url: appUrl + "userguru/reset_login",
                 type: "POST", // Changed to POST as controller expects POST
                 data: { username: username, nama: nama },
                 success: function (response) {
@@ -114,7 +114,7 @@
                     let formActivate = new FormData($('#up')[0])
                     formActivate.append('is_active', action)
                     // Updated to match controller method name if different, usually plural
-                    await ajaxPost(base_url + "userguru/aktifkan_all", formActivate, function (error, response) {
+                    await ajaxPost(appUrl + "userguru/aktifkan_all", formActivate, function (error, response) {
                         $('#loading').addClass('hidden');
                         if (error) {
                             console.log('error', error.message);
@@ -135,7 +135,7 @@
 
     async function updateUser() {
         let formActivate = new FormData($('#up')[0])
-        await ajaxPost(base_url + "userguru/update_iduser", formActivate, function (error, response) {
+        await ajaxPost(appUrl + "userguru/update_iduser", formActivate, function (error, response) {
             if (error) {
                 console.log('error', error.message);
             } else {
@@ -155,7 +155,7 @@
 
     function getDataGuru() {
         $('#loading').removeClass('hidden');
-        ajaxGet(base_url + 'userguru/data', function (error, response) {
+        ajaxGet(appUrl + 'userguru/data', function (error, response) {
             if (error) {
                 console.log('error', error.message);
             } else {
@@ -291,7 +291,7 @@
         if (id) formActivate.append('id', id)
         formActivate.append('id_guru', id_guru)
         formActivate.append('nama', nama_guru)
-        ajaxPost(base_url + 'userguru/activate', formActivate, function (error, response) {
+        ajaxPost(appUrl + 'userguru/activate', formActivate, function (error, response) {
             $('#loading').addClass('hidden');
             if (error) {
                 Swal.fire({

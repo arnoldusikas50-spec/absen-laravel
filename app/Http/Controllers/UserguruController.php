@@ -8,6 +8,7 @@ use App\Models\MasterModel;
 use App\Models\UsersModel;
 use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -195,7 +196,7 @@ class UserguruController extends BaseController
 
             $user = [
                 'username' => $username,
-                'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
+                'password' => Hash::make($plainPassword),
                 'first_name' => $first_name,
                 'last_name' => $last_name,
                 'email' => $username.'@guru.sekolah', // Mock email
@@ -247,7 +248,6 @@ class UserguruController extends BaseController
     /**
      * Reset password guru ke default "123456" (khusus admin).
      * Hanya hash di tabel users yang ditulis; kolom master_guru.password
-     * adalah sisa CI4 dan tidak lagi dibaca maupun ditulis.
      *
      * Nilai default tidak disertakan di respons: pesannya muncul di layar admin
      * dan bisa terbaca orang lain.
@@ -274,7 +274,6 @@ class UserguruController extends BaseController
         // plaintext ke master_guru membuat sandi ikut bocor lewat backup/CSV.
         //
         // PENTING: DB::beginTransaction() di Laravel mengembalikan void (bukan
-        // bool seperti CI4), sehingga pola "$dibuka = DB::beginTransaction()"
         // + "if ($dibuka) { DB::commit(); }" membuat commit/rollback TIDAK
         // pernah jalan -> transaksi dibiarkan terbuka dan MySQL melakukan
         // implicit rollback di akhir request (data hilang senyap walau respons
@@ -282,7 +281,7 @@ class UserguruController extends BaseController
         try {
             DB::transaction(function () use ($db, $account, $default) {
                 $db->table('users')->where('id', (int) $account->id)->update([
-                    'password' => password_hash($default, PASSWORD_BCRYPT),
+                    'password' => Hash::make($default),
                 ]);
             });
         } catch (\Throwable $e) {
@@ -346,7 +345,7 @@ class UserguruController extends BaseController
 
                         $user = [
                             'username' => $username,
-                            'password' => password_hash('123456', PASSWORD_BCRYPT),
+                            'password' => Hash::make('123456'),
                             'first_name' => $firstName,
                             'last_name' => $lastName,
                             'email' => $username.'@guru.sekolah',
@@ -465,7 +464,6 @@ class UserguruController extends BaseController
         // Standard in this app seems to be mixed.
         // But let's look at `activate`: it takes `id_guru`.
 
-        // Actually, looking at `users/guru/edit.php` (CI3), line 36: `form_open(..., array('id' => $guru->id)`
         // If $guru object comes from `getDetailGuru`, check `UsersModel`.
         // `getUserGuru` joins users. `id` usually refers to `users.id` (user account id).
         // `id_guru` is master id.
@@ -510,7 +508,7 @@ class UserguruController extends BaseController
             if (strlen((string) $new) < 6) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password baru minimal 6 karakter']);
             }
-            if (! password_verify((string) $old, (string) $account->password)) {
+            if (! Hash::check((string) $old, (string) $account->password)) {
                 return $this->response->setJSON(['status' => false, 'msg' => 'Password lama salah']);
             }
         }
@@ -525,8 +523,8 @@ class UserguruController extends BaseController
             $renamed = (bool) ($hasilRename['changed'] ?? false);
             if ($renamed) {
                 // Sinkronkan sesi bila yang diubah adalah akun sendiri
-                if ((int) session()->get('user_id') === (int) $account->id) {
-                    session()->set('username', $username);
+                if ((int) auth()->id() === (int) $account->id) {
+                    session()->put('username', $username);
                 }
                 $currentUsername = $username;
             }

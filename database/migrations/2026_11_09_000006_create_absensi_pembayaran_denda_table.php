@@ -5,16 +5,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari migrasi CodeIgniter 4 — tabel `absensi_pembayaran_denda`.
- * Skema konsolidasi (hasil akhir) dari migrasi-migrasi CI4 berikut:
  *  - RUNTIME:PresensiAdmin.php#pembayaran_denda
  *  - 20260615000001_AddNominalToRewards.php
  *  - 20261009000001_AddUniquePembayaranVoucher.php
  *  - 20261009000002_AddUniquePembayaranIdempotency.php
  *
- * Catatan: kolom dibuat dengan tipe MySQL yang sama seperti CI4
  * (INT/VARCHAR/TEXT/DATETIME/DATE/DECIMAL/TINYINT(1)/ENUM/JSON).
- * Tidak ada foreign key di migrasi CI4, jadi tidak ada FK di sini.
  */
 return new class extends Migration
 {

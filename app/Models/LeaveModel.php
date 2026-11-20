@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/LeaveModel.php
  * Tabel: absensi_izin
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class LeaveModel extends Model
 {
@@ -74,13 +71,9 @@ class LeaveModel extends Model
     /**
      * Semua pengajuan pending (status = 'pending') beserta info guru.
      */
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getPending(): array
     {
-        // NOTE: CI4 memakai konstanta telanjang STATUS_PENDING di sini
         // (tanpa self::) yang di PHP 8 melempar Error karena konstanta
-        // global itu tidak ada; di-port memakai self::STATUS_PENDING
         // sesuai maksud aslinya.
         return DB::table('absensi_izin as a')
             ->select('a.*', 'mg.nama_guru', 'mg.nip', 'u.username', 'u.foto')
@@ -95,8 +88,6 @@ class LeaveModel extends Model
      * Semua pengajuan dengan join lengkap (termasuk verifikator).
      * Filter opsional: bulan, tahun, status, jenis.
      */
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getAll(
         string|int $bulan = '',
         string|int $tahun = '',
@@ -142,8 +133,6 @@ class LeaveModel extends Model
     /**
      * Satu record dengan join guru + verifikator.
      */
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getWithGuru(int $id): ?object
     {
         return DB::table('absensi_izin as i')

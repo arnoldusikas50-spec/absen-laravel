@@ -10,10 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PoinSiswaModel.php
  * Tabel: poin_siswa_history
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  *
  * Modul Poin Kedisiplinan Siswa
  * Skor = SKOR_AWAL (100) + SUM(poin_siswa_history.poin)
@@ -51,9 +48,7 @@ class PoinSiswaModel extends Model
 
     /**
      * Buat tabel + kolom cache bila belum ada (pola runtime-ensure,
-     * karena spark migrate tidak selalu dijalankan di server).
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function ensureTables(): void
     {
         if (! Schema::hasTable('disiplin_kategori')) {
@@ -132,7 +127,6 @@ class PoinSiswaModel extends Model
      * dua pencatatan paralel sama-sama melihat skor 5 dan keduanya lolos
      * sehingga skor final jadi negatif.
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     private function kunciSiswa(object $db, int $idSiswa): void
     {
         try {
@@ -148,7 +142,6 @@ class PoinSiswaModel extends Model
     /**
      * Rombel aktif siswa pada periode berjalan (bukan nilai kiriman klien).
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function kelasAktifSiswa(int $idSiswa): ?int
     {
         if ($idSiswa <= 0) {
@@ -181,7 +174,6 @@ class PoinSiswaModel extends Model
      * Tidak menulis apa pun bila skor terkini tidak terbaca — menulis 100
      * hasil fallback justru menghapus jejak poin siswa di kolom cache.
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function updateCache(int $idSiswa): ?int
     {
         $skor = $this->getSkor($idSiswa);
@@ -231,7 +223,6 @@ class PoinSiswaModel extends Model
      * kolom non-agregat di SELECT gugur di ONLY_FULL_GROUP_BY — model
      * menelan error itu dan halaman hanya menampilkan daftar kosong.
      */
-    // TODO: tabel master_siswa, kelas_siswa, master_kelas, buku_induk belum ada migrasinya
     public function getLeaderboard(?int $idKelas = null, int $limit = 200): array
     {
         try {
@@ -426,7 +417,6 @@ class PoinSiswaModel extends Model
     /**
      * Catat poin manual — HANYA dari master kategori aktif (master saja).
      */
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa belum ada migrasinya
     public function recordManual(int $idSiswa, int $kategoriId, string $keterangan, ?int $createdBy = null): array
     {
         $keterangan = trim($keterangan);

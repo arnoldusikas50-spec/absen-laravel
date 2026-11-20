@@ -201,7 +201,7 @@ $(document).ready(function () {
                 return;
             }
             var form = new FormData($('#set-foto')[0]);
-            uploadAttach(base_url + 'useradmin/uploadfile/' + idUser, form);
+            uploadAttach(appUrl + 'useradmin/uploadfile/' + idUser, form);
         }
     });
 
@@ -239,7 +239,7 @@ $(document).ready(function () {
         $.ajax({
             data: form,
             type: "POST",
-            url: base_url + "useradmin/deletefile",
+            url: appUrl + "useradmin/deletefile",
             processData: false,
             contentType: false,
             cache: false,
@@ -290,7 +290,7 @@ $(document).ready(function () {
                     }).then(result => {
                         if (result.isConfirmed || result.value) {
                             if (idUser === curUser) {
-                                window.location.href = base_url + 'auth/logout';
+                                window.location.href = appUrl + 'auth/logout';
                             } else {
                                 window.location.reload();
                             }

@@ -7,12 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/DashboardModel.php
  * Tabel: setting
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (setting).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class DashboardModel extends Model
 {
@@ -27,7 +23,6 @@ class DashboardModel extends Model
      * Get application settings
      * Adds compatibility aliases for property names used in different views
      */
-    // TODO: tabel setting belum ada migrasinya
     public function getSetting(): ?object
     {
         try {
@@ -41,7 +36,6 @@ class DashboardModel extends Model
 
         if ($setting) {
             // Add aliases for compatibility with views
-            // CI3 uses 'sekolah', but some CI4 views use 'nama_sekolah'
             if (isset($setting->sekolah) && ! isset($setting->nama_sekolah)) {
                 $setting->nama_sekolah = $setting->sekolah;
             }
@@ -58,7 +52,6 @@ class DashboardModel extends Model
 
     /**
      * Alias getSetting() dengan nama helper BaseController::getSettingRow().
-     * NOTE: bukan method CI4; 4 call site Laravel memanggil getSettingRow()
      * langsung pada instance DashboardModel (Api/TelegramBotController,
      * Api/WhatsappWebhookController, Backend/AuthController,
      * Guru/AttendanceController), jadi alias ini diperlukan agar
@@ -72,7 +65,6 @@ class DashboardModel extends Model
     /**
      * Get active tahun pelajaran
      */
-    // TODO: tabel master_tp belum ada migrasinya
     public function getTahunActive(): ?object
     {
         return DB::table('master_tp')
@@ -83,7 +75,6 @@ class DashboardModel extends Model
     /**
      * Get active semester
      */
-    // TODO: tabel master_smt belum ada migrasinya
     public function getSemesterActive(): ?object
     {
         return DB::table('master_smt')
@@ -94,7 +85,6 @@ class DashboardModel extends Model
     /**
      * Get all tahun pelajaran
      */
-    // TODO: tabel master_tp belum ada migrasinya
     public function getTahun(): array
     {
         return DB::table('master_tp')
@@ -106,7 +96,6 @@ class DashboardModel extends Model
     /**
      * Get all semesters
      */
-    // TODO: tabel master_smt belum ada migrasinya
     public function getSemester(): array
     {
         return DB::table('master_smt')
@@ -134,7 +123,6 @@ class DashboardModel extends Model
     /**
      * Get total siswa per page
      */
-    // TODO: tabel kelas_siswa, buku_induk belum ada migrasinya
     public function getTotalSiswa(int $tp, int $smt): int
     {
         return DB::table('kelas_siswa as a')
@@ -148,7 +136,6 @@ class DashboardModel extends Model
     /**
      * Get total wali kelas (teachers assigned to classes)
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function totalWaliKelas(int $tp, int $smt): int
     {
         try {
@@ -175,7 +162,6 @@ class DashboardModel extends Model
     /**
      * Get data siswa by username
      */
-    // TODO: tabel master_siswa, kelas_siswa, master_kelas belum ada migrasinya
     public function getDataSiswa(string $username, int $tp, int $smt): ?object
     {
         return DB::table('master_siswa as a')
@@ -191,7 +177,6 @@ class DashboardModel extends Model
     /**
      * Get data guru by user ID
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function getDataGuruByUserId(int $userId, int $tp, int $smt): ?object
     {
         return DB::table('master_guru as a')
@@ -203,7 +188,6 @@ class DashboardModel extends Model
     /**
      * Get data guru by username including wali_kelas info
      */
-    // TODO: tabel master_guru, jabatan_guru, master_kelas, level_kelas belum ada migrasinya
     public function getDataGuruByUsername(string $username, int $tp, int $smt): ?object
     {
         return DB::table('master_guru as a')
@@ -226,7 +210,6 @@ class DashboardModel extends Model
     /**
      * Get data guru by ID including wali_kelas info
      */
-    // TODO: tabel master_guru, jabatan_guru, master_kelas, level_kelas belum ada migrasinya
     public function getDataGuruById(int $id_guru, int $tp, int $smt): ?object
     {
         return DB::table('master_guru as a')
@@ -249,7 +232,6 @@ class DashboardModel extends Model
     /**
      * Get running text/announcements
      */
-    // TODO: tabel running_text belum ada migrasinya
     public function getRunningText(): array
     {
         // Check if running_text table exists
@@ -270,7 +252,6 @@ class DashboardModel extends Model
     public function updateData(string $table, $data, string $pk, $id = null, bool $batch = false): bool
     {
         if ($batch) {
-            // Laravel tidak punya padanan updateBatch() CI4; tiap baris
             // di-update satu per satu berdasarkan kunci primernya.
             foreach ($data as $row) {
                 DB::table($table)->where($pk, $row[$pk] ?? null)->update($row);
@@ -279,9 +260,7 @@ class DashboardModel extends Model
             return true;
         }
 
-        // CI4 update() mengembalikan bool sukses; Laravel mengembalikan
         // jumlah baris — query yang berjalan tanpa exception dianggap
-        // sukses seperti CI4.
         DB::table($table)->where($pk, $id)->update($data);
 
         return true;
@@ -292,9 +271,7 @@ class DashboardModel extends Model
      */
     public function hapus(string $table, $ids, string $pk): bool
     {
-        // CI4 delete() mengembalikan bool sukses; Laravel mengembalikan
         // jumlah baris — query yang berjalan tanpa exception dianggap
-        // sukses seperti CI4.
         if (is_array($ids)) {
             DB::table($table)->whereIn($pk, $ids)->delete();
         } else {
@@ -307,7 +284,6 @@ class DashboardModel extends Model
     /**
      * Get Data Tahun for Datatable
      */
-    // TODO: tabel master_tp belum ada migrasinya
     public function getDataTahun(): array
     {
         return DB::table('master_tp')
@@ -316,7 +292,6 @@ class DashboardModel extends Model
             ->all();
     }
 
-    // TODO: tabel master_tp belum ada migrasinya
     public function getTahunByTahun($tahun)
     {
         return DB::table('master_tp')
@@ -324,7 +299,6 @@ class DashboardModel extends Model
             ->first();
     }
 
-    // TODO: tabel master_tp belum ada migrasinya (melalui getTahunByTahun)
     public function getTpBefore($tahun)
     {
         $thns = explode('/', $tahun ?? '');
@@ -339,7 +313,6 @@ class DashboardModel extends Model
     /**
      * Get setting rapor
      */
-    // TODO: tabel setting_rapor belum ada migrasinya
     public function getSettingRapor()
     {
         if (! Schema::hasTable('setting_rapor')) {

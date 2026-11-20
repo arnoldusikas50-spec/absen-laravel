@@ -90,11 +90,11 @@
                 <?php if ($vStatus === 'APPROVED'): ?>
                     Isi jurnal ini sudah divalidasi oleh guru piket / kepala sekolah{{ $vPada !== '' ? ' pada ' . date('d/m/Y H:i', strtotime($vPada)) : '' }}.
                 <?php elseif ($vStatus === 'REJECTED'): ?>
-                    Perlu perbaikan{{ $vCatatan !== '' ? ': ' . esc($vCatatan) : ' menurut validasi guru piket / kepala sekolah.' }}
+                    Perlu perbaikan{!! $vCatatan !== '' ? ': ' . e($vCatatan) : ' menurut validasi guru piket / kepala sekolah.' !!}
                     Sunting jurnal ini — setelah tersimpan, isinya kembali masuk antrean validasi.{{ $vPada !== '' ? ' (dinilai ' . date('d/m/Y H:i', strtotime($vPada)) . ')' : '' }}
                 <?php else: ?>
                     Menunggu validasi guru piket / kepala sekolah.
-                    {{ $vCatatan !== '' ? ' Catatan validator sebelumnya: ' . esc($vCatatan) : '' }}
+                    {!! $vCatatan !== '' ? ' Catatan validator sebelumnya: ' . e($vCatatan) : '' !!}
                 <?php endif; ?>
             </span>
         </div>

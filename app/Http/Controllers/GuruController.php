@@ -7,13 +7,13 @@ use App\Models\DashboardModel;
 use App\Models\LogModel;
 use App\Models\MasterModel;
 use Illuminate\Support\Facades\DB; // Added for Data Manipulation
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 // For Logging
 
 /**
- * Guru Controller - Migrated from CI3
  * Teacher profile and functions
  */
 class GuruController extends BaseController
@@ -71,7 +71,6 @@ class GuruController extends BaseController
             'id_active' => $guru->id_guru, // For view compatibility
         ];
 
-        // Prepare Inputs like CI3 / Dataguru::edit
         $data['input_profile'] = [
             (object) ['label' => 'Nama Lengkap', 'name' => 'nama_guru', 'value' => $guru->nama_guru, 'icon' => 'bi bi-person', 'type' => 'text'],
             (object) ['label' => 'Email', 'name' => 'email', 'value' => $guru->email, 'icon' => 'bi bi-envelope', 'type' => 'text'],
@@ -264,12 +263,12 @@ class GuruController extends BaseController
         $newPass = (string) $this->request->input('new');
 
         $rules = [
-            'username' => 'required|min_length[3]|max_length[50]|regex_match[/^[A-Za-z0-9_.\-]+$/]|is_unique[users.username,id,'.(int) $user->id.']',
+            'username' => 'required|string|min:3|max:50|regex:/^[A-Za-z0-9_.\-]+$/|unique:users,username,'.(int) $user->id.',id',
         ];
 
         if ($newPass !== '') {
-            $rules['new'] = 'required|min_length[6]|max_length[72]';
-            $rules['new_confirm'] = 'required|matches[new]';
+            $rules['new'] = 'required|string|min:6|max:72';
+            $rules['new_confirm'] = 'required|same:new';
         }
 
         if (! $this->validate($rules)) {
@@ -295,15 +294,15 @@ class GuruController extends BaseController
 
         if ($newPass !== '') {
             // Wajib verifikasi password lama; tulis ke kolom `password` (bcrypt)
-            // agar konsisten dengan Auth::login() yang memakai password_verify().
+            // agar konsisten dengan Auth::login() yang memakai Hash::check().
             $row = $db->table('users')->where('id', $user->id)->first();
-            if (! $row || ! password_verify($oldPass, (string) ($row->password ?? ''))) {
+            if (! $row || ! Hash::check($oldPass, (string) ($row->password ?? ''))) {
                 return $this->response->setJSON(['status' => false, 'message' => 'Password lama salah — password belum diubah.']);
             }
 
             try {
                 $db->table('users')->where('id', $user->id)->update([
-                    'password' => password_hash($newPass, PASSWORD_BCRYPT),
+                    'password' => Hash::make($newPass),
                 ]);
             } catch (\Throwable $e) {
                 Log::error('[Guru::updateLogin] update users.password gagal: '.$e->getMessage());
@@ -344,7 +343,7 @@ class GuruController extends BaseController
         $validationRule = [
             'foto' => [
                 'label' => 'Image File',
-                'rules' => 'uploaded[foto]|is_image[foto]|mime_in[foto,image/jpg,image/jpeg,image/gif,image/png]|max_size[foto,2048]',
+                'rules' => 'required|file|image|mimetypes:image/jpeg,image/gif,image/png|max:2048',
             ],
         ];
 

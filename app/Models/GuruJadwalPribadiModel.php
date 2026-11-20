@@ -8,10 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/GuruJadwalPribadiModel.php
  * Tabel: guru_jadwal_pribadi
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class GuruJadwalPribadiModel extends Model
 {
@@ -31,7 +28,6 @@ class GuruJadwalPribadiModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel guru_jadwal_pribadi belum ada migrasinya
     public function initialize()
     {
         if (Schema::hasTable($this->getTable())) {
@@ -56,9 +52,6 @@ class GuruJadwalPribadiModel extends Model
         });
     }
 
-    // TODO: tabel guru_jadwal_pribadi belum ada migrasinya
-    // TODO: tabel master_mapel belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getByGuru(int $idGuru, int $idTp, int $idSmt): array
     {
         return DB::table($this->getTable().' as j')
@@ -75,9 +68,6 @@ class GuruJadwalPribadiModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel guru_jadwal_pribadi belum ada migrasinya
-    // TODO: tabel master_mapel belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getByGuruAndHari(int $idGuru, int $idTp, int $idSmt, int $hari): array
     {
         return DB::table($this->getTable().' as j')
@@ -94,7 +84,6 @@ class GuruJadwalPribadiModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel guru_jadwal_pribadi belum ada migrasinya
     public function findConflictsForGuru(int $idGuru, int $idTp, int $idSmt, int $hari, string $mulai, string $selesai, ?int $excludeId = null): array
     {
         $builder = DB::table($this->getTable())
@@ -112,7 +101,6 @@ class GuruJadwalPribadiModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel guru_jadwal_pribadi belum ada migrasinya
     public function findConflictsForKelas(int $idKelas, int $idTp, int $idSmt, int $hari, string $mulai, string $selesai, ?int $excludeId = null): array
     {
         $builder = DB::table($this->getTable())

@@ -9,28 +9,22 @@ $avatar        = ($userFoto !== '' && strpos($userFoto, '..') === false && file_
     : $defaultAvatar;
 $first         = trim((string) ($user->first_name ?? ''));
 $last          = trim((string) ($user->last_name ?? ''));
-// Prioritas nama tampil: username sesi saat login (yang user ketik untuk login)
-// > nama sesi > data DB. Ini mencegah nama guru/admin lain muncul bila data
-// first_name/last_name di tabel users tidak sinkron.
-$sessionUser   = trim((string) (session('username') ?? ''));
-$sessionNama   = trim((string) (session('nama') ?? ''));
-if (!empty($sessionUser)) {
+// Prioritas nama tampil: username yang dipakai login > nama dari data user.
+$authUser      = auth()->user();
+$sessionUser   = trim((string) ($authUser?->username ?? ''));
+$namaUser      = trim((string) ($authUser?->nama ?? ''));
+if ($sessionUser !== '') {
     $userName = $sessionUser;
-} elseif (!empty($sessionNama)) {
-    $userName = $sessionNama;
-} elseif (!empty($first) && strpos($first, ' ') !== false) {
-    // first_name sudah berisi spasi → pakai username sesi agar tidak muncul nama lain/asing.
-    $userName = !empty($sessionUser) ? $sessionUser : $first;
+} elseif ($namaUser !== '') {
+    $userName = $namaUser;
 } elseif (!empty($user->nama_lengkap)) {
     $userName = $user->nama_lengkap;
 } elseif (!empty($first) || !empty($last)) {
     $userName = trim($first.' '.$last);
-} elseif (!empty($user->username)) {
-    $userName = $user->username;
 } else {
     $userName = 'User';
 }
-$userRoleName  = session('role_name') ?? 'Admin';
+$userRoleName  = $authUser?->role_name ?? 'Admin';
 $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, ' ') ? mb_strtoupper(mb_substr($userName, strpos($userName, ' ') + 1, 1)) : '');
 ?>
 

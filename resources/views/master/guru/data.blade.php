@@ -153,7 +153,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                                     title="{{ $guru->nama_guru }}">{{ $guru->nama_guru }}</div>
                                                 <div class="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
                                                     <i class="bi bi-person-vcard"></i>
-                                                    <span>{{ !empty($guru->kode_guru) ? 'Kode: ' . esc($guru->kode_guru) : 'Kode belum diisi' }}</span>
+                                                    <span>{!! !empty($guru->kode_guru) ? 'Kode: ' . e($guru->kode_guru) : 'Kode belum diisi' !!}</span>
                                                     <?php if ($jk !== ''): ?>
                                                         <span class="text-slate-300">•</span>
                                                         <span>{{ $jk }}</span>

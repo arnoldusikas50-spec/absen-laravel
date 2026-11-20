@@ -200,7 +200,7 @@
                         </td>
                         <td class="text-center px-4 py-2 text-slate-500">{{ (int) $r->percobaan }}</td>
                         <td class="px-4 py-2 text-slate-500">
-                            {{ $r->catatan ? esc(mb_strimwidth((string) $r->catatan, 0, 70, '…')) : '—' }}
+                            {!! $r->catatan ? e(mb_strimwidth((string) $r->catatan, 0, 70, '…')) : '—' !!}
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -245,7 +245,7 @@
                         <td class="px-4 py-2 font-mono text-slate-500">{{ $r->tgl }}</td>
                         <td class="px-4 py-2 text-slate-700">{{ $r->nama_guru }}</td>
                         <td class="px-4 py-2 text-slate-500">
-                            {{ $r->catatan ? esc($r->catatan) : 'DM tidak diterima gateway' }}
+                            {!! $r->catatan ? e($r->catatan) : 'DM tidak diterima gateway' !!}
                         </td>
                     </tr>
                     <?php endforeach; ?>

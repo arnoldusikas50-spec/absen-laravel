@@ -160,7 +160,6 @@
 
     <!-- Stats Row -->
     <?php 
-        // $teachers adalah Collection Eloquent/Query Builder, bukan array CI4:
         // array_column() tidak menerimanya, gunakan API Collection.
         $avg_point = collect($teachers)->avg('poin_tahunan') ?? 0;
         $top_teacher = collect($teachers)->first();
@@ -190,7 +189,7 @@
                         </div>
                         <div class="overflow-hidden">
                             <h6 class="text-slate-400 text-sm mb-1">Peringkat 1</h6>
-                            <h5 class="font-bold mb-0 truncate">{{ $top_teacher ? esc($top_teacher->nama_guru) : '-' }}</h5>
+                            <h5 class="font-bold mb-0 truncate">{!! $top_teacher ? e($top_teacher->nama_guru) : '-' !!}</h5>
                         </div>
                     </div>
                 </div>

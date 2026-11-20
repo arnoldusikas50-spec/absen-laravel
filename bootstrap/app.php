@@ -18,7 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
         ]);
-        // Port AuthFilter CI4: pulihkan remember-me + revalidasi role tiap 60 detik.
         $middleware->web(append: [
             RestoreRememberLogin::class,
         ]);

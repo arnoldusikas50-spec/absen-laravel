@@ -277,11 +277,11 @@ $(document).ready(function() {
             return null;
         }
         if (/^https?:\/\//i.test(f)) return f;
-        if (f.startsWith('/')) return base_url + f.replace(/^\//, '');
-        if (f.startsWith('uploads/')) return base_url + f;
+        if (f.startsWith('/')) return appUrl + f.replace(/^\//, '');
+        if (f.startsWith('uploads/')) return appUrl + f;
         // Kolom foto kadang berisi NIS mentah tanpa ekstensi — anggap kosong agar tidak 404.
         if (!f.includes('.')) return null;
-        return base_url + 'uploads/foto_siswa/' + f;
+        return appUrl + 'uploads/foto_siswa/' + f;
     }
 
     function initialsOfM(nama) {
@@ -326,7 +326,7 @@ $(document).ready(function() {
         const payload = csrf();
         payload.id_kelas = idKelas;
         payload.tgl = tgl;
-        $.post(base_url + 'presensisiswa/getMonitoringHarian', payload, function (res) {
+        $.post(appUrl + 'presensisiswa/getMonitoringHarian', payload, function (res) {
             $('#mon-loading').hide();
 
             if (!res || !res.status) {
@@ -484,7 +484,7 @@ $(document).ready(function() {
             Swal.fire('Peringatan', 'Pilih kelas terlebih dahulu untuk mengunduh PDF.', 'warning');
             return;
         }
-        window.location.href = base_url + 'admin/presensi/siswa/harian/pdf?id_kelas='
+        window.location.href = appUrl + 'admin/presensi/siswa/harian/pdf?id_kelas='
             + encodeURIComponent(idKelas) + '&tgl=' + encodeURIComponent(tgl);
     });
     $('#mon-tgl').on('change', function() {

@@ -265,7 +265,7 @@ class KartuGuruController extends BaseController
     }
 
     /**
-     * ID guru milik user yang sedang login (query dulu, sesi sebagai cadangan).
+     * ID guru milik user yang sedang login.
      */
     private function currentGuruId(int $userId): int
     {
@@ -278,7 +278,7 @@ class KartuGuruController extends BaseController
         } catch (\Throwable $e) {
         }
 
-        return (int) (session()->get('id_guru') ?? 0);
+        return 0;
     }
 
     /**

@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PostModel.php
  * Tabel: post
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PostModel extends Model
 {
@@ -22,9 +19,6 @@ class PostModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel post belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel post_comments belum ada migrasinya
     public function getPostForUser($kepada, $kelas = null, $limit = null, $offset = null)
     {
         $builder = DB::table('post as a');
@@ -38,7 +32,6 @@ class PostModel extends Model
             $kepadaClean = trim($kepada, "'\"");
 
             // Build proper LIKE conditions for JSON array search.
-            // CI4 escapeLikeString() dipakai di sini; Laravel tidak punya
             // padanannya, jadi karakter LIKE (backslash, %, _) di-escape
             // manual dengan backslash (escape default MySQL).
             $escapeLike = static fn ($value) => str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $value);
@@ -63,7 +56,6 @@ class PostModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel post_comments belum ada migrasinya
     public function getIdComments($id_post)
     {
         $builder = DB::table('post_comments');
@@ -73,7 +65,6 @@ class PostModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel post_reply belum ada migrasinya
     public function getIdReplies($id_comment)
     {
         $builder = DB::table('post_reply');

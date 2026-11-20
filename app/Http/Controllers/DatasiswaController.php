@@ -8,11 +8,11 @@ use App\Models\KelasModel;
 use App\Models\LogModel;
 use App\Models\MasterModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Datasiswa Controller - Migrated from CI3
  * Comprehensive student management
  */
 class DatasiswaController extends BaseController
@@ -91,11 +91,11 @@ class DatasiswaController extends BaseController
             return 'Data tidak valid.';
         }
 
-        // is_unique = kandidat kuat "data sudah ada"; sisanya error input.
-        // Pesan default CI4 4.6: "The {field} field must contain a unique
-        // value." (bukan "already been taken" seperti versi lama).
+        // Pesan Laravel memakai "already been taken"; pesan CI4 lama memakai
+        // kata "unique". Keduanya ditangani agar teksnya tetap ramah pengguna.
         foreach (['nis' => 'NIS', 'nisn' => 'NISN', 'username' => 'Username'] as $field => $label) {
-            if (isset($errors[$field]) && str_contains(strtolower($errors[$field]), 'unique')) {
+            $msg = strtolower((string) ($errors[$field] ?? ''));
+            if (str_contains($msg, 'unique') || str_contains($msg, 'already been taken')) {
                 return "{$label} sudah dipakai siswa lain.";
             }
         }
@@ -166,9 +166,6 @@ class DatasiswaController extends BaseController
         return view('master.siswa.data', $data);
     }
 
-    /**
-     * Custom pagination list (Ported from CI3)
-     */
     public function list()
     {
         if (! $this->isLoggedIn()) {
@@ -290,19 +287,17 @@ class DatasiswaController extends BaseController
         $tanggalMasuk = self::normalisasiTanggalTerima($tanggalMasukRaw);
 
         $rules = [
-            'nama_siswa' => 'required|min_length[3]|max_length[100]',
-            'nis' => 'required|numeric|min_length[4]|max_length[20]|is_unique[master_siswa.nis]',
-            'nisn' => 'required|numeric|min_length[9]|max_length[20]|is_unique[master_siswa.nisn]',
-            'username' => 'required|min_length[4]|max_length[30]|alpha_dash|is_unique[master_siswa.username]|is_unique[users.username]',
-            'password' => 'required|min_length[6]|max_length[72]',
-            'jenis_kelamin' => 'permit_empty|in_list[L,P]',
+            'nama_siswa' => 'required|string|min:3|max:100',
+            'nis' => 'required|numeric|min_digits:4|max_digits:20|unique:master_siswa,nis',
+            'nisn' => 'required|numeric|min_digits:9|max_digits:20|unique:master_siswa,nisn',
+            'username' => 'required|string|min:4|max:30|alpha_dash|unique:master_siswa,username|unique:users,username',
+            'password' => 'required|string|min:6|max:72',
+            'jenis_kelamin' => 'nullable|in:L,P',
         ];
         // Tanggal diterima dicek terpisah, bukan lewat aturan string.
-        // Aturan `valid_date[Y-m-d]` akan menolak tahun-saja dan
-        // "5/10/2026" yang sengaja diterima normalisasiTanggalTerima(),
-        // sementara `max_length[10]` tidak menolak tanggal ngawur seperti
-        // "2026-13-45". Closure tidak didukung CI4 Rules, jadi pengecekan
-        // dilakukan eksplisit di sini.
+        // Aturan `date` akan menolak tahun-saja dan "5/10/2026" yang sengaja
+        // diterima normalisasiTanggalTerima(), sementara `max:10` tidak menolak
+        // tanggal ngawur seperti dilakukan eksplisit di sini.
         $errorTanggal = ($tanggalMasukRaw !== '' && $tanggalMasuk === null)
             ? 'Tanggal diterima tidak valid. Gunakan format YYYY-MM-DD.'
             : null;
@@ -370,7 +365,7 @@ class DatasiswaController extends BaseController
             // Register user
             $userData = [
                 'username' => $insert['username'],
-                'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
+                'password' => Hash::make($plainPassword),
                 'first_name' => $first_name,
                 'last_name' => $last_name,
                 'active' => 1,
@@ -551,15 +546,15 @@ class DatasiswaController extends BaseController
         if (! $siswa) {
             return $this->response->setJSON(['insert' => false, 'text' => 'Siswa tidak ditemukan']);
         }
-        $u_nis = $siswa->nis == $nis ? '' : '|is_unique[master_siswa.nis]';
-        $u_nisn = $siswa->nisn == $nisn ? '' : '|is_unique[master_siswa.nisn]';
+        $u_nis = $siswa->nis == $nis ? '' : '|unique:master_siswa,nis';
+        $u_nisn = $siswa->nisn == $nisn ? '' : '|unique:master_siswa,nisn';
 
         $rules = [
-            'nama' => 'required|min_length[3]|max_length[100]',
-            'nis' => 'required|numeric|min_length[4]|max_length[20]'.$u_nis,
-            'nisn' => 'required|numeric|min_length[9]|max_length[20]'.$u_nisn,
-            'tanggal_lahir' => 'permit_empty|valid_date[Y-m-d]',
-            'tahun_masuk' => 'permit_empty|max_length[10]',
+            'nama' => 'required|string|min:3|max:100',
+            'nis' => 'required|numeric|min_digits:4|max_digits:20'.$u_nis,
+            'nisn' => 'required|numeric|min_digits:9|max_digits:20'.$u_nisn,
+            'tanggal_lahir' => 'nullable|date',
+            'tahun_masuk' => 'nullable|max:10',
         ];
 
         if (! $this->validate($rules)) {
@@ -1074,7 +1069,7 @@ class DatasiswaController extends BaseController
                     $parts = preg_split('/\s+/', $src['nama'], -1, PREG_SPLIT_NO_EMPTY);
                     $usersBatch[] = [
                         'username' => $src['username'],
-                        'password' => password_hash($src['password'], PASSWORD_BCRYPT),
+                        'password' => Hash::make($src['password']),
                         'first_name' => $parts[0] ?? $src['nama'],
                         'last_name' => count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '',
                         'active' => 1,
@@ -1493,7 +1488,7 @@ class DatasiswaController extends BaseController
         $db = DB::connection();
         $db->table('users')
             ->where('username', $siswa->username)
-            ->update(['password' => password_hash($password, PASSWORD_BCRYPT)]);
+            ->update(['password' => Hash::make($password)]);
 
         return $this->response->setJSON([
             'status' => true,

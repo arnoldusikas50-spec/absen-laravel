@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB facade,
- * \Config\Services::cache() -> Cache facade, log_message -> Log).
- *
  * CbtService - Business Logic Layer for CBT
  *
  * Centralizes common CBT operations to avoid code duplication
@@ -56,13 +53,10 @@ class CbtService
         $checked = true;
 
         try {
-            $session = session();
-
-            // Use username from session directly (like Siswa.php and Kbm.php do)
-            $username = $session->get('username');
+            $username = auth()->user()?->username;
 
             if (! $username) {
-                Log::debug('CbtService: No username in session');
+                Log::debug('CbtService: No authenticated user');
 
                 return null;
             }

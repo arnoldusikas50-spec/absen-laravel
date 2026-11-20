@@ -455,7 +455,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    $.post(base_url + route, {
+                    $.post(appUrl + route, {
                         active: id,
                         [field]: JSON.stringify(raw),
                         [CSRF_NAME]: CSRF_HASH
@@ -503,7 +503,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
             let submitBtn = $('#submit-periode');
             submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Menyimpan...');
 
-            $.post(base_url + "datatahun/add", $(this).serialize(), function (res) {
+            $.post(appUrl + "datatahun/add", $(this).serialize(), function (res) {
                 if (res.status) {
                     location.reload();
                 } else {
@@ -541,7 +541,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
                         didOpen: () => { Swal.showLoading(); }
                     });
 
-                    $.post(base_url + route, { 
+                    $.post(appUrl + route, {
                         hapus: id, 
                         [CSRF_NAME]: CSRF_HASH 
                     }, function (res) {
@@ -561,7 +561,7 @@ $smtJsonData = json_encode(collect($smt)->map(function ($s) {
             let origHtml = btn.html();
             btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Menyimpan...');
 
-            $.post(base_url + "datatahun/saveHariEfektif", $(this).serialize(), function (res) {
+            $.post(appUrl + "datatahun/saveHariEfektif", $(this).serialize(), function (res) {
                 btn.prop('disabled', false).html(origHtml);
                 if (res.status) {
                     Swal.fire({

@@ -1,4 +1,4 @@
-﻿﻿@extends('layouts.main')
+﻿@extends('layouts.main')
 
 @section('styles')
 <style>
@@ -250,7 +250,7 @@
                                             data-date="{{ $h->tanggal }}" 
                                             data-year="{{ date('Y', $tglTime) }}" 
                                             data-month="{{ date('m', $tglTime) }}" 
-                                            data-desc="{{ strtolower(esc($h->keterangan)) }}">
+                                            data-desc="{!! strtolower(e($h->keterangan)) !!}">
                                             <td class="text-center text-slate-400 text-sm font-semibold row-num">{{ $i + 1 }}</td>
                                             <td>
                                                 <div class="flex items-center gap-2.5">

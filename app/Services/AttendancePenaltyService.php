@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
- *
  * Service untuk kalkulasi denda dan poin presensi secara terpusat.
  *
  * Memastikan konsistensi perhitungan antara:

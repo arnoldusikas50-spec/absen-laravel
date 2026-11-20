@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Schema;
  *   yang terjadi tepat saat guru menekan tombol.
  * - Secret TIDAK PERNAH dikirim ke klien; klien hanya menerima token kini.
  *
- * Port dari CodeIgniter 4 ke Laravel 13. findEvent() memakai DB facade;
  * parameter $db dipertahankan demi kompatibilitas pemanggil lama namun
  * tidak lagi dipakai.
  */

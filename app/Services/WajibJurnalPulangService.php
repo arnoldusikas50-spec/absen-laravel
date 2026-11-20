@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB facade, log_message -> Log).
  * Parameter $db dipertahankan demi kompatibilitas pemanggil lama namun tidak lagi dipakai.
  *
  * Gerbang "wajib isi jurnal mengajar sebelum absen pulang".

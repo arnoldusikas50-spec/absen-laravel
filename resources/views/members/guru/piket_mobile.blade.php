@@ -473,7 +473,7 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
             <?php foreach ($alphaTab['items'] as $sa):
                 $tglInfo = !empty($sa['tanggal']) ? 'Tidak hadir: ' . implode(', ', array_map(static fn($t) => date('d/m', strtotime($t)), (array) $sa['tanggal'])) : '';
             ?>
-            <div class="alpha-row flex items-center gap-3 px-3 py-2.5" {{ $tglInfo !== '' ? 'title="' . esc($tglInfo) . '"' : '' }}>
+            <div class="alpha-row flex items-center gap-3 px-3 py-2.5" {!! $tglInfo !== '' ? 'title="' . e($tglInfo) . '"' : '' !!}>
                 <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
                     {{ piketInitials($sa['nama'] ?? '?') }}
                 </div>
@@ -567,7 +567,7 @@ $jurnalList = array_slice($jurnal_terbaru ?? [], 0, 3);
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-slate-800 text-xs m-0 leading-snug truncate">{{ $p->nama_guru }}</p>
                     <p class="text-[10px] text-slate-400 m-0 mt-0.5 truncate">
-                        {{ !empty($p->keterangan) ? esc($p->keterangan) : 'Petugas Piket' }}
+                        {!! !empty($p->keterangan) ? e($p->keterangan) : 'Petugas Piket' !!}
                     </p>
                 </div>
             </div>

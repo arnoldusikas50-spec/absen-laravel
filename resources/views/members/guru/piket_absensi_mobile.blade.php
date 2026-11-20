@@ -197,7 +197,7 @@
         </a>
         <div class="min-w-0">
             <h1 class="text-base font-extrabold text-slate-800 m-0 leading-tight truncate">Absensi Siswa</h1>
-            <p class="text-[11px] font-semibold text-slate-500 m-0 leading-none truncate">{{ $kelasNama !== '' ? 'Kelas ' . esc($kelasNama) : 'Kehadiran Siswa per Kelas' }}</p>
+            <p class="text-[11px] font-semibold text-slate-500 m-0 leading-none truncate">{!! $kelasNama !== '' ? 'Kelas ' . e($kelasNama) : 'Kehadiran Siswa per Kelas' !!}</p>
         </div>
     </div>
     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100 flex-shrink-0">

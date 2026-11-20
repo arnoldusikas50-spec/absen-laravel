@@ -1186,13 +1186,13 @@ $todayJamKeluar = ($today && !empty($today->jam_keluar)) ? substr($today->jam_ke
                 <div class="s-today-time">
                     <div class="s-today-time-label">Masuk</div>
                     <div class="s-today-time-value">
-                        {{ ($today && !empty($today->jam_masuk)) ? esc(substr($today->jam_masuk, 0, 5)) : '--:--' }}
+                        {!! ($today && !empty($today->jam_masuk)) ? e(substr($today->jam_masuk, 0, 5)) : '--:--' !!}
                     </div>
                 </div>
                 <div class="s-today-time">
                     <div class="s-today-time-label">Keluar</div>
                     <div class="s-today-time-value">
-                        {{ ($today && !empty($today->jam_keluar)) ? esc(substr($today->jam_keluar, 0, 5)) : '--:--' }}
+                        {!! ($today && !empty($today->jam_keluar)) ? e(substr($today->jam_keluar, 0, 5)) : '--:--' !!}
                     </div>
                 </div>
             </div>

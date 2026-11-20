@@ -183,28 +183,28 @@ $linkedLabels = [
                     <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="bi bi-envelope"></i></span>
                     <div class="min-w-0">
                         <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</span>
-                        <span class="block text-slate-700 font-medium truncate">{{ !empty($guru->email) ? esc($guru->email) : 'Belum diisi' }}</span>
+                        <span class="block text-slate-700 font-medium truncate">{!! !empty($guru->email) ? e($guru->email) : 'Belum diisi' !!}</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-2.5 text-xs min-w-0">
                     <span class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0"><i class="bi bi-briefcase"></i></span>
                     <div class="min-w-0">
                         <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Jabatan</span>
-                        <span class="block text-slate-700 font-medium truncate">{{ !empty($jabatan_aktif->level) ? esc($jabatan_aktif->level) : 'Guru Mata Pelajaran' }}</span>
+                        <span class="block text-slate-700 font-medium truncate">{!! !empty($jabatan_aktif->level) ? e($jabatan_aktif->level) : 'Guru Mata Pelajaran' !!}</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-2.5 text-xs min-w-0">
                     <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="bi bi-person-vcard"></i></span>
                     <div class="min-w-0">
                         <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Status Pegawai</span>
-                        <span class="block text-slate-700 font-medium truncate">{{ !empty($guru->status_pegawai) ? esc($guru->status_pegawai) : 'Belum diisi' }}</span>
+                        <span class="block text-slate-700 font-medium truncate">{!! !empty($guru->status_pegawai) ? e($guru->status_pegawai) : 'Belum diisi' !!}</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-2.5 text-xs min-w-0">
                     <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i class="bi bi-calendar3"></i></span>
                     <div class="min-w-0">
                         <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">TMT</span>
-                        <span class="block text-slate-700 font-medium truncate">{{ $tmt !== '' ? esc($tmt) : 'Belum diisi' }}</span>
+                        <span class="block text-slate-700 font-medium truncate">{!! $tmt !== '' ? e($tmt) : 'Belum diisi' !!}</span>
                     </div>
                 </div>
             </div>
@@ -521,23 +521,23 @@ $linkedLabels = [
                 <div class="p-5 space-y-3">
                     <div class="flex items-start justify-between gap-3 text-xs">
                         <span class="text-slate-500">NIP</span>
-                        <span class="font-semibold text-slate-800 text-right font-mono">{{ !empty($guru->nip) ? esc($guru->nip) : '-' }}</span>
+                        <span class="font-semibold text-slate-800 text-right font-mono">{!! !empty($guru->nip) ? e($guru->nip) : '-' !!}</span>
                     </div>
                     <div class="flex items-start justify-between gap-3 text-xs">
                         <span class="text-slate-500">Kode Guru</span>
-                        <span class="font-semibold text-slate-800 text-right font-mono">{{ !empty($guru->kode_guru) ? esc($guru->kode_guru) : '-' }}</span>
+                        <span class="font-semibold text-slate-800 text-right font-mono">{!! !empty($guru->kode_guru) ? e($guru->kode_guru) : '-' !!}</span>
                     </div>
                     <div class="flex items-start justify-between gap-3 text-xs">
                         <span class="text-slate-500">Status Pegawai</span>
-                        <span class="font-semibold text-slate-800 text-right">{{ !empty($guru->status_pegawai) ? esc($guru->status_pegawai) : '-' }}</span>
+                        <span class="font-semibold text-slate-800 text-right">{!! !empty($guru->status_pegawai) ? e($guru->status_pegawai) : '-' !!}</span>
                     </div>
                     <div class="flex items-start justify-between gap-3 text-xs">
                         <span class="text-slate-500">TMT Pengangkatan</span>
-                        <span class="font-semibold text-slate-800 text-right">{{ $tmt !== '' ? esc($tmt) : '-' }}</span>
+                        <span class="font-semibold text-slate-800 text-right">{!! $tmt !== '' ? e($tmt) : '-' !!}</span>
                     </div>
                     <div class="flex items-start justify-between gap-3 text-xs">
                         <span class="text-slate-500">Jenis Kelamin</span>
-                        <span class="font-semibold text-slate-800 text-right">{{ $jenisKelamin !== '' ? esc($jenisKelamin) : '-' }}</span>
+                        <span class="font-semibold text-slate-800 text-right">{!! $jenisKelamin !== '' ? e($jenisKelamin) : '-' !!}</span>
                     </div>
                 </div>
             </div>
@@ -553,11 +553,11 @@ $linkedLabels = [
                     <div class="p-5 space-y-3">
                         <div class="flex items-start justify-between gap-3 text-xs">
                             <span class="text-slate-500">NIK</span>
-                            <span class="font-semibold text-slate-800 text-right font-mono">{{ !empty($guru->no_ktp) ? esc($guru->no_ktp) : '-' }}</span>
+                            <span class="font-semibold text-slate-800 text-right font-mono">{!! !empty($guru->no_ktp) ? e($guru->no_ktp) : '-' !!}</span>
                         </div>
                         <div class="flex items-start justify-between gap-3 text-xs">
                             <span class="text-slate-500">Agama</span>
-                            <span class="font-semibold text-slate-800 text-right">{{ !empty($guru->agama) ? esc($guru->agama) : '-' }}</span>
+                            <span class="font-semibold text-slate-800 text-right">{!! !empty($guru->agama) ? e($guru->agama) : '-' !!}</span>
                         </div>
                         <div class="flex items-start justify-between gap-3 text-xs">
                             <span class="text-slate-500">Tempat / Tgl. Lahir</span>
@@ -573,15 +573,15 @@ $linkedLabels = [
                         </div>
                         <div class="flex items-start justify-between gap-3 text-xs">
                             <span class="text-slate-500">No. HP</span>
-                            <span class="font-semibold text-slate-800 text-right">{{ !empty($guru->no_hp) ? esc($guru->no_hp) : '-' }}</span>
+                            <span class="font-semibold text-slate-800 text-right">{!! !empty($guru->no_hp) ? e($guru->no_hp) : '-' !!}</span>
                         </div>
                         <div class="flex items-start justify-between gap-3 text-xs">
                             <span class="text-slate-500">Telegram ID</span>
-                            <span class="font-semibold text-slate-800 text-right font-mono break-all">{{ !empty($guru->telegram_id) ? esc($guru->telegram_id) : '-' }}</span>
+                            <span class="font-semibold text-slate-800 text-right font-mono break-all">{!! !empty($guru->telegram_id) ? e($guru->telegram_id) : '-' !!}</span>
                         </div>
                         <div class="pt-3 border-t border-slate-100">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Alamat</p>
-                            <p class="text-xs text-slate-700 mb-1">{{ !empty($guru->alamat_jalan) ? esc($guru->alamat_jalan) : '<span class="text-slate-400 italic">Belum diisi</span>' }}</p>
+                            <p class="text-xs text-slate-700 mb-1">{!! !empty($guru->alamat_jalan) ? e($guru->alamat_jalan) : '<span class="text-slate-400 italic">Belum diisi</span>' !!}</p>
                             <?php
                             $wilayah = array_filter([
                                 trim((string) ($guru->kecamatan ?? '')),
@@ -593,7 +593,7 @@ $linkedLabels = [
                                 $wilayah[] = $kodePos;
                             }
                             ?>
-                            <p class="text-[11px] text-slate-500 mb-0">{{ $wilayah ? esc(implode(', ', $wilayah)) : 'Wilayah belum diisi' }}</p>
+                            <p class="text-[11px] text-slate-500 mb-0">{!! $wilayah ? e(implode(', ', $wilayah)) : 'Wilayah belum diisi' !!}</p>
                         </div>
                     </div>
                 </div>
@@ -616,11 +616,11 @@ $linkedLabels = [
                             </div>
                             <div class="flex items-start justify-between gap-3 text-xs">
                                 <span class="text-slate-500">Email akun</span>
-                                <span class="font-semibold text-slate-800 text-right break-all">{{ !empty($akun->email) ? esc($akun->email) : '-' }}</span>
+                                <span class="font-semibold text-slate-800 text-right break-all">{!! !empty($akun->email) ? e($akun->email) : '-' !!}</span>
                             </div>
                             <div class="flex items-start justify-between gap-3 text-xs">
                                 <span class="text-slate-500">Login terakhir</span>
-                                <span class="font-semibold text-slate-800 text-right">{{ $lastLogin !== '' ? esc($lastLogin) : 'Belum pernah' }}</span>
+                                <span class="font-semibold text-slate-800 text-right">{!! $lastLogin !== '' ? e($lastLogin) : 'Belum pernah' !!}</span>
                             </div>
                             <p class="text-[11px] text-slate-400 pt-2 border-t border-slate-100 mb-0">
                                 <i class="bi bi-info-circle mr-1"></i>Bila guru dihapus, akun non-admin akan dinonaktifkan (tidak dihapus) agar jejak data lain tetap utuh.

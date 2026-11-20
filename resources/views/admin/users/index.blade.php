@@ -158,8 +158,8 @@ $isSuperAdmin  = ($currentUserId == 1);
                     <tbody class="divide-y divide-slate-100" id="tblAdminBody">
                         <?php foreach ($admins as $idx => $adm): ?>
                         <tr class="admin-row hover:bg-blue-50/30 transition-colors"
-                            data-name="{{ strtolower(esc($adm->first_name . ' ' . $adm->last_name)) }}"
-                            data-username="{{ strtolower(esc($adm->username)) }}">
+                            data-name="{!! strtolower(e($adm->first_name . ' ' . $adm->last_name)) !!}"
+                            data-username="{!! strtolower(e($adm->username)) !!}">
                             <td class="px-5 py-3.5 text-slate-400 font-mono text-xs">{{ $idx + 1 }}</td>
                             <td class="px-5 py-3.5">
                                 <div class="flex items-center gap-2.5">
@@ -505,7 +505,7 @@ $isSuperAdmin  = ($currentUserId == 1);
 <script src="{{ asset('assets/app/js/ajax_request.js') }}"></script>
 <script>
 /* ════════════════════════════════════════════
-   GLOBALS — reuse dari layout (let CSRF_NAME, CSRF_HASH, base_url sudah ada)
+   GLOBALS — reuse dari layout (let CSRF_NAME, CSRF_HASH, appUrl sudah ada)
 ════════════════════════════════════════════ */
 // CSRF_NAME & CSRF_HASH sudah dideklarasikan di layouts/main.php sebagai `let`,
 // jadi kita hanya perlu fungsi helper di bawah ini tanpa redeklararsi.
@@ -514,7 +514,7 @@ function csrfBody(extra = {}) {
     return { ...extra, [CSRF_NAME]: CSRF_HASH };
 }
 function postJson(url, data) {
-    return fetch(base_url + url, {
+    return fetch(appUrl + url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ ...data, [CSRF_NAME]: CSRF_HASH })
@@ -525,7 +525,7 @@ function postJson(url, data) {
 }
 function postForm(url, formData) {
     formData.set(CSRF_NAME, CSRF_HASH);
-    return fetch(base_url + url, { method: 'POST', body: formData })
+    return fetch(appUrl + url, { method: 'POST', body: formData })
         .then(r => r.json())
         .then(res => { if (res[CSRF_NAME]) CSRF_HASH = res[CSRF_NAME]; return res; });
 }
@@ -573,7 +573,7 @@ function hapusAdmin(id, nama) {
         confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
     }).then(res => {
         if (!res.isConfirmed) return;
-        fetch(base_url + 'useradmin/delete/' + encodeURIComponent(id), {
+        fetch(appUrl + 'useradmin/delete/' + encodeURIComponent(id), {
             method: 'POST',
             body: new URLSearchParams({ [CSRF_NAME]: CSRF_HASH })
         }).then(r => r.json()).then(res => {
@@ -617,7 +617,7 @@ window._guruData   = [];
 
 function loadGuru() {
     document.getElementById('guruSubtitle').textContent = 'Memuat data...';
-    fetch(base_url + 'userguru/data')
+    fetch(appUrl + 'userguru/data')
         .then(r => r.json())
         .then(data => {
             window._guruData   = data;
@@ -640,7 +640,7 @@ function renderGuruTable(data) {
     }
     empty.classList.add('hidden');
 
-    const fallbackFoto = base_url + 'assets/img/siswa_sm.png';
+    const fallbackFoto = appUrl + 'assets/img/siswa_sm.png';
     let html = '';
     data.forEach((g, idx) => {
         const isActive = g.active == '1' || g.active === 1;
@@ -694,7 +694,7 @@ function renderGuruTable(data) {
                         title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">
                         <i class="bi bi-${isActive ? 'slash-circle' : 'person-check-fill'} text-xs"></i>
                     </button>
-                    <a href="${base_url}userguru/edit/${encodeURIComponent(g.id_guru)}"
+                    <a href="${appUrl}userguru/edit/${encodeURIComponent(g.id_guru)}"
                         class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 inline-flex items-center justify-center transition-colors"
                         title="Edit">
                         <i class="bi bi-pencil text-xs"></i>
@@ -852,7 +852,7 @@ function renderSiswaTable(data, perPage) {
     }
 
     const offset = (siswaPage - 1) * perPage;
-    const fallbackFoto = base_url + 'assets/img/siswa_sm.png';
+    const fallbackFoto = appUrl + 'assets/img/siswa_sm.png';
     let html = '';
     lists.forEach((s, i) => {
         const isActive  = s.active == '1' || s.active === 1;

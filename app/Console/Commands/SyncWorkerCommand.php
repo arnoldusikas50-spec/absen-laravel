@@ -6,8 +6,6 @@ use App\Libraries\SyncService;
 use Illuminate\Console\Command;
 
 /**
- * Porting CI4 App\Commands\SyncWorker (php spark sync:worker).
- *
  * Menjalankan worker sinkronisasi lokal-pusat secara kontinu atau sekali jalan.
  *
  *   php artisan sync:worker [--once] [--sleep=5]

@@ -458,13 +458,13 @@ $csrfHash  = csrf_token();
     <div class="mode-container mb-3.5">
         <button id="btn-mode-masuk" type="button" onclick="setMode('masuk')"
             class="mode-tab-btn {{ $defMode === 'masuk' ? 'active-masuk' : '' }}"
-            {{ $masukOpen ? '' : 'disabled title="' . esc($modeTab['masuk_msg'] ?? 'Di luar jadwal absen masuk') . '"' }}>
+            {!! $masukOpen ? '' : 'disabled title="' . e($modeTab['masuk_msg'] ?? 'Di luar jadwal absen masuk') . '"' !!}>
             <i class="bi bi-box-arrow-in-right text-base"></i>
             <span>Absen Masuk</span>
         </button>
         <button id="btn-mode-keluar" type="button" onclick="setMode('keluar')"
             class="mode-tab-btn {{ $defMode === 'keluar' ? 'active-keluar' : '' }}"
-            {{ $pulangOpen ? '' : 'disabled title="' . esc($modeTab['pulang_msg'] ?? 'Belum waktunya pulang') . '"' }}>
+            {!! $pulangOpen ? '' : 'disabled title="' . e($modeTab['pulang_msg'] ?? 'Belum waktunya pulang') . '"' !!}>
             <i class="bi bi-box-arrow-right text-base"></i>
             <span>Absen Pulang</span>
         </button>

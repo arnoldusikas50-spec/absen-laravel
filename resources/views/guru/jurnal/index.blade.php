@@ -237,7 +237,7 @@
                         <?php endif; ?>
                     </div>
                     <div class="text-[10px] font-semibold text-slate-500 truncate">
-                        {{ $slot->nama_kelas ?? 'Kelas' }}{{ $waktu !== '' ? ' Â· ' . esc($waktu) : '' }}
+                        {{ $slot->nama_kelas ?? 'Kelas' }}{!! $waktu !== '' ? ' Â· ' . e($waktu) : '' !!}
                     </div>
                     <?php if ($item['sudah'] || !empty($item['menunggu'])): ?>
                     <div class="text-[10px] font-medium text-slate-400 truncate flex items-center gap-1 mt-0.5">
@@ -454,7 +454,7 @@
                     <?php $vCatatan = trim((string) ($j->validasi_catatan ?? '')); ?>
                     <div class="text-[11px] text-orange-700 bg-orange-50/80 border border-orange-200 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5 font-semibold">
                         <i class="bi bi-exclamation-octagon-fill text-xs shrink-0 mt-0.5"></i>
-                        <span class="leading-snug">Perlu perbaikan dari validasi{{ $vCatatan !== '' ? ': ' . esc($vCatatan) : '. Silakan lengkapi isian jurnalnya.' }}</span>
+                        <span class="leading-snug">Perlu perbaikan dari validasi{!! $vCatatan !== '' ? ': ' . e($vCatatan) : '. Silakan lengkapi isian jurnalnya.' !!}</span>
                     </div>
                 <?php elseif ($vStatus === 'APPROVED'): ?>
                     <?php $vPada = trim((string) ($j->validasi_pada ?? '')); ?>

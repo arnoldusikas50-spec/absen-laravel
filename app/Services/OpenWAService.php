@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (Services::curlrequest -> Http facade,
  * Services::cache -> Cache facade, log_message -> Log). Nilai konfigurasi
  * kosong di DB dilengkapi dari config/notifications.php (env).
  *

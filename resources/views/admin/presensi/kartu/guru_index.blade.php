@@ -754,7 +754,7 @@
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
                 <i class="bi bi-printer-fill"></i> Cetak Kartu
             </a>
-            <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (session('user_id') ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) session('user_id')) : '')) }}"
+            <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
                 <i class="bi bi-camera-fill"></i> Buka Scanner QR
             </a>
@@ -852,7 +852,7 @@
                     <option value="0">-- Semua Guru / GTK ({{ count($guru_options) }} Guru) --</option>
                     <?php foreach ($guru_options as $go): ?>
                         <option value="{{ $go->id_guru }}" {{ ($id_guru == $go->id_guru) ? 'selected' : '' }}>
-                            {{ $go->nama_guru }} ({{ !empty($go->nip) ? 'NIP: ' . esc($go->nip) : (!empty($go->kode_guru) ? 'Kode: ' . esc($go->kode_guru) : 'ID: ' . $go->id_guru) }})
+                            {{ $go->nama_guru }} ({!! !empty($go->nip) ? 'NIP: ' . e($go->nip) : (!empty($go->kode_guru) ? 'Kode: ' . e($go->kode_guru) : 'ID: ' . $go->id_guru) !!})
                         </option>
                     <?php endforeach; ?>
                 </select>

@@ -27,7 +27,7 @@
     <!-- Ikon SVG Lucide (mask, tanpa icon font) -->
     <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
     <!-- Tailwind CSS (build lokal) -->
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}">
 
@@ -448,7 +448,7 @@
 
         <?php if (empty($hideBottomNav)): ?>
         <?php
-            $navUri    = uri_string();
+            $navUri    = request()->path();
             $navHome   = ($navUri == 'presensi');
             $navLog    = strpos($navUri, 'log') !== false;
             $navNotif  = strpos($navUri, 'notif') !== false;
@@ -629,9 +629,10 @@
     <!-- Badge jumlah notif belum dibaca di menu footer -->
     <?php
         // Endpoint presensi/get-notifications khusus role guru; jangan polling
-        // dari session role lain (admin/kepsek/piket) agar tidak 403 di console.
-        $layoutRoleName = strtolower(trim((string) (session('role_name') ?? '')));
-        $layoutRoleId   = (string) (session('role') ?? '');
+        // dari role lain (admin/kepsek/piket) agar tidak 403 di console.
+        $layoutAuthUser = auth()->user();
+        $layoutRoleName = strtolower(trim((string) ($layoutAuthUser?->role_name ?? '')));
+        $layoutRoleId   = (string) ($layoutAuthUser?->role ?? '');
         $pollNotifBadge = $layoutRoleName === 'guru' || $layoutRoleId === '2';
     ?>
     <?php if ($pollNotifBadge): ?>

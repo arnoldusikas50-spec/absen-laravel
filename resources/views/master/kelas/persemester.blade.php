@@ -110,7 +110,7 @@
 
 @section('scripts')
 <script>
-    const base_url = '{{ url('/') . '/' }}/';
+    const appUrl = '{{ url('/') . '/' }}/';
     $(document).ready(function () {
         $("#check-all").on("click", function () {
             $(".check-kelas").prop('checked', this.checked);
@@ -150,7 +150,7 @@
                     });
 
                     $.ajax({
-                        url: base_url + 'datakelas/copyallfromsmt1',
+                        url: appUrl + 'datakelas/copyallfromsmt1',
                         type: "POST",
                         data: $(this).serialize(),
                         success: function (data) {

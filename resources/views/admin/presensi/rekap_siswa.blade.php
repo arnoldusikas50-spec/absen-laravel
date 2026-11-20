@@ -299,7 +299,7 @@ $dayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
                     $isHoliday = isset($holidays[$dateStr]);
                     $hdClass   = $isLibur || $isHoliday ? 'bg-red-50 text-red-400' : '';
                 ?>
-                <th class="col-day {{ $hdClass }}" style="padding:3px 2px;" title="{{ $isHoliday ? esc($holidays[$dateStr]) : '' }}">
+                <th class="col-day {{ $hdClass }}" style="padding:3px 2px;" title="{!! $isHoliday ? e($holidays[$dateStr]) : '' !!}">
                     <div class="font-bold">{{ $dayLabels[$dw] }}</div>
                     <div style="font-size:0.64rem; font-weight:400;">{{ sprintf('%02d', $d) }}</div>
                 </th>

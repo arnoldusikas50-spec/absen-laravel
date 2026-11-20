@@ -61,14 +61,8 @@ class JurnalController extends BaseController
         $db = DB::connection();
         $guru = $db->table('master_guru')->where('id_user', $user->id)->first();
 
-        // Fallback jika id_guru di session ada
-        $sessIdGuru = session()->get('id_guru');
-        if (! $guru && $sessIdGuru) {
-            $guru = $db->table('master_guru')->where('id_guru', $sessIdGuru)->first();
-        }
-
         // Fallback untuk admin
-        if (! $guru && session()->get('role') == '1') {
+        if (! $guru && auth()->user()?->role == '1') {
             $guru = $db->table('master_guru')->first();
         }
 
@@ -847,7 +841,7 @@ class JurnalController extends BaseController
         $existing = null;
         if ($in['id_jurnal'] > 0) {
             $existing = $this->jurnalModel->find($in['id_jurnal']);
-            if (! $existing || ((int) $existing->id_guru !== $idGuru && session()->get('role') != '1')) {
+            if (! $existing || ((int) $existing->id_guru !== $idGuru && auth()->user()?->role != '1')) {
                 return $this->failSave('Akses ditolak untuk mengedit jurnal ini.');
             }
         }
@@ -1170,7 +1164,7 @@ class JurnalController extends BaseController
         }
 
         $idGuru = (int) ($tData['guru']->id_guru ?? 0);
-        if ($jurnal->id_guru != $idGuru && session()->get('role') != '1') {
+        if ($jurnal->id_guru != $idGuru && auth()->user()?->role != '1') {
             return redirect()->to($this->journalIndexUrl())->with('error', 'Anda tidak memiliki hak untuk menghapus jurnal ini.');
         }
 
@@ -1259,7 +1253,7 @@ class JurnalController extends BaseController
             'total_mapel' => $r['total_mapel'],
             'fase' => $r['fase'],
             'absen_map' => $r['absenMap'],
-            'print_url' => url('guru/jurnal/rekap-kelas/cetak') . '?' . http_build_query($printParams),
+            'print_url' => url('guru/jurnal/rekap-kelas/cetak').'?'.http_build_query($printParams),
         ]);
     }
 

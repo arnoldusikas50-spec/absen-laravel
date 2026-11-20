@@ -14,7 +14,6 @@ namespace App\Libraries;
  * Nilai `level` di tabel absensi_surat_teguran adalah AMBANG alpha, bukan
  * nomor urut tingkat: 10 = 10 hari alpha, 7 = 7 hari, 3 = 3 hari.
  *
- * Port dari CodeIgniter 4 ke Laravel 13 — tanpa pemanggilan framework,
  * disalin 1:1.
  */
 final class SuratTeguranLevel

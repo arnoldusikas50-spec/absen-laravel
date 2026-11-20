@@ -259,7 +259,7 @@ class SettingsController extends BaseController
         $validationRule = [
             'logo' => [
                 'label' => 'Image File',
-                'rules' => 'uploaded[logo]|is_image[logo]|mime_in[logo,image/jpg,image/jpeg,image/gif,image/png,image/webp]|max_size[logo,5120]',
+                'rules' => 'required|file|image|mimetypes:image/jpeg,image/gif,image/png,image/webp|max:5120',
             ],
         ];
 
@@ -772,7 +772,6 @@ class SettingsController extends BaseController
     /**
      * Pastikan kolom penomoran surat teguran ada (lazy migration, sama seperti
      * patchAbsensiSettingTable di PresensiAdmin). Guard ini menjaga agar
-     * instance yang belum menjalankan `php spark migrate` tetap bisa menyimpan.
      */
     private function ensureNomorSettingColumns(): void
     {
@@ -891,7 +890,6 @@ class SettingsController extends BaseController
         }
 
         $db = DB::connection();
-        // Schema::getTableListing() menggantikan listTables() CI4. Dua hal
         // penting: (1) $schemaQualified=false agar nama tabel polos, bukan
         // "schema.tabel"; (2) schema HARUS diisi nama database koneksi —
         // bila null, Laravel men-list tabel dari SEMUA schema user di server
@@ -960,7 +958,6 @@ class SettingsController extends BaseController
                             // dan tanpa kutip angka itu menjadi literal numerik saat
                             // restore, sehingga semua angka 0 di depan hilang.
                             // PDO::quote() sudah menambahkan kutip sekaligus
-                            // meng-escape (pengganti escapeString() CI4).
                             $values[] = $db->getPdo()->quote((string) $val);
                         }
                     }
@@ -1540,7 +1537,6 @@ class SettingsController extends BaseController
             abort(404);
         }
 
-        // CI4: download($path, null) -> DownloadResponse lalu setFileName().
         // Laravel: response()->download() mengembalikan BinaryFileResponse yang
         // tidak punya setFileName(); nama file harus diberikan di parameter kedua.
         return $this->response->download($filepath, basename($filepath));

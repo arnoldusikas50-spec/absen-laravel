@@ -402,10 +402,10 @@ function fotoUrl(f, nis) {
         return null;
     }
     if (/^https?:\/\//i.test(f)) return f;
-    if (f.startsWith('/')) return base_url + f.replace(/^\//, '');
-    if (f.startsWith('uploads/')) return base_url + f;
+    if (f.startsWith('/')) return appUrl + f.replace(/^\//, '');
+    if (f.startsWith('uploads/')) return appUrl + f;
     if (!f.includes('.')) return null;
-    return base_url + 'uploads/foto_siswa/' + f;
+    return appUrl + 'uploads/foto_siswa/' + f;
 }
 
 function initialsOf(nama) {
@@ -462,7 +462,7 @@ function loadSiswa() {
 
     const payload = csrf();
     payload.id_kelas = idKelas;
-    $.post(base_url + 'presensisiswa/getSiswa', payload, function (res) {
+    $.post(appUrl + 'presensisiswa/getSiswa', payload, function (res) {
         $('#loading-indicator').hide();
 
         if (!res || !res.status || !res.data.length) {
@@ -495,7 +495,7 @@ function loadBdrInfo(idKelas, tgl) {
 
     const payload = csrf();
     payload.tgl = tgl;
-    $.post(base_url + 'presensisiswa/getBdr', payload, function (res) {
+    $.post(appUrl + 'presensisiswa/getBdr', payload, function (res) {
         const judul = res && res.status && res.data ? res.data[String(idKelas)] : null;
         if (!judul) return;
 
@@ -647,7 +647,7 @@ function loadExistingPresensi(idKelas, tgl) {
     const payload = csrf();
     payload.id_kelas = idKelas;
     payload.tgl = tgl;
-    $.post(base_url + 'presensisiswa/getPresensi', payload, function (res) {
+    $.post(appUrl + 'presensisiswa/getPresensi', payload, function (res) {
         if (!res.status || !res.data.length) return;
 
         res.data.forEach(p => {
@@ -691,7 +691,7 @@ function updateJamSatu(idSiswa, tipe, nilai) {
         if (tipe === 'masuk')  payload.jam_masuk  = nilai;
         if (tipe === 'keluar') payload.jam_keluar = nilai;
 
-        $.post(base_url + 'presensisiswa/updateJam', payload, function (res) {
+        $.post(appUrl + 'presensisiswa/updateJam', payload, function (res) {
             if (res && res.promoted) {
                 // Baris TANPA_KETERANGAN yang diisi jam → otomatis HADIR
                 const btn = document.querySelector(`#status-btns-${CSS.escape(String(idSiswa))} [data-status="HADIR"]`);
@@ -705,7 +705,7 @@ function updateJamSatu(idSiswa, tipe, nilai) {
                     ci.id_kelas = idKelas;
                     ci.tgl = tgl;
                     ci.jam_masuk = nilai;
-                    $.post(base_url + 'presensisiswa/checkIn', ci, function (r2) {
+                    $.post(appUrl + 'presensisiswa/checkIn', ci, function (r2) {
                         if (r2 && r2.status) {
                             const btn = document.querySelector(`#status-btns-${CSS.escape(String(idSiswa))} [data-status="HADIR"]`);
                             if (btn) setStatus(idSiswa, 'HADIR', btn);
@@ -768,7 +768,7 @@ function savePresensi() {
         payload.tgl = tgl;
         payload.jam_masuk = jamMasuk;
         payload.presensi = presensi;
-        $.post(base_url + 'presensisiswa/save', payload, function (res) {
+        $.post(appUrl + 'presensisiswa/save', payload, function (res) {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check2-circle mr-1"></i> Simpan Absensi';
 
@@ -800,7 +800,7 @@ function loadRekap() {
     payload.id_kelas = idKelas;
     payload.bulan = bulan;
     payload.tahun = tahun;
-    $.post(base_url + 'presensisiswa/rekapBulanan', payload, function (res) {
+    $.post(appUrl + 'presensisiswa/rekapBulanan', payload, function (res) {
         $('#rekap-loading').hide();
 
         if (!res.status || !res.data.length) {

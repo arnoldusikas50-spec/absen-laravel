@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/LogModel.php
  * Tabel: logs
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class LogModel extends Model
 {
@@ -32,7 +29,6 @@ class LogModel extends Model
     /**
      * Ensure logs table exists, create if not
      */
-    // TODO: tabel logs belum ada migrasinya
     private function _ensureTableExists(): void
     {
         if (! Schema::hasTable('logs')) {
@@ -58,10 +54,9 @@ class LogModel extends Model
      * @param  string  $keterangan  Description of activity
      * @param  int|null  $userId  Optional user ID (if not from session)
      */
-    // TODO: tabel logs belum ada migrasinya
     public function saveLog(int $aktivitas, string $keterangan = '', ?int $userId = null): bool
     {
-        $userId = $userId ?? session('user_id');
+        $userId = $userId ?? auth()->id();
 
         if (! $userId) {
             return false;
@@ -87,7 +82,6 @@ class LogModel extends Model
     /**
      * Get recent logs
      */
-    // TODO: tabel logs belum ada migrasinya
     public function getRecentLogs(int $limit = 50): array
     {
         return static::query()->orderBy('waktu', 'DESC')
@@ -98,7 +92,6 @@ class LogModel extends Model
     /**
      * Get logs by user
      */
-    // TODO: tabel logs belum ada migrasinya
     public function getLogsByUser(int $userId, int $limit = 50): array
     {
         return static::query()->where('id_user', $userId)
@@ -110,27 +103,19 @@ class LogModel extends Model
     /**
      * Delete log by ID
      */
-    // TODO: tabel logs belum ada migrasinya
     public function hapusLog(int $idLog): bool
     {
-        // CI4 Model::delete() mengembalikan true bila query berhasil, walau
         // baris tidak ada; dipertahankan (jumlah baris selalu >= 0).
         return static::query()->whereKey($idLog)->delete() >= 0;
     }
 
-    /**
-     * Get logs with user details (CI3 parity)
-     */
-    // TODO: tabel logs, users belum ada migrasinya
     public function getLog($offset, $limit, $search = null, $filters = null)
     {
         $builder = DB::table('logs as a');
         $builder->select('a.*', 'b.first_name', 'b.last_name', 'b.foto');
-        // In CI4 Auth, id is 'id', but in LogModel join condition was 'id=id_user' or similar
         $builder->leftJoin('users as b', 'b.id', '=', 'a.id_user');
 
         if ($filters != null && is_array($filters)) {
-            // Note: CI4 logs table in migration didn't have id_group column shown in _ensureTableExists
             // We might skip this filter or assume it exists if table created manually or extended
             // For now, removing id_group filter to avoid SQL error if column absent
             // $builder->whereIn('a.id_group', $filters);
@@ -150,7 +135,6 @@ class LogModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel logs, users belum ada migrasinya
     public function getCountLog($search = null, $filters = null)
     {
         $builder = DB::table('logs as a');

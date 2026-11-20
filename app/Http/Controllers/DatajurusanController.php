@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Datajurusan Controller - Migrated from CI3
- */
 class DatajurusanController extends BaseController
 {
     protected MasterModel $masterModel;

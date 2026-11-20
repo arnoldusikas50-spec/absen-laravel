@@ -139,7 +139,6 @@ class CronControllerController extends BaseController
         // Catatan: setiap langkah mengembalikan string yang sudah jujur soal
         // sukses/gagalnya — isSendFailure() membaca kata 'GAGAL' di dalamnya.
         // Sebelumnya method ini selalu balas "OK: ..." walau rekap gagal,
-        // sehingga `curl --fail || php spark health:check` di CRONTAB.MD
         // tidak pernah masuk ke cabang kedua: pemantau mengira sehat.
         $adaGagal = false;
         foreach ($log as $baris) {
@@ -307,7 +306,7 @@ class CronControllerController extends BaseController
         $setting = $this->settingModel->first();
 
         if (! $setting) {
-            return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php spark migrate dan isi lewat Pengaturan.';
+            return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php artisan migrate dan isi lewat Pengaturan.';
         }
 
         return $this->generateSemesterRekap($db, $setting, $tahun, $semester);
@@ -1025,7 +1024,6 @@ class CronControllerController extends BaseController
     }
 
     /**
-     * Pastikan satu kolom ada, tanpa bergantung pada cache metadata CI4:
      * fieldExists() tetap menjawab false pada request yang sama walau
      * addColumn() baru saja berhasil, jadi kolom dibaca lewat SHOW COLUMNS.
      */
@@ -1074,7 +1072,7 @@ class CronControllerController extends BaseController
         }
 
         if (! Schema::hasTable('absensi_surat_teguran')) {
-            return 'GAGAL: tabel absensi_surat_teguran tidak ada — jalankan php spark migrate.';
+            return 'GAGAL: tabel absensi_surat_teguran tidak ada — jalankan php artisan migrate.';
         }
 
         $bulan = (int) date('m');
@@ -1177,7 +1175,7 @@ class CronControllerController extends BaseController
         }
 
         if (! Schema::hasTable('absensi_surat_panggilan')) {
-            return 'GAGAL: tabel absensi_surat_panggilan tidak ada — jalankan php spark migrate.';
+            return 'GAGAL: tabel absensi_surat_panggilan tidak ada — jalankan php artisan migrate.';
         }
 
         $bulan = (int) date('m');
@@ -2002,7 +2000,7 @@ class CronControllerController extends BaseController
     private function generateSemesterRekap($db, $setting, int $tahun = 0, int $semester = 0): string
     {
         if (! Schema::hasTable('absensi_rekap_semester')) {
-            return 'GAGAL: tabel absensi_rekap_semester tidak ada — jalankan php spark migrate.';
+            return 'GAGAL: tabel absensi_rekap_semester tidak ada — jalankan php artisan migrate.';
         }
 
         if ($tahun < 2000 || $tahun > 2100) {
@@ -2210,7 +2208,7 @@ class CronControllerController extends BaseController
 
     /**
      * Kirim PDF rekap bulanan (presensi + denda) untuk bulan lalu.
-     * Dijadwalkan tiap tanggal 1 (lihat CRONTAB.MD).
+     * Dijadwalkan tiap tanggal 1 lewat `cron:run monthly-pdf`.
      * GET /cron/monthly-pdf?key=...&bulan=9&tahun=2026&force=1
      *
      * Tanpa ?bulan=&tahun=, periode = bulan kalender sebelumnya (dipanggil
@@ -2874,7 +2872,7 @@ class CronControllerController extends BaseController
         $setting = $this->settingModel->first();
 
         if (! $setting) {
-            return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php spark migrate dan isi lewat Pengaturan.';
+            return 'GAGAL: tabel absensi_setting kosong — konfigurasi presensi belum dibuat, jalankan php artisan migrate dan isi lewat Pengaturan.';
         }
 
         if ($skip = $this->grupDinonaktifkan('rekap_denda_mingguan', 'Rekap denda mingguan')) {

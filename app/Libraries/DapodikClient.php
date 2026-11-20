@@ -13,9 +13,8 @@ use Illuminate\Support\Facades\Schema;
  * Webservice Dapodik berjalan secara lokal pada aplikasi Dapodik sekolah (port default 5774/5773)
  * atau dimuka publik melalui reverse proxy server sekolah.
  *
- * Port dari CodeIgniter 4 ke Laravel 13:
- *   - \Config\Database -> DB/Schema facade (tabel dapodik_settings)
- *   - Services::curlrequest() -> Illuminate\Support\Facades\Http
+ *   - Akses database memakai DB/Schema facade (tabel dapodik_settings)
+ *   - HTTP request memakai Illuminate\Support\Facades\Http
  *   - Bila tabel dapodik_settings kosong/tidak ada, dipakai config/dapodik.php
  *     (env DAPODIK_SERVER_URL, DAPODIK_NPSN, DAPODIK_SECRET_TOKEN).
  * Tidak ada endpoint/kredensial yang dikarang; URL & token tetap dari

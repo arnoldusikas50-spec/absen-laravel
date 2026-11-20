@@ -9,11 +9,9 @@ use Illuminate\Http\JsonResponse;
  *
  * Reduces code duplication across CBT-related controllers.
  *
- * Port dari CodeIgniter 4 ke Laravel 13. Host controller wajib menyediakan:
  *   - properti $authModel dan $dashboardModel
  *     (App\Models\AuthModel dan App\Models\DashboardModel)
  *   - method isLoggedIn(), inGroup(string $group), getUserId()
- * Respons JSON CI4 diganti Illuminate\Http\JsonResponse.
  */
 trait CbtAuthTrait
 {

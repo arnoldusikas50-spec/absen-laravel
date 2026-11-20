@@ -121,7 +121,7 @@
 
         $pagination = $('#pagination');
         defaultOpts = {
-            visiblePages: 5, // CI4 pagination usually handles HTML, but here using JS plugin
+            visiblePages: 5,
             initiateStartPageClick: false,
             onPageClick: function (event, page) {
                 console.info(page + ' (from options)');
@@ -382,7 +382,7 @@
         return new Promise((resolve, reject) => {
             setTimeout(function () {
                 $.ajax({
-                    url: base_url + url,
+                    url: appUrl + url,
                     method: "POST",
                     processData: false,
                     contentType: false,

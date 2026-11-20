@@ -296,7 +296,6 @@
     // Endpoint profil di bawah ini dipanggil via $.ajax POST. Bentuk datanya
     // beragam (FormData, object, tanpa data), sehingga ajaxSetup berbasis
     // `data` akan tertimpa oleh `data:` per-panggilan. Header X-CSRF-TOKEN
-    // dibaca CI4 CSRF filter dan tidak tertimpa, jadi dipakai untuk semua call.
     <?php if (csrf_inline()) : ?>
     $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
     <?php endif; ?>
@@ -349,7 +348,7 @@
             if (dokumen && dokumen[key]) {
                 const docList = Array.isArray(dokumen[key]) ? dokumen[key] : [dokumen[key]];
                 docList.forEach(src => {
-                    const fullSrc = base_url + src;
+                    const fullSrc = appUrl + src;
                     container.append(`
                         <div class="position-relative">
                             <img src="${fullSrc}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">

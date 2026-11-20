@@ -227,7 +227,7 @@
 
 <script>
 (function () {
-    const BASE = (typeof base_url !== 'undefined' ? base_url : '{{ rtrim(url('/').'/', '/') }}/');
+    const BASE = (typeof appUrl !== 'undefined' ? appUrl : '{{ rtrim(url('/').'/', '/') }}/');
     const URL = {
         db: BASE + 'settings/dbManager/backupdb',
         files: BASE + 'settings/dbManager/backupdata',

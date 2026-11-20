@@ -3,32 +3,16 @@
 namespace App\Http\Controllers;
 
 /**
- * Penanganan error di luar alur controller biasa (dipakai 404 override di CI4).
+ * Utility for consistent error responses.
  *
- * Sengaja tidak memakai BaseController: jalur error tidak boleh ikut
- * menyeret session, model, atau koneksi database yang justru bisa jadi
- * sumber gagalnya request.
- *
- * Catatan porting: di Laravel, 404 ditangani exception handler
- * (bootstrap/app.php — di luar cakupan tahap ini), jadi method ini tidak
- * didaftarkan sebagai rute; ia dipertahankan sebagai utilitas agar kode
- * yang memanggilnya tetap bekerja.
+ * Deliberately does not extend BaseController: the error path must not pull in
+ * sessions, models, or a database connection that may be the source of the
+ * failed request.
  */
 class ErrorsController extends Controller
 {
-    public function notFound(?string $message = null)
+    public function notFound(?string $message = null): never
     {
-        $request = request();
-
-        if ($request->ajax() || $request->expectsJson() || $request->is('api/*')) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Endpoint tidak ditemukan.',
-            ], 404);
-        }
-
-        return response()->view('errors.html.error_404', [
-            'message' => app()->environment() !== 'production' ? $message : null,
-        ], 404);
+        abort(404, $message ?? 'Halaman tidak ditemukan.');
     }
 }

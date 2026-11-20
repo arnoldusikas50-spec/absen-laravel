@@ -12,12 +12,12 @@ use App\Models\LogModel;
 use App\Models\MasterModel;
 use App\Models\UserNotifikasiModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
- * Dataguru Controller - Migrated from CI3
  * Comprehensive teacher management
  */
 class DataguruController extends BaseController
@@ -185,7 +185,6 @@ class DataguruController extends BaseController
             'waVerified' => $waVerified,
         ];
 
-        // Prepare Inputs like CI3
         $data['input_profile'] = [
             (object) ['label' => 'Nama Lengkap', 'name' => 'nama_guru', 'value' => $guru->nama_guru, 'icon' => 'bi bi-person', 'type' => 'text'],
             (object) ['label' => 'Email', 'name' => 'email', 'value' => $guru->email, 'icon' => 'bi bi-envelope', 'type' => 'text'],
@@ -241,13 +240,13 @@ class DataguruController extends BaseController
         $password = (string) $this->request->input('password');
 
         $rules = [
-            'nama_guru' => 'required|max_length[100]',
-            'username' => 'required|min_length[4]|max_length[30]|regex_match[/^[A-Za-z0-9_.-]+$/]|is_unique[master_guru.username]',
-            'password' => 'required|min_length[5]|max_length[72]',
+            'nama_guru' => 'required|string|max:100',
+            'username' => 'required|string|min:4|max:30|regex:/^[A-Za-z0-9_.-]+$/|unique:master_guru,username',
+            'password' => 'required|string|min:5|max:72',
         ];
 
         if ($nip) {
-            $rules['nip'] = 'numeric|is_unique[master_guru.nip]';
+            $rules['nip'] = 'numeric|unique:master_guru,nip';
         }
 
         if (! $this->validate($rules)) {
@@ -270,7 +269,7 @@ class DataguruController extends BaseController
             $nama = explode(' ', $nama_guru ?? '');
             $user = [
                 'username' => trim($username),
-                'password' => password_hash(trim($password), PASSWORD_BCRYPT),
+                'password' => Hash::make(trim($password)),
                 'first_name' => $nama[0],
                 'last_name' => count($nama) > 1 ? end($nama) : '',
                 'active' => 1,
@@ -349,7 +348,7 @@ class DataguruController extends BaseController
                         $kanalNote[] = 'WhatsApp: '.$rw['message'];
                     }
                 } else {
-                    $kanalNote[] = 'WhatsApp: kolom belum tersedia, jalankan php spark migrate';
+                    $kanalNote[] = 'WhatsApp: kolom belum tersedia, jalankan php artisan migrate';
                 }
             }
 
@@ -661,7 +660,7 @@ class DataguruController extends BaseController
                     if ($idUser <= 0) {
                         $notifChanged[] = 'Nomor WhatsApp tidak bisa ditautkan: akun login guru belum tertaut ke master_guru.';
                     } elseif (! Schema::hasColumn('user_notifikasi', 'wa_number')) {
-                        $notifChanged[] = 'Kolom WhatsApp belum tersedia, jalankan: php spark migrate';
+                        $notifChanged[] = 'Kolom WhatsApp belum tersedia, jalankan: php artisan migrate';
                     } else {
                         $r = WhatsAppLink::attachToGuru($id_guru, $idUser, (string) $waRaw);
                         $notifChanged[] = $r['ok'] ? $r['message'] : 'Nomor WhatsApp gagal disimpan: '.$r['message'];
@@ -1136,7 +1135,7 @@ class DataguruController extends BaseController
                 $namaArr = preg_split('/\s+/', $v['nama_guru'], -1, PREG_SPLIT_NO_EMPTY);
                 $db->table('users')->insert([
                     'username' => $v['username'],
-                    'password' => password_hash($v['password'], PASSWORD_BCRYPT),
+                    'password' => Hash::make($v['password']),
                     'first_name' => $namaArr[0] ?? $v['username'],
                     'last_name' => count($namaArr) > 1 ? end($namaArr) : '',
                     'active' => 1,
@@ -1940,10 +1939,10 @@ class DataguruController extends BaseController
         $passwordConfirm = (string) $this->request->input('new_confirm');
 
         // Username selalu wajib; password opsional (kosong = tidak diganti, sesuai label form)
-        $rules = ['username' => 'required|min_length[4]|max_length[30]|alpha_dash'];
+        $rules = ['username' => 'required|string|min:4|max:30|alpha_dash'];
         if ($password !== '' || $passwordConfirm !== '') {
-            $rules['new'] = 'required|min_length[6]|max_length[72]';
-            $rules['new_confirm'] = 'required|matches[new]';
+            $rules['new'] = 'required|string|min:6|max:72';
+            $rules['new_confirm'] = 'required|same:new';
         }
 
         if (! $this->validate($rules)) {
@@ -1974,7 +1973,7 @@ class DataguruController extends BaseController
         $guruUpdate = ['username' => $username];
         $changedPassword = false;
         if ($password !== '') {
-            $userUpdate['password'] = password_hash($password, PASSWORD_BCRYPT);
+            $userUpdate['password'] = Hash::make($password);
             $changedPassword = true;
         }
         $db->table('users')->where('id', $guru->id_user)->update($userUpdate);
@@ -2210,7 +2209,7 @@ class DataguruController extends BaseController
 
             foreach ($gantiPassword as $idUser => $plain) {
                 try {
-                    $db->table('users')->where('id', $idUser)->update(['password' => password_hash($plain, PASSWORD_BCRYPT)]);
+                    $db->table('users')->where('id', $idUser)->update(['password' => Hash::make($plain)]);
                 } catch (\Throwable $e) {
                     DB::rollBack();
                     Log::error('[Dataguru::update_all] update users.password gagal untuk id_user '.$idUser.': '.$e->getMessage());

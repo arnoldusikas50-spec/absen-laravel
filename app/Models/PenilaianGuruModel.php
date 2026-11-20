@@ -8,12 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PenilaianGuruModel.php
  * Tabel: penilaian_guru_periode
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (penilaian_guru_periode).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PenilaianGuruModel extends Model
 {
@@ -24,7 +20,6 @@ class PenilaianGuruModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel penilaian_guru_periode, penilaian_guru_skor belum ada migrasinya
     public function initialize()
     {
         if (! Schema::hasTable('penilaian_guru_periode')) {
@@ -64,7 +59,6 @@ class PenilaianGuruModel extends Model
 
     // --- Periode CRUD ---
 
-    // TODO: tabel penilaian_guru_periode, master_tp, master_smt belum ada migrasinya
     public function getPeriodeList()
     {
         return DB::table('penilaian_guru_periode as p')
@@ -75,7 +69,6 @@ class PenilaianGuruModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel penilaian_guru_periode belum ada migrasinya
     public function getPeriode($id)
     {
         return DB::table('penilaian_guru_periode')
@@ -83,7 +76,6 @@ class PenilaianGuruModel extends Model
             ->first();
     }
 
-    // TODO: tabel penilaian_guru_periode belum ada migrasinya
     public function savePeriode($data)
     {
         if (! empty($data['id'])) {
@@ -99,7 +91,6 @@ class PenilaianGuruModel extends Model
         return DB::table('penilaian_guru_periode')->insert($data);
     }
 
-    // TODO: tabel penilaian_guru_periode, penilaian_guru_skor belum ada migrasinya
     public function deletePeriode($id)
     {
         DB::table('penilaian_guru_skor')->where('id_periode', $id)->delete();
@@ -110,7 +101,6 @@ class PenilaianGuruModel extends Model
 
     // --- Scoring ---
 
-    // TODO: tabel penilaian_guru_skor, master_guru belum ada migrasinya
     public function getSkorByPeriode($id_periode)
     {
         return DB::table('penilaian_guru_skor as s')
@@ -121,7 +111,6 @@ class PenilaianGuruModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel penilaian_guru_skor belum ada migrasinya
     public function getSkorGuru($id_periode, $id_guru)
     {
         return DB::table('penilaian_guru_skor')
@@ -130,7 +119,6 @@ class PenilaianGuruModel extends Model
             ->first();
     }
 
-    // TODO: tabel penilaian_guru_skor, master_guru, penilaian_guru_periode belum ada migrasinya
     public function getSkorById($id)
     {
         return DB::table('penilaian_guru_skor as s')
@@ -143,7 +131,6 @@ class PenilaianGuruModel extends Model
 
     // --- Scoring Engine ---
 
-    // TODO: tabel penilaian_guru_periode, penilaian_guru_skor, master_guru belum ada migrasinya
     public function hitungSkor($id_periode)
     {
         $periode = $this->getPeriode($id_periode);
@@ -362,7 +349,6 @@ class PenilaianGuruModel extends Model
 
     // --- Teaching Score ---
 
-    // TODO: tabel guru_jurnal belum ada migrasinya
     private function hitungMengajar($id_guru, $id_tp, $id_smt, $tgl_mulai, $tgl_selesai, $holidays, $scheduleMap)
     {
         $scheduledSessions = 0;
@@ -532,7 +518,6 @@ class PenilaianGuruModel extends Model
         return $result;
     }
 
-    // TODO: tabel kelas_jadwal_mapel, jabatan_guru belum ada migrasinya
     private function getScheduleMap($id_tp, $id_smt)
     {
         $jadwal = DB::table('kelas_jadwal_mapel as jm')
@@ -582,7 +567,6 @@ class PenilaianGuruModel extends Model
         return $guruMap;
     }
 
-    // TODO: tabel piket_jadwal belum ada migrasinya
     private function getPiketMap($id_tp, $id_smt)
     {
         $rows = DB::table('piket_jadwal')

@@ -241,7 +241,7 @@ $searchId = array_search('1', array_column($tp, 'active'));
 
 @section('scripts')
 <script>
-    const base_url = '{{ url('/') . '/' }}/';
+    const appUrl = '{{ url('/') . '/' }}/';
     const klsSelected = @json($kelas_selected ?? '');
     let currentMode = @json($type_selected ?? 'persiswa');
 
@@ -250,7 +250,7 @@ $searchId = array_search('1', array_column($tp, 'active'));
 
         $('#opsi-kelas-lama').change(function () {
             let id = $(this).val();
-            window.location.href = `${base_url}datakelas/kenaikan?kelas=${id}&type=${currentMode}`;
+            window.location.href = `${appUrl}datakelas/kenaikan?kelas=${id}&type=${currentMode}`;
         });
 
         $('#mode-selector button').click(function () {
@@ -326,7 +326,7 @@ $searchId = array_search('1', array_column($tp, 'active'));
             });
 
             $.ajax({
-                url: base_url + 'datakelas/naikkelas',
+                url: appUrl + 'datakelas/naikkelas',
                 type: "POST",
                 data: dataPost,
                 success: function (res) {
@@ -353,7 +353,7 @@ $searchId = array_search('1', array_column($tp, 'active'));
                 if (result.isConfirmed) {
                     Swal.fire({ title: 'Memproses...', didOpen: () => { Swal.showLoading(); } });
                     $.ajax({
-                        url: base_url + 'datakelas/naikkan_semua',
+                        url: appUrl + 'datakelas/naikkan_semua',
                         type: "POST",
                         data: dataPost,
                         success: function (res) {

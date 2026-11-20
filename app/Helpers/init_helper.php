@@ -1,14 +1,11 @@
 <?php
 
 /**
- * Init Helper - Migrated from CI3
- * Helper functions for initialization checks
- *
- * Port dari CodeIgniter 4 ke Laravel 13. \Config\Database::connect()
- * diganti DB/Schema facade; service('session') diganti helper session().
+ * Helper functions for initialization checks.
  */
 
 use App\Models\DashboardModel;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -26,20 +23,8 @@ if (! function_exists('get_setting')) {
     }
 }
 
-if (! function_exists('uri_string')) {
-    /**
-     * CI4 uri_string() — path request saat ini tanpa query string,
-     * dipakai view porting untuk mencocokkan menu aktif.
-     */
-    function uri_string(): string
-    {
-        return request()->path();
-    }
-}
-
 if (! function_exists('number_to_size')) {
     /**
-     * Port CI4 NumberHelper::number_to_size().
      * Ubah jumlah byte menjadi format ukuran yang mudah dibaca
      * (mis. 5624 → "5.49 KB"). Non-numerik mengembalikan null.
      */
@@ -66,51 +51,6 @@ if (! function_exists('number_to_size')) {
             : number_format($num);
 
         return $formatted.' '.$suffix[$i];
-    }
-}
-
-if (! function_exists('esc')) {
-    /**
-     * Port helper esc() CodeIgniter 4 → Laravel.
-     *
-     * Banyak view hasil porting masih memanggil esc(). Laravel tidak
-     * menyediakan helper tersebut sehingga halaman gagal dirender dengan
-     * "Call to undefined function esc()". Implementasi ini mengikuti
-     * kontrak CI4: html, attr, js, css, dan url.
-     *
-     * @param  mixed  $data
-     */
-    function esc($data, string $context = 'html', ?string $encoding = null): string
-    {
-        if (is_array($data) || is_object($data)) {
-            return '';
-        }
-
-        $data = (string) $data;
-        $encoding = $encoding ?? 'UTF-8';
-
-        switch ($context) {
-            case 'js':
-                return substr(
-                    json_encode(
-                        $data,
-                        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
-                    ),
-                    1,
-                    -1
-                );
-
-            case 'css':
-                return preg_replace('/([^a-zA-Z0-9\-.])/', '\\\\$1', $data) ?? '';
-
-            case 'url':
-                return rawurlencode($data);
-
-            case 'attr':
-            case 'html':
-            default:
-                return htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, $encoding, true);
-        }
     }
 }
 
@@ -251,7 +191,8 @@ if (! function_exists('is_kepsek')) {
      */
     function is_kepsek(?int $userId = null): bool
     {
-        $userId = $userId ?? (int) (session()->get('user_id') ?? 0);
+        $currentUser = auth()->user();
+        $userId = $userId ?? ($currentUser === null ? 0 : (int) $currentUser->getAuthIdentifier());
         if ($userId <= 0) {
             return false;
         }
@@ -261,15 +202,18 @@ if (! function_exists('is_kepsek')) {
             return $cache[$userId];
         }
 
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
-        if (in_array($roleName, ['kepsek', 'kepala sekolah', 'kepala_sekolah'], true)) {
-            return $cache[$userId] = true;
-        }
-
         try {
             DB::connection()->getPdo();
         } catch (Throwable $e) {
             return $cache[$userId] = false;
+        }
+
+        $target = $currentUser !== null && (int) $currentUser->getAuthIdentifier() === $userId
+            ? $currentUser
+            : User::query()->find($userId);
+        $roleName = strtolower((string) ($target?->role_name ?? ''));
+        if (in_array($roleName, ['kepsek', 'kepala sekolah', 'kepala_sekolah'], true)) {
+            return $cache[$userId] = true;
         }
 
         $containsKepsek = static function (?string $v): bool {

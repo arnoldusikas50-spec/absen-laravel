@@ -577,7 +577,7 @@ class PresensiAdminController extends BaseController
             // yang bisa berpindah, cegah double-approve dua admin paralel.
             $updateData = [
                 'status' => 'approved',
-                'verified_by' => session()->get('user_id'),
+                'verified_by' => auth()->id(),
                 'verified_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
@@ -828,7 +828,7 @@ class PresensiAdminController extends BaseController
         $updateData = [
             'status' => 'rejected',
             'verifikasi_catatan' => $alasan,
-            'verified_by' => session()->get('user_id'),
+            'verified_by' => auth()->id(),
             'verified_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ];
@@ -1650,7 +1650,6 @@ class PresensiAdminController extends BaseController
 
         // $dompdf->stream($filename, ["Attachment" => false]);
 
-        // Fix for hosting: Use CI4 Response to ensure correct headers
         $output = $dompdf->output();
 
         return $this->response
@@ -2100,12 +2099,12 @@ class PresensiAdminController extends BaseController
         }
 
         $autoReject = function (string $note) use ($correctionModel, $id) {
-            $correctionModel->where('id', $id)->where('status', 'pending')->set([
+            $correctionModel->where('id', $id)->where('status', 'pending')->update([
                 'status' => 'rejected',
                 'processed_by' => $this->getUserId(),
                 'processed_at' => date('Y-m-d H:i:s'),
                 'admin_note' => $note,
-            ])->update();
+            ]);
         };
 
         // Whitelist field: cegah mass-assignment kolom points/denda/status/user_id
@@ -2341,11 +2340,11 @@ class PresensiAdminController extends BaseController
             (new PoinHistoryModel)->syncAttendancePoint($correction->attendance_id);
 
             // Transisi status atomik: gagal bila admin lain sudah memproses duluan
-            $correctionModel->where('id', $id)->where('status', 'pending')->set([
+            $correctionModel->where('id', $id)->where('status', 'pending')->update([
                 'status' => 'approved',
                 'processed_by' => $this->getUserId(),
                 'processed_at' => date('Y-m-d H:i:s'),
-            ])->update();
+            ]);
 
             if (1 !== 1) {
                 throw new \RuntimeException('Koreksi sudah diproses admin lain. Muat ulang halaman.');
@@ -2474,12 +2473,12 @@ class PresensiAdminController extends BaseController
         DB::beginTransaction();
 
         try {
-            $correctionModel->where('id', $id)->where('status', 'pending')->set([
+            $correctionModel->where('id', $id)->where('status', 'pending')->update([
                 'status' => 'rejected',
                 'processed_by' => $this->getUserId(),
                 'processed_at' => date('Y-m-d H:i:s'),
                 'admin_note' => $note,
-            ])->update();
+            ]);
 
             if (1 !== 1) {
                 throw new \RuntimeException('Koreksi sudah diproses admin lain. Muat ulang halaman.');
@@ -2656,7 +2655,7 @@ class PresensiAdminController extends BaseController
                 unset($update['denda'], $update['keterangan_denda']);
             }
             if (Schema::hasColumn('absensi_harian', 'verified_by')) {
-                $update['verified_by'] = session()->get('user_id');
+                $update['verified_by'] = auth()->id();
             }
             if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
@@ -2775,7 +2774,7 @@ class PresensiAdminController extends BaseController
                 unset($updateTolak['denda'], $updateTolak['keterangan_denda']);
             }
             if (Schema::hasColumn('absensi_harian', 'verified_by')) {
-                $updateTolak['verified_by'] = session()->get('user_id');
+                $updateTolak['verified_by'] = auth()->id();
             }
             if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $updateTolak['verified_at'] = date('Y-m-d H:i:s');
@@ -3546,7 +3545,7 @@ class PresensiAdminController extends BaseController
      */
     private function adalahPemohon($row): bool
     {
-        $approver = (int) (session()->get('user_id') ?? 0);
+        $approver = (int) (auth()->id() ?? 0);
 
         return $approver > 0 && (int) ($row->user_id ?? 0) === $approver;
     }
@@ -3790,7 +3789,7 @@ class PresensiAdminController extends BaseController
                 $userId,
                 'Admin '.$aksi.' kanal WhatsApp notifikasi',
                 $userId,
-                (int) session()->get('user_id'),
+                (int) auth()->id(),
                 null,
                 null,
                 'user_id='.$userId.' nomor='.$nomor
@@ -4526,7 +4525,6 @@ class PresensiAdminController extends BaseController
             $targetId = (int) $id;
             $msg = 'Lokasi berhasil diperbarui';
         } else {
-            // Model Eloquent tidak punya getInsertID() (API CI4 lama), jadi id
             // baris baru diambil langsung dari insertGetId().
             $targetId = (int) $locationModel->insertGetId($data);
             $msg = 'Lokasi berhasil ditambahkan';
@@ -5704,7 +5702,7 @@ class PresensiAdminController extends BaseController
                 $insertedId,
                 $action,
                 $userId,
-                session()->get('user_id'),
+                auth()->id(),
                 $existing ? json_encode($existing) : null,
                 $data,
                 'Absen Manual Masuk oleh Admin'
@@ -6008,7 +6006,7 @@ class PresensiAdminController extends BaseController
                 $existing->id,
                 'UPDATE',
                 $userId,
-                session()->get('user_id'),
+                auth()->id(),
                 $existing,
                 $updateData,
                 'Absen Manual Pulang oleh Admin'
@@ -6121,7 +6119,7 @@ class PresensiAdminController extends BaseController
                 $row->id,
                 'DELETE',
                 $row->user_id,
-                session()->get('user_id'),
+                auth()->id(),
                 $row,
                 null,
                 'Absensi Dihapus/Reset oleh Admin'
@@ -6514,7 +6512,7 @@ class PresensiAdminController extends BaseController
             'keterangan' => $keterangan,
             'status' => $status,
             'bukti' => ! empty($buktiName) ? 'uploads/izin/'.$buktiName : null,
-            'verified_by' => $langsungApprove ? session()->get('user_id') : null,
+            'verified_by' => $langsungApprove ? auth()->id() : null,
             'verified_at' => $langsungApprove ? date('Y-m-d H:i:s') : null,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
@@ -6798,7 +6796,7 @@ class PresensiAdminController extends BaseController
                 $id,
                 'DELETE',
                 $permit->user_id,
-                session()->get('user_id'),
+                auth()->id(),
                 $permit,
                 ['reverted_attendance' => $reverted, 'kept_attendance' => $kept],
                 'Izin Dihapus Admin'
@@ -9419,7 +9417,6 @@ class PresensiAdminController extends BaseController
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
                 if (! $tercatat) {
-                    // CI4 mengembalikan false (bukan exception) saat DB menolak
                     // insert — tanpanya denda dianggap lunas tanpa poin terpakai.
                     DB::rollBack();
                     Log::error('[PresensiAdmin] insert poin REDEEM ditolak DB user#'.$userId.' periode '.$bulan.'/'.$tahun);
@@ -9450,7 +9447,7 @@ class PresensiAdminController extends BaseController
                 'keterangan' => $keterangan ?: $defaultKet,
                 'tanggal_bayar' => $tanggalBayar,
                 'paid_at' => date('Y-m-d H:i:s'),
-                'paid_by' => session()->get('user_id'),
+                'paid_by' => auth()->id(),
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
@@ -9662,7 +9659,7 @@ class PresensiAdminController extends BaseController
             'saldo_akhir' => $newSaldo,
             'pembayaran_id' => $pembayaranId,
             'keterangan' => $keterangan ?: 'Kelebihan pembayaran denda',
-            'created_by' => session()->get('user_id'),
+            'created_by' => auth()->id(),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -9688,7 +9685,7 @@ class PresensiAdminController extends BaseController
             'saldo_akhir' => $newSaldo,
             'pembayaran_id' => $pembayaranId,
             'keterangan' => $keterangan ?: 'Penggunaan saldo untuk denda',
-            'created_by' => session()->get('user_id'),
+            'created_by' => auth()->id(),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -9887,7 +9884,7 @@ class PresensiAdminController extends BaseController
                     'keterangan' => $keterangan ?: $defaultKet,
                     'tanggal_bayar' => $tanggalBayar,
                     'paid_at' => date('Y-m-d H:i:s'),
-                    'paid_by' => session()->get('user_id'),
+                    'paid_by' => auth()->id(),
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
@@ -10268,7 +10265,6 @@ class PresensiAdminController extends BaseController
         $db = DB::connection();
 
         // Dynamically fetch tables (Schema::getTableListing() menggantikan
-        // listTables() yang hanya ada di CodeIgniter). Schema diisi nama
         // database koneksi (bukan null!) dan $schemaQualified=false agar
         // hasilnya daftar tabel polos milik database ini saja.
         $tables = [];
@@ -11113,7 +11109,7 @@ class PresensiAdminController extends BaseController
                 ->where('status', 'pending')
                 ->update([
                     'status' => 'approved',
-                    'admin_id' => session()->get('user_id'),
+                    'admin_id' => auth()->id(),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
 
@@ -11187,7 +11183,7 @@ class PresensiAdminController extends BaseController
                 ->where('status', 'pending')
                 ->update([
                     'status' => 'rejected',
-                    'admin_id' => session()->get('user_id'),
+                    'admin_id' => auth()->id(),
                     'keterangan' => $keterangan,
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
@@ -12072,7 +12068,7 @@ class PresensiAdminController extends BaseController
 
         $db = DB::connection();
         if (! Schema::hasTable(SuratPanggilanService::TABEL)) {
-            return $this->respond(false, 'Tabel surat panggilan belum dibuat. Jalankan php spark migrate.');
+            return $this->respond(false, 'Tabel surat panggilan belum dibuat. Jalankan php artisan migrate.');
         }
 
         try {

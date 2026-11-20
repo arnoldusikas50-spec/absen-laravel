@@ -8,10 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/JurnalGuruModel.php
  * Tabel: guru_jurnal
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class JurnalGuruModel extends Model
 {
@@ -331,7 +328,6 @@ class JurnalGuruModel extends Model
             [$mulai, $selesai, $today, $mingguMulai, $today, $idGuru, $idTp, $idSmt]
         );
 
-        // CI4 getRow() pada query agregat selalu mengembalikan satu baris (SUM NULL bila kosong).
         return $row ?? (object) ['total_bulan' => null, 'jurnal_hari_ini' => null, 'minggu_ini' => null];
     }
 

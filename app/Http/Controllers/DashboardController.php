@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Dashboard Controller - Fully ported from CI3
  * Main dashboard for all user roles with complete AJAX endpoints
  */
 class DashboardController extends BaseController

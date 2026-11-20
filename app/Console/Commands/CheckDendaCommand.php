@@ -10,14 +10,10 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Porting CI4 App\Commands\CheckDenda (php spark check:denda).
- *
  * Cek denda YTD seorang user: denda harian tercatat + missingAlphaFines
  * (logika guru) + statistik YTD admin + denda kotor bulan berjalan.
  *
- * Bagian 3–4 CI4 memakai reflection ke method protected
  * App\Controllers\Admin\PresensiAdmin::getYTDDendaStats() dan
- * ::filteredAlphaMonthMap(). Controller itu belum di-port ke Laravel saat
  * command ini dibuat, jadi kedua bagian itu dijalankan hanya bila salah
  * satu kelas kandidat di bawah ini sudah ada; bila belum ada, dilewati
  * dengan peringatan (bukan error).
@@ -84,11 +80,9 @@ class CheckDendaCommand extends Command
         $totalYtdGuru = (float) ($harian->total ?? 0) + (float) ($missYtd['total'] ?? 0);
         $this->line('Guru Total Denda YTD: '.$totalYtdGuru);
 
-        // 3–4. Admin logic (via reflection, seperti CI4). Dilewati bila
-        // controller admin belum di-port.
         $adminClass = $this->resolveAdminControllerClass();
         if ($adminClass === null) {
-            $this->warn('Bagian Admin (getYTDDendaStats / filteredAlphaMonthMap) dilewati: controller PresensiAdmin belum di-port ke Laravel.');
+            $this->warn('Bagian Admin (getYTDDendaStats / filteredAlphaMonthMap) dilewati: controller PresensiAdmin tidak tersedia.');
         } else {
             $admin = new $adminClass;
             $ref = new \ReflectionClass($admin);
@@ -137,10 +131,6 @@ class CheckDendaCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Nama kelas controller admin hasil porting, bila sudah ada.
-     * Kandidat pertama adalah nama konvensi Laravel, kedua nama asli CI4.
-     */
     private function resolveAdminControllerClass(): ?string
     {
         foreach ([

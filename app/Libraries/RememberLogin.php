@@ -2,30 +2,24 @@
 
 namespace App\Libraries;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * RememberLogin — "Tetap login" 30 hari untuk aplikasi Presensi (PWA).
- * Hanya untuk role guru & siswa; admin dikecualikan demi keamanan.
+ * RememberLogin — "tetap login" 30 hari untuk aplikasi presensi (PWA).
+ * Hanya untuk peran guru dan siswa; admin dikecualikan demi keamanan.
  *
- * Memakai kolom bawaan Ion Auth di tabel `users`:
- *   - remember_selector (pencari, plaintext)
- *   - remember_code     (hash SHA-256 dari validator, TIDAK menyimpan token mentah)
+ * Kolom tabel `users` yang dipakai:
+ *   - remember_selector: pencari token (plaintext)
+ *   - remember_code: hash SHA-256 dari validator (token mentah tidak disimpan)
  *
  * Cookie `remember_presensi` berisi `selector:validator`, HttpOnly + SameSite=Lax,
  * masa berlaku 30 hari. Validator dirotasi setiap kali sesi dipulihkan.
- *
- * Port dari CodeIgniter 4 ke Laravel 13:
- *   - service('session') -> session() helper; regenerate(true) -> regenerate()
- *   - service('request')->getCookie() -> request()->cookie()
- *   - service('response')->setCookie()/deleteCookie() -> Cookie::queue()
- *     (Cookie::make menit ke-...: 30 hari = 43200 menit)
- *   - \Config\Database -> DB/Schema facade
- * Session key yang ditulis (user_id, id_guru, username, nama, email, role,
- * role_name, foto, school_uuid, is_login, login_variant) dipertahankan 1:1.
+ * Data sesi aplikasi tetap ditulis agar controller dan tampilan yang ada
+ * terus bekerja, sementara guard 'web' Laravel menjadi sumber status login.
  */
 class RememberLogin
 {
@@ -60,13 +54,13 @@ class RememberLogin
     }
 
     /**
-     * Pulihkan session dari cookie remember bila session belum login.
-     * Return true jika session berhasil dipulihkan.
+     * Pulihkan login dari cookie remember bila guard 'web' belum login.
+     * Return true jika sesi berhasil dipulihkan.
      */
     public static function restore(): bool
     {
         try {
-            if (session()->get('is_login')) {
+            if (auth()->check()) {
                 return false;
             }
 
@@ -148,6 +142,11 @@ class RememberLogin
                 'is_login' => true,
                 'login_variant' => $isGuru ? 'staff' : 'siswa',
             ]);
+
+            $model = User::query()->find((int) $user->id);
+            if ($model !== null) {
+                auth()->login($model);
+            }
 
             DB::table('users')->where('id', (int) $user->id)->update(['last_login' => time()]);
 

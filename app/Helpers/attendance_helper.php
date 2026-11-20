@@ -3,10 +3,6 @@
 /**
  * Attendance Helper
  * Fungsi-fungsi utilitas untuk sistem presensi SMA.
- *
- * Port dari CodeIgniter 4 ke Laravel 13. Logika dipertahankan 1:1;
- * hanya pemanggilan framework yang diubah (esc() -> e(),
- * \Config\Database -> DB/Schema facade).
  */
 
 use App\Services\AttendancePolicy;

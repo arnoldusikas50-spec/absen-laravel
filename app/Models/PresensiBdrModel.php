@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PresensiBdrModel.php
  * Tabel: presensi_bdr
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PresensiBdrModel extends Model
 {
@@ -85,8 +82,6 @@ class PresensiBdrModel extends Model
      *
      * @return array<int, object>
      */
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel level_kelas belum ada migrasinya
     public function getDaftar(int $limit = 200, ?string $sejak = null): array
     {
         if (! Schema::hasTable($this->getTable())) {

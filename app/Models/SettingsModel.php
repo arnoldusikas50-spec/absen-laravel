@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/SettingsModel.php
  * Tabel: setting
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class SettingsModel extends Model
 {
@@ -72,7 +69,6 @@ class SettingsModel extends Model
      * Get current settings
      * Adds compatibility aliases for property names used in different views
      */
-    // TODO: tabel setting belum ada migrasinya
     public function getSetting(): ?object
     {
         $setting = static::query()->first();
@@ -96,7 +92,6 @@ class SettingsModel extends Model
     /**
      * Update settings
      */
-    // TODO: tabel setting belum ada migrasinya
     public function updateSetting(array $data): bool
     {
         $setting = static::query()->first();
@@ -111,7 +106,6 @@ class SettingsModel extends Model
     /**
      * Get active tahun pelajaran
      */
-    // TODO: tabel setting belum ada migrasinya
     public function getActiveTp(): ?int
     {
         $setting = static::query()->first();
@@ -122,7 +116,6 @@ class SettingsModel extends Model
     /**
      * Get active semester
      */
-    // TODO: tabel setting belum ada migrasinya
     public function getActiveSmt(): ?int
     {
         $setting = static::query()->first();
@@ -131,19 +124,11 @@ class SettingsModel extends Model
     }
 
     /**
-     * Truncate tables and cleanup
+     * Kosongkan tabel yang diberikan lalu bersihkan data turunan.
      *
-     * @param  array  $tables
+     * @param  array<int, string>  $tables
      */
-    // NOTE: nama method ini men-shadow truncate() bawaan Eloquent: pemanggilan
-    // ->truncate() pada model ini (atau secara statis) yang di Eloquent
-    // mengosongkan tabel model, di sini malah menjalankan logika CI4
-    // (truncate daftar tabel yang diberikan + hapus file bank soal + hapus
-    // user non-admin). Tidak ada call site di aplikasi Laravel yang memakai
-    // truncate() Eloquent pada model ini maupun truncate($tables) CI4,
-    // sehingga port apa adanya dengan nama persis tetap aman.
-    // TODO: tabel users, users_groups belum ada migrasinya
-    public function truncate($tables)
+    public function truncateTablesAndCleanup(array $tables): void
     {
         DB::statement('SET FOREIGN_KEY_CHECKS = 0');
 
@@ -153,8 +138,6 @@ class SettingsModel extends Model
 
         DB::statement('SET FOREIGN_KEY_CHECKS = 1');
 
-        // Delete bank soal files (CI4: helper('filesystem') + delete_files()
-        // pada FCPATH . 'uploads/bank_soal/'; FCPATH = public/ di Laravel).
         $bankSoalPath = public_path('uploads/bank_soal');
         if (File::isDirectory($bankSoalPath)) {
             File::cleanDirectory($bankSoalPath);
@@ -181,20 +164,10 @@ class SettingsModel extends Model
     }
 
     /**
-     * Get table content as JSON (CI4: toJSON($table)).
-     *
-     * NOTE: nama method ini sama dengan Eloquent Model::toJson($options = 0)
-     * (nama method PHP tidak case-sensitive), jadi signaturenya harus
-     * kompatibel dengan parent. Bila dipanggil dengan string nama tabel,
-     * berperilaku seperti CI4 toJSON($table); bila dipanggil tanpa argumen
-     * atau dengan int opsi JSON, didelegasikan ke parent::toJson().
+     * Kembalikan isi tabel sebagai JSON terformat.
      */
-    public function toJson($options = 0)
+    public function tableToJson(string $table): string
     {
-        if (is_string($options)) {
-            return json_encode(DB::table($options)->get()->all(), JSON_PRETTY_PRINT);
-        }
-
-        return parent::toJson($options);
+        return (string) json_encode(DB::table($table)->get()->all(), JSON_PRETTY_PRINT);
     }
 }

@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/JabatanGuruModel.php
  * Tabel: jabatan_guru
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class JabatanGuruModel extends Model
 {
@@ -37,7 +34,6 @@ class JabatanGuruModel extends Model
     }
 
     /** Baris jabatan milik guru pada satu periode, apa pun format kuncinya. */
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function findForGuru(int $idGuru, int $idTp, int $idSmt): ?object
     {
         return DB::table($this->getTable())
@@ -53,7 +49,6 @@ class JabatanGuruModel extends Model
      * Baris lama dicari lewat guru + periode sehingga data dengan kunci
      * format lama tetap ikut diperbarui.
      */
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function upsert(int $idGuru, int $idTp, int $idSmt, array $data): bool
     {
         $existing = $this->findForGuru($idGuru, $idTp, $idSmt);
@@ -81,7 +76,6 @@ class JabatanGuruModel extends Model
     }
 
     /** Lepas status wali dari semua guru lain pada satu kelas. */
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function releaseWaliKelas(int $idTp, int $idSmt, int $idKelas, ?int $keepGuru = null): void
     {
         if ($idKelas <= 0) {
@@ -115,7 +109,6 @@ class JabatanGuruModel extends Model
      * Samakan master_kelas.guru_id dengan jabatan wali pada periode aktif.
      * $idKelas = 0 berarti guru ini tidak lagi menjadi wali kelas mana pun.
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function syncWaliToMasterKelas(int $idGuru, int $idTp, int $idSmt, int $idKelas): void
     {
         if (! Schema::hasTable('master_kelas') || ! Schema::hasColumn('master_kelas', 'guru_id')) {

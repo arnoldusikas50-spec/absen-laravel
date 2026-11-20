@@ -7,8 +7,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\CronNotifLog (php spark cron:notif-log).
- *
  * Riwayat pengiriman notifikasi cron dari tabel cron_notifikasi_log.
  *
  *   php artisan cron:notif-log            # 20 baris terakhir

@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\Schema;
  * Keduanya menulis ke `user_notifikasi.telegram_chat_id`, kolom yang dibaca
  * NotificationService::notifyUser(). Kolom `master_guru.telegram_id` disimpan
  * sebagai catatan/admin display dan menjadi sumber saat tautan belum ada.
- *
- * Port dari CodeIgniter 4 ke Laravel 13 (DB/Schema/Log facade).
  */
 class TelegramLink
 {

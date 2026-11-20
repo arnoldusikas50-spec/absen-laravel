@@ -59,7 +59,7 @@
     </table>
 
     <div class="doc-title">Laporan Pembayaran Denda</div>
-    <div class="doc-sub">Periode {{ $periodeTxt }}{{ $filterTxt ? ' • ' . esc(implode(' • ', $filterTxt)) : '' }}</div>
+    <div class="doc-sub">Periode {{ $periodeTxt }}{!! $filterTxt ? ' • ' . e(implode(' • ', $filterTxt)) : '' !!}</div>
 
     <table class="summary" width="100%">
         <tr>

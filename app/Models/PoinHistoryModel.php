@@ -11,10 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PoinHistoryModel.php
  * Tabel: poin_history
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PoinHistoryModel extends Model
 {
@@ -88,7 +85,6 @@ class PoinHistoryModel extends Model
      * YEAR(created_at). Tanpa batas, isinya akumulasi sepanjang masa dan
      * berbeda dari angka tahun berjalan di layar Reward admin.
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function updateTotalPoin($userId, ?int $tahun = null)
     {
         return $this->safeQuery(function () use ($userId, $tahun) {
@@ -236,7 +232,6 @@ class PoinHistoryModel extends Model
         return $tgl.' '.$jam;
     }
 
-    // TODO: tabel master_guru, users, users_groups belum ada migrasinya
     public function getLeaderboard($bulan, $tahun, $limit = 20)
     {
         return $this->safeQuery(function () use ($bulan, $tahun, $limit) {
@@ -501,7 +496,6 @@ class PoinHistoryModel extends Model
         }
     }
 
-    // TODO: tabel users belum ada migrasinya
     public function calculateMonthlyScore($userId, $bulan, $tahun)
     {
         $score = 0;

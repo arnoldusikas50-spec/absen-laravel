@@ -21,7 +21,7 @@
 
     <!-- Font Awesome 6 Icons & SweetAlert2 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
     <link rel="stylesheet" href="{{ asset('assets/app/css/kiosk-ui.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/kiosk-ui.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}">
 

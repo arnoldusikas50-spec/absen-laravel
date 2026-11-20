@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\WaBulkLink (php spark wa:bulk).
- *
  * Isi kolom WhatsApp notifikasi untuk sekumpulan guru sekaligus.
  *
  *   php artisan wa:bulk --nomor=6285104899117 [--apply]

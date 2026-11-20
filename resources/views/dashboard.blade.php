@@ -66,7 +66,7 @@
 <?php
 $jamSekarang = (int)date('H');
 $salam = $jamSekarang < 11 ? 'Selamat Pagi' : ($jamSekarang < 15 ? 'Selamat Siang' : ($jamSekarang < 18 ? 'Selamat Sore' : 'Selamat Malam'));
-$namaUser = session('nama') ?? $user->first_name ?? 'Administrator';
+$namaUser = auth()->user()?->nama ?? $user->first_name ?? 'Administrator';
 
 $ph = $presensiHariIni ?? [
     'hadir' => 0, 'ontime' => 0, 'telat' => 0, 'izin' => 0, 'sakit' => 0,

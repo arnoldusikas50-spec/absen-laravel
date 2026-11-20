@@ -1,6 +1,7 @@
 <?php
-$page = uri_string();
-$userRole = session('role');
+$page = request()->path();
+$authUser = auth()->user();
+$userRole = $authUser?->role;
 $isWali = (isset($guru) && isset($guru->id_jabatan) && $guru->id_jabatan == '4');
 $logo_app = ($setting->logo_kiri ?? null)
     ? url(ltrim($setting->logo_kiri, '/'))
@@ -32,7 +33,7 @@ if (! function_exists('isActive')) {
     }
 }
 
-$currUserId = (int) (session('user_id') ?? 0);
+$currUserId = (int) ($authUser?->getAuthIdentifier() ?? 0);
 $hashParam = $currUserId > 0 ? '?h='.\App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash($currUserId) : '';
 
 $menus = [];
@@ -305,12 +306,8 @@ $userFoto = trim((string) ($user->foto ?? ''));
 $avatar = ($userFoto !== '' && strpos($userFoto, '..') === false && file_exists(public_path().'/'.ltrim($userFoto, '/')))
     ? url(ltrim($userFoto, '/'))
     : $defaultAvatar;
-$userName = ! empty(session('username'))
-    ? session('username')
-    : (! empty(session('nama'))
-        ? session('nama')
-        : (! empty($user->nama_lengkap) ? $user->nama_lengkap : 'User'));
-$userRoleName = session('role_name') ?? 'Admin';
+$userName = trim((string) ($authUser?->nama ?? '')) ?: (string) ($authUser?->username ?? 'User');
+$userRoleName = $authUser?->role_name ?? 'Admin';
 
 // Badge notifikasi pending untuk menu verifikasi (khusus admin).
 // Dihitung sekali per request dengan COUNT ringan + guard Schema::hasTable

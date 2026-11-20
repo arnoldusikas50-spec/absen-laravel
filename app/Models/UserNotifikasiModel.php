@@ -8,10 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/UserNotifikasiModel.php
  * Tabel: user_notifikasi
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  *
  * Mapping kanal personal per user (Telegram chat id + nomor WhatsApp) dan
  * preferensi notifikasi personal.
@@ -233,9 +230,7 @@ class UserNotifikasiModel extends Model
     public function unbindByChatId(string $chatId): bool
     {
         try {
-            // CI4 update() mengembalikan bool sukses; Laravel mengembalikan
             // jumlah baris — query yang berjalan tanpa exception dianggap
-            // sukses seperti CI4.
             static::query()->where('telegram_chat_id', $chatId)
                 ->update(['telegram_chat_id' => null]);
 
@@ -296,7 +291,6 @@ class UserNotifikasiModel extends Model
      *
      * @return array<int, object>
      */
-    // TODO: tabel master_guru, users belum ada migrasinya
     public function getAllLinked(): array
     {
         try {
@@ -416,9 +410,7 @@ class UserNotifikasiModel extends Model
             return false;
         }
         try {
-            // CI4 update() mengembalikan bool sukses; Laravel mengembalikan
             // jumlah baris — query yang berjalan tanpa exception dianggap
-            // sukses seperti CI4.
             static::query()->where('user_id', $userId)->update(['wa_verified' => 1]);
 
             return true;
@@ -435,9 +427,7 @@ class UserNotifikasiModel extends Model
             return false;
         }
         try {
-            // CI4 update() mengembalikan bool sukses; Laravel mengembalikan
             // jumlah baris — query yang berjalan tanpa exception dianggap
-            // sukses seperti CI4.
             static::query()->where('user_id', $userId)
                 ->update(['wa_number' => null, 'wa_verified' => 0]);
 
@@ -454,7 +444,6 @@ class UserNotifikasiModel extends Model
      *
      * @return array<int, object>
      */
-    // TODO: tabel master_guru, users belum ada migrasinya
     // TODO: kolom wa_number dan wa_verified belum ada di migrasi user_notifikasi (2026_11_09_000051)
     public function getAllWaLinked(): array
     {

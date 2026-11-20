@@ -7,8 +7,6 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Theme — Palet warna dinamis (Tailwind) berdasarkan setting theme_preset.
- *
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade).
  */
 class Theme
 {

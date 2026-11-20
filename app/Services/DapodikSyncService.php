@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Schema;
 use ZipArchive;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database/forge -> DB/Schema facade, log_message -> Log).
- *
  * DapodikSyncService — Layanan pemutakhiran & penyelarasan data Dapodik dengan database Presensi & KBM.
  * Disesuaikan untuk skema master_siswa, master_guru, master_kelas, master_mapel.
  */
@@ -795,7 +793,6 @@ class DapodikSyncService
                     try {
                         DB::table('master_siswa')->insert($data);
                     } catch (QueryException $e) {
-                        // CI4: $db->error()['code'] === 1062 (duplikat NISN).
                         // Laravel: QueryException errorInfo[1] berisi kode MySQL.
                         $gagal++;
                         $code = (int) ($e->errorInfo[1] ?? 0);

@@ -5,8 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari migrasi CodeIgniter 4 — tabel `presensi_siswa`.
- * Skema konsolidasi (hasil akhir) dari migrasi-migrasi CI4 berikut:
  *  - 20260614000004_CreatePresensiSiswaTable.php
  *  - 20260617000002_AddAttendancePerformanceIndexes.php
  *  - 20260910000001_UpdatePresensiSiswaAddMasukKeluar.php
@@ -15,9 +13,7 @@ use Illuminate\Support\Facades\Schema;
  *  - 20261102000002_AddPulangTidakTercatatToPresensiSiswa.php
  *  - 20261106000000_AddDendaSiswaSettings.php
  *
- * Catatan: kolom dibuat dengan tipe MySQL yang sama seperti CI4
  * (INT/VARCHAR/TEXT/DATETIME/DATE/DECIMAL/TINYINT(1)/ENUM/JSON).
- * Tidak ada foreign key di migrasi CI4, jadi tidak ada FK di sini.
  */
 return new class extends Migration
 {

@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Datamapel Controller - Ported from CI3
- */
 class DatamapelController extends BaseController
 {
     protected MasterModel $masterModel;

@@ -5,10 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/AttendanceSettingModel.php
  * Tabel: absensi_setting
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class AttendanceSettingModel extends Model
 {
@@ -142,12 +139,9 @@ class AttendanceSettingModel extends Model
     // NOTE: Nama ini membayangi first() bawaan Eloquent. Di Eloquent,
     // first() didefinisikan di query builder (Builder::first($columns)),
     // bukan di Model — Model hanya meneruskannya lewat __call. Di sini
-    // first() di-port persis seperti CI4 (method instance tanpa parameter,
     // selalu mengembalikan baris id terkecil). Semua call site di aplikasi
     // memanggilnya sebagai instance (new AttendanceSettingModel())->first()
     // tanpa argumen dan memakai hasilnya sebagai object ($setting->...),
-    // jadi perilaku itu dipertahankan. Cabang CI4 "bila orderBy sudah
-    // di-set, pertahankan" tidak ikut di-port: di Eloquent, orderBy()
     // pada model mengembalikan Builder sehingga ->first() berikutnya
     // adalah Builder::first() dan tidak pernah sampai ke method ini.
     // Jangan panggil AttendanceSettingModel::first() secara statis

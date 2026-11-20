@@ -188,7 +188,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APO
             <div class="flex flex-wrap items-center gap-2 mt-2">
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold {{ $isHariSekolah ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200' }}">
                     <i class="bi {{ $isHariSekolah ? 'bi-check-circle-fill' : 'bi-calendar-x-fill' }}"></i>
-                    {{ $isHariSekolah ? 'Hari sekolah' : ($statusKeterangan !== '' ? esc($statusKeterangan) : 'Libur') }}
+                    {!! $isHariSekolah ? 'Hari sekolah' : ($statusKeterangan !== '' ? e($statusKeterangan) : 'Libur') !!}
                 </span>
                 <span class="text-[11px] text-slate-400">{{ buat_tanggal(date('l, j F Y')) }}</span>
                 <?php if ($tp_active || $smt_active): ?>
@@ -683,7 +683,7 @@ $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APO
                                     data-date="{{ $h->tanggal }}"
                                     data-year="{{ date('Y', $tglTs) }}"
                                     data-month="{{ date('m', $tglTs) }}"
-                                    data-desc="{{ mb_strtolower(esc($h->keterangan, 'attr')) }}">
+                                    data-desc="{!! e(mb_strtolower((string) ($h->keterangan ?? ''))) !!}">
 
                                     <td class="px-4 py-3 text-center text-slate-400 font-semibold text-xs row-num">{{ $idx + 1 }}</td>
 

@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
  * Parameter $db dipertahankan demi kompatibilitas pemanggil lama namun tidak lagi dipakai.
  *
  * SuratPanggilanService — penerbitan & rekap surat panggilan orang tua.

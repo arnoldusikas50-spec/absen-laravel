@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\SingleSettingRow (php spark absensi:single-setting).
- *
  * Jalankan pembersihan baris duplikat absensi_setting tanpa `migrate`.
  * Diperlukan karena pada beberapa instance tracker migrasi tidak selaras
  * dengan skema (schema dibuat lewat import SQL), sehingga `migrate`
@@ -17,10 +15,7 @@ use Illuminate\Support\Facades\Schema;
  *
  *   php artisan absensi:single-setting [--restore]
  *
- * CATATAN PORTING: CI4 memanggil AbsensiSettingSingleton::enforce($db) /
- * ::restore($db) dengan objek koneksi CI4. Di sini diteruskan koneksi
  * Laravel (Illuminate\Database\Connection) sebagai padanannya; bila
- * service hasil porting memakai DB facade secara internal tanpa parameter,
  * panggilannya perlu disesuaikan oleh pekerja service.
  */
 class SingleSettingRowCommand extends Command

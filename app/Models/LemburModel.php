@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/LemburModel.php
  * Tabel: presensi_lembur
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class LemburModel extends Model
 {
@@ -52,8 +49,6 @@ class LemburModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getPending()
     {
         return DB::table('presensi_lembur as pl')
@@ -66,8 +61,6 @@ class LemburModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getRekap($bulan, $tahun)
     {
         $bulan = str_pad((int) $bulan, 2, '0', STR_PAD_LEFT);
@@ -96,8 +89,6 @@ class LemburModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getRiwayat($bulan, $tahun, $limit = 200)
     {
         $bulan = str_pad((int) $bulan, 2, '0', STR_PAD_LEFT);

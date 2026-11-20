@@ -27,7 +27,7 @@
     <!-- Ikon SVG Lucide (mask, tanpa icon font) -->
     <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
     <!-- Tailwind CSS (build lokal) -->
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}">
 
@@ -430,7 +430,7 @@
 
         <?php if (empty($hideBottomNav)): ?>
         <?php
-            $navUri   = uri_string();
+            $navUri   = request()->path();
             $navHome  = ($navUri === 'siswa/presensi');
             $navRiwayat = strpos($navUri, 'riwayat') !== false;
         ?>

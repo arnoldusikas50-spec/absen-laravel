@@ -13,23 +13,16 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * BaseController — port of CI4 App\Controllers\BaseController to Laravel 13.
+ * Controller dasar dengan helper bersama untuk seluruh controller aplikasi.
  *
- * CI4 controllers accessed request/session/response through $this->request,
- * $this->session and $this->response. Those properties are kept here so the
- * ported controllers work unchanged:
+ * Properti yang tersedia:
  *   - $this->request  : Illuminate\Http\Request (current request)
- *   - $this->session  : CiSession adapter (CI4-style get/set/destroy/...)
- *   - $this->response : CiResponse adapter (setJSON/setStatusCode/...)
+ *   - $this->session  : SessionStore (akses session Laravel)
+ *   - $this->response : ResponseBuilder (builder respons JSON/HTML)
  *
- * Helpers ported 1:1 from CI4: isLoggedIn, getUserId, getUserRole, inGroup,
+ * Helper yang tersedia: isLoggedIn, getUserId, getUserRole, inGroup,
  * isAdmin/isGuru/isKepsek/isSiswa, requireLogin, requireRole,
  * respond, getUser, showError, renderView, maybe_unserialize, getTpSmt.
- *
- * Validation: $this->validate($rules) mirrors CI4 (bool + $this->validation()
- * for getError/getErrors); CI4 rule names are translated to Laravel rules.
- * Throttling: $this->throttleCheck($key, $capacity, $seconds) mirrors
- * CI4 Throttler::check().
  */
 class BaseController extends Controller
 {
@@ -39,10 +32,10 @@ class BaseController extends Controller
      */
     protected ?Request $requestOverride = null;
 
-    /** @var CiSession */
+    /** @var SessionStore */
     protected $session;
 
-    /** @var CiResponse */
+    /** @var ResponseBuilder */
     protected $response;
 
     /** @var Connection|null */
@@ -63,8 +56,8 @@ class BaseController extends Controller
         // $this->request tidak di-cache di sini: router meng-cache instance
         // controller, jadi cache request bisa basi pada request berikutnya
         // (mis. dua request dalam satu feature test). Lihat __get().
-        $this->session = new CiSession;
-        $this->response = new CiResponse;
+        $this->session = new SessionStore;
+        $this->response = new ResponseBuilder;
 
         try {
             $this->authModel = new AuthModel;
@@ -74,31 +67,30 @@ class BaseController extends Controller
     }
 
     // ------------------------------------------------------------------
-    // Auth / role helpers (ported from CI4 BaseController)
     // ------------------------------------------------------------------
 
     protected function isLoggedIn(): bool
     {
-        return (bool) session()->get('is_login');
+        return auth()->check();
     }
 
     protected function getUserId(): ?int
     {
-        $id = session()->get('user_id');
+        $user = auth()->user();
 
-        return $id === null ? null : (int) $id;
+        return $user === null ? null : (int) $user->getAuthIdentifier();
     }
 
     protected function getUserRole(): ?string
     {
-        return session()->get('role_name');
+        return auth()->user()?->role_name;
     }
 
     protected function inGroup(string|array $group): bool
     {
-        $role = strtolower((string) (session()->get('role_name') ?? ''));
-        $norm = static function ($g): string {
-            return strtolower((string) $g);
+        $role = strtolower((string) (auth()->user()?->role_name ?? ''));
+        $norm = static function (string|int $value): string {
+            return strtolower((string) $value);
         };
         if (is_array($group)) {
             $group = array_map($norm, $group);
@@ -111,31 +103,22 @@ class BaseController extends Controller
 
     protected function isAdmin(): bool
     {
-        $role = session()->get('role');
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
-
-        return (string) $role === '1' || $roleName === 'admin' || $this->inGroup('admin');
+        return $this->inGroup('admin') || (int) (auth()->user()?->role ?? 0) === 1;
     }
 
     protected function isGuru(): bool
     {
-        $role = session()->get('role');
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
-
-        return (string) $role === '2' || $roleName === 'guru' || $this->inGroup('guru');
+        return $this->inGroup('guru') || (int) (auth()->user()?->role ?? 0) === 2;
     }
 
     protected function isKepsek(): bool
     {
-        return is_kepsek((int) (session()->get('user_id') ?? 0));
+        return is_kepsek($this->getUserId() ?? 0);
     }
 
     protected function isSiswa(): bool
     {
-        $role = session()->get('role');
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
-
-        return (string) $role === '3' || $roleName === 'siswa' || $this->inGroup('siswa');
+        return $this->inGroup('siswa') || (int) (auth()->user()?->role ?? 0) === 3;
     }
 
     protected function requireLogin()
@@ -162,8 +145,8 @@ class BaseController extends Controller
         if ($this->inGroup($roles)) {
             return null;
         }
-        $idMap = ['admin' => '1', 'guru' => '2', 'siswa' => '3'];
-        $roleId = (string) (session()->get('role') ?? '');
+        $idMap = ['admin' => 1, 'guru' => 2, 'siswa' => 3];
+        $roleId = (int) (auth()->user()?->role ?? 0);
         foreach ($roles as $r) {
             $key = strtolower((string) $r);
             if (isset($idMap[$key]) && $roleId === $idMap[$key]) {
@@ -197,48 +180,34 @@ class BaseController extends Controller
 
     protected function getUser(): ?object
     {
-        $userId = session()->get('user_id');
-        if (! $userId) {
+        $user = auth()->user();
+        if ($user === null) {
             return null;
         }
 
-        try {
-            $user = DB::table('users')->where('id', $userId)->first();
-        } catch (\Throwable $e) {
-            return null;
-        }
-
-        if ($user) {
-            $user->role = session()->get('role');
-            $user->role_name = session()->get('role_name');
-
-            // Hitung nama_lengkap dari first_name + last_name.
-            // Jika first_name sudah berisi spasi (nama lengkap tersimpan di
-            // salah field), jangan tambahkan last_name agar nama tidak ganda.
-            $first = trim((string) ($user->first_name ?? ''));
-            $last = trim((string) ($user->last_name ?? ''));
-            if (! empty($first) && strpos($first, ' ') !== false) {
-                $user->nama_lengkap = $first;
-            } elseif ($first === $last) {
-                $user->nama_lengkap = $first;
-            } else {
-                $user->nama_lengkap = trim($first.' '.$last);
-            }
+        // Jika first_name sudah berisi spasi (nama lengkap tersimpan di
+        // salah field), jangan tambahkan last_name agar nama tidak ganda.
+        $first = trim((string) ($user->first_name ?? ''));
+        $last = trim((string) ($user->last_name ?? ''));
+        if (! empty($first) && strpos($first, ' ') !== false) {
+            $user->nama_lengkap = $first;
+        } elseif ($first === $last) {
+            $user->nama_lengkap = $first;
+        } else {
+            $user->nama_lengkap = trim($first.' '.$last);
         }
 
         return $user;
     }
 
-    protected function showError(string $message, int $statusCode = 500)
+    protected function showError(string $message, int $statusCode = 500): never
     {
-        return view('errors.html.error_'.$statusCode, [
-            'message' => $message,
-        ]);
+        abort($statusCode, $message);
     }
 
     protected function renderView(string $view, array $data = [])
     {
-        $data['base_url'] = url('/');
+        $data['appUrl'] = url('/');
         $data['user'] = $data['user'] ?? $this->getUser();
 
         return view($view, $data);
@@ -284,13 +253,8 @@ class BaseController extends Controller
     }
 
     // ------------------------------------------------------------------
-    // Setting helpers (CI4 SettingsModel/DashboardModel::getSetting port)
     // ------------------------------------------------------------------
 
-    /**
-     * Baris pertama tabel `setting` + alias kompatibilitas CI3
-     * (nama_sekolah, logo, website). Menggantikan ->getSetting() CI4.
-     */
     protected function getSettingRow(): ?object
     {
         try {
@@ -318,7 +282,6 @@ class BaseController extends Controller
     }
 
     /**
-     * Menggantikan SettingsModel::updateSetting() CI4: update baris pertama
      * tabel `setting`, atau insert bila belum ada.
      */
     protected function updateSettingRow(array $data): bool
@@ -351,12 +314,9 @@ class BaseController extends Controller
         }
     }
 
-    /**
-     * Menggantikan LogModel::saveLog() CI4 (tabel `logs`).
-     */
     protected function saveAuditLog(int $aktivitas, string $keterangan = '', ?int $userId = null): bool
     {
-        $userId = $userId ?? (int) (session()->get('user_id') ?? 0);
+        $userId = $userId ?? (int) (auth()->id() ?? 0);
         if (! $userId) {
             return false;
         }
@@ -380,8 +340,6 @@ class BaseController extends Controller
     }
 
     /**
-     * Tambah kolom ke tabel (CI4 Forge::addColumn). Dipakai lazy-migration
-     * di Settings / PresensiAdmin / Attendance. Definisi kolom gaya CI4:
      * ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true, 'default' => x].
      */
     protected function addTableColumns(string $table, array $fields): void
@@ -490,11 +448,9 @@ class BaseController extends Controller
     }
 
     // ------------------------------------------------------------------
-    // Validation (CI4 $this->validate() + Services::validation())
     // ------------------------------------------------------------------
 
     /**
-     * Mirip $this->validate() CI4: return bool; error dibaca lewat
      * $this->validation()->getError('field') / getErrors().
      */
     protected function validate(array $rules, array $messages = []): bool
@@ -515,7 +471,7 @@ class BaseController extends Controller
             } else {
                 $ruleStr = $spec;
             }
-            $laravelRules[$field] = $this->translateRules((string) $ruleStr);
+            $laravelRules[$field] = (string) $ruleStr;
         }
 
         $this->validator = Validator::make($this->request->all(), $laravelRules, $messages, $attributes);
@@ -537,158 +493,6 @@ class BaseController extends Controller
     }
 
     /**
-     * Terjemah aturan validasi CI4 -> Laravel.
-     * Aturan yang tidak dikenal diabaikan (dicatat di log).
-     */
-    protected function translateRules(string $ruleStr): string
-    {
-        $out = [];
-        // CI4 `min_length`/`max_length` mengukur panjang karakter. Laravel
-        // `min`/`max` beralih ke perbandingan nilai numerik bila field juga
-        // punya aturan numeric/integer/decimal — sehingga NIS 15 digit
-        // (nilainya > 20) ikut ditolak. Untuk field numerik dipakai varian
-        // digit (panjang digit) agar setara dengan CI4.
-        $hasNumeric = (bool) preg_match('/(?:^|\|)\s*(?:numeric|integer|decimal)\s*(?:\[|\||$)/', $ruleStr);
-        foreach (explode('|', $ruleStr) as $part) {
-            $part = trim($part);
-            if ($part === '') {
-                continue;
-            }
-            if (preg_match('/^(\w+)\[(.*)\]$/', $part, $m)) {
-                $name = $m[1];
-                $arg = $m[2];
-            } else {
-                $name = $part;
-                $arg = null;
-            }
-            switch ($name) {
-                case 'required':
-                    $out[] = 'required';
-                    break;
-                case 'permit_empty':
-                    $out[] = 'nullable';
-                    break;
-                case 'if_exist':
-                    break;
-                case 'min_length':
-                    $out[] = $hasNumeric ? 'min_digits:'.$arg : 'min:'.$arg;
-                    break;
-                case 'max_length':
-                    $out[] = $hasNumeric ? 'max_digits:'.$arg : 'max:'.$arg;
-                    break;
-                case 'exact_length':
-                    $out[] = $hasNumeric ? 'digits:'.$arg : 'size:'.$arg;
-                    break;
-                case 'numeric':
-                case 'decimal':
-                    $out[] = 'numeric';
-                    break;
-                case 'integer':
-                    $out[] = 'integer';
-                    break;
-                case 'valid_email':
-                    $out[] = 'email';
-                    break;
-                case 'valid_url':
-                    $out[] = 'url';
-                    break;
-                case 'valid_ip':
-                    $out[] = 'ip';
-                    break;
-                case 'valid_date':
-                    $out[] = 'date';
-                    break;
-                case 'alpha':
-                    $out[] = 'alpha';
-                    break;
-                case 'alpha_numeric':
-                    $out[] = 'alpha_num';
-                    break;
-                case 'alpha_dash':
-                    $out[] = 'alpha_dash';
-                    break;
-                case 'in_list':
-                    $out[] = 'in:'.$arg;
-                    break;
-                case 'matches':
-                    $out[] = 'same:'.$arg;
-                    break;
-                case 'differs':
-                    $out[] = 'different:'.$arg;
-                    break;
-                case 'is_unique':
-                    $bits = explode(',', (string) $arg);
-                    $tf = explode('.', $bits[0]);
-                    $r = 'unique:'.$tf[0].','.($tf[1] ?? 'id');
-                    if (isset($bits[2])) {
-                        $r .= ','.$bits[2].','.$bits[1];
-                    }
-                    $out[] = $r;
-                    break;
-                case 'is_not_unique':
-                    $out[] = 'exists:'.str_replace('.', ',', (string) $arg);
-                    break;
-                case 'greater_than':
-                    $out[] = 'gt:'.$arg;
-                    break;
-                case 'greater_than_equal_to':
-                    $out[] = 'gte:'.$arg;
-                    break;
-                case 'less_than':
-                    $out[] = 'lt:'.$arg;
-                    break;
-                case 'less_than_equal_to':
-                    $out[] = 'lte:'.$arg;
-                    break;
-                case 'required_with':
-                    $out[] = 'required_with:'.$arg;
-                    break;
-                case 'required_without':
-                    $out[] = 'required_without:'.$arg;
-                    break;
-                case 'uploaded':
-                    $out[] = 'required';
-                    $out[] = 'file';
-                    break;
-                case 'max_size':
-                    $bits = explode(',', (string) $arg);
-                    $out[] = 'max:'.($bits[1] ?? 2048);
-                    break;
-                case 'mime_in':
-                    $bits = explode(',', (string) $arg, 2);
-                    $out[] = 'mimetypes:'.($bits[1] ?? '');
-                    break;
-                case 'ext_in':
-                    $bits = explode(',', (string) $arg);
-                    array_shift($bits);
-                    $out[] = 'mimes:'.implode(',', $bits);
-                    break;
-                case 'is_image':
-                    $out[] = 'image';
-                    break;
-                case 'regex_match':
-                    $out[] = 'regex:'.$arg;
-                    break;
-                case 'string':
-                    $out[] = 'string';
-                    break;
-                case 'array':
-                    $out[] = 'array';
-                    break;
-                case 'boolean':
-                    $out[] = 'boolean';
-                    break;
-                default:
-                    Log::debug('[BaseController::translateRules] aturan CI4 diabaikan: '.$name);
-                    break;
-            }
-        }
-
-        return implode('|', array_filter($out));
-    }
-
-    /**
-     * Mirip CI4 Throttler::check($key, $capacity, $seconds): true bila
      * masih dalam batas, false bila sudah melebihi batas.
      */
     protected function throttleCheck(string $key, int $capacity, int $seconds): bool
@@ -701,27 +505,9 @@ class BaseController extends Controller
         return true;
     }
 
-    // ------------------------------------------------------------------
-    // AuthModel CI4 (dipakai Useradmin/Userguru/Userpanitia/Usersiswa
-    // lewat $this->auth). Model Laravel belum mem-port method-methodnya,
-    // jadi diimplementasikan di sini dengan DB query builder.
-    // ------------------------------------------------------------------
-
-    /** Kolom yang boleh ditulis ke tabel `users` (CI4 AuthModel::$allowedFields). */
-    protected function usersAllowedFields(): array
-    {
-        return [
-            'ip_address', 'username', 'password', 'email', 'activation_code',
-            'forgotten_password_code', 'forgotten_password_time', 'remember_code',
-            'created_on', 'last_login', 'active', 'first_name', 'last_name',
-            'company', 'phone', 'foto', 'nomor_peserta',
-        ];
-    }
-
-    /** CI4 AuthModel::user() — baris users + nama_lengkap. */
     protected function authUser(?int $id = null): ?object
     {
-        $userId = $id ?? (int) (session()->get('user_id') ?? 0);
+        $userId = $id ?? (int) (auth()->id() ?? 0);
         if ($userId <= 0) {
             return null;
         }
@@ -739,187 +525,70 @@ class BaseController extends Controller
         return $user;
     }
 
-    /** CI4 AuthModel::isExist() — user berdasarkan username. */
+    private function authModel(): AuthModel
+    {
+        return $this->authModel ?? new AuthModel;
+    }
+
     protected function authIsExist(string $username): ?object
     {
         try {
-            return DB::table('users')->where('username', $username)->first();
+            return $this->authModel()->isExist($username);
         } catch (\Throwable $e) {
             return null;
         }
     }
 
     /**
-     * CI4 AuthModel::register() — buat akun login baru + baris users_groups.
      * Hanya membuat; bila username sudah dipakai, kembalikan 0 tanpa menulis.
      */
     protected function authRegister(array $data, string $group): int
     {
-        $username = trim((string) ($data['username'] ?? ''));
-        if ($username === '') {
-            Log::error('[AuthModel::register] username kosong — akun tidak dibuat');
-
-            return 0;
-        }
-        $data['username'] = $username;
-
-        if ($this->authIsExist($username)) {
-            Log::error('[AuthModel::register] username "'.$username.'" sudah dipakai — tidak ada yang diubah');
-
-            return 0;
-        }
-
-        $data['ip_address'] = $this->request->ip();
-        $data['created_on'] = time();
-        $data['active'] = '1';
-        unset($data['id']);
-        $data = array_intersect_key($data, array_flip($this->usersAllowedFields()));
-
-        DB::beginTransaction();
         try {
-            $id = (int) DB::table('users')->insertGetId($data);
-            if ($id <= 0) {
-                DB::rollBack();
-                Log::error('[AuthModel::register] insert users gagal');
-
-                return 0;
-            }
-            DB::table('users_groups')->insert([
-                'user_id' => $id,
-                'group_id' => (int) $group,
-            ]);
-            DB::commit();
-
-            return $id;
+            return $this->authModel()->register($data, $group);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('[AuthModel::register] '.$e->getMessage());
-
             return 0;
         }
     }
 
-    /** CI4 AuthModel::deleteUser() — hapus akun + grup + lepas master_guru. */
     protected function authDeleteUser(int $id): bool
     {
-        if ($id <= 0) {
-            return false;
-        }
-        DB::beginTransaction();
         try {
-            $ada = DB::table('users')->where('id', $id)->first();
-            if (! $ada) {
-                DB::rollBack();
-
-                return false;
-            }
-            if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'id_user')) {
-                DB::table('master_guru')->where('id_user', $id)->update(['id_user' => null]);
-            }
-            DB::table('users_groups')->where('user_id', $id)->delete();
-            DB::table('users')->where('id', $id)->delete();
-            DB::commit();
-
-            return true;
+            return $this->authModel()->deleteUser($id);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('[AuthModel::deleteUser#'.$id.'] '.$e->getMessage());
-
             return false;
         }
     }
 
-    /**
-     * CI4 AuthModel::renameUser() — ganti username akun + sinkron master.
-     */
     protected function authRenameUser(int $userId, string $newUsername): array
     {
-        $new = trim($newUsername);
-        if ($userId <= 0) {
-            return ['status' => false, 'message' => 'Akun tidak valid.'];
-        }
-        if (strlen($new) < 4 || strlen($new) > 30 || ! preg_match('/^[A-Za-z0-9_.-]+$/', $new)) {
-            return ['status' => false, 'message' => 'Username baru tidak valid (4–30 karakter: huruf/angka/titik/strip/underscore).'];
-        }
-
-        DB::beginTransaction();
         try {
-            $user = DB::table('users')->where('id', $userId)->first();
-            if (! $user) {
-                DB::rollBack();
-
-                return ['status' => false, 'message' => 'Akun tidak ditemukan.'];
-            }
-            $old = trim((string) $user->username);
-            if ($old === $new) {
-                DB::rollBack();
-
-                return ['status' => true, 'message' => 'Username tidak berubah.', 'changed' => false];
-            }
-            $dupe = DB::table('users')->where('username', $new)->where('id', '!=', $userId)->count();
-            if ($dupe > 0) {
-                DB::rollBack();
-
-                return ['status' => false, 'message' => 'Username sudah dipakai akun lain.'];
-            }
-
-            DB::table('users')->where('id', $userId)->update(['username' => $new]);
-
-            $ikut = 0;
-            if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'username')) {
-                $ikut += DB::table('master_guru')
-                    ->where(function ($q) use ($userId, $old) {
-                        $q->where('id_user', $userId)->orWhere('username', $old);
-                    })
-                    ->update(['username' => $new]);
-            }
-            if (Schema::hasTable('master_siswa') && Schema::hasColumn('master_siswa', 'username')) {
-                $ikut += DB::table('master_siswa')->where('username', $old)->update(['username' => $new]);
-            }
-
-            DB::commit();
-
-            return [
-                'status' => true,
-                'message' => 'Username "'.$old.'" → "'.$new.'"'.($ikut > 0 ? ' (+'.$ikut.' baris master)' : ''),
-                'changed' => true,
-                'old' => $old,
-            ];
+            return $this->authModel()->renameUser($userId, $newUsername);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('[AuthModel::renameUser#'.$userId.'] '.$e->getMessage());
-
             return ['status' => false, 'message' => 'Gagal mengganti username — tidak ada yang berubah.'];
         }
     }
 
-    /** CI4 AuthModel::groups() — semua baris users_groups. */
     protected function authGroups(): array
     {
         try {
-            return DB::table('users_groups')->get()->all();
+            return $this->authModel()->groups();
         } catch (\Throwable $e) {
             return [];
         }
     }
 
-    /** CI4 AuthModel::changePassword() / change_password(). */
     protected function authChangePassword(string $username, string $oldPassword, string $newPassword): bool
     {
         try {
-            $user = DB::table('users')->where('username', $username)->first();
-            if ($user && password_verify($oldPassword, $user->password)) {
-                return (bool) DB::table('users')->where('username', $username)
-                    ->update(['password' => password_hash($newPassword, PASSWORD_BCRYPT)]);
-            }
+            return $this->authModel()->changePassword($username, $oldPassword, $newPassword);
         } catch (\Throwable $e) {
-            Log::error('[AuthModel::changePassword] '.$e->getMessage());
-        }
+            Log::error('[BaseController::authChangePassword] '.$e->getMessage());
 
-        return false;
+            return false;
+        }
     }
 
-    /** CI4 AuthModel::resetErrorLogin() — hapus riwayat percobaan gagal. */
     protected function authResetErrorLogin(string $username): bool
     {
         try {
@@ -933,9 +602,6 @@ class BaseController extends Controller
         }
     }
 
-    /**
-     * CI4 MasterModel::updateData($table, $data, $pk, $id).
-     */
     protected function updateMasterData(string $table, array $data, string $pk, $id)
     {
         try {
@@ -977,15 +643,13 @@ class BaseController extends Controller
 }
 
 // ======================================================================
-// CI4 compatibility adapters (defined in this file so no other file in
-// app/ is touched).
+// Helper kecil di bawah ini membungkus API session dan response Laravel.
 // ======================================================================
 
 /**
- * Adapter session gaya CI4 di atas session Laravel.
  * get/set/has/remove/destroy/regenerate/setFlashdata/getFlashdata.
  */
-class CiSession
+class SessionStore
 {
     public function get($key = null, $default = null)
     {
@@ -1078,10 +742,9 @@ class CiSession
 }
 
 /**
- * Adapter response gaya CI4 di atas response Laravel.
  * setStatusCode/setContentType/setHeader/setJSON/setBody/download/noCache.
  */
-class CiResponse
+class ResponseBuilder
 {
     protected int $status = 200;
 
@@ -1136,9 +799,6 @@ class CiResponse
     }
 }
 
-/**
- * Adapter validation gaya CI4 (Services::validation()).
- */
 class CiValidation
 {
     public function __construct(
@@ -1187,7 +847,6 @@ class CiValidation
 }
 
 /**
- * Adapter Forge gaya CI4 di atas Schema Laravel.
  * addColumn/addField/addPrimaryKey/addKey/addUniqueKey/createTable/
  * modifyColumn/dropTable/dropColumn.
  */
@@ -1369,7 +1028,6 @@ class CiForge
 }
 
 /**
- * Helper kecil agar CiForge bisa memakai pemetaan kolom CI4 yang sama
  * dengan BaseController::addCiColumn tanpa mewarisi controller.
  */
 class BaseControllerHelper

@@ -7,17 +7,11 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * RoleMiddleware — port AdminFilter (CI4) ke Laravel 13.
+ * Middleware pembatas akses berdasarkan peran pengguna Laravel.
  *
  * Pemakaian: ->middleware('role:admin') atau ->middleware('role:guru,admin').
  * Role dikenali: admin, guru, siswa.
  *
- * Sumber role (mengikuti AuthFilter/AdminFilter CI4):
- *   1. session('role_name') — string, dibanding lowercase.
- *   2. session('role') — id grup (1=admin, 2=guru, 3=siswa).
- *   3. Bila session kosong, fallback ke atribut user yang login
- *      ($user->role_name / $user->role). Catatan: model App\Models\User
- *      belum menyimpan atribut itu, jadi fallback ini praktis jarang terpakai.
  * Belum login -> 401 JSON untuk AJAX, else redirect route 'login'.
  * Role tidak diizinkan -> 403 JSON untuk AJAX, else redirect 'dashboard'.
  * Tanpa argumen role -> semua request ditolak (fail-closed).
@@ -47,7 +41,7 @@ class RoleMiddleware
 
         $allowed = $this->normalizeRoles($roles);
 
-        if ($this->userHasRole($request, $allowed)) {
+        if ($this->userHasRole($allowed)) {
             return $next($request);
         }
 
@@ -66,37 +60,34 @@ class RoleMiddleware
      * Tanpa parameter -> daftar kosong, artinya semua request ditolak
      * (fail-closed), supaya `role:` yang lupa diberi argumen tidak
      * diam-diam berubah menjadi "admin only".
+     *
+     * @param  array<int, string>  $roles
+     * @return array<int, string>
      */
     protected function normalizeRoles(array $roles): array
     {
-        return array_values(array_filter(array_map(fn ($r) => strtolower(trim((string) $r)), $roles)));
+        return array_values(array_filter(array_map(fn (string $role): string => strtolower(trim($role)), $roles)));
     }
 
-    protected function userHasRole(Request $request, array $allowed): bool
+    /**
+     * @param  array<int, string>  $allowed
+     */
+    protected function userHasRole(array $allowed): bool
     {
-        $roleName = strtolower(trim((string) (session('role_name') ?? '')));
+        $user = auth()->user();
+        if ($user === null) {
+            return false;
+        }
+
+        $roleName = strtolower(trim((string) ($user->role_name ?? '')));
         if ($roleName !== '' && in_array($roleName, $allowed, true)) {
             return true;
         }
 
-        $groupId = (int) (session('role') ?? 0);
-        if ($groupId > 0 && isset(self::ROLE_BY_GROUP_ID[$groupId])) {
-            return in_array(self::ROLE_BY_GROUP_ID[$groupId], $allowed, true);
-        }
+        $groupId = (int) ($user->role ?? 0);
 
-        // Fallback: atribut user yang login (bila session role belum terisi).
-        $user = $request->user();
-        if ($user) {
-            $userRole = strtolower(trim((string) ($user->role_name ?? '')));
-            if ($userRole !== '' && in_array($userRole, $allowed, true)) {
-                return true;
-            }
-            $userGroup = (int) ($user->role ?? 0);
-            if ($userGroup > 0 && isset(self::ROLE_BY_GROUP_ID[$userGroup])) {
-                return in_array(self::ROLE_BY_GROUP_ID[$userGroup], $allowed, true);
-            }
-        }
-
-        return false;
+        return $groupId > 0
+            && isset(self::ROLE_BY_GROUP_ID[$groupId])
+            && in_array(self::ROLE_BY_GROUP_ID[$groupId], $allowed, true);
     }
 }

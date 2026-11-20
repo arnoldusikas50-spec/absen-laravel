@@ -289,7 +289,7 @@ $jamSelesaiLembur = $tsMulaiLembur ? date('H:i', $tsMulaiLembur + 2 * 3600) : '1
                             <span class="block text-[10px] font-extrabold uppercase tracking-wide text-rose-500 mb-0.5">
                                 <i class="bi bi-chat-left-text"></i> Alasan ditolak
                             </span>
-                            <p class="m-0 font-medium text-rose-700">{{ $alasan !== '' ? esc($alasan) : 'Tidak ada catatan dari admin.' }}</p>
+                            <p class="m-0 font-medium text-rose-700">{!! $alasan !== '' ? e($alasan) : 'Tidak ada catatan dari admin.' !!}</p>
                         </div>
                     <?php endif; ?>
 

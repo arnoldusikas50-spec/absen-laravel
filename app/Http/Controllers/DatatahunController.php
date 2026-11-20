@@ -256,7 +256,6 @@ class DatatahunController extends BaseController
         }
 
         $db = DB::connection();
-        // Query Builder Laravel tidak punya replace() (itu API CI4). Padanannya
         // updateOrInsert(): perbarui bila barisnya ada, sisipkan bila belum.
         try {
             $db->table('master_hari_efektif')->updateOrInsert(
@@ -347,7 +346,6 @@ class DatatahunController extends BaseController
                    AND UPPER(c.EXTRA) NOT LIKE '%AUTO_INCREMENT%'
                  ORDER BY c.TABLE_NAME";
         // select() mengembalikan array dan melempar QueryException saat gagal,
-        // tidak pernah false seperti kontrak CI4.
         $q = $db->select($sql, [$kolomTarget, $tabel]);
 
         $kandidat = array_map(

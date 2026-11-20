@@ -3,10 +3,8 @@
 /**
  * Helper utilities for generating URL-safe encrypted tokens.
  *
- * Port dari CodeIgniter 4 ke Laravel 13. CI4 `service('encrypter')`
  * diganti `Illuminate\Support\Facades\Crypt` (AES-256-CBC/GCM via
  * APP_KEY). Format token TIDAK kompatibel dengan token yang dibuat
- * aplikasi CI4 — token ini hanya dipakai sesaat di URL, jadi token
  * lama yang belum dipakai tidak bisa didekripsi setelah migrasi.
  */
 

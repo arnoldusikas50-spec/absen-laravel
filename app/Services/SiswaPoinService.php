@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
- * Transaksi CI4 (transBegin/Commit/Rollback + cek transStatus) diganti
  * DB::beginTransaction/commit/rollBack: di Laravel query gagal melempar
  * QueryException yang ditangkap outer catch -> rollback; hasil akhir setara.
  * Catatan: delete() Laravel mengembalikan int (bukan false), jadi cek
@@ -201,7 +199,6 @@ class SiswaPoinService
         // Transaksi: hapus-lama + tulis-baru + cache harus atomik agar
         // dua recalc paralel (scan + cron) tidak saling menimpa.
         // Di Laravel query gagal melempar QueryException -> outer catch
-        // me-rollback; cek transStatus() CI4 tidak punya padanan.
         try {
             DB::beginTransaction();
             $row = DB::table('presensi_siswa')->where('id', $presensiId)->first();
@@ -435,9 +432,8 @@ class SiswaPoinService
             // mustahil ditemukan dan entri otomatisnya akan menggantung
             // sebagai poin yatim. Dalam kasus ini tapping ke tanda tanggal di
             // keterangan. Semua entri PRESENSI selalu berakhiran "(YYYY-MM-DD)".
-            // CATATAN PORT: sumber memakai like(..., false) = LIKE tanpa
-            // wildcard (pencocokan eksak terhadap seluruh keterangan);
-            // dipertahankan 1:1 di sini.
+            // Pencocokan memakai LIKE tanpa wildcard, sehingga keterangan
+            // harus sama persis dengan pola yang dicari.
             $n += DB::table('poin_siswa_history')
                 ->where('id_siswa', $idSiswa)
                 ->where('tipe', 'PRESENSI')

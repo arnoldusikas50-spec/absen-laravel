@@ -442,7 +442,7 @@
                                  data-absen="{{ $absenN }}"
                                  data-validasi="{{ $jurnalOk ? ($validasiStatus ?: 'PENDING') : '' }}"
                                  data-jurnal-id="{{ $jurnalOk ? $jurnalIdVal : 0 }}"
-                                 data-search="{{ strtolower(esc($s['nama_mapel'] . ' ' . $s['nama_guru'] . ' ' . ($s['jurnal_guru_nama'] ?? '') . ' ' . $materiText)) }}">
+                                 data-search="{!! strtolower(e($s['nama_mapel'] . ' ' . $s['nama_guru'] . ' ' . ($s['jurnal_guru_nama'] ?? '') . ' ' . $materiText)) !!}">
 
                                 <!-- Slot Top: Jam Badge, Mapel, & Guru -->
                                 <div class="flex items-start justify-between gap-2">
@@ -554,9 +554,9 @@
                                 <div class="mon-warn mismatch-warning {{ empty($s['piket_mismatch']) ? 'hidden' : '' }}">
                                     <i class="bi bi-exclamation-triangle-fill"></i>
                                     <span class="mismatch-text">
-                                        {{ empty($s['piket_mismatch']) ? '' : ($jurnalOk
-                                            ? 'Piket mencatat ' . esc($statusLabel) . ', padahal jurnal sudah terisi.'
-                                            : 'Piket mencatat Hadir, padahal jurnal belum diisi.') }}
+                                        {!! empty($s['piket_mismatch']) ? '' : ($jurnalOk
+                                            ? 'Piket mencatat ' . e($statusLabel) . ', padahal jurnal sudah terisi.'
+                                            : 'Piket mencatat Hadir, padahal jurnal belum diisi.') !!}
                                     </span>
                                 </div>
 

@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/RewardRedemptionModel.php
  * Tabel: reward_redemptions
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class RewardRedemptionModel extends Model
 {
@@ -49,7 +46,6 @@ class RewardRedemptionModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel users belum ada migrasinya
     public function getPending()
     {
         return DB::table('reward_redemptions as rr')

@@ -10,20 +10,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade,
- * \Dompdf\Dompdf -> facade Pdf (barryvdh/laravel-dompdf), FCPATH -> public_path(),
- * view() -> view()->render(); view Blade admin.presensi.* dibuat pekerja lain).
- *
  * RekapPdfService — Penyusun PDF rekap bulanan (denda & presensi).
  *
- * Dipindah verbatim dari PresensiAdmin (buildDendaPdf, buildRekapBulananPdf
- * beserta helper filteredAlphaMonthMap, getYTDDendaStats, gambarBase64)
- * supaya alur cron (`CronController::monthlyPdf`, tgl 1 → PDF bulan lalu)
+ * Memakai facade Pdf (barryvdh/laravel-dompdf) dan view Blade admin.presensi.*
+ * sehingga alur cron (`CronController::monthlyPdf`, tgl 1 → PDF bulan lalu)
  * memakai render yang SAMA dengan tombol manual "Kirim ke WA & TG" —
  * bukan dokumen terpisah yang formatnya bisa melenceng.
  *
- * PresensiAdmin tetap memanggil lewat delegator tipis, jadi seluruh call
- * site lama (dashboard, export, kirim manual) tidak berubah perilaku.
+ * PresensiAdmin memanggil lewat delegator tipis, jadi seluruh call site
+ * (dashboard, export, kirim manual) tidak berubah perilaku.
  */
 class RekapPdfService
 {

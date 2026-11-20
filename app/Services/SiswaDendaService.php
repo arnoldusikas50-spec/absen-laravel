@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
  * Catatan: update() Laravel mengembalikan int (bukan false), jadi cek
  * `=== false` pada update dihapus — kegagalan update melempar exception.
  *
@@ -588,7 +587,6 @@ class SiswaDendaService
     /**
      * Susun konteks bulanan sendiri — seluruh siswa aktif pada tahun/semester
      * berjalan, sama seperti rekap "Semua Kelas" — untuk pemanggil di luar
-     * controller rekap: spark command, tombol sinkron, cron.
      *
      * @return array{bulan:int, tahun:int, students:array, mapBySiswa:array, bdrByKelas:array}
      */
@@ -674,7 +672,6 @@ class SiswaDendaService
         $students = array_values((array) $students);
         $mapBySiswa = (array) ($ctx['mapBySiswa'] ?? []);
         // Peta BDR milik view dipakai bila pemanggil menyediakannya; tanpa itu
-        // (jalur spark/cron) peta dibangun sendiri per tanggal.
         $bdrByKelas = isset($ctx['bdrByKelas']) ? (array) $ctx['bdrByKelas'] : null;
         // Peta hari tercatat milik view, kalau tidak ada dibangun dari tabel.
         if (isset($ctx['tercatatByKelas'])) {

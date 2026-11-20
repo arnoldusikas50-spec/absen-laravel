@@ -8,10 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PiketJadwalModel.php
  * Tabel: piket_jadwal
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PiketJadwalModel extends Model
 {
@@ -27,7 +24,6 @@ class PiketJadwalModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel piket_jadwal belum ada migrasinya
     public function initialize()
     {
         if (! Schema::hasTable('piket_jadwal')) {
@@ -38,7 +34,6 @@ class PiketJadwalModel extends Model
                 $table->string('hari', 20);
                 $table->integer('id_guru');
                 $table->text('keterangan')->nullable();
-                // CI4 memakai DATETIME DEFAULT CURRENT_TIMESTAMP (+ ON UPDATE
                 // CURRENT_TIMESTAMP untuk updated_at); useCurrent() hanya
                 // mereproduksi DEFAULT-nya.
                 $table->dateTime('created_at')->useCurrent();
@@ -48,8 +43,6 @@ class PiketJadwalModel extends Model
         }
     }
 
-    // TODO: tabel piket_jadwal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
     public function getJadwalByTpSmt($id_tp, $id_smt)
     {
         return DB::table('piket_jadwal as pj')
@@ -61,8 +54,6 @@ class PiketJadwalModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel piket_jadwal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
     public function getPiketHariIni($hari, $id_tp, $id_smt)
     {
         return DB::table('piket_jadwal as pj')
@@ -78,7 +69,6 @@ class PiketJadwalModel extends Model
      * Jadwal piket per guru (hari-hari tugas guru yang login).
      * Dipakai frontend presensi /guru/piket untuk "Jadwal Saya".
      */
-    // TODO: tabel piket_jadwal belum ada migrasinya
     public function getJadwalByGuru($id_guru, $id_tp, $id_smt)
     {
         return DB::table('piket_jadwal as pj')
@@ -94,8 +84,6 @@ class PiketJadwalModel extends Model
      * Jadwal piket seminggu dikelompokkan per hari: ['Senin' => [...], ...].
      * Dipakai frontend presensi /guru/piket untuk "Jadwal Mingguan".
      */
-    // TODO: tabel piket_jadwal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
     public function getJadwalMingguan($id_tp, $id_smt)
     {
         $rows = $this->getJadwalByTpSmt($id_tp, $id_smt);

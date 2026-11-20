@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
- *
  * Satu sumber kebenaran untuk dua pertanyaan yang sebelumnya dijawab
  * berbeda-beda oleh setiap modul presensi:
  *

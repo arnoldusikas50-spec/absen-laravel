@@ -6,10 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/AttendanceCorrectionModel.php
  * Tabel: absensi_koreksi
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class AttendanceCorrectionModel extends Model
 {
@@ -43,8 +40,6 @@ class AttendanceCorrectionModel extends Model
      * LEFT JOIN agar baris tetap terlihat walau user/guru/absensi terkait
      * sudah dihapus (kasus tsb otomatis ditolak saat diproses).
      */
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getPendingWithDetails()
     {
         return DB::table('absensi_koreksi')
@@ -63,8 +58,6 @@ class AttendanceCorrectionModel extends Model
     /**
      * Riwayat koreksi yang sudah diproses (approved/rejected) + auto-rejected sistem.
      */
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel users belum ada migrasinya
     public function getHistoryWithDetails($limit = 100)
     {
         return DB::table('absensi_koreksi')

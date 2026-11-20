@@ -77,7 +77,6 @@ class LemburController extends BaseController
     /**
      * Baca SEKALIGUS kunci satu pengajuan yang masih PENDING.
      *
-     * Query builder CI4 tidak punya FOR UPDATE, jadi kunci barisnya lewat SQL
      * telanjang. Tanpa kunci, dua admin yang klik "Setujui" bersamaan sama-sama
      * membaca PENDING dan poin bisa dibukukan dua kali. Bila driver tidak
      * mendukung FOR UPDATE (SQLite), pemanggil tetap terlindungi oleh

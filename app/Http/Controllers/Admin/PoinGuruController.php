@@ -32,7 +32,7 @@ class PoinGuruController extends BaseController
         }
 
         $absensiSetting = $db->table('absensi_setting')->orderBy('id', 'ASC')->first();
-        $user = $db->table('users')->where('id', session()->get('user_id'))->first();
+        $user = $db->table('users')->where('id', auth()->id())->first();
 
         // Summary stats from poin_history
         $stats = $db->table('poin_history')
@@ -161,7 +161,7 @@ class PoinGuruController extends BaseController
 
         $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
-        $user = $db->table('users')->where('id', session()->get('user_id'))->first();
+        $user = $db->table('users')->where('id', auth()->id())->first();
 
         $data = [
             'teacher' => $teacher,

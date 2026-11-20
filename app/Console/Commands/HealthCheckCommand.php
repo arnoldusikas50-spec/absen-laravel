@@ -9,14 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Porting CI4 App\Commands\HealthCheck (php spark health:check).
- *
  * Cek kesehatan aplikasi dari cron server dan kirim alert Telegram bila gagal.
  *
  *   php artisan health:check
  *
- * Pemeriksaan (disalin dari CI4 App\Controllers\Health::checkDatabase(),
- * ::checkWritable(), ::checkDisk() — controller itu belum di-port, jadi
  * logikanya di-inline di sini agar command tetap mandiri):
  *   database : SELECT 1 berhasil
  *   writable : storage/logs ada, bisa ditulis, + probe file (cache 60 dtk)

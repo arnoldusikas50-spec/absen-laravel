@@ -7,8 +7,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Porting CI4 App\Commands\DbBackup (php spark db:backup).
- *
  * Backup database MySQL/MariaDB via mysqldump.
  *
  *   php artisan db:backup [--keep=7]

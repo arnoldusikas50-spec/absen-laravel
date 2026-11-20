@@ -1315,7 +1315,7 @@
             </span>
             <span class="action-label">Absen</span>
         </button>
-        <a class="action-item" href="{{ url('guru/presensi-siswa' . (session('user_id') ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int)session('user_id')) : '')) }}">
+        <a class="action-item" href="{{ url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}">
             <span class="action-icon icon-scan">
                 <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
             </span>
@@ -2388,7 +2388,7 @@
                         // (CutiKategoriService): opsi yang tidak berlaku untuk
                         // status kepegawaian/jenis kelamin pegawai ini tidak
                         // ditampilkan sama sekali.
-                        $opsiKategoriCuti = \App\Services\CutiKategoriService::opsiUntukUser((int) (session('user_id') ?? 0));
+                        $opsiKategoriCuti = \App\Services\CutiKategoriService::opsiUntukUser((int) (auth()->id() ?? 0));
                     ?>
                     <div class="mb-3 hidden" id="wrapKategoriCuti">
                         <label class="form-label-tw text-sm font-bold">Jenis Cuti</label>
@@ -3346,9 +3346,9 @@
         fotoWajib: {{ isset($setting->foto_wajib) ? (int) $setting->foto_wajib : 0 }},
         currentMode: '{{ (!$attendance) ? "checkin" : ((!$attendance->jam_pulang) ? "checkout" : "done") }}',
         isHoliday: {{ ($is_holiday) ? 'true' : 'false' }},
-        holidayReason: '{{ isset($holiday_reason) ? esc($holiday_reason) : '' }}',
+        holidayReason: @js((string) ($holiday_reason ?? '')),
         locations: {!! json_script($locations ?? []) !!},
-        userId: '{{ session('user_id') }}',
+        userId: '{{ auth()->id() }}',
         // "Hari ini" versi aplikasi (appTimezone), dipakai penanda
         // "Hari Ini" pada daftar koreksi agar tidak bergantung jam perangkat.
         hariIni: '{{ date('Y-m-d') }}',
@@ -3851,7 +3851,7 @@
     };
 
     /* ═══════════════════════════════════════════════════════════
-       FaceScan — modal biometrik (diport dari public/ui_mobile.html),
+       FaceScan — modal biometrik,
        disambungkan ke endpoint asli /presensi/check-in & /check-out.
        Alur: GPS+geofence → liveness/face → submit + face_descriptor.
        ═══════════════════════════════════════════════════════════ */
@@ -3916,7 +3916,7 @@
         const TARGET0 = '{{ (!$attendance ? 'MASUK' : ((!empty($attendance->jam_pulang) && $attendance->jam_pulang !== '0000-00-00 00:00:00') ? 'DONE' : 'PULANG')) }}';
         const FOTO_WAJIB = {{ isset($setting->foto_wajib) ? (int) $setting->foto_wajib : 0 }};
         const IS_HOLIDAY = {{ ($is_holiday) ? 'true' : 'false' }};
-        const HOLIDAY_REASON = '{{ isset($holiday_reason) ? esc($holiday_reason, 'js') : '' }}';
+        const HOLIDAY_REASON = @js((string) ($holiday_reason ?? ''));
         const LOCATIONS = {!! json_script($locations ?? []) !!};
         const MODEL_LOCAL = '{{ asset('assets/models') }}';
         const MODEL_CDN = 'https://justadudewhohacks.github.io/face-api.js/models';

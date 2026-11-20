@@ -267,7 +267,7 @@ $fotoUrl = function ($path) {
             <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3" role="status">
                 <i class="bi bi-calendar-x-fill text-amber-600 text-lg shrink-0 mt-0.5"></i>
                 <div class="text-xs text-amber-900 leading-relaxed">
-                    <b>{{ $hariLabel }}{{ $hariKeterangan ? ' — ' . esc($hariKeterangan) : '' }}.</b>
+                    <b>{{ $hariLabel }}{!! $hariKeterangan ? ' — ' . e($hariKeterangan) : '' !!}.</b>
                     Tidak ada kewajiban presensi pada tanggal ini; guru tanpa data tidak dihitung sebagai alpha atau belum absen.
                 </div>
             </div>
@@ -592,15 +592,15 @@ $fotoUrl = function ($path) {
                             } elseif ($att && $pulangCepat > 0) {
                                 $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200"><i class="bi bi-arrow-down-left"></i> -' . $pulangCepat . ' mnt</span>';
                             } elseif ($att && in_array($statusRaw, ['IJIN', 'IZIN', 'SAKIT', 'CUTI'], true)) {
-                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200" title="' . e($catatan, 'attr') . '"><i class="bi bi-file-text"></i> ' . e($statusLabel) . '</span>';
+                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200" title="' . e($catatan) . '"><i class="bi bi-file-text"></i> ' . e($statusLabel) . '</span>';
                             } elseif ($att && $statusRaw === 'PENDING_VERIFICATION') {
                                 $keteranganHtml = '<a href="' . url('admin/presensi/verifikasi') . '" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 no-underline hover:bg-amber-100"><i class="bi bi-patch-question"></i> Verifikasi</a>';
                             } elseif ($att && $statusRaw === 'DINAS_REJECTED') {
-                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="' . e($catatan, 'attr') . '"><i class="bi bi-x-octagon"></i> Ditolak</span>';
+                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="' . e($catatan) . '"><i class="bi bi-x-octagon"></i> Ditolak</span>';
                             } elseif ($att && strpos((string) $statusRaw, 'DINAS') !== false) {
-                                $keteranganHtml = '<a href="' . url('admin/presensi/dinas') . '" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 no-underline hover:bg-indigo-100" title="' . e($catatan ?: 'Tugas dinas luar', 'attr') . '"><i class="bi bi-briefcase"></i> Dinas Luar</a>';
+                                $keteranganHtml = '<a href="' . url('admin/presensi/dinas') . '" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 no-underline hover:bg-indigo-100" title="' . e($catatan ?: 'Tugas dinas luar') . '"><i class="bi bi-briefcase"></i> Dinas Luar</a>';
                             } elseif ($att && $statusRaw === 'WFH') {
-                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200" title="' . e($catatan, 'attr') . '"><i class="bi bi-laptop"></i> Bekerja WFH</span>';
+                                $keteranganHtml = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200" title="' . e($catatan) . '"><i class="bi bi-laptop"></i> Bekerja WFH</span>';
                             } elseif ($att && $statusRaw === 'ONTIME') {
                                 $keteranganHtml = '<span class="text-emerald-600 text-[11px] font-bold inline-flex items-center gap-1"><i class="bi bi-check2"></i> Tepat waktu</span>';
                             } elseif (!$att && !$isFuture && $isWorkingDay) {

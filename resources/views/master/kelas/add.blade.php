@@ -30,7 +30,7 @@ if (empty($jjs) && isset($kelas->jumlah_siswa) && !empty($kelas->jumlah_siswa)) 
             <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
                 <i class="bi bi-door-closed"></i> {{ isset($id_kelas) ? 'Edit Kelas' : 'Kelas Baru' }}
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'Kelas' }}{{ isset($kelas->nama_kelas) && $kelas->nama_kelas !== '' ? ' — ' . esc($kelas->nama_kelas) : '' }}</h1>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'Kelas' }}{!! isset($kelas->nama_kelas) && $kelas->nama_kelas !== '' ? ' — ' . e($kelas->nama_kelas) : '' !!}</h1>
             <p class="text-xs text-slate-500 mt-1">{{ $subjudul ?? 'Form Kelas' }} · TP {{ $tp_active->tahun ?? '-' }} · Semester {{ $smt_active->smt ?? '-' }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
@@ -158,7 +158,7 @@ if (empty($jjs) && isset($kelas->jumlah_siswa) && !empty($kelas->jumlah_siswa)) 
                             <select name="siswa[]" class="form-control-tw" id="jumlah_siswa" multiple="multiple">
                                 <?php foreach ($all_siswa as $id => $name): ?>
                                     <option value="{{ (int) $id }}" {{ in_array($id, $jjs) ? 'selected' : '' }}>
-                                        {{ $name }}{{ isset($kelas_asal[$id]) ? ' — ' . esc($kelas_asal[$id]) : '' }}
+                                        {{ $name }}{!! isset($kelas_asal[$id]) ? ' — ' . e($kelas_asal[$id]) : '' !!}
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -224,7 +224,7 @@ if (empty($jjs) && isset($kelas->jumlah_siswa) && !empty($kelas->jumlah_siswa)) 
 <script src="{{ asset('assets/plugins/multiselect/js/jquery.quicksearch.js') }}"></script>
 
 <script>
-    // base_url is already defined in main layout
+    // appUrl is already defined in main layout
     $(document).ready(function () {
         $('#jumlah_siswa').multiSelect({
             selectableHeader: "<div class='ms-col-title tersedia'>Siswa Tersedia</div><input type='text' class='ms-search-input' autocomplete='off' placeholder='Cari siswa tersedia...'>",
@@ -296,7 +296,7 @@ if (empty($jjs) && isset($kelas->jumlah_siswa) && !empty($kelas->jumlah_siswa)) 
 
             const formEl = this;
             $.ajax({
-                url: base_url + "datakelas/save",
+                url: appUrl + "datakelas/save",
                 type: "POST",
                 data: $(formEl).serialize(),
                 dataType: 'json',
@@ -309,7 +309,7 @@ if (empty($jjs) && isset($kelas->jumlah_siswa) && !empty($kelas->jumlah_siswa)) 
                             icon: "success",
                             confirmButtonColor: '#3085d6'
                         }).then(() => {
-                            window.location.href = base_url + 'datakelas';
+                            window.location.href = appUrl + 'datakelas';
                         });
                     } else {
                         Swal.fire({

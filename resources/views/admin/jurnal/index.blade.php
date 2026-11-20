@@ -496,7 +496,7 @@
                                 {{ $b->nama_guru ?? ('Guru #' . $gid) }}
                             </p>
                             <p class="text-[10px] font-semibold text-slate-500 m-0 mt-0.5">
-                                Hadir{{ $jamLabel !== '' ? ' · ' . esc($jamLabel) : '' }}
+                                Hadir{!! $jamLabel !== '' ? ' · ' . e($jamLabel) : '' !!}
                                 · {{ count($sesiKurang) - $nMenunggu }} sesi belum dijurnal
                                 <?php if ($nMenunggu > 0): ?>
                                 · {{ $nMenunggu }} menunggu validasi
@@ -784,7 +784,7 @@
                                 <?php if ($adaValidasi): ?>
                                 <?php $vLabel = $statusValidasiBaris($j->validasi_status ?? ''); ?>
                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {{ $vLabel[1] }} text-[9px] font-bold"
-                                      title="{{ $vLabel[0] }}{{ !empty($j->validasi_catatan) ? ' · ' . esc($j->validasi_catatan) : '' }}{{ !empty($j->validasi_pada) ? ' · ' . esc((string) $j->validasi_pada) : '' }}">
+                                      title="{{ $vLabel[0] }}{!! !empty($j->validasi_catatan) ? ' · ' . e($j->validasi_catatan) : '' !!}{!! !empty($j->validasi_pada) ? ' · ' . e((string) $j->validasi_pada) : '' !!}">
                                     <i class="bi {{ $vLabel[2] }}"></i> {{ $vLabel[0] }}
                                 </span>
                                 <?php endif; ?>

@@ -438,7 +438,6 @@ class RewardController extends BaseController
     }
 
     /**
-     * CI4 tidak melempar exception ketika DB menolak sebuah insert (kolom
      * terlalu panjang, nilai menabrak STRICT mode) — insert() cuma mengembalikan
      * false. Tanpa pemeriksaan ini layar guru bilang "berhasil" untuk penukaran
      * yang sebenarnya tidak pernah tersimpan.
@@ -579,7 +578,7 @@ class RewardController extends BaseController
 
         $dashboardModel = new DashboardModel;
         $setting = $this->getSettingRow();
-        $userData = $this->db->table('users')->where('id', session()->get('user_id'))->first();
+        $userData = $this->db->table('users')->where('id', auth()->id())->first();
 
         return view('members.guru.rekap_bulanan', [
             'title' => 'Rekap Bulanan - '.($namaBulan[(int) $bulan] ?? $bulan).' '.$tahun,

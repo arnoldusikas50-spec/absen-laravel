@@ -8,12 +8,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/MasterModel.php
  * Tabel: master_siswa
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (master_siswa).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class MasterModel extends Model
 {
@@ -32,7 +28,6 @@ class MasterModel extends Model
      * Get all siswa with pagination
      * Returns students including those not yet assigned to a class
      */
-    // TODO: tabel master_siswa, kelas_siswa, master_kelas, buku_induk belum ada migrasinya
     public function getAllSiswa(int $tp, int $smt, int $limit = 10, int $offset = 0, ?string $search = null): array
     {
         $builder = DB::table('master_siswa as a')
@@ -66,7 +61,6 @@ class MasterModel extends Model
     /**
      * Count total siswa
      */
-    // TODO: tabel master_siswa, kelas_siswa belum ada migrasinya
     public function getTotalSiswa(int $tp, int $smt, ?string $search = null): int
     {
         $builder = DB::table('master_siswa as a')
@@ -88,7 +82,6 @@ class MasterModel extends Model
     /**
      * Get siswa by ID
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswa(int $id): ?object
     {
         return DB::table('master_siswa')
@@ -99,7 +92,6 @@ class MasterModel extends Model
     /**
      * Get siswa by username
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswaByUsername(string $username): ?object
     {
         return DB::table('master_siswa')
@@ -110,7 +102,6 @@ class MasterModel extends Model
     /**
      * Save siswa
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function saveSiswa(array $data): bool
     {
         return DB::table('master_siswa')->insert($data);
@@ -119,7 +110,6 @@ class MasterModel extends Model
     /**
      * Update siswa
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function updateSiswa(int $id, array $data): bool
     {
         DB::table('master_siswa')
@@ -132,7 +122,6 @@ class MasterModel extends Model
     /**
      * Delete siswa
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function deleteSiswa(int $id): bool
     {
         DB::table('master_siswa')
@@ -145,7 +134,6 @@ class MasterModel extends Model
     /**
      * Get siswa by ID including buku_induk status
      */
-    // TODO: tabel master_siswa, buku_induk belum ada migrasinya
     public function getSiswaById(int $id): ?object
     {
         return DB::table('master_siswa as a')
@@ -155,7 +143,6 @@ class MasterModel extends Model
             ->first();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function getAllGuru()
     {
         return DB::table('master_guru')->orderBy('nama_guru', 'ASC')->get()->all();
@@ -169,7 +156,6 @@ class MasterModel extends Model
      * Kelas difilter terpisah supaya pengguna bisa memilih status dan kelas
      * dalam waktu yang sama.
      */
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa, master_kelas, users belum ada migrasinya
     private function siswaListBuilder(int $tp, int $smt, string $status = '0', ?int $kelas = null, ?string $search = null, bool $tanpaKelas = false)
     {
         $builder = DB::table('master_siswa as a')
@@ -223,7 +209,6 @@ class MasterModel extends Model
     /**
      * Get students with custom pagination and filtering.
      */
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa, master_kelas, users belum ada migrasinya
     public function getSiswaPage(int $tp, int $smt, int $offset, int $limit, string $status = '0', ?int $kelas = null, ?string $search = null, bool $tanpaKelas = false): array
     {
         $builder = $this->siswaListBuilder($tp, $smt, $status, $kelas, $search, $tanpaKelas);
@@ -239,7 +224,6 @@ class MasterModel extends Model
     /**
      * Count total students with filtering.
      */
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa, master_kelas, users belum ada migrasinya
     public function getSiswaTotalPage(int $tp, int $smt, string $status = '0', ?int $kelas = null, ?string $search = null, bool $tanpaKelas = false): int
     {
         return $this->siswaListBuilder($tp, $smt, $status, $kelas, $search, $tanpaKelas)->count();
@@ -250,7 +234,6 @@ class MasterModel extends Model
      *
      * @return array<string,int>
      */
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa, users belum ada migrasinya
     public function getSiswaStats(int $tp, int $smt): array
     {
         $rows = DB::select(
@@ -284,7 +267,6 @@ class MasterModel extends Model
     /**
      * Get students by array of IDs
      */
-    // TODO: tabel master_siswa, kelas_siswa, master_kelas belum ada migrasinya
     public function getSiswaByArrId(array $ids): array
     {
         if (empty($ids)) {
@@ -309,7 +291,6 @@ class MasterModel extends Model
     /**
      * Get students by array of NISN, NIS, or Username
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswaByArrNisn(array $arr_nisn, array $arr_nis, array $arr_username): array
     {
         return DB::table('master_siswa')
@@ -324,7 +305,6 @@ class MasterModel extends Model
     /**
      * Get students by list of usernames
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswaByUsernames(array $usernames): array
     {
         if (empty($usernames)) {
@@ -341,7 +321,6 @@ class MasterModel extends Model
     /**
      * Get students for new class assignment
      */
-    // TODO: tabel kelas_siswa, master_siswa, master_kelas belum ada migrasinya
     public function getSiswaKelasBaru(int $tp, int $smt): array
     {
         $result = DB::table('kelas_siswa as a')
@@ -364,7 +343,6 @@ class MasterModel extends Model
     /**
      * Get data siswa by kelas with optional pagination and search
      */
-    // TODO: tabel kelas_siswa, master_siswa, master_kelas, users belum ada migrasinya
     public function getDataSiswaByKelas(int $tp, int $smt, int $id_kelas, int $offset = 0, int $limit = 0, ?string $search = null): array
     {
         $builder = DB::table('kelas_siswa as a')
@@ -394,7 +372,6 @@ class MasterModel extends Model
     /**
      * Count data siswa by kelas for pagination
      */
-    // TODO: tabel kelas_siswa, master_siswa belum ada migrasinya
     public function getDataSiswaByKelasPage(int $tp, int $smt, int $id_kelas, ?string $search = null): int
     {
         $builder = DB::table('kelas_siswa as a')
@@ -417,7 +394,6 @@ class MasterModel extends Model
     /**
      * Alias for getDataSiswaByKelas for backward compatibility
      */
-    // TODO: tabel kelas_siswa, master_siswa, master_kelas, users belum ada migrasinya
     public function getSiswaByKelas(int $id_kelas, int $tp, int $smt): array
     {
         return $this->getDataSiswaByKelas($tp, $smt, $id_kelas);
@@ -427,10 +403,6 @@ class MasterModel extends Model
     // GURU FUNCTIONS
     // ==========================================
 
-    /**
-     * Get all guru with full details (Ported from CI3)
-     */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas, master_tp, master_smt, users belum ada migrasinya
     public function getAllDataGuru(int $tp, int $smt): array
     {
         return DB::table('master_guru as a')
@@ -454,10 +426,6 @@ class MasterModel extends Model
             ->get()->all();
     }
 
-    /**
-     * Get data guru for DataTables (Ported from CI3)
-     */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas, master_tp, master_smt belum ada migrasinya
     public function getDataGuru(int $tp, int $smt, ?string $search = null): array
     {
         $builder = DB::table('master_guru as a')
@@ -487,10 +455,6 @@ class MasterModel extends Model
         return $builder->get()->all();
     }
 
-    /**
-     * Get guru by ID including jabatan (Ported from CI3)
-     */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas belum ada migrasinya
     public function getGuruById(int $id, ?int $id_tp = null, ?int $id_smt = null): ?object
     {
         $builder = DB::table('master_guru as a')
@@ -499,7 +463,6 @@ class MasterModel extends Model
             ->leftJoin('level_guru as c', 'b.id_jabatan', '=', 'c.id_level');
 
         if ($id_tp !== null && $id_smt !== null) {
-            // CI4 select() di sini menambah kolom; Laravel select() menimpa,
             // jadi dipakai addSelect().
             $builder->addSelect('d.*')
                 ->leftJoin('master_kelas as d', function ($join) use ($id_tp, $id_smt) {
@@ -516,7 +479,6 @@ class MasterModel extends Model
      * Riwayat jabatan guru, terurut dari TP/SMT terbaru.
      * Return flat list agar setiap periode dapat ditampilkan apa adanya.
      */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas, master_tp, master_smt belum ada migrasinya
     public function getDetailJabatanGuru(int $id_guru): array
     {
         return DB::table('master_guru as a')
@@ -532,10 +494,6 @@ class MasterModel extends Model
             ->get()->all();
     }
 
-    /**
-     * Jabatan guru for specific TP/SMT (Ported from CI3)
-     */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas belum ada migrasinya
     public function getJabatanGuru(int $id_guru, int $tp, int $smt): ?object
     {
         return DB::table('master_guru as a')
@@ -555,10 +513,6 @@ class MasterModel extends Model
             ->first();
     }
 
-    /**
-     * Class/Mapel assignment for guru (Ported from CI3)
-     */
-    // TODO: tabel jabatan_guru, master_guru belum ada migrasinya
     public function getGuruMapel(int $tp, int $smt, ?array $ids_guru = null): array
     {
         $builder = DB::table('jabatan_guru as a')
@@ -577,7 +531,6 @@ class MasterModel extends Model
     /**
      * Update guru by ID
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function updateGuru(int $id, array $data): bool
     {
         DB::table('master_guru')
@@ -590,7 +543,6 @@ class MasterModel extends Model
     /**
      * Delete guru by ID
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function deleteGuru($id): bool
     {
         if (is_array($id)) {
@@ -606,7 +558,6 @@ class MasterModel extends Model
      * Delete teacher from linked tables.
      * Dijalankan dalam satu transaksi agar tidak ada penghapusan setengah jadi.
      */
-    // TODO: tabel master_guru, jabatan_guru, kelas_materi, kelas_catatan_mapel, guru_jurnal, post, post_comments, post_reply, master_kelas, users, users_groups belum ada migrasinya
     public function deleteGuruLinked(int $id_guru): bool
     {
         $tables = [
@@ -638,7 +589,6 @@ class MasterModel extends Model
                 if (! Schema::hasTable($table)) {
                     continue;
                 }
-                // CI4 delete() mengembalikan bool sukses query; Laravel
                 // mengembalikan jumlah baris (0 bila tidak ada baris cocok),
                 // jadi hasilnya tidak dicek — kegagalan query melempar
                 // exception dan ditangkap di bawah.
@@ -682,7 +632,6 @@ class MasterModel extends Model
     /**
      * Get all kelas by TP and semester
      */
-    // TODO: tabel master_kelas, master_guru belum ada migrasinya
     public function getAllKelas(int $tp, int $smt): array
     {
         return DB::table('master_kelas as a')
@@ -699,7 +648,6 @@ class MasterModel extends Model
     /**
      * Get kelas by ID
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getKelasById(int $id): ?object
     {
         return DB::table('master_kelas')
@@ -711,7 +659,6 @@ class MasterModel extends Model
     /**
      * Get kelas by level
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getKelasByLevel(int $tp, int $smt, int $level): array
     {
         return DB::table('master_kelas')
@@ -726,7 +673,6 @@ class MasterModel extends Model
     /**
      * Save kelas
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function saveKelas(array $data): bool
     {
         return DB::table('master_kelas')->insert($data);
@@ -735,7 +681,6 @@ class MasterModel extends Model
     /**
      * Update kelas
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function updateKelas(int $id, array $data): bool
     {
         DB::table('master_kelas')
@@ -748,7 +693,6 @@ class MasterModel extends Model
     /**
      * Delete kelas
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function deleteKelas(int $id): bool
     {
         DB::table('master_kelas')
@@ -761,7 +705,6 @@ class MasterModel extends Model
     /**
      * Count siswa in kelas
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function countSiswaInKelas(int $idKelas, int $tp, int $smt): int
     {
         return DB::table('kelas_siswa')
@@ -778,7 +721,6 @@ class MasterModel extends Model
     /**
      * Get all mapel
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getAllMapel(?int $jenjang = null): array
     {
         $builder = DB::table('master_mapel');
@@ -793,7 +735,6 @@ class MasterModel extends Model
             ->all();
     }
 
-    // TODO: tabel master_kelompok_mapel belum ada migrasinya
     public function getDataKelompokMapel()
     {
         $result = DB::table('master_kelompok_mapel')
@@ -809,7 +750,6 @@ class MasterModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelompok_mapel belum ada migrasinya
     public function getDataSubKelompokMapel()
     {
         $result = DB::table('master_kelompok_mapel')
@@ -825,7 +765,6 @@ class MasterModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelompok_mapel belum ada migrasinya
     public function getKategoriKelompokMapel()
     {
         return DB::table('master_kelompok_mapel')
@@ -841,7 +780,6 @@ class MasterModel extends Model
     /**
      * Get mapel by ID
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getMapel(int $id): ?object
     {
         return DB::table('master_mapel')
@@ -852,7 +790,6 @@ class MasterModel extends Model
     /**
      * Save mapel
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function saveMapel(array $data): bool
     {
         return DB::table('master_mapel')->insert($data);
@@ -861,7 +798,6 @@ class MasterModel extends Model
     /**
      * Update mapel
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function updateMapel(int $id, array $data): bool
     {
         DB::table('master_mapel')
@@ -874,7 +810,6 @@ class MasterModel extends Model
     /**
      * Delete mapel
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function deleteMapel(int $id): bool
     {
         DB::table('master_mapel')
@@ -891,7 +826,6 @@ class MasterModel extends Model
     /**
      * Get all jurusan
      */
-    // TODO: tabel master_jurusan, jurusan belum ada migrasinya
     public function getAllJurusan(): array
     {
         // Prefer master_jurusan if exists and has data, otherwise fallback to jurusan (legacy)
@@ -928,7 +862,6 @@ class MasterModel extends Model
     /**
      * Get jurusan by ID
      */
-    // TODO: tabel master_jurusan belum ada migrasinya
     public function getJurusan(int $id): ?object
     {
         return DB::table('master_jurusan')
@@ -943,7 +876,6 @@ class MasterModel extends Model
     /**
      * Get kelas for dropdown
      */
-    // TODO: tabel master_kelas, master_guru belum ada migrasinya
     public function getDropdownKelas(int $tp, int $smt): array
     {
         $result = [];
@@ -959,7 +891,6 @@ class MasterModel extends Model
     /**
      * Get mapel for dropdown
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getDropdownMapel(): array
     {
         $result = [];
@@ -975,7 +906,6 @@ class MasterModel extends Model
     /**
      * Get guru for dropdown
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function getDropdownGuru(): array
     {
         $result = [];
@@ -992,7 +922,6 @@ class MasterModel extends Model
      * Generate id_kelas_siswa (kelas_siswa tidak memakai auto_increment,
      * jadi PK selalu dihitung eksplisit — lihat juga KelasSiswaUnique migration).
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function generateKelasSiswaId(): int
     {
         return (int) (DB::table('kelas_siswa')->max('id_kelas_siswa') ?? 0) + 1;
@@ -1002,16 +931,13 @@ class MasterModel extends Model
      * Create record in any table
      *
      * NOTE: nama ini membayangi (shadow) Eloquent Model::create(array $attributes = []).
-     * Tanda tangan CI4 persis (string $table, array $data) tidak bisa dipakai apa adanya:
      * method induk adalah static dengan parameter pertama array, dan method non-static
      * tidak boleh menimpa method static — keduanya fatal error saat class dimuat.
      * Karena itu method ini tetap static (seperti induk) dengan parameter pertama
      * yang diperlebar menjadi array|string agar kompatibel dengan induk, dan
-     * pemanggilan gaya CI4 lewat instance ($this->masterModel->create('tabel', $data),
      * 5 call site: Dataguru, Datakelas, Datasiswa) tetap jalan — PHP mengizinkan
      * pemanggilan method static lewat instance. Bila dipanggil gaya Eloquent
      * dengan satu array (tanpa call site saat ini), data di-insert ke tabel
-     * model ini (master_siswa). Mengembalikan bool seperti CI4 insert(),
      * bukan instance Model seperti Eloquent create(); DatakelasController
      * mengandalkan perbandingan `=== false`.
      */
@@ -1091,7 +1017,6 @@ class MasterModel extends Model
     /**
      * Get Jml Hari Efektif
      */
-    // TODO: tabel master_hari_efektif belum ada migrasinya
     public function getJmlHariEfektif(string $id)
     {
         return DB::table('master_hari_efektif')
@@ -1102,7 +1027,6 @@ class MasterModel extends Model
     /**
      * Get guru mapel and kelas
      */
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function getGuruMapelKelas(int $idGuru, int $tp, int $smt)
     {
         return DB::table('jabatan_guru')
@@ -1115,7 +1039,6 @@ class MasterModel extends Model
     /**
      * Get all kelas by array of IDs
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getAllKelasByArrayId(int $tp, int $smt, array $ids): array
     {
         if (empty($ids)) {
@@ -1161,7 +1084,6 @@ class MasterModel extends Model
             ];
         } else {
             // Default fallback if unknown jenjang, return empty or common levels?
-            // Returning empty array as per CI3 logic
         }
 
         return $levels;
@@ -1170,7 +1092,6 @@ class MasterModel extends Model
     /**
      * Get unique religions from master_siswa
      */
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getAgamaSiswa(): array
     {
         $result = DB::table('master_siswa')
@@ -1190,7 +1111,6 @@ class MasterModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getAllKodeKelas($tp, $smt)
     {
         $result = DB::table('master_kelas')
@@ -1211,7 +1131,6 @@ class MasterModel extends Model
     // ==========================================
     // GURU/JABATAN FUNCTIONS (additional)
     // ==========================================
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function getAllJabatanGuru(int $id_guru): array
     {
         $result = DB::table('jabatan_guru')
@@ -1228,7 +1147,6 @@ class MasterModel extends Model
     // ==========================================
     // MAPEL/Kelompok FUNCTIONS (additional)
     // ==========================================
-    // TODO: tabel master_kelompok_mapel belum ada migrasinya
     public function getKodeKelompokMapel(): array
     {
         $result = DB::table('master_kelompok_mapel')
@@ -1242,7 +1160,6 @@ class MasterModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getAllStatusMapel(?array $arrKelompok = null, ?string $arrMapel = null): array
     {
         $builder = DB::table('master_mapel');

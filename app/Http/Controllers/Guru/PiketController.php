@@ -2566,7 +2566,7 @@ class PiketController extends BaseController
     /** Nama penanda tangan untuk balasan AJAX (users tidak punya kolom `name`). */
     private function namaAktor(): string
     {
-        $nama = trim((string) ($this->session->get('nama') ?? ''));
+        $nama = trim((string) (auth()->user()?->nama ?? ''));
         if ($nama !== '') {
             return $nama;
         }

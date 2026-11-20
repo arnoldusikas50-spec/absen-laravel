@@ -77,7 +77,7 @@ class PresensiSiswaQrController extends BaseController
     public static function generateHash(int $userId, ?string $date = null): string
     {
         $date = $date ?: date('Y-m-d');
-        $salt = (string) ('Asia/Makassar' ?? 'Asia/Makassar').(config('app.key') ?? 'absen_ikas_secret_salt_2026');
+        $salt = 'Asia/Makassar'.(config('app.key') ?? 'absen_ikas_secret_salt_2026');
 
         return substr(hash_hmac('sha256', "presensi-siswa:{$userId}:{$date}", $salt), 0, 32);
     }
@@ -150,7 +150,7 @@ class PresensiSiswaQrController extends BaseController
         try {
             Log::warning('[PresensiSiswaQr] kiosk token invalid ip={ip} uri={uri}', [
                 'ip' => $this->request->ip(),
-                'uri' => uri_string(),
+                'uri' => request()->path(),
             ]);
         } catch (\Throwable $e) {
         }
@@ -277,7 +277,7 @@ class PresensiSiswaQrController extends BaseController
     /** URL halaman kiosk untuk kelas ini (tanpa token di query string). */
     protected function urlKiosk($idKelas = null): string
     {
-        $path = str_contains(uri_string(), 'kiosk') ? 'kiosk' : 'scanner';
+        $path = str_contains(request()->path(), 'kiosk') ? 'kiosk' : 'scanner';
         $id = (int) ($idKelas ?? 0);
         if ($id > 0) {
             $path .= '/'.$id;
@@ -304,7 +304,7 @@ class PresensiSiswaQrController extends BaseController
     public static function getHashedUrl(?int $idKelas = null, ?int $userId = null): string
     {
         if (! $userId) {
-            $userId = (int) (session()->get('user_id') ?? 0);
+            $userId = (int) (auth()->id() ?? 0);
         }
         $hash = self::generateHash($userId);
         $path = 'guru/presensi-siswa';
@@ -354,7 +354,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // 1. Cek Admin
-        if ($this->isAdmin() || $this->inGroup('admin') || (string) $this->session->get('role') === '1') {
+        if ($this->isAdmin() || $this->inGroup('admin') || (string) auth()->user()?->role === '1') {
             return [
                 'authorized' => true,
                 'is_admin' => true,
@@ -370,7 +370,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // 1b. Cek Kepala Sekolah — group/role kepsek langsung lolos
-        $roleName = strtolower(trim((string) ($this->session->get('role_name') ?? '')));
+        $roleName = strtolower(trim((string) (auth()->user()?->role_name ?? '')));
         if ($this->inGroup('kepsek') || in_array($roleName, ['kepsek', 'kepala sekolah', 'kepala_sekolah'], true)) {
             return [
                 'authorized' => true,
@@ -460,7 +460,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // c. Cek group / role piket
-        if (! $isPiket && ($this->inGroup('piket') || (string) $this->session->get('role_name') === 'piket')) {
+        if (! $isPiket && ($this->inGroup('piket') || (string) auth()->user()?->role_name === 'piket')) {
             $isPiket = true;
         }
 
@@ -699,7 +699,7 @@ class PresensiSiswaQrController extends BaseController
             if ($auth['reason'] === 'unauthenticated') {
                 return redirect()->to('auth')->with('error', $auth['message']);
             }
-            $target = ($this->inGroup('guru') || (string) $this->session->get('role') === '2') ? 'presensi' : 'dashboard';
+            $target = ($this->inGroup('guru') || (string) auth()->user()?->role === '2') ? 'presensi' : 'dashboard';
             $this->session->setFlashdata('error', $auth['message']);
 
             return redirect()->to($target)->with('error', $auth['message']);
@@ -985,7 +985,6 @@ class PresensiSiswaQrController extends BaseController
         // Satu URL dua tampilan: HP → versi mobile, desktop → versi kiosk
         if ($this->wantMobileView()) {
             $data['title'] = 'Scan QR Presensi Siswa | '.($setting->nama_sekolah ?? 'Presensi & KBM');
-            // CI4 tidak punya Response::setView() (itu API CI3); render view
             // lewat helper lalu tempelkan sebagai body response.
             $response = $this->response->setBody(view('members.guru.presensi_siswa_qr', $data));
         } else {
@@ -1187,7 +1186,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         // Otorisasi & validasi hash jika dipanggil dari /guru/presensi-siswa atau /presensi-siswa
-        $uriStr = uri_string();
+        $uriStr = request()->path();
         $auth = null;
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();
@@ -1935,7 +1934,7 @@ class PresensiSiswaQrController extends BaseController
     public function getHistory()
     {
         // Otorisasi & validasi hash jika dipanggil dari /guru/presensi-siswa atau /presensi-siswa
-        $uriStr = uri_string();
+        $uriStr = request()->path();
         $auth = null;
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();

@@ -192,7 +192,7 @@
             </p>
             <p class="text-[11px] leading-relaxed opacity-80 m-0">
                 <?php if ($vDitolak): ?>
-                    Catatan validator{{ $vCatatan !== '' ? ': ' . esc($vCatatan) : ' belum diisi.' }}
+                    Catatan validator{!! $vCatatan !== '' ? ': ' . e($vCatatan) : ' belum diisi.' !!}
                 <?php else: ?>
                     Isinya sudah disetujui guru piket / kepala sekolah.
                 <?php endif; ?>
@@ -266,7 +266,7 @@
     <form id="form-jurnal" action="{{ url('guru/jurnal/save') }}" method="POST" class="space-y-4">
         @csrf
         <input type="hidden" name="id_jurnal" value="{{ $isEdit ? $jurnal->id_jurnal : '' }}">
-        <input type="hidden" name="id_jadwal" id="input_id_jadwal" value="{{ $isEdit ? esc($jurnal->id_jadwal ?? '') : ((int) ($prefill_jadwal ?? 0) ?: '') }}">
+        <input type="hidden" name="id_jadwal" id="input_id_jadwal" value="{!! $isEdit ? e($jurnal->id_jadwal ?? '') : ((int) ($prefill_jadwal ?? 0) ?: '') !!}">
         <?php if (($kembali ?? '') === 'absen'): ?>
         <input type="hidden" name="kembali" value="absen">
         <?php endif; ?>

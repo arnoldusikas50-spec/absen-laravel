@@ -7,6 +7,7 @@ use App\Models\MasterModel;
 use App\Models\UsersModel;
 use App\Services\AvatarService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -151,7 +152,7 @@ class UsersiswaController extends BaseController
                 }
                 $user_data = [
                     'username' => $siswa->username,
-                    'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
+                    'password' => Hash::make($plainPassword),
                     'first_name' => $siswa->nama,
                     'active' => 1,
                 ];
@@ -184,7 +185,6 @@ class UsersiswaController extends BaseController
     /**
      * Reset password siswa ke default = NISN (khusus admin).
      * Hanya hash di tabel users yang ditulis; kolom master_siswa.password
-     * adalah sisa CI4 dan tidak lagi dibaca maupun ditulis.
      *
      * Nilai NISN sengaja TIDAK dikembalikan ke klien: pesan API ini terbaca di
      * layar siapa pun yang berdiri di belakang admin, dan NISN adalah password
@@ -223,7 +223,7 @@ class UsersiswaController extends BaseController
         try {
             DB::transaction(function () use ($db, $account, $nisn) {
                 $db->table('users')->where('id', (int) $account->id)->update([
-                    'password' => password_hash($nisn, PASSWORD_BCRYPT),
+                    'password' => Hash::make($nisn),
                 ]);
             });
         } catch (\Throwable $e) {
@@ -304,7 +304,7 @@ class UsersiswaController extends BaseController
                 // seluruh request 500 dengan batch separuh jalan.
                 $idUser = $this->authRegister([
                     'username' => $uname,
-                    'password' => password_hash($plain, PASSWORD_BCRYPT),
+                    'password' => Hash::make($plain),
                     'first_name' => trim((string) ($s->nama ?? '')) ?: $uname,
                 ], '3');
                 if ($idUser > 0) {

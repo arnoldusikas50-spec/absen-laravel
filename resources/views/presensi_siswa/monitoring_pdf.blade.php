@@ -89,10 +89,10 @@
                     <td>{{ $r->nama ?? '-' }}</td>
                     <td class="center">{{ $r->nis ?? '-' }}</td>
                     <td class="center">{{ $label }}</td>
-                    <td class="center">{{ !empty($r->jam_masuk) ? esc(substr($r->jam_masuk, 0, 5)) : '-' }}</td>
-                    <td class="center">{{ !empty($r->jam_keluar)
-                        ? esc(substr($r->jam_keluar, 0, 5))
-                        : ((int) ($r->pulang_tidak_tercatat ?? 0) === 1 ? 'tidak tercatat' : '-') }}</td>
+                    <td class="center">{!! !empty($r->jam_masuk) ? e(substr($r->jam_masuk, 0, 5)) : '-' !!}</td>
+                    <td class="center">{!! !empty($r->jam_keluar)
+                        ? e(substr($r->jam_keluar, 0, 5))
+                        : ((int) ($r->pulang_tidak_tercatat ?? 0) === 1 ? 'tidak tercatat' : '-') !!}</td>
                     <td>{{ $r->keterangan ?? '-' }}</td>
                 </tr>
                 <?php endforeach; ?>

@@ -6,13 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/KelasModel.php
  * Tabel: master_kelas
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (master_kelas —
  * tabel `kelas` terbukti tidak pernah ada di database produksi).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class KelasModel extends Model
 {
@@ -35,7 +31,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_siswa, master_siswa, kelas_catatan_mapel belum ada migrasinya
     public function getCatatanMapelSiswa($id_tp, $id_smt, $id_kelas, $id_mapel)
     {
         return DB::table('kelas_siswa as a')
@@ -47,7 +42,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_catatan_mapel belum ada migrasinya
     public function getAllCatatanMapelSiswa($id_siswa, $id_mapel, $id_tp, $id_smt)
     {
         return DB::table('kelas_catatan_mapel')
@@ -59,7 +53,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_guru, jabatan_guru, master_kelas belum ada migrasinya
     public function getGuruMapelKelas($id_guru, $tp, $smt)
     {
         return DB::table('master_guru as a')
@@ -78,7 +71,6 @@ class KelasModel extends Model
             ->first();
     }
 
-    // TODO: tabel kelas_jadwal_kbm belum ada migrasinya
     public function getJadwalKbm($tp, $smt, $kelas)
     {
         return DB::table('kelas_jadwal_kbm')
@@ -88,7 +80,6 @@ class KelasModel extends Model
             ->first();
     }
 
-    // TODO: tabel kelas_jadwal_mapel, master_mapel belum ada migrasinya
     public function getJadwalMapelByMapel($kelas, $mapel, $tp, $smt)
     {
         $builder = DB::table('kelas_jadwal_mapel as a')
@@ -110,7 +101,6 @@ class KelasModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel kelas_catatan_wali belum ada migrasinya
     public function getCatatanKelas($kelas, $id_tp, $id_smt)
     {
         return DB::table('kelas_catatan_wali')
@@ -121,7 +111,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_siswa, master_siswa, kelas_catatan_wali belum ada migrasinya
     public function getCatatanSiswa($id_tp, $id_smt, $id_kelas)
     {
         return DB::table('kelas_siswa as a')
@@ -133,7 +122,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_catatan_wali belum ada migrasinya
     public function getAllCatatanSiswa($id_siswa, $id_tp, $id_smt)
     {
         return DB::table('kelas_catatan_wali')
@@ -143,7 +131,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_struktur belum ada migrasinya
     public function getStrukturKelas($kelas)
     {
         return DB::table('kelas_struktur')
@@ -175,7 +162,6 @@ class KelasModel extends Model
         ];
     }
 
-    // TODO: tabel kelas_jadwal_mapel, master_mapel belum ada migrasinya
     public function loadJadwalSiswaHariIni($id_tp, $id_smt, $id_kelas, $id_hari)
     {
         return DB::table('kelas_jadwal_mapel as a')
@@ -188,7 +174,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_jadwal_mapel, master_mapel belum ada migrasinya
     public function loadJadwalSiswaSeminggu($id_tp, $id_smt, $id_kelas)
     {
         $result = DB::table('kelas_jadwal_mapel as a')
@@ -207,7 +192,6 @@ class KelasModel extends Model
         return $ret;
     }
 
-    // TODO: tabel log_materi belum ada migrasinya
     public function getStatusMateriSiswaByJadwal($id_siswa, $arr_id_kjm)
     {
         $result = DB::table('log_materi')
@@ -223,10 +207,8 @@ class KelasModel extends Model
         return $ret;
     }
 
-    // TODO: tabel kelas_catatan_mapel, master_guru belum ada migrasinya
     public function getCatatanMapelBySiswa($id_kelas, $id_tp, $id_smt)
     {
-        // NOTE: seperti CI4, parameter $id_kelas tidak dipakai sebagai filter di query ini.
         return DB::table('kelas_catatan_mapel as a')
             ->select('a.*', 'b.nama_guru', 'b.nip', 'b.foto')
             ->join('master_guru as b', 'b.id_guru', '=', 'a.id_guru')
@@ -236,10 +218,8 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_catatan_wali, jabatan_guru, master_guru belum ada migrasinya
     public function getCatatanSiswaBySiswa($id_kelas, $id_tp, $id_smt)
     {
-        // NOTE: seperti CI4, parameter $id_kelas tidak dipakai sebagai filter di query ini.
         return DB::table('kelas_catatan_wali as a')
             ->select('a.*', 'c.nama_guru', 'c.nip', 'c.foto')
             ->join('jabatan_guru as b', 'b.id_kelas', '=', 'a.id_kelas')
@@ -250,7 +230,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_catatan_mapel, master_guru, jabatan_guru, level_guru, master_mapel belum ada migrasinya
     public function getCatatanMapelSiswaDetail($id_catatan)
     {
         return DB::table('kelas_catatan_mapel as a')
@@ -263,7 +242,6 @@ class KelasModel extends Model
             ->first();
     }
 
-    // TODO: tabel kelas_catatan_wali, jabatan_guru, master_guru, level_guru, master_kelas belum ada migrasinya
     public function getCatatanKelasSiswaDetail($id_catatan)
     {
         return DB::table('kelas_catatan_wali as a')
@@ -276,7 +254,6 @@ class KelasModel extends Model
             ->first();
     }
 
-    // TODO: tabel $table dinamis — nama tabel diteruskan pemanggil, belum tentu ada migrasinya
     public function getReading($table, $id_catatan)
     {
         return DB::table($table)
@@ -285,7 +262,6 @@ class KelasModel extends Model
             ->first();
     }
 
-    // TODO: tabel master_kelas, master_jurusan, jabatan_guru, master_guru belum ada migrasinya
     public function getKelasList($tp, $smt)
     {
         // Get kelas list with wali kelas from jabatan_guru (id_jabatan = 4)
@@ -313,7 +289,6 @@ class KelasModel extends Model
     /**
      * Get all kelas from all TP/SMT (for building nested structure)
      */
-    // TODO: tabel master_kelas, master_guru, master_jurusan belum ada migrasinya
     public function getAllKelas()
     {
         return DB::table('master_kelas as a')
@@ -326,31 +301,26 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_jurusan belum ada migrasinya
     public function get_jurusan()
     {
         return DB::table('master_jurusan')->get()->all();
     }
 
-    // TODO: tabel master_jurusan belum ada migrasinya
     public function getJurusanById($id)
     {
         return DB::table('master_jurusan')->where('id_jurusan', $id)->first();
     }
 
-    // TODO: tabel level_guru belum ada migrasinya
     public function getLevel($jenjang)
     {
         return DB::table('level_guru')->where('jenjang', $jenjang)->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function get_guru()
     {
         return DB::table('master_guru')->get()->all();
     }
 
-    // TODO: tabel master_kelas, master_jurusan, level_kelas, jabatan_guru, master_guru belum ada migrasinya
     public function get_one($id, $id_tp = null, $id_smt = null)
     {
         // Get kelas data first - using level_kelas table for class level (not level_guru)
@@ -387,7 +357,6 @@ class KelasModel extends Model
         return $kelas;
     }
 
-    // TODO: tabel kelas_siswa, master_siswa belum ada migrasinya
     public function get_siswa_kelas($id, $tp, $smt)
     {
         return DB::table('kelas_siswa as a')
@@ -400,13 +369,11 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_siswa, master_siswa belum ada migrasinya (via get_siswa_kelas)
     public function getKelasSiswa($id, $tp, $smt)
     {
         return $this->get_siswa_kelas($id, $tp, $smt);
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getNamaKelasById($arr_id)
     {
         if (empty($arr_id)) {
@@ -424,7 +391,6 @@ class KelasModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getNamaKelasByKode($arr_kode)
     {
         if (empty($arr_kode)) {
@@ -442,7 +408,6 @@ class KelasModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getNamaKelasByNama($id_tp, $id_smt)
     {
         $result = DB::table('master_kelas')
@@ -459,7 +424,6 @@ class KelasModel extends Model
         return $ret;
     }
 
-    // TODO: tabel kelas_siswa, master_kelas belum ada migrasinya
     public function get_siswa_kelas_baru($id_tp, $id_smt)
     {
         return DB::table('kelas_siswa as a')
@@ -470,7 +434,6 @@ class KelasModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_ekstra belum ada migrasinya
     public function getKelasEkskul($kelas, $tp, $smt)
     {
         return DB::table('kelas_ekstra')
@@ -483,7 +446,6 @@ class KelasModel extends Model
     /**
      * Get available wali kelas (teachers with jabatan wali kelas)
      */
-    // TODO: tabel jabatan_guru, master_guru belum ada migrasinya
     public function getWaliKelas($tp, $smt)
     {
         $result = DB::table('jabatan_guru as a')
@@ -507,7 +469,6 @@ class KelasModel extends Model
     /**
      * Get status siswa kelas (for removing from class)
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function get_status_siswa_kelas($id_kelas, $id_tp, $id_smt)
     {
         $result = DB::table('kelas_siswa')

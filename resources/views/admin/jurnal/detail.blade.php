@@ -79,7 +79,7 @@
             <span class="block text-xs font-extrabold">{{ $gi[0] }}</span>
             <span class="block text-[10px] font-semibold opacity-80 mt-0.5">
                 <?php if ($stValidasi !== 'PENDING' && !empty($nama_validator)): ?>
-                Oleh {{ $nama_validator }}{{ !empty($jurnal->validasi_pada) ? ' · ' . esc((string) $jurnal->validasi_pada) : '' }}
+                Oleh {{ $nama_validator }}{!! !empty($jurnal->validasi_pada) ? ' · ' . e((string) $jurnal->validasi_pada) : '' !!}
                 <?php elseif (!empty($jurnal->updated_at)): ?>
                 Jurnal terakhir diubah {{ (string) $jurnal->updated_at }}
                 <?php endif; ?>

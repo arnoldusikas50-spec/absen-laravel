@@ -6,8 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Porting CI4 App\Commands\PruneLogs (php spark logs:prune).
- *
  * Retensi file log aplikasi.
  *
  *   php artisan logs:prune [--keep=60] [--cron-max-mb=20] [--dry]
@@ -17,7 +15,6 @@ use Illuminate\Support\Facades\Log;
  *   - log-*.log / log-*.php / cron-*.log / laravel-*.log : dihapus bila
  *     umurnya lewat --keep hari. Pola laravel-*.log adalah padanan Laravel
  *     (log harian default Laravel bernama laravel-YYYY-MM-DD.log) dari
- *     pola log-*.log CI4.
  * Berkas pelindung direktori (index.html, .htaccess), probe health
  * (.health_probe), symlink, dan seluruh isi tabel database tidak pernah disentuh.
  *
@@ -118,7 +115,6 @@ class PruneLogsCommand extends Command
      * Opsi integer. Tanpa nilai, non-numerik, atau < 1 tidak boleh diam-diam
      * jadi 1 — retensi 1 hari berarti menghapus hampir semua yang seharusnya
      * disimpan — jadi nilai rusak kembali ke bawaan dengan peringatan.
-     * (Padanan CI4 App\Traits\CliOptionTrait::optInt; di Laravel opsi
      * --keep=... sudah dipisah parser Symfony, jadi cukup validasi nilainya.)
      */
     private function optInt(string $nama, int $bawaan): int

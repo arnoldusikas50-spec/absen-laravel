@@ -3,7 +3,6 @@
 namespace App\Services;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (disalin 1:1; tanpa pemanggilan framework).
  * WhatsAppFormatter — ubah satu pesan berformat HTML Telegram menjadi
  * markup WhatsApp, supaya NotificationService bisa memakai satu sumber
  * string untuk kedua kanal.

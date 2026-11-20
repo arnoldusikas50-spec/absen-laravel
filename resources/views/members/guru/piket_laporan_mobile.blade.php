@@ -519,7 +519,7 @@
                                 <div class="font-bold text-xs text-slate-900 truncate">{{ $g->nama_guru ?? '-' }}</div>
                                 <div class="text-[10px] text-slate-400">
                                     <?php if ($jmIn !== '' && $jmIn !== '00:00:00'): ?>
-                                        Masuk {{ substr($jmIn, 0, 5) }}{{ ($jmOut !== '' && $jmOut !== '00:00:00') ? ' • Pulang ' . esc(substr($jmOut, 0, 5)) : '' }}
+                                        Masuk {{ substr($jmIn, 0, 5) }}{!! ($jmOut !== '' && $jmOut !== '00:00:00') ? ' • Pulang ' . e(substr($jmOut, 0, 5)) : '' !!}
                                     <?php else: ?>
                                         Belum check-in
                                     <?php endif; ?>

@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
  * HariSekolahService — menentukan status satu tanggal: hari kerja sekolah,
  * akhir pekan, atau hari libur.
  *

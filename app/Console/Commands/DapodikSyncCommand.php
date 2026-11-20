@@ -9,15 +9,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\DapodikSync (php spark dapodik:sync).
- *
  * Sinkronisasi data dari Dapodik Web Service via CLI / Cron.
  *
  *   php artisan dapodik:sync [all|siswa|rombel|gtk|mapel|sekolah|jurusan] [--force]
  *
  * Saat dijalankan oleh cron, hormati pengaturan auto_sync (kecuali --force).
- * Per CRONTAB.MD §5, auto-sync Dapodik NONAKTIF pada instalasi ini sehingga
- * command ini sengaja TIDAK dijadwalkan di routes/console.php.
+ * Auto-sync Dapodik NONAKTIF pada instalasi ini sehingga command ini sengaja
+ * TIDAK dijadwalkan di routes/console.php.
  */
 class DapodikSyncCommand extends Command
 {

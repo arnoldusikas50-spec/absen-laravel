@@ -38,9 +38,6 @@ use App\Http\Controllers\UsersiswaController;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
-// Port dari CodeIgniter 4 app/Config/Routes.php — URL dipertahankan 1:1.
-// Filter CI4 -> middleware: auth | role:<role> (lihat RoleMiddleware).
-// Rute POST yang dikecualikan CSRF di CI4 kini dilindungi CSRF seperti form
 // lain: kedua halaman login mengirim token (form backend memakai @csrf,
 // form presensi guru memakai input _token hasil csrf_token()).
 Route::get('/', [AuthController::class, 'index'])->name('home');
@@ -639,7 +636,6 @@ Route::get('cron/dapodik_sync', [CronController::class, 'dapodik_sync'])->name('
 // CATATAN: rute login bernama 'login' (path /auth) supaya middleware 'auth'
 // bawaan Laravel, RoleMiddleware, dan RestoreRememberLogin menunjuk halaman
 // login yang sama.
-// Redirect URL lama -> URL baru (CI4 addRedirect).
 Route::redirect('login', '/auth');
 Route::redirect('presensi/login', '/auth');
 Route::redirect('admin/login', '/auth');

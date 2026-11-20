@@ -16,15 +16,14 @@ use Throwable;
  * - PULL: Mengambil data dari server pusat ke lokal
  * - PUSH: Mengirim hasil ujian dari lokal ke pusat
  *
- * Port dari CodeIgniter 4 ke Laravel 13:
- *   - \Config\Database / tableExists -> DB/Schema facade
- *   - Config\Sync -> config/sync.php (env SYNC_*), prioritas tetap:
+ *   - Akses database memakai DB/Schema facade
+ *   - Konfigurasi ada di config/sync.php (env SYNC_*), prioritas tetap:
  *     tabel sync_settings dulu, lalu config file
- *   - Services::curlrequest() -> Illuminate\Support\Facades\Http
- *     (verify TLS dimatikan seperti sumber — server pusat memakai
- *     sertifikat self-signed di jaringan sekolah; dicatat di laporan)
- *   - FCPATH -> public_path()
- *   - CREATE TABLE sync_jobs mentah -> Schema::create()
+ *   - HTTP request memakai Illuminate\Support\Facades\Http
+ *     (verifikasi TLS sengaja dimatikan karena server pusat memakai
+ *     sertifikat self-signed di jaringan sekolah)
+ *   - Path publik memakai public_path()
+ *   - Tabel sync_jobs dibuat lewat Schema::create()
  * Tidak ada endpoint/kredensial yang dikarang; URL & API key dari
  * pengaturan sekolah.
  */

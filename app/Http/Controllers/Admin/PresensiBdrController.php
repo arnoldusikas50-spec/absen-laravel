@@ -160,7 +160,7 @@ class PresensiBdrController extends BaseController
             return $this->respond(true, 'Jadwal BDR diperbarui. Absensi yang sudah terlanjur Alpha diperbarui cron berikutnya.', $data);
         }
 
-        $data['created_by'] = (int) (session()->get('user_id') ?? 0);
+        $data['created_by'] = (int) (auth()->id() ?? 0);
         $insertId = $this->bdrModel->newQuery()->insertGetId($data);
         if (! $insertId) {
             return $this->respond(false, 'Gagal menyimpan jadwal BDR');

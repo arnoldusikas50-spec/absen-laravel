@@ -1,9 +1,8 @@
 /* ------------------------------------------------------------------
    Pelengkap utility Tailwind untuk halaman /kiosk, /scanner, scanner
    mobile (members/guru/presensi_siswa_qr), dan kunci kiosk.
-   Build tailwind.css legacy (Tailwind 3.4.17, hasil port CI4) tidak
-   memuat utility arbitrary, warna transparan, maupun varian sm/md/lg
-   yang dipakai halaman-halaman ini.
+   Build tailwind.css legacy tidak memuat utility arbitrary, warna
+   transparan, maupun varian sm/md/lg yang dipakai halaman-halaman ini.
    Bangun ulang dengan:
      printf '@tailwind utilities;\n' > /tmp/in.css
      npx tailwindcss@3.4.17 -i /tmp/in.css -o public/assets/app/css/kiosk-ui.css \

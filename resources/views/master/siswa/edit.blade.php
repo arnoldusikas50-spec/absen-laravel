@@ -205,7 +205,7 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglLahir) || $tglLahir === '0000-00-00
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <dt class="text-slate-400">Kelas saat ini</dt>
-                            <dd class="font-bold text-slate-700 text-right">{{ !empty($kelas_siswa_nama) ? esc($kelas_siswa_nama) : '<span class="text-amber-600">Belum ada kelas</span>' }}</dd>
+                            <dd class="font-bold text-slate-700 text-right">{!! !empty($kelas_siswa_nama) ? e($kelas_siswa_nama) : '<span class="text-amber-600">Belum ada kelas</span>' !!}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <dt class="text-slate-400">Tahun aktif</dt>

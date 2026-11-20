@@ -6,12 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/ElearningModel.php
  * Tabel: master_mapel
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (master_mapel).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class ElearningModel extends Model
 {
@@ -22,7 +18,6 @@ class ElearningModel extends Model
 
     public $timestamps = false;
 
-    // TODO: tabel bulan belum ada migrasinya
     public function getBulan()
     {
         $result = DB::table('bulan')->get()->all();
@@ -36,7 +31,6 @@ class ElearningModel extends Model
         return $ret;
     }
 
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getAllKodeMapel()
     {
         $builder = DB::table('master_mapel');
@@ -53,7 +47,6 @@ class ElearningModel extends Model
         return $ret;
     }
 
-    // TODO: tabel kelas_jadwal_materi, kelas_materi, master_mapel belum ada migrasinya
     public function getMateriSiswa($id_kelas, $tgl, $jenis)
     {
         $builder = DB::table('kelas_jadwal_materi as a');
@@ -76,7 +69,6 @@ class ElearningModel extends Model
     /**
      * Get nilai materi siswa (for student nilai page)
      */
-    // TODO: tabel log_materi, kelas_jadwal_materi, kelas_materi, master_mapel belum ada migrasinya
     public function getNilaiMateriSiswa($id_siswa)
     {
         $builder = DB::table('log_materi as a');
@@ -98,13 +90,11 @@ class ElearningModel extends Model
     }
 
     // =====================================================
-    // JADWAL (SCHEDULE) METHODS - Ported from CI3
     // =====================================================
 
     /**
      * Get all Mapel
      */
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getAllMapel()
     {
         return DB::table('master_mapel')
@@ -116,7 +106,6 @@ class ElearningModel extends Model
     /**
      * Get Mapel as array [id => nama]
      */
-    // TODO: tabel master_mapel belum ada migrasinya (via getAllMapel)
     public function getMapelArray()
     {
         $result = [];
@@ -131,7 +120,6 @@ class ElearningModel extends Model
     /**
      * Get all Guru
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function getAllGuru()
     {
         return DB::table('master_guru')
@@ -143,7 +131,6 @@ class ElearningModel extends Model
     /**
      * Get Guru Mapel Kelas
      */
-    // TODO: tabel master_guru, jabatan_guru, level_guru, master_kelas belum ada migrasinya
     public function getGuruMapelKelas($id_guru, $tp, $smt)
     {
         $tp = (int) $tp;
@@ -169,7 +156,6 @@ class ElearningModel extends Model
     /**
      * Get all Kelas (with optional level filter)
      */
-    // TODO: tabel master_kelas, kelas_siswa belum ada migrasinya
     public function getAllKelas($tp = null, $smt = null, $level = null)
     {
         $builder = DB::table('master_kelas as k')
@@ -195,7 +181,6 @@ class ElearningModel extends Model
     /**
      * Get all Kelas sorted as array [id => nama]
      */
-    // TODO: tabel master_kelas, kelas_siswa belum ada migrasinya (via getAllKelas)
     public function getAllKelasSort($tp = null, $smt = null, $level = null)
     {
         $kelas = $this->getAllKelas($tp, $smt, $level);
@@ -210,7 +195,6 @@ class ElearningModel extends Model
     /**
      * Get Kelas by Array of IDs
      */
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getAllKelasByArrayId($tp, $smt, $arrId)
     {
         if (empty($arrId)) {
@@ -234,7 +218,6 @@ class ElearningModel extends Model
     /**
      * Get Jadwal KBM (Class Schedule Settings)
      */
-    // TODO: tabel kelas_jadwal_kbm belum ada migrasinya
     public function getJadwalKbm($tp, $smt)
     {
         $rows = DB::table('kelas_jadwal_kbm')
@@ -272,7 +255,6 @@ class ElearningModel extends Model
      * Peta penugasan guru per kelas:mapel.
      * Return: ['kelas:mapel' => [id_guru => nama_guru], ...]
      */
-    // TODO: tabel jabatan_guru, master_guru belum ada migrasinya
     public function getGuruAssignmentMap(int $idTp, int $idSmt): array
     {
         $rows = DB::table('jabatan_guru as jg')
@@ -319,7 +301,6 @@ class ElearningModel extends Model
      * Daftar pasangan kelas:mapel milik satu guru pada TP/SMT.
      * Return: ['kelas:mapel' => true, ...]
      */
-    // TODO: tabel jabatan_guru belum ada migrasinya
     public function getGuruAssignedPairs(int $idGuru, int $idTp, int $idSmt): array
     {
         if ($idGuru <= 0) {
@@ -366,7 +347,6 @@ class ElearningModel extends Model
      *
      * @return array<int,object>
      */
-    // TODO: tabel kelas_jadwal_mapel, master_kelas, master_mapel, jabatan_guru belum ada migrasinya
     public function getUnassignedSchedulePairs(int $idTp, int $idSmt): array
     {
         if ($idTp <= 0 || $idSmt <= 0) {
@@ -432,7 +412,6 @@ class ElearningModel extends Model
      * Jadwal KBM guru hari ini (untuk quick-pick form jurnal).
      * Return list: id_jadwal, id_kelas, id_mapel, jam_ke, dari, sampai, nama_kelas, nama_mapel.
      */
-    // TODO: tabel kelas_jadwal_mapel, master_kelas, master_mapel, jabatan_guru belum ada migrasinya
     public function getJadwalKbmGuruHariIni(int $idGuru, int $hari, int $idTp, int $idSmt): array
     {
         $mine = $this->getGuruAssignedPairs($idGuru, $idTp, $idSmt);
@@ -464,7 +443,6 @@ class ElearningModel extends Model
     /**
      * Get Jadwal Harian (Daily Schedule)
      */
-    // TODO: tabel kelas_jadwal_mapel, master_mapel belum ada migrasinya
     public function getJadwalHarian($tp, $smt, $hari, $kelas = null)
     {
         $builder = DB::table('kelas_jadwal_mapel as jm')
@@ -490,7 +468,6 @@ class ElearningModel extends Model
     /**
      * Get all Jadwal Harian
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function getAllJadwalHarian($tp, $smt)
     {
         return DB::table('kelas_jadwal_mapel')
@@ -504,7 +481,6 @@ class ElearningModel extends Model
     /**
      * Insert batch Jadwal KBM
      */
-    // TODO: tabel kelas_jadwal_kbm belum ada migrasinya
     public function insertBatchKbm($data)
     {
         if (empty($data)) {
@@ -517,10 +493,8 @@ class ElearningModel extends Model
     /**
      * Update batch Jadwal KBM.
      * Laravel tidak punya padanan updateBatch(): tiap baris di-update
-     * satu per satu berdasarkan kunci id_kbm (semantik sama seperti CI4,
      * yang hanya meng-update baris yang sudah ada, bukan insert).
      */
-    // TODO: tabel kelas_jadwal_kbm belum ada migrasinya
     public function updateBatchKbm($data)
     {
         if (empty($data)) {
@@ -542,7 +516,6 @@ class ElearningModel extends Model
     /**
      * Insert batch Jadwal Mapel
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function insertBatchJadwal($data)
     {
         if (empty($data)) {
@@ -555,9 +528,7 @@ class ElearningModel extends Model
     /**
      * Update batch Jadwal Mapel.
      * Laravel tidak punya padanan updateBatch(): tiap baris di-update
-     * satu per satu berdasarkan kunci id_jadwal (semantik sama seperti CI4).
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function updateBatchJadwal($data)
     {
         if (empty($data)) {
@@ -579,7 +550,6 @@ class ElearningModel extends Model
     /**
      * Delete Jadwal by IDs
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function deleteJadwalByIds($ids)
     {
         if (empty($ids)) {
@@ -592,7 +562,6 @@ class ElearningModel extends Model
     /**
      * Delete Jadwal Mapel by ID
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function deleteJadwalMapel($id)
     {
         return (bool) DB::table('kelas_jadwal_mapel')->where('id_jadwal', $id)->delete();
@@ -601,7 +570,6 @@ class ElearningModel extends Model
     /**
      * Delete Jadwal by hari & tp/smt
      */
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
     public function deleteJadwalHarian($tp, $smt, $hari = null, $includeMapel = false)
     {
         $builder = DB::table('kelas_jadwal_mapel')
@@ -620,13 +588,11 @@ class ElearningModel extends Model
     }
 
     /** Helper for Copy Jadwal */
-    // TODO: tabel master_tp belum ada migrasinya
     public function getTpByTahun($tahun)
     {
         return DB::table('master_tp')->where('tahun', $tahun)->first();
     }
 
-    // TODO: tabel kelas_jadwal_kbm, master_kelas belum ada migrasinya
     public function getAllJadwalKbmFull($tp, $smt)
     {
         return DB::table('kelas_jadwal_kbm as kbm')
@@ -636,7 +602,6 @@ class ElearningModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel kelas_jadwal_mapel, master_kelas belum ada migrasinya
     public function getAllJadwalHarianFull($tp, $smt)
     {
         return DB::table('kelas_jadwal_mapel as jm')

@@ -48,7 +48,7 @@
             <i class="bi bi-exclamation-triangle-fill text-amber-500 text-base mt-0.5"></i>
             <div class="text-xs text-amber-800">
                 <p class="font-bold m-0">Tabel surat panggilan belum dibuat</p>
-                <p class="m-0 mt-1">Jalankan <code class="bg-amber-100 px-1 rounded">php spark migrate</code> untuk membuat tabel
+                <p class="m-0 mt-1">Jalankan <code class="bg-amber-100 px-1 rounded">php artisan migrate</code> untuk membuat tabel
                     <code class="bg-amber-100 px-1 rounded">absensi_surat_panggilan</code>. Sampai itu selesai, surat tidak bisa terbit.</p>
             </div>
         </div>

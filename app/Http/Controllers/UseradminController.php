@@ -7,6 +7,7 @@ use App\Models\DashboardModel;
 use App\Models\MasterModel;
 use App\Models\UsersModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class UseradminController extends BaseController
@@ -71,11 +72,11 @@ class UseradminController extends BaseController
         }
 
         $rules = [
-            'username' => 'required|min_length[4]|max_length[30]|alpha_dash',
-            'first_name' => 'required|max_length[50]',
-            'email' => 'permit_empty|valid_email|max_length[100]',
-            'password' => 'trim|min_length[6]|max_length[72]|required',
-            'confirm_password' => 'trim|matches[password]|required',
+            'username' => 'required|string|min:4|max:30|alpha_dash',
+            'first_name' => 'required|string|max:50',
+            'email' => 'nullable|email|max:100',
+            'password' => 'required|string|min:6|max:72',
+            'confirm_password' => 'required|same:password',
         ];
 
         if (! $this->validate($rules)) {
@@ -98,7 +99,7 @@ class UseradminController extends BaseController
             } else {
                 $user = [
                     'username' => $username,
-                    'password' => password_hash($password, PASSWORD_BCRYPT),
+                    'password' => Hash::make($password),
                     'first_name' => $first_name,
                     'last_name' => $last_name,
                     'email' => $email !== '' ? $email : null,
@@ -160,7 +161,7 @@ class UseradminController extends BaseController
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
-        if (! $this->validate(['first_name' => 'required|max_length[50]'])) {
+        if (! $this->validate(['first_name' => 'required|string|max:50'])) {
             return $this->response->setJSON([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
@@ -187,7 +188,7 @@ class UseradminController extends BaseController
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
             return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
         }
-        if (! $this->validate(['status' => 'required|in_list[0,1]'])) {
+        if (! $this->validate(['status' => 'required|in:0,1'])) {
             return $this->response->setJSON(['status' => false, 'errors' => $this->validator->getErrors()]);
         }
         $id = (int) $this->request->input('id');
@@ -247,7 +248,7 @@ class UseradminController extends BaseController
         $rules = [
             'foto' => [
                 'label' => 'Foto profil',
-                'rules' => 'uploaded[foto]|is_image[foto]|mime_in[foto,image/jpg,image/jpeg,image/gif,image/png,image/webp]|max_size[foto,2048]',
+                'rules' => 'required|file|image|mimetypes:image/jpeg,image/gif,image/png,image/webp|max:2048',
             ],
         ];
         if (! $this->validate($rules)) {
@@ -411,12 +412,12 @@ class UseradminController extends BaseController
             || trim((string) $this->request->input('new_confirm')) !== ''
             || trim((string) $this->request->input('old')) !== '';
         $rules = [
-            'username' => 'required|min_length[4]|max_length[30]|regex_match[/^[A-Za-z0-9_.-]+$/]',
+            'username' => 'required|string|min:4|max:30|regex:/^[A-Za-z0-9_.-]+$/',
         ];
         if ($wantPassword) {
             $rules['old'] = 'required';
-            $rules['new'] = 'required|min_length[6]|max_length[72]';
-            $rules['new_confirm'] = 'required|matches[new]';
+            $rules['new'] = 'required|string|min:6|max:72';
+            $rules['new_confirm'] = 'required|same:new';
         }
 
         if (! $this->validate($rules)) {
@@ -444,7 +445,7 @@ class UseradminController extends BaseController
         // Verifikasi password lama dilakukan SEBELUM ada tulis-menulis.
         // Urutan lama (ganti password, lalu validasi rename) meninggalkan akun
         // dengan password baru ketika rename ditolak.
-        if ($wantPassword && ! password_verify((string) $old, (string) $user->password)) {
+        if ($wantPassword && ! Hash::check((string) $old, (string) $user->password)) {
             return $this->response->setJSON(['status' => false, 'msg' => 'Password lama salah.']);
         }
 
@@ -461,8 +462,8 @@ class UseradminController extends BaseController
             }
             $renamed = (bool) ($hasilRename['changed'] ?? false);
             if ($renamed) {
-                if ((int) session()->get('user_id') === (int) $user->id) {
-                    session()->set('username', $newUsername);
+                if ((int) auth()->id() === (int) $user->id) {
+                    session()->put('username', $newUsername);
                 }
                 $msg = $wantPassword ? 'Password & username berhasil diubah' : 'Username berhasil diubah';
             }

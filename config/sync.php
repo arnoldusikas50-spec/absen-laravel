@@ -6,8 +6,7 @@ return [
     | Sinkronisasi Pusat <-> Lokal
     |--------------------------------------------------------------------------
     |
-    | Port dari Config\Sync (CI4). Nilai diambil dari environment dengan
-    | default yang sama seperti CI4. Prioritas tetap: tabel `sync_settings`
+    | Nilai diambil dari environment. Prioritas tetap: tabel `sync_settings`
     | dulu, lalu config ini (lihat App\Libraries\SyncService::getSetting).
     | API key default kosong — JANGAN menulis kunci asli di file ini.
     |

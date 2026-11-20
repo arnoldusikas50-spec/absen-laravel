@@ -10,47 +10,47 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * RestoreRememberLogin — port logika pemulihan remember-me + revalidasi
- * role 60 detik dari AuthFilter (CI4) ke Laravel 13.
+ * Middleware pemulihan "tetap login" dan revalidasi akun.
  *
- * Middleware 'auth' bawaan Laravel tidak punya titik hook untuk logika ini
- * tanpa mengubah bootstrap/app.php, jadi logika itu dipisah ke middleware
- * ini. Middleware ini terdaftar pada grup 'web' di bootstrap/app.php,
- * sehingga berlaku untuk seluruh rute web.
+ * Terdaftar pada grup middleware 'web' di bootstrap/app.php.
  *
  * Perilaku:
- *   1. Bila belum login, coba RememberLogin::restore() (cookie 30 hari,
- *      hanya guru & siswa; admin ditolak + token dicabut).
- *   2. Bila sudah login, revalidasi role dari DB tiap 60 detik: bila akun
- *      tidak ada / tidak aktif, session di-invalidate dan user diarahkan
- *      ke route 'login' (401 JSON untuk AJAX); bila role berubah, session
- *      disinkronkan (role_name / role).
+ *   1. Bila guard 'web' belum login, coba RememberLogin::restore() (cookie
+ *      30 hari, hanya guru & siswa; admin ditolak dan token dicabut).
+ *   2. Bila sudah login, status akun dan perannya diverifikasi ulang dari
+ *      database tiap 60 detik. Akun nonaktif menyebabkan logout dan redirect
+ *      ke route 'login' (401 JSON untuk AJAX).
  */
 class RestoreRememberLogin
 {
+    private const REVALIDATION_INTERVAL = 60;
+
     public function handle(Request $request, Closure $next): Response
     {
-        if (! auth()->check() && ! session()->get('is_login')) {
+        if (! auth()->check()) {
             RememberLogin::restore();
         }
 
-        if (session()->get('is_login')) {
-            $this->revalidateRole($request);
+        if (auth()->check()) {
+            $response = $this->revalidateRole($request);
+            if ($response !== null) {
+                return $response;
+            }
         }
 
         return $next($request);
     }
 
-    protected function revalidateRole(Request $request): void
+    protected function revalidateRole(Request $request): ?Response
     {
-        $lastCheck = (int) (session()->get('role_check_at') ?? 0);
-        if (time() - $lastCheck < 60) {
-            return;
+        $lastCheck = (int) session()->get('role_checked_at', 0);
+        if (time() - $lastCheck < self::REVALIDATION_INTERVAL) {
+            return null;
         }
 
-        $userId = (int) (session()->get('user_id') ?? 0);
-        if ($userId <= 0) {
-            return;
+        $user = auth()->user();
+        if ($user === null) {
+            return null;
         }
 
         try {
@@ -58,32 +58,32 @@ class RestoreRememberLogin
                 ->select('a.active', 'c.name as role_name', 'b.group_id')
                 ->join('users_groups as b', 'a.id', '=', 'b.user_id')
                 ->join('groups as c', 'b.group_id', '=', 'c.id')
-                ->where('a.id', $userId)
+                ->where('a.id', $user->getAuthIdentifier())
                 ->first();
         } catch (\Throwable $e) {
             Log::error('RestoreRememberLogin revalidasi gagal: '.$e->getMessage());
 
-            return;
+            return null;
         }
 
-        if (! $row || (string) ($row->active ?? '') !== '1') {
-            session()->invalidate();
+        if ($row === null || (string) ($row->active ?? '') !== '1') {
             auth()->logout();
+            session()->invalidate();
+            session()->regenerateToken();
+
             if ($request->ajax() || $request->expectsJson()) {
-                abort(response()->json([
+                return response()->json([
                     'status' => false,
                     'message' => 'Akun dinonaktifkan.',
                     'redirect' => route('login'),
-                ], 401));
+                ], 401);
             }
-            redirect()->route('login')->with('error', 'Akun dinonaktifkan.')->send();
-            exit;
+
+            return redirect()->route('login')->with('error', 'Akun dinonaktifkan.');
         }
 
-        session()->put([
-            'role_name' => $row->role_name,
-            'role' => $row->group_id,
-            'role_check_at' => time(),
-        ]);
+        session()->put('role_checked_at', time());
+
+        return null;
     }
 }

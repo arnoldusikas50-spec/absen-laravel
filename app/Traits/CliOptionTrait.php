@@ -5,14 +5,12 @@ namespace App\Traits;
 /**
  * CliOptionTrait - Pembaca opsi baris perintah yang andal untuk perintah artisan.
  *
- * Port dari CodeIgniter 4 (Spark) ke Laravel 13 (Artisan).
  *
  * Di Artisan, `$this->option('keep')` sudah menangani `--keep=999` maupun
  * `--keep 999` dengan benar, jadi jalur utama memakai itu. Fallback parsing
  * `$_SERVER['argv']` dipakai bila trait dipakai di luar command (mis. saat
  * perintah dijalankan dari kode tanpa konteks command).
  *
- * Perilaku yang dipertahankan dari versi CI4:
  *   - `--keep=999` dan `--keep 999` sama-sama terbaca.
  *   - optInt(): nilai rusak (< 1 / non-numerik) kembali ke bawaan dengan
  *     peringatan, bukan diam-diam jadi 1.

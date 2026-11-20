@@ -4,16 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/AuthModel.php
  * Tabel: users
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  *
- * AuthModel - Migrated from CI3 Auth_model
  * Handles user authentication, login attempts, and user management
  */
 class AuthModel extends Model
@@ -43,19 +40,19 @@ class AuthModel extends Model
     public $timestamps = false;
 
     /**
-     * Check if user is logged in
+     * Cek apakah pengguna sedang diautentikasi.
      */
     public function loggedIn(): bool
     {
-        return (bool) session()->get('is_login');
+        return auth()->check();
     }
 
     /**
-     * Check if current user is in specified group
+     * Cek grup pengguna saat ini berdasarkan role_name dari accessor User.
      */
     public function inGroup(string|array $group): bool
     {
-        $role = strtolower((string) (session()->get('role_name') ?? ''));
+        $role = strtolower((string) (auth()->user()?->role_name ?? ''));
         $norm = static function ($g): string {
             return strtolower((string) $g);
         };
@@ -69,36 +66,35 @@ class AuthModel extends Model
     }
 
     /**
-     * Check if current user is admin
-     * Disamakan dengan BaseController::isAdmin() (banding longgar + role_name).
+     * Cek apakah pengguna saat ini adalah admin.
      */
     public function isAdmin(): bool
     {
-        $role = (string) (session()->get('role') ?? '');
-        $roleName = strtolower((string) (session()->get('role_name') ?? ''));
+        $user = auth()->user();
+        if ($user === null) {
+            return false;
+        }
 
-        return $role === '1' || $roleName === 'admin' || $this->inGroup('admin');
+        return strtolower((string) $user->role_name) === 'admin' || (int) $user->role === 1;
     }
 
     /**
-     * Get user by ID
+     * Ambil data user berdasarkan ID, atau user yang sedang login.
      */
-    // TODO: tabel users belum ada migrasinya
     public function user(?int $id = null): ?object
     {
-        $userId = $id ?? (int) (session()->get('user_id') ?? 0);
+        $currentUser = auth()->user();
+        $userId = $id ?? ($currentUser === null ? 0 : (int) $currentUser->getAuthIdentifier());
         if ($userId <= 0) {
             return null;
         }
 
-        $user = static::find($userId);
+        $user = $currentUser !== null && (int) $currentUser->getAuthIdentifier() === $userId
+            ? $currentUser
+            : static::find($userId);
 
         if ($user) {
-            if ($user->first_name === $user->last_name) {
-                $user->nama_lengkap = $user->first_name;
-            } else {
-                $user->nama_lengkap = $user->first_name.' '.$user->last_name;
-            }
+            $user->nama_lengkap = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
         }
 
         return $user;
@@ -107,7 +103,6 @@ class AuthModel extends Model
     /**
      * Get user profile
      */
-    // TODO: tabel users belum ada migrasinya
     public function userProfile(int $userId): ?object
     {
         return static::find($userId);
@@ -116,7 +111,6 @@ class AuthModel extends Model
     /**
      * Get all profiles by user IDs
      */
-    // TODO: tabel users belum ada migrasinya
     public function allProfiles(array $userIds): array
     {
         return static::query()->whereIn('id', $userIds)->get()->all();
@@ -135,9 +129,8 @@ class AuthModel extends Model
      *
      * Transaksinya melindungi dua tulisannya. Semua pemanggil saat ini
      * (Useradmin/Userguru/Usersiswa/Userpanitia) memanggil tanpa transaksi
-     * sendiri. Logika sama seperti BaseController::authRegister().
+     * sendiri. BaseController::authRegister() mendelegasikan ke sini.
      */
-    // TODO: tabel users, users_groups belum ada migrasinya
     public function register(array $data, string $group): int
     {
         $username = trim((string) ($data['username'] ?? ''));
@@ -154,13 +147,11 @@ class AuthModel extends Model
             return 0;
         }
 
-        // CI4: service('request')->getIPAddress() — padanan Laravel: request()->ip().
         $data['ip_address'] = (string) (request()->ip() ?? '');
         $data['created_on'] = time();
         $data['active'] = '1';
 
         unset($data['id']);
-        // CI4 Model::insert() hanya menulis $allowedFields; $fillable di sini sama.
         $data = array_intersect_key($data, array_flip($this->getFillable()));
 
         DB::beginTransaction();
@@ -198,7 +189,6 @@ class AuthModel extends Model
     /**
      * Check if username exists
      */
-    // TODO: tabel users belum ada migrasinya
     public function isExist(string $username): ?object
     {
         return static::query()->where('username', $username)->first();
@@ -211,9 +201,8 @@ class AuthModel extends Model
      * getUserSiswa, MasterModel), jadi mengganti hanya users.username membuat
      * guru/siswa kehilangan akunnya secara efektif — "aktifkan akun" lalu
      * membuatkan akun KEDUA untuk orang yang sama.
-     * Logika sama seperti BaseController::authRenameUser().
+     * BaseController::authRenameUser() mendelegasikan ke sini.
      */
-    // TODO: tabel users, master_guru, master_siswa belum ada migrasinya
     public function renameUser(int $userId, string $newUsername): array
     {
         $new = trim($newUsername);
@@ -281,7 +270,6 @@ class AuthModel extends Model
     /**
      * Register multiple users
      */
-    // TODO: tabel users, users_groups belum ada migrasinya (via register)
     public function registerAll(array $users, string $group): array
     {
         $inserted = [];
@@ -300,7 +288,6 @@ class AuthModel extends Model
     /**
      * Login - get user with role information
      */
-    // TODO: tabel users, users_groups, groups belum ada migrasinya
     public function login(string $username): ?object
     {
         return DB::table('users as a')
@@ -314,7 +301,6 @@ class AuthModel extends Model
     /**
      * Record failed login attempt
      */
-    // TODO: tabel login_attempts belum ada migrasinya
     public function errorLogin(array $data): bool
     {
         return DB::table('login_attempts')->insert($data);
@@ -327,7 +313,6 @@ class AuthModel extends Model
      * riwayat ikut dihitung: akun yang pernah gagal 3x seumur hidupnya
      * langsung terkunci oleh SATU kegagalan terbaru.
      */
-    // TODO: tabel login_attempts belum ada migrasinya
     public function cekErrorLogin(string $username, ?int $dalamDetik = null): array
     {
         $b = DB::table('login_attempts')->where('login', $username);
@@ -346,7 +331,6 @@ class AuthModel extends Model
     /**
      * Reset failed login attempts
      */
-    // TODO: tabel login_attempts belum ada migrasinya
     public function resetErrorLogin(string $username): bool
     {
         return (bool) DB::table('login_attempts')
@@ -357,7 +341,6 @@ class AuthModel extends Model
     /**
      * Check if student is active
      */
-    // TODO: tabel master_siswa, buku_induk belum ada migrasinya
     public function isAktif(string $username): ?object
     {
         return DB::table('master_siswa as a')
@@ -370,7 +353,6 @@ class AuthModel extends Model
     /**
      * Check username availability
      */
-    // TODO: tabel users belum ada migrasinya
     public function usernameCheck(string $username, ?int $id = null): bool
     {
         $result = static::query()->where('username', $username)->get()->all();
@@ -385,7 +367,6 @@ class AuthModel extends Model
     /**
      * Update user data
      */
-    // TODO: tabel users belum ada migrasinya
     public function changeUser(int $id, array $userData): bool
     {
         return (bool) static::query()->where('id', $id)->update($userData);
@@ -399,9 +380,8 @@ class AuthModel extends Model
      * melumpuhkan pemeriksaan pada koneksi yang mungkin dipakai query lain
      * sesudahnya. master_guru.id_user juga ikut dinolkan supaya guru tidak
      * menggantung ke id yang sudah tidak ada.
-     * Logika sama seperti BaseController::authDeleteUser().
+     * BaseController::authDeleteUser() mendelegasikan ke sini.
      */
-    // TODO: tabel users, users_groups, master_guru belum ada migrasinya
     public function deleteUser(int $id): bool
     {
         if ($id <= 0) {
@@ -438,7 +418,6 @@ class AuthModel extends Model
     /**
      * Get all user groups
      */
-    // TODO: tabel users_groups belum ada migrasinya
     public function groups(): array
     {
         return DB::table('users_groups')->get()->all();
@@ -447,7 +426,6 @@ class AuthModel extends Model
     /**
      * Get groups for specific user
      */
-    // TODO: tabel users_groups, groups belum ada migrasinya
     public function getUsersGroups(int $userId): array
     {
         return DB::table('users_groups as a')
@@ -459,7 +437,6 @@ class AuthModel extends Model
     /**
      * Check user level by username
      */
-    // TODO: tabel users, users_groups belum ada migrasinya
     public function checkLevel(string $username): ?object
     {
         return DB::table('users as a')
@@ -472,14 +449,13 @@ class AuthModel extends Model
     /**
      * Change user password
      */
-    // TODO: tabel users belum ada migrasinya
     public function changePassword(string $username, string $oldPassword, string $newPassword): bool
     {
         $user = static::query()->where('username', $username)->first();
 
-        if ($user && password_verify($oldPassword, $user->password)) {
+        if ($user && Hash::check((string) $oldPassword, (string) $user->password)) {
             return (bool) static::query()->where('username', $username)
-                ->update(['password' => password_hash($newPassword, PASSWORD_BCRYPT)]);
+                ->update(['password' => Hash::make($newPassword)]);
         }
 
         return false;
@@ -488,7 +464,6 @@ class AuthModel extends Model
     /**
      * Alias snake_case untuk changePassword (dipakai Userguru::editlogin & Useradmin::change_password)
      */
-    // TODO: tabel users belum ada migrasinya (via changePassword)
     public function change_password(string $username, string $oldPassword, string $newPassword): bool
     {
         return $this->changePassword($username, $oldPassword, $newPassword);

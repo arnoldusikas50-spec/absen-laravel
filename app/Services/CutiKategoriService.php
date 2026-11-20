@@ -6,8 +6,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB facade, log_message -> Log).
- *
  * CutiKategoriService — sumber kebenaran tunggal untuk kategori cuti
  * pegawai (mengacu pada Pasal-Pasal aturan hak cuti PNS).
  *

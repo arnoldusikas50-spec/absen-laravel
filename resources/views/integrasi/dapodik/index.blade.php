@@ -13,7 +13,7 @@
 
 @section('content')
 <?php
-$uri      = uri_string();
+$uri      = request()->path();
 $isAdmin  = str_starts_with($uri, 'admin/');
 $prefix   = $isAdmin ? 'admin/integrasi/dapodik' : 'integrasi/dapodik';
 $saveUrl  = url($prefix . '/saveSettings');

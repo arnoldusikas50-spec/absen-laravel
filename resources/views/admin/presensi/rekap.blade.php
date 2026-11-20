@@ -692,7 +692,6 @@ thead .sticky-col-2 { z-index: 5; background: #f8fafc; }
 
         // Token CSRF diambil dari layout (CSRF_NAME/CSRF_HASH), sama seperti
         // halaman notif_config. Sebelumnya script ini mencari meta tag dan
-        // cookie milik CI3 — keduanya tidak ada di layout ini, jadi
         // request terkirim tanpa token dan ditolak filter CSRF.
         const csrfName = (typeof CSRF_NAME !== 'undefined') ? CSRF_NAME : 'csrf_test_name';
         const csrfHash = (typeof CSRF_HASH !== 'undefined') ? CSRF_HASH : '';

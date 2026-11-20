@@ -7,10 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/SiswaPresensiModel.php
  * Tabel: presensi_siswa
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class SiswaPresensiModel extends Model
 {
@@ -56,7 +53,6 @@ class SiswaPresensiModel extends Model
      * daftar absen, monitoring, rekap, dan poin. Baris tanpa buku_induk
      * (data lama) dianggap AKTIF agar tidak hilang diam-diam.
      */
-    // TODO: tabel buku_induk belum ada migrasinya
     private function filterSiswaAktif($builder, string $aliasMs = 'ms'): void
     {
         try {
@@ -82,7 +78,6 @@ class SiswaPresensiModel extends Model
     // Daftar siswa berdasarkan kelas, TP, SMT
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel kelas_siswa, master_siswa, buku_induk belum ada migrasinya
     public function getSiswaByKelas(int $idKelas, int $idTp, int $idSmt): array
     {
         $b = DB::table('kelas_siswa as ks')
@@ -101,7 +96,6 @@ class SiswaPresensiModel extends Model
     // Mata pelajaran yang diajarkan di kelas ini
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel kelas_jadwal_mapel, master_mapel belum ada migrasinya
     public function getMapelByKelas(int $idKelas, int $idTp, int $idSmt): array
     {
         // Ambil dari jadwal mapel kelas jika ada
@@ -131,7 +125,6 @@ class SiswaPresensiModel extends Model
     // Presensi yang sudah ada untuk kelas + mapel + tanggal
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel master_siswa, buku_induk belum ada migrasinya
     public function getPresensiSiswa(
         int $idKelas,
         ?int $idMapel,
@@ -159,7 +152,6 @@ class SiswaPresensiModel extends Model
     // Rekap bulanan per kelas
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel master_siswa, buku_induk belum ada migrasinya
     public function getRekapBulanan(int $idKelas, string $bulan, string $tahun): array
     {
         $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
@@ -192,7 +184,6 @@ class SiswaPresensiModel extends Model
     // Monitoring harian: siswa + status presensi hari tertentu
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel kelas_siswa, master_siswa, master_guru, buku_induk belum ada migrasinya
     public function getMonitoringHarian(int $idKelas, string $tgl, ?int $idTp, ?int $idSmt): array
     {
         $select = '
@@ -240,7 +231,6 @@ class SiswaPresensiModel extends Model
     // Statistik ringkas harian per kelas
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel master_siswa, buku_induk belum ada migrasinya
     public function getStatHarian(int $idKelas, string $tgl): object
     {
         $b = DB::table('presensi_siswa as ps')
@@ -269,7 +259,6 @@ class SiswaPresensiModel extends Model
     // Riwayat entri absen oleh guru
     // ─────────────────────────────────────────────────────────────────────────
 
-    // TODO: tabel master_kelas, master_mapel belum ada migrasinya
     public function getRiwayatGuru(int $idGuru, int $limit = 20): array
     {
         return DB::table('presensi_siswa as ps')

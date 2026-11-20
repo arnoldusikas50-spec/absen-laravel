@@ -175,7 +175,7 @@ class KalenderController extends BaseController
             'deskripsi' => $deskripsi,
             'tipe' => $tipe,
             'warna' => $warna,
-            'created_by' => (int) (session()->get('user_id') ?? 0),
+            'created_by' => (int) (auth()->id() ?? 0),
         ]);
 
         return $this->respond(true, 'Event berhasil ditambahkan', ['id' => (int) $id]);

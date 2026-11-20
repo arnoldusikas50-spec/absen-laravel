@@ -244,7 +244,7 @@
                                 </td>
                                 <td class="text-xs text-slate-400 hidden lg:table-cell" title="{{ $p->keterangan ?? '' }}">{{ mb_strimwidth($p->keterangan ?? '-', 0, 60, '…') }}</td>
                                 <td class="text-xs hidden lg:table-cell">
-                                    <div class="text-slate-700 font-medium leading-tight">{{ $adminNm !== '' ? esc($adminNm) : '<span class="text-slate-300">-</span>' }}</div>
+                                    <div class="text-slate-700 font-medium leading-tight">{!! $adminNm !== '' ? e($adminNm) : '<span class="text-slate-300">-</span>' !!}</div>
                                     <div class="text-[11px] text-slate-400">{{ $p->paid_at ? date('d M Y H:i', strtotime($p->paid_at)) : '' }}</div>
                                 </td>
                             </tr>

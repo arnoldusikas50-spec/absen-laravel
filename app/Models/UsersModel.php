@@ -7,12 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/UsersModel.php
  * Tabel: users
- * Catatan: di CI4 model ini tidak mendeklarasikan $table (query-service);
  * $table diisi tabel utama yang dipakai model tersebut (users).
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class UsersModel extends Model
 {
@@ -49,7 +45,6 @@ class UsersModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel users, groups, users_groups belum ada migrasinya
     public function getDatausers($id = null)
     {
         $builder = DB::table('users_groups');
@@ -63,13 +58,11 @@ class UsersModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel level_guru belum ada migrasinya
     public function getLevelGuru()
     {
         return DB::table('level_guru')->get()->all();
     }
 
-    // TODO: tabel users, groups, users_groups belum ada migrasinya
     public function getAllAdmin()
     {
         $builder = DB::table('users_groups');
@@ -87,7 +80,6 @@ class UsersModel extends Model
         return $this->getAllAdmin();
     }
 
-    // TODO: tabel master_guru, jabatan_guru, level_guru, users, login_attempts belum ada migrasinya
     public function getUserGuru($tp, $smt)
     {
         $builder = DB::table('master_guru as a');
@@ -110,13 +102,11 @@ class UsersModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function getDataGuru($id)
     {
         return DB::table('master_guru')->where('id_guru', $id)->first();
     }
 
-    // TODO: tabel master_guru, jabatan_guru, level_guru, users belum ada migrasinya
     public function getDetailGuru($id)
     {
         $builder = DB::table('master_guru as a');
@@ -129,19 +119,16 @@ class UsersModel extends Model
         return $builder->first();
     }
 
-    // TODO: tabel users belum ada migrasinya
     public function getUsers($username)
     {
         return DB::table('users')->where('username', $username)->first();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function getGuruByUsername($username)
     {
         return DB::table('master_guru')->where('username', $username)->first();
     }
 
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getKelas($tp, $smt)
     {
         $builder = DB::table('master_kelas');
@@ -155,7 +142,6 @@ class UsersModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getMapel()
     {
         $builder = DB::table('master_mapel');
@@ -167,7 +153,6 @@ class UsersModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel master_siswa, buku_induk, kelas_siswa, master_kelas, users, login_attempts belum ada migrasinya
     public function getUserSiswaPage($id_tp, $id_smt, $offset, $limit, $search = null, $sort = null, $order = null, $reset = false)
     {
         $builder = DB::table('master_siswa as a');
@@ -211,7 +196,6 @@ class UsersModel extends Model
         return $builder->limit($limit)->offset($offset)->get()->all();
     }
 
-    // TODO: tabel master_siswa, buku_induk, login_attempts belum ada migrasinya
     public function getUserSiswaTotalPage($search = null, $reset = false)
     {
         $builder = DB::table('master_siswa as a');
@@ -241,7 +225,6 @@ class UsersModel extends Model
         return $builder->count();
     }
 
-    // TODO: tabel master_siswa, kelas_siswa, master_kelas, users belum ada migrasinya
     public function getUserSiswa($tp, $smt)
     {
         $builder = DB::table('master_siswa as a');

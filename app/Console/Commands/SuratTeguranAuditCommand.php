@@ -7,8 +7,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\SuratTeguranAudit (php spark teguran:audit).
- *
  * Audit & perbaikan data surat teguran yang rusak oleh bug lama.
  *
  * Dua kerusakan berasal dari logika penerbitan yang salah dan sudah

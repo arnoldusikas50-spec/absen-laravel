@@ -12,8 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (curlrequest -> Http facade, cache -> Cache facade,
- * log_message -> Log, \Config\Database -> DB/Schema facade).
+ * Layanan notifikasi untuk berbagai kanal (WhatsApp, Telegram, email).
  */
 class NotificationService
 {

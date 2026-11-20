@@ -7,9 +7,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Porting CI4 App\Commands\SetupAuditLog (php spark db:setup_audit).
- *
- * Membuat tabel audit_logs secara manual (padanan Forge CI4, memakai
  * Schema builder Laravel). Skema kolom dipertahankan sama persis.
  */
 class SetupAuditLogCommand extends Command

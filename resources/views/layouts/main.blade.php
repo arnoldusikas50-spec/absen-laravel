@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="{{ asset('assets/app/css/lucide-icons.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/lucide-icons.css') }}">
 
     <!-- Tailwind CSS (build lokal — npm run build) -->
-    <link rel="stylesheet" href="{{ asset('assets/app/css/tailwind.css') }}?v={{ filemtime(public_path() . '/' . 'assets/app/css/tailwind.css') }}">
+    @vite(['resources/css/app.css'])
 
     <!-- DataTables CSS (vanilla - tanpa Bootstrap theme) -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
@@ -249,7 +249,7 @@
     </style>
 
     <script>
-        let base_url = '{{ rtrim(url('/') . '/', '/') }}/';
+        let appUrl = '{{ rtrim(url('/') . '/', '/') }}/';
         let globalToken;
         let CSRF_NAME = '_token';
         let CSRF_HASH = '{{ csrf_token() }}';

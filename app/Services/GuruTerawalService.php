@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (\Config\Database -> DB/Schema facade, log_message -> Log).
  * Parameter $db dipertahankan demi kompatibilitas pemanggil lama namun tidak lagi dipakai.
  *
  * GuruTerawalService — mengumumkan satu guru yang absen paling awal pada
@@ -17,7 +16,6 @@ use Illuminate\Support\Facades\Schema;
  * Mengapa tidak sederhana "ambil yang pertama masuk":
  * absensi punya 6 jalur tulis (absen guru, QR guru, QR scanner, absen manual
  * admin, batch manual, koreksi yang disetujui) dan tidak ada satu pun titik
- * temu tunggal — tidak ada CI4 Event, model callback, atau Hooks di proyek ini.
  * Karena itu setiap jalur memanggil `cekDanKirim()` dan method ini yang
  * memutuskan.
  *

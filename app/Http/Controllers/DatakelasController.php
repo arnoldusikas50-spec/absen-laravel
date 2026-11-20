@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Datakelas Controller - Migrated from CI3
  * Manages class/rombel data, student assignments, and promotions
  */
 class DatakelasController extends BaseController

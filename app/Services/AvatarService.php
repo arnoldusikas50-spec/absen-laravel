@@ -3,7 +3,6 @@
 namespace App\Services;
 
 /**
- * Port dari CodeIgniter 4 ke Laravel 13 (FCPATH -> public_path(), base_url() -> url()).
  * AvatarService — sumber kebenaran tunggal untuk menampilkan foto orang.
  *
  * Sebelum ada service ini, setiap view menyusun URL foto sendiri-sendiri.

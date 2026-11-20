@@ -149,8 +149,6 @@ class JadwalController extends BaseController
         $jadk = $this->elearningModel->getJadwalKbm($tp->id_tp, $smt->id_smt);
         $jadwalMapel = $this->elearningModel->getJadwalHarian($tp->id_tp, $smt->id_smt, $hari);
 
-        // --- LOGIC PORTED FROM CI3 Elearning::hari() ---
-
         // Dummy jadwal jika kosong
         if (empty($jadwalMapel)) {
             foreach ($allKelas as $keyKls => $kelasName) {
@@ -197,7 +195,6 @@ class JadwalController extends BaseController
 
             // Logic to merge slots logic (ported loosely)
             // Ideally we just send the raw slots and JS handles rendering rowspans?
-            // CI3 logic merged 30 mins blocks.
 
             $timeSlots[] = ['start' => $formattedStart];
             $startTime->add(new \DateInterval('PT5M'));
@@ -809,11 +806,9 @@ class JadwalController extends BaseController
 
         // 1. Delete Existing for Current TP/SMT
         // Warning: This deletes KBM settings too!
-        // CI3: db->where('id', 'kelas_jadwal_kbm')->delete() & db->where('id', 'kelas_jadwal_mapel')->delete()
         // We will simulate this using clean delete logic.
         // Assuming model doesn't have deleteKbm methods, use DB builder or add model method.
         // For brevity, deleting mapel is supported. Deleting KBM needs access.
-        // Let's rely on update/insert to overwrite, BUT CI3 explicitly deletes first.
         // If we don't delete, duplicates might happen or old data remains.
 
         // I'll add direct query here for simplicity or model method.

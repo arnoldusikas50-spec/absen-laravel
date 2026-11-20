@@ -5,14 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari migrasi CodeIgniter 4 — tabel `presensi_lembur`.
- * Skema konsolidasi (hasil akhir) dari migrasi-migrasi CI4 berikut:
  *  - 20260614000005_CreatePresensiLemburTable.php
  *  - 20261103120000_AddLemburCatatanAdmin.php
  *
- * Catatan: kolom dibuat dengan tipe MySQL yang sama seperti CI4
  * (INT/VARCHAR/TEXT/DATETIME/DATE/DECIMAL/TINYINT(1)/ENUM/JSON).
- * Tidak ada foreign key di migrasi CI4, jadi tidak ada FK di sini.
  */
 return new class extends Migration
 {

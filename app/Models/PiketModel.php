@@ -13,10 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/PiketModel.php
  * Tabel: piket_kejadian
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class PiketModel extends Model
 {
@@ -40,7 +37,6 @@ class PiketModel extends Model
      * dianggap AKTIF. $exprSiswa = ekspresi kolom id_siswa
      * (mis. 'ps.id_siswa', 'ks.id_siswa', 'p.id_siswa').
      */
-    // TODO: tabel buku_induk belum ada migrasinya
     private function filterSiswaAktif($builder, string $exprSiswa): void
     {
         try {
@@ -58,10 +54,6 @@ class PiketModel extends Model
         });
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
-    // TODO: tabel piket_kejadian belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
-    // TODO: tabel piket_presensi_guru belum ada migrasinya
     public function initialize()
     {
         // 1. Table piket_tamu
@@ -76,7 +68,6 @@ class PiketModel extends Model
                 $table->string('bertemu', 255)->nullable();
                 $table->text('keperluan')->nullable();
                 $table->string('foto', 255)->nullable();
-                // CI4 memakai DATETIME DEFAULT CURRENT_TIMESTAMP (+ ON UPDATE
                 // CURRENT_TIMESTAMP untuk updated_at); useCurrent() hanya
                 // mereproduksi DEFAULT-nya.
                 $table->dateTime('created_at')->useCurrent();
@@ -153,7 +144,6 @@ class PiketModel extends Model
     }
 
     /**
-     * Padanan CI4 safeAddColumn() dengan definisi kolom gaya Forge
      * (['type' => 'VARCHAR', 'constraint' => 20, 'default' => ..., 'null' => ...,
      * 'after' => ...]). Hanya tipe yang dipakai pemanggil di model ini yang
      * dipetakan; tipe lain dilewati tanpa menambah kolom.
@@ -182,7 +172,6 @@ class PiketModel extends Model
                     default => null,
                 };
                 if ($col === null) {
-                    // TODO: tipe kolom CI4 '{$type}' belum dipetakan ke Blueprint
                     return;
                 }
                 if (! empty($definition['unsigned'])) {
@@ -204,7 +193,6 @@ class PiketModel extends Model
     }
 
     // --- Piket Presensi Guru Methods ---
-    // TODO: tabel piket_presensi_guru belum ada migrasinya
     public function getPresensiGuru($tanggal)
     {
         return DB::table('piket_presensi_guru')
@@ -216,7 +204,6 @@ class PiketModel extends Model
      * Peta [id_kelas][jam_ke][id_mapel] => row. Kunci '*' = fallback baris lama
      * (sebelum unique per mapel) agar konsumen lama tetap jalan.
      */
-    // TODO: tabel piket_presensi_guru belum ada migrasinya
     public function getPresensiGuruMap(string $tanggal): array
     {
         $rows = DB::table('piket_presensi_guru')
@@ -247,7 +234,6 @@ class PiketModel extends Model
      * Upsert anti-race: coba update dulu, bila tak ada baris insert; bila
      * insert tabrakan unique key (dua piket bersamaan), fallback update.
      */
-    // TODO: tabel piket_presensi_guru belum ada migrasinya
     public function savePresensiGuru($data)
     {
         $where = [
@@ -277,7 +263,6 @@ class PiketModel extends Model
 
         $existing = DB::table('piket_presensi_guru')->where($where)->first();
         if ($existing) {
-            // CI4 update() mengembalikan bool; Laravel mengembalikan jumlah
             // baris (0 bila isi sama) — kembalikan true agar pemanggil yang
             // memakai `if (savePresensiGuru(...))` tetap jalan.
             DB::table('piket_presensi_guru')
@@ -373,7 +358,6 @@ class PiketModel extends Model
      *
      * @return array{dibuat:int, diupdate:int, dilewati:int}
      */
-    // TODO: tabel buku_induk belum ada migrasinya
     public function syncPiketKeFormal(array $batch, string $tanggal): array
     {
         $hasil = ['dibuat' => 0, 'diupdate' => 0, 'dilewati' => 0];
@@ -490,8 +474,6 @@ class PiketModel extends Model
      * @param  int[]  $onlyIds  bila diisi, hanya sinkron id tersebut
      * @return array{ditandai:int, dilewati:int}
      */
-    // TODO: tabel buku_induk belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function syncTelatOtomatis(string $tanggal, ?int $idKelas = null, array $onlyIds = []): array
     {
         $hasil = ['ditandai' => 0, 'dilewati' => 0];
@@ -611,9 +593,6 @@ class PiketModel extends Model
      *
      * @return array{layak:bool, alasan:string, ditandai:int, bdr:int, dilewati:int, batch:array}
      */
-    // TODO: tabel buku_induk belum ada migrasinya
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function syncAlphaOtomatis(string $tanggal, ?int $idKelas = null, array $onlyIds = [], int $tpId = 0, int $smtId = 0): array
     {
         $hasil = ['layak' => false, 'alasan' => '', 'ditandai' => 0, 'bdr' => 0, 'dilewati' => 0, 'batch' => []];
@@ -803,7 +782,6 @@ class PiketModel extends Model
      *
      * @return array{ditandai:int, dilewati:int}
      */
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function terapkanBdr(string $tanggal): array
     {
         $hasil = ['ditandai' => 0, 'dilewati' => 0];
@@ -878,8 +856,6 @@ class PiketModel extends Model
      *
      * @return array<int, object> list per kelas
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
     public function getRealSiswaRekapSekolah(string $tanggal, int $tpId, int $smtId): array
     {
         try {
@@ -971,9 +947,6 @@ class PiketModel extends Model
      *
      * @return array{kelas:object[], total:array}
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function getRekapSiswaLaporan(string $tanggal, int $tpId, int $smtId, int $filterKelas = 0): array
     {
         $kosong = ['total' => 0, 'H' => 0, 'S' => 0, 'I' => 0, 'A' => 0, 'T' => 0, 'B' => 0,
@@ -1181,10 +1154,6 @@ class PiketModel extends Model
      *
      * @return array<int, object> {id_siswa, nama, nis, id_kelas, nama_kelas, jam_masuk}
      */
-    // TODO: tabel buku_induk belum ada migrasinya
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswaTanpaPulang(string $tanggal, ?int $idKelas = null, int $tpId = 0, int $smtId = 0): array
     {
         try {
@@ -1256,10 +1225,6 @@ class PiketModel extends Model
      * @return array{bulan:array, minggu:array, label_bulan:string, label_minggu:string, batas:int, senin:string, ahad:string}
      *                                                                                                                         tiap baris: {id_siswa, nama, nis, nama_kelas, alpha, tanggal[]}
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_siswa belum ada migrasinya
-    // TODO: tabel setting belum ada migrasinya
     public function getSiswaSeringAlpha(int $tpId = 0, int $smtId = 0, int $batas = 3, int $limit = 30): array
     {
         $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -1421,9 +1386,6 @@ class PiketModel extends Model
      * sebaliknya); H piket tanpa baris formal (belum scan pagi) tak di-flag
      * agar tak berisik.
      */
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_siswa belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function getDivergensi(string $tanggal, ?int $idKelas = null, int $limit = 50): array
     {
         try {
@@ -1543,13 +1505,11 @@ class PiketModel extends Model
     }
 
     // --- Tamu Methods ---
-    // TODO: tabel piket_tamu belum ada migrasinya
     public function getTamuById($id)
     {
         return DB::table('piket_tamu')->where('id', (int) $id)->first();
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
     public function getTamu($tanggal = null)
     {
         $builder = DB::table('piket_tamu');
@@ -1561,16 +1521,13 @@ class PiketModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
     public function saveTamu($data)
     {
         return DB::table('piket_tamu')->insert($data);
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
     public function deleteTamu($id)
     {
-        // CI4 delete() mengembalikan bool; Laravel mengembalikan jumlah
         // baris — kembalikan true agar pemanggil yang memakai
         // `=== false` tetap jalan.
         DB::table('piket_tamu')->where('id', $id)->delete();
@@ -1578,10 +1535,8 @@ class PiketModel extends Model
         return true;
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
     public function updateTamuKeluar($id)
     {
-        // CI4 update() mengembalikan bool; Laravel mengembalikan jumlah
         // baris (0 bila isi sama) — kembalikan true agar pemanggil yang
         // memakai `if (updateTamuKeluar(...))` tetap jalan.
         DB::table('piket_tamu')
@@ -1592,10 +1547,6 @@ class PiketModel extends Model
     }
 
     // --- Kejadian Methods ---
-    // TODO: tabel kelas_siswa belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_siswa belum ada migrasinya
-    // TODO: tabel piket_kejadian belum ada migrasinya
     public function getKejadian($tanggal = null, $tp = null, $smt = null)
     {
         $builder = DB::table('piket_kejadian as k');
@@ -1646,16 +1597,13 @@ class PiketModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel piket_kejadian belum ada migrasinya
     public function saveKejadian($data)
     {
         return DB::table('piket_kejadian')->insert($data);
     }
 
-    // TODO: tabel piket_kejadian belum ada migrasinya
     public function deleteKejadian($id)
     {
-        // CI4 delete() mengembalikan bool; Laravel mengembalikan jumlah
         // baris — kembalikan true agar pemanggil yang memakai
         // `=== false` tetap jalan.
         DB::table('piket_kejadian')->where('id', $id)->delete();
@@ -1663,10 +1611,8 @@ class PiketModel extends Model
         return true;
     }
 
-    // TODO: tabel piket_kejadian belum ada migrasinya
     public function updateKejadianStatus($id, $status)
     {
-        // CI4 update() mengembalikan bool; Laravel mengembalikan jumlah
         // baris (0 bila isi sama) — kembalikan true agar pemanggil yang
         // memakai `if (updateKejadianStatus(...))` tetap jalan.
         DB::table('piket_kejadian')
@@ -1676,8 +1622,6 @@ class PiketModel extends Model
         return true;
     }
 
-    // TODO: tabel master_siswa belum ada migrasinya
-    // TODO: tabel piket_kejadian belum ada migrasinya
     public function getKejadianById($id)
     {
         return DB::table('piket_kejadian as k')
@@ -1688,7 +1632,6 @@ class PiketModel extends Model
     }
 
     // --- Absensi Methods ---
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function getAbsensiByKelas($tanggal, $id_kelas)
     {
         return DB::table('piket_absensi')
@@ -1736,8 +1679,6 @@ class PiketModel extends Model
      * Aman untuk submit parsial: hanya id yang dikirim yang disentuh, dan
      * id_kelas ikut dimutakhirkan bila siswa pindah kelas.
      */
-    // TODO: tabel buku_induk belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
     public function saveAbsensiBatch($dataBatch)
     {
         if (empty($dataBatch)) {
@@ -1839,7 +1780,6 @@ class PiketModel extends Model
      * @param  array  $rows  tiap baris: ['id_siswa'=>int, 'masuk'=>?string HH:MM:SS, 'pulang'=>?string HH:MM:SS]
      * @return array{disimpan:int[], dibuat:int, diupdate:int, dilewati:list<array{id_siswa:int, alasan:string}>}
      */
-    // TODO: tabel buku_induk belum ada migrasinya
     public function saveJamManual(array $rows, string $tanggal, int $idKelas, ?int $pencatatGuruId = null, ?string $ip = null): array
     {
         $hasil = ['disimpan' => [], 'dibuat' => 0, 'diupdate' => 0, 'dilewati' => [], 'peringatan' => [], 'gagal_total' => false];
@@ -2033,10 +1973,6 @@ class PiketModel extends Model
     }
 
     // --- Monitoring Methods ---
-    // TODO: tabel guru_jurnal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getJurnalHarian($tanggal, array $filters = [])
     {
         // Get Jurnal entries for today
@@ -2089,7 +2025,6 @@ class PiketModel extends Model
         return $builder->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function getAbsensiGuruHarian(string $tanggal): array
     {
         return DB::table('absensi_harian as a')
@@ -2108,7 +2043,6 @@ class PiketModel extends Model
             ->get()->all();
     }
 
-    // TODO: tabel master_guru belum ada migrasinya
     public function getAllGuruWithAbsensi(string $tanggal): array
     {
         $guruRows = DB::table('master_guru')
@@ -2152,11 +2086,6 @@ class PiketModel extends Model
         return $result;
     }
 
-    // TODO: tabel guru_jurnal belum ada migrasinya
-    // TODO: tabel kelas_jadwal_mapel belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getJurnalById(int $id)
     {
         // COALESCE agar referensi yang sudah dihapus tetap terbaca sebagai
@@ -2175,7 +2104,6 @@ class PiketModel extends Model
             ->first();
     }
 
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function countSiswaKelas(int $idKelas, ?int $idTp = null, ?int $idSmt = null): int
     {
         $builder = DB::table('kelas_siswa')->where('id_kelas', $idKelas);
@@ -2193,7 +2121,6 @@ class PiketModel extends Model
      * Jumlah siswa AKTIF di kelas (buku_induk.status = '1'), sama dengan
      * basis hitung rekap laporan piket.
      */
-    // TODO: tabel kelas_siswa belum ada migrasinya
     public function countSiswaAktifKelas(int $idKelas, ?int $idTp = null, ?int $idSmt = null): int
     {
         $builder = DB::table('kelas_siswa')
@@ -2219,7 +2146,6 @@ class PiketModel extends Model
      * keterangan). Tanpa keduanya → 'Alpha (tanpa keterangan)'.
      * Guru yang sudah check-in (jam_masuk terisi) tidak masuk map.
      */
-    // TODO: tabel master_guru belum ada migrasinya
     public function getAlasanGuruMap(string $tanggal): array
     {
         $out = [];
@@ -2325,7 +2251,6 @@ class PiketModel extends Model
         return $out;
     }
 
-    // TODO: tabel master_siswa belum ada migrasinya
     public function getSiswaNamesByIds(array $ids): array
     {
         $ids = array_values(array_filter(array_unique(array_map('intval', $ids))));
@@ -2347,10 +2272,6 @@ class PiketModel extends Model
         return $names;
     }
 
-    // TODO: tabel guru_jurnal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
-    // TODO: tabel master_kelas belum ada migrasinya
-    // TODO: tabel master_mapel belum ada migrasinya
     public function getJurnalFilterOptions(string $tanggal): array
     {
         $gurus = DB::table('guru_jurnal as j')
@@ -2384,11 +2305,6 @@ class PiketModel extends Model
         ];
     }
 
-    // TODO: tabel piket_tamu belum ada migrasinya
-    // TODO: tabel piket_kejadian belum ada migrasinya
-    // TODO: tabel piket_absensi belum ada migrasinya
-    // TODO: tabel guru_jurnal belum ada migrasinya
-    // TODO: tabel master_guru belum ada migrasinya
     public function getStats($tanggal)
     {
         $count = function (string $table, callable $filter): int {

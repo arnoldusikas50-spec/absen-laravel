@@ -5,10 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Port Tahap 1A dari CI4: app/Models/AuditLogModel.php
  * Tabel: audit_logs
- * Tidak ada foreign key di migrasi CI4, jadi model ini belum punya relasi;
- * relasi ditambahkan di tahap berikutnya bila FK didefinisikan.
  */
 class AuditLogModel extends Model
 {
@@ -47,7 +44,6 @@ class AuditLogModel extends Model
         // request() di console tidak punya user agent bermakna; tanpa
         // penjagaan ini setiap audit yang ditulis dari jalur CLI/worker
         // melempar exception yang lalu ditelan try/catch pemanggil —
-        // jejak hilang tanpa suara. (Padanan CI4: guard getUserAgent()
         // pada CLIRequest.)
         $agent = $request->userAgent();
 
@@ -66,7 +62,7 @@ class AuditLogModel extends Model
             'table_name' => $tableName,
             'record_id' => $recordId,
             'target_user_id' => $targetUserId,
-            'actor_id' => $actorId ?? session()->get('user_id'), // Fallback to current session user
+            'actor_id' => $actorId ?? auth()->id(), // Fallback to current session user
             'action' => $action,
             'old_values' => $formatValues($oldValues),
             'new_values' => $formatValues($newValues),
@@ -76,7 +72,6 @@ class AuditLogModel extends Model
             'created_at' => date('Y-m-d H:i:s'),
         ];
 
-        // NOTE: CI4 Model::insert() mengembalikan insert id (int) atau
         // false; insertGetId() mengembalikan id baru (int) dan melempar
         // QueryException saat query gagal — pemanggil sudah membungkus
         // dengan try/catch (lihat LemburController::approveLembur).

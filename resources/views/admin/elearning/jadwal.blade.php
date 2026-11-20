@@ -858,7 +858,6 @@ $totalKelas = count($kelas ?? []);
         return segments;
     }
 
-    // THE CORE LOGIC ported from CI3 createTable()
     function renderTimetable() {
         // Kunci objek angka selalu dienumerasi naik oleh JavaScript, sehingga
         // urutan nama kelas dari server harus dipulihkan secara eksplisit.

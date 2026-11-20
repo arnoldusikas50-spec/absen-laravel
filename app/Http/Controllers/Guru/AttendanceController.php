@@ -38,6 +38,7 @@ use App\Services\SuratTeguranService;
 use App\Services\WajibJurnalPulangService;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -59,7 +60,7 @@ class AttendanceController extends BaseController
             return false;
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
         if (! $userId) {
             return false;
         }
@@ -163,7 +164,7 @@ class AttendanceController extends BaseController
      */
     private function adalahPemohon($row): bool
     {
-        $approver = (int) (session()->get('user_id') ?? 0);
+        $approver = (int) (auth()->id() ?? 0);
 
         return $approver > 0 && (int) ($row->user_id ?? 0) === $approver;
     }
@@ -211,7 +212,7 @@ class AttendanceController extends BaseController
      */
     public function loginPage()
     {
-        if (session()->get('is_login')) {
+        if (auth()->check()) {
             if ($this->isAdmin()) {
                 return redirect()->to('admin/presensi');
             }
@@ -250,7 +251,7 @@ class AttendanceController extends BaseController
         $user = $this->authModel->login($username);
 
         // Pesan disamakan agar tidak bisa dipakai menebak username terdaftar.
-        if (! $user || (string) $user->active !== '1' || ! password_verify($password, $user->password)) {
+        if (! $user || (string) $user->active !== '1' || ! Hash::check((string) $password, (string) $user->password)) {
             return $this->respond(false, 'Username atau Password salah!');
         }
 
@@ -359,7 +360,7 @@ class AttendanceController extends BaseController
 
         // Generate Random State
         $state = bin2hex(random_bytes(16));
-        session()->set('oauth2_state', $state);
+        session()->put('oauth2_state', $state);
 
         $params = [
             'client_id' => $clientId,
@@ -537,7 +538,7 @@ class AttendanceController extends BaseController
         }
 
         $today = date('Y-m-d');
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
 
         $todayAttendance = $this->attendanceModel
             ->select('absensi_harian.*', 'loc_in.nama_lokasi as nama_lokasi_masuk', 'loc_out.nama_lokasi as nama_lokasi_pulang')
@@ -689,24 +690,16 @@ class AttendanceController extends BaseController
 
     /**
      * Resolve id_guru for user ID.
-     * Checks session, master_guru table, or creates linkage if missing.
+     * Looks up master_guru table, or creates linkage if missing.
      */
     private function resolveIdGuru(int $userId): int
     {
-        $idGuru = session()->get('id_guru');
-        if (! empty($idGuru)) {
-            return (int) $idGuru;
-        }
-
         try {
             $db = DB::connection();
             if ($db && Schema::hasTable('master_guru')) {
                 $guru = $db->table('master_guru')->where('id_user', $userId)->first();
                 if ($guru && ! empty($guru->id_guru)) {
-                    $idGuru = (int) $guru->id_guru;
-                    session()->set('id_guru', $idGuru);
-
-                    return $idGuru;
+                    return (int) $guru->id_guru;
                 }
 
                 // If not yet linked in master_guru, create a matching row
@@ -726,8 +719,6 @@ class AttendanceController extends BaseController
                         ]);
                         $newId = (int) DB::getPdo()->lastInsertId();
                         if ($newId > 0) {
-                            session()->set('id_guru', $newId);
-
                             return $newId;
                         }
                     }
@@ -753,7 +744,7 @@ class AttendanceController extends BaseController
         try {
             // Rate Limiting - Max 5 requests per minute
 
-            $ipKey = 'attendance_'.md5($this->request->ip().session()->get('user_id'));
+            $ipKey = 'attendance_'.md5($this->request->ip().auth()->id());
             if ($this->throttleCheck($ipKey, 5, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
             }
@@ -777,7 +768,7 @@ class AttendanceController extends BaseController
             //
             // Filter bulan: surat bulan lalu tidak lagi memblokir. Filter
             // ack_at: begitu dikonfirmasi, guru lanjut absen normal.
-            $gateIdGuru = $this->resolveIdGuru((int) session()->get('user_id'));
+            $gateIdGuru = $this->resolveIdGuru((int) auth()->id());
             $pendingTeguran = $this->pendingTeguranGate($gateIdGuru, (int) date('n'), (int) date('Y'), $db);
             if ($pendingTeguran !== []) {
                 return $this->respond(false, 'Anda memiliki surat teguran yang belum dikonfirmasi. Baca dan konfirmasi terlebih dahulu sebelum absen.', [
@@ -794,7 +785,7 @@ class AttendanceController extends BaseController
                 // Check WFH quota
                 $bulanIni = date('Y-m');
                 $wfhCount = $db->table('absensi_harian')
-                    ->where('user_id', session()->get('user_id'))
+                    ->where('user_id', auth()->id())
                     ->where('is_wfh', 1)
                     ->where('tgl', 'like', $bulanIni.'%')
                     ->count();
@@ -871,7 +862,7 @@ class AttendanceController extends BaseController
                 }
                 $storedRow = $db->table('users')
                     ->select('face_descriptor')
-                    ->where('id', session()->get('user_id'))
+                    ->where('id', auth()->id())
                     ->first();
                 $storedDescriptor = $storedRow->face_descriptor ?? null;
 
@@ -897,7 +888,7 @@ class AttendanceController extends BaseController
                 }
             }
 
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
             $teguranLevel = null; // diisi di blok warning bila ambang alpha tercapai
 
@@ -1380,7 +1371,7 @@ class AttendanceController extends BaseController
         try {
             // Rate Limiting - Max 5 requests per minute
 
-            $ipKey = 'attendance_out_'.md5($this->request->ip().session()->get('user_id'));
+            $ipKey = 'attendance_out_'.md5($this->request->ip().auth()->id());
             if ($this->throttleCheck($ipKey, 5, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
             }
@@ -1391,7 +1382,7 @@ class AttendanceController extends BaseController
             $foto = $this->request->input('foto');
             $faceDescriptor = $this->request->input('face_descriptor');
 
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
 
             // Handle Offline Timestamp — toleransi ±5 menit dari jam server (anti backdate).
@@ -2065,7 +2056,7 @@ class AttendanceController extends BaseController
         }
         $storedRow = $db->table('users')
             ->select('face_descriptor')
-            ->where('id', session()->get('user_id'))
+            ->where('id', auth()->id())
             ->first();
         $storedDescriptor = $storedRow->face_descriptor ?? null;
         if (empty($storedDescriptor)) {
@@ -2152,7 +2143,7 @@ class AttendanceController extends BaseController
             if ($db && Schema::hasTable('absensi_harian')) {
                 $builder = $this->attendanceModel
                     ->select('absensi_harian.*')
-                    ->where('absensi_harian.user_id', session()->get('user_id'))
+                    ->where('absensi_harian.user_id', auth()->id())
                     ->where('absensi_harian.tgl', date('Y-m-d'));
 
                 if (Schema::hasTable('absensi_lokasi')) {
@@ -2195,7 +2186,7 @@ class AttendanceController extends BaseController
             if ($db && Schema::hasTable('absensi_izin')) {
                 $todayDate = date('Y-m-d');
                 $todayPermit = $db->table('absensi_izin')
-                    ->where('user_id', session()->get('user_id'))
+                    ->where('user_id', auth()->id())
                     ->where('status', 'approved')
                     ->whereRaw("'$todayDate' BETWEEN tgl_mulai AND tgl_selesai")
                     ->orderBy('id', 'DESC')
@@ -2203,7 +2194,7 @@ class AttendanceController extends BaseController
 
                 if (! $todayPermit) {
                     $todayPermit = $db->table('absensi_izin')
-                        ->where('user_id', session()->get('user_id'))
+                        ->where('user_id', auth()->id())
                         ->whereIn('status', LeaveModel::STATUS_PENDING)
                         ->whereRaw("'$todayDate' BETWEEN tgl_mulai AND tgl_selesai")
                         ->orderBy('id', 'DESC')
@@ -2215,7 +2206,7 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $user = $this->authModel->user(session()->get('user_id'));
+            $user = $this->authModel->user(auth()->id());
         } catch (\Throwable $e) {
             $user = null;
         }
@@ -2659,7 +2650,7 @@ class AttendanceController extends BaseController
             return redirect()->to('auth');
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
         $user = $this->authModel->user($userId);
 
         $month = $this->request->query('month') ?? date('Y-m');
@@ -2846,7 +2837,7 @@ class AttendanceController extends BaseController
                 $data['verifikasi_catatan'] = $catatan;
             }
             if (Schema::hasColumn('absensi_harian', 'verified_by')) {
-                $data['verified_by'] = (int) (session()->get('user_id') ?? 0);
+                $data['verified_by'] = (int) (auth()->id() ?? 0);
             }
             if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $data['verified_at'] = date('Y-m-d H:i:s');
@@ -2867,7 +2858,7 @@ class AttendanceController extends BaseController
         // sebelumnya diam total, padahal yang menyetujui di sini kepsek.
         try {
             (new AuditLogModel)->log('absensi_harian', (int) $id, 'KEPSEK_APPROVE_DINAS',
-                (int) ($attendance->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
+                (int) ($attendance->user_id ?? 0), (int) (auth()->id() ?? 0),
                 ['status_masuk' => (string) ($attendance->status_masuk ?? '')],
                 ['status_masuk' => 'DINAS_APPROVED', 'catatan' => (string) $catatan],
                 'Dinas disetujui kepsek');
@@ -2946,7 +2937,7 @@ class AttendanceController extends BaseController
                 $data['verifikasi_catatan'] = $catatan;
             }
             if (Schema::hasColumn('absensi_harian', 'verified_by')) {
-                $data['verified_by'] = (int) (session()->get('user_id') ?? 0);
+                $data['verified_by'] = (int) (auth()->id() ?? 0);
             }
             if (Schema::hasColumn('absensi_harian', 'verified_at')) {
                 $data['verified_at'] = date('Y-m-d H:i:s');
@@ -2965,7 +2956,7 @@ class AttendanceController extends BaseController
 
         try {
             (new AuditLogModel)->log('absensi_harian', (int) $id, 'KEPSEK_REJECT_DINAS',
-                (int) ($attendance->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
+                (int) ($attendance->user_id ?? 0), (int) (auth()->id() ?? 0),
                 ['status_masuk' => (string) ($attendance->status_masuk ?? '')],
                 ['status_masuk' => 'DINAS_REJECTED', 'catatan' => (string) $catatan],
                 'Dinas ditolak kepsek');
@@ -3062,7 +3053,7 @@ class AttendanceController extends BaseController
                 $update['verifikasi_catatan'] = $catatan;
             }
             if (Schema::hasColumn('absensi_izin', 'verified_by')) {
-                $update['verified_by'] = (int) (session()->get('user_id') ?? 0);
+                $update['verified_by'] = (int) (auth()->id() ?? 0);
             }
             if (Schema::hasColumn('absensi_izin', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
@@ -3203,7 +3194,7 @@ class AttendanceController extends BaseController
 
                 try {
                     (new AuditLogModel)->log('absensi_izin', (int) $id, 'KEPSEK_APPROVE',
-                        (int) ($permit->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
+                        (int) ($permit->user_id ?? 0), (int) (auth()->id() ?? 0),
                         ['status' => (string) ($permit->status ?? '')],
                         [
                             'status' => 'approved',
@@ -3302,7 +3293,7 @@ class AttendanceController extends BaseController
                 $update['verifikasi_catatan'] = $catatan;
             }
             if (Schema::hasColumn('absensi_izin', 'verified_by')) {
-                $update['verified_by'] = (int) (session()->get('user_id') ?? 0);
+                $update['verified_by'] = (int) (auth()->id() ?? 0);
             }
             if (Schema::hasColumn('absensi_izin', 'verified_at')) {
                 $update['verified_at'] = date('Y-m-d H:i:s');
@@ -3383,7 +3374,7 @@ class AttendanceController extends BaseController
 
             try {
                 (new AuditLogModel)->log('absensi_izin', (int) $id, 'KEPSEK_REJECT',
-                    (int) ($permit->user_id ?? 0), (int) (session()->get('user_id') ?? 0),
+                    (int) ($permit->user_id ?? 0), (int) (auth()->id() ?? 0),
                     ['status' => (string) ($permit->status ?? '')],
                     [
                         'status' => 'rejected',
@@ -3623,15 +3614,15 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
             $db = DB::connection();
 
             // Validate input
             $rules = [
-                'nama_guru' => 'required|min_length[3]',
-                'email' => 'permit_empty|valid_email',
-                'no_hp' => 'permit_empty|numeric|max_length[15]',
+                'nama_guru' => 'required|string|min:3',
+                'email' => 'nullable|email',
+                'no_hp' => 'nullable|numeric|max_digits:15',
             ];
 
             if (! $this->validate($rules)) {
@@ -3681,7 +3672,7 @@ class AttendanceController extends BaseController
             $telegramNote = '';
             if ($telegramSent) {
                 if (! $hasTgColumn) {
-                    $telegramNote = ' Kolom ID Telegram belum tersedia, jalankan: php spark migrate';
+                    $telegramNote = ' Kolom ID Telegram belum tersedia, jalankan: php artisan migrate';
                 } elseif ($telegramRaw === '') {
                     $ok = TelegramLink::detachFromGuru($idGuru, $userId);
                     $telegramNote = $ok
@@ -3703,7 +3694,7 @@ class AttendanceController extends BaseController
                 $hasWaColumn = Schema::hasColumn('master_guru', 'wa_number');
 
                 if (! $hasWaColumn || ! Schema::hasColumn('user_notifikasi', 'wa_number')) {
-                    $waNote = ' Kolom WhatsApp belum tersedia, jalankan: php spark migrate';
+                    $waNote = ' Kolom WhatsApp belum tersedia, jalankan: php artisan migrate';
                 } else {
                     $r = WhatsAppLink::attachToGuru($idGuru, $userId, $waRaw);
                     $waNote = $r['ok'] ? ' '.$r['message'] : ' Gagal menyimpan nomor WhatsApp: '.$r['message'];
@@ -3735,7 +3726,7 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
             $file = $this->request->file('foto');
 
@@ -3756,7 +3747,7 @@ class AttendanceController extends BaseController
 
             // Create upload directory if not exists
             // Create upload directory if not exists
-            $userId = session()->get('user_id');
+            $userId = auth()->id();
             $uploadPath = public_path().'/'.'uploads/users/'.$userId.'/profile/';
             if (! is_dir($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
@@ -3840,7 +3831,7 @@ class AttendanceController extends BaseController
         try {
             $db = DB::connection();
             $forge = (new CiForge);
-            $userId = session()->get('user_id');
+            $userId = auth()->id();
 
             // Auto-create face_descriptor column if missing
             if (! Schema::hasColumn('users', 'face_descriptor')) {
@@ -3939,7 +3930,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
 
         try {
             $db = DB::connection();
@@ -3989,7 +3980,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
 
         try {
             $db = DB::connection();
@@ -4032,7 +4023,7 @@ class AttendanceController extends BaseController
 
         // Rate limit seperti check-in/out: cegah brute-force token & spam scan
 
-        $qrKey = 'qr_checkin_'.md5($this->request->ip().session()->get('user_id'));
+        $qrKey = 'qr_checkin_'.md5($this->request->ip().auth()->id());
         if ($this->throttleCheck($qrKey, 5, 60) === false) {
             return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
         }
@@ -4081,7 +4072,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, "Waktu absen: {$qr->jam_mulai} - {$qr->jam_selesai}");
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
         $scanBuilder = $db->table('absensi_qr_log')
             ->where('qr_id', $qr->id)
             ->where('user_id', $userId);
@@ -4169,7 +4160,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $qrKey = 'qr_checkout_'.md5($this->request->ip().session()->get('user_id'));
+        $qrKey = 'qr_checkout_'.md5($this->request->ip().auth()->id());
         if ($this->throttleCheck($qrKey, 5, 60) === false) {
             return $this->respond(false, 'Terlalu banyak permintaan. Silakan tunggu 1 menit.', null, null, 429);
         }
@@ -4218,7 +4209,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, "Waktu absen: {$qr->jam_mulai} - {$qr->jam_selesai}");
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $idGuru = $this->resolveIdGuru($userId);
         $checkOutDate = date('Y-m-d');
         $recordedTime = date('Y-m-d H:i:s');
@@ -4638,7 +4629,7 @@ class AttendanceController extends BaseController
      */
     public function qrPage($token)
     {
-        if (! session()->get('is_login')) {
+        if (! auth()->check()) {
             return redirect()->to('auth');
         }
         if (! $this->inGroup('guru')) {
@@ -4650,7 +4641,7 @@ class AttendanceController extends BaseController
 
         // Mode ditentukan dari absensi hari ini: belum masuk → check-in,
         // sudah masuk belum pulang → check-out, sudah lengkap → selesai.
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $todayAttendance = null;
         if (Schema::hasTable('absensi_harian')) {
             try {
@@ -4720,7 +4711,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $idGuru = $this->resolveIdGuru($userId);
         $username = trim((string) $this->request->input('username'));
         $password = (string) ($this->request->input('new_password') ?? '');
@@ -4755,7 +4746,7 @@ class AttendanceController extends BaseController
             // Skema tabel users memakai kolom `password` (hash BCRYPT).
             $userUpdate = ['username' => $username];
             if ($password !== '') {
-                $userUpdate['password'] = password_hash($password, PASSWORD_BCRYPT);
+                $userUpdate['password'] = Hash::make($password);
                 // Rotasi ID sesi tanpa menghapus data login (jangan logout paksa).
                 $this->session->regenerate(false);
             }
@@ -4783,7 +4774,7 @@ class AttendanceController extends BaseController
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         try {
             $model = new UserNotifikasiModel;
             $existing = $model->getByUserId($userId);
@@ -4819,7 +4810,7 @@ class AttendanceController extends BaseController
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         try {
             $idGuru = $this->resolveIdGuru($userId);
             $ok = TelegramLink::detachFromGuru($idGuru, $userId);
@@ -4852,7 +4843,7 @@ class AttendanceController extends BaseController
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         try {
             $idGuru = $this->resolveIdGuru($userId);
             $raw = (string) ($this->request->input('telegram_id') ?? '');
@@ -4885,7 +4876,7 @@ class AttendanceController extends BaseController
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         try {
             $model = new UserNotifikasiModel;
             $row = $model->getByUserId($userId);
@@ -4918,7 +4909,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
 
         try {
             // Rate limit: 1 request / 20 detik per akun
@@ -4946,7 +4937,7 @@ class AttendanceController extends BaseController
                 ]);
             }
 
-            $nama = trim((string) session()->get('name') ?? '');
+            $nama = trim((string) auth()->user()?->nama ?? '');
             if ($nama === '') {
                 $nama = 'Guru';
             }
@@ -4993,7 +4984,7 @@ class AttendanceController extends BaseController
         if (! $this->inGroup('guru')) {
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         try {
             $raw = $this->request->input('prefs');
             if (is_string($raw)) {
@@ -5031,7 +5022,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
 
         try {
             $idGuru = $this->resolveIdGuru($userId);
@@ -5070,7 +5061,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
 
         try {
 
@@ -5097,7 +5088,7 @@ class AttendanceController extends BaseController
             // Nomor yang belum dikonfirmasi admin tetap boleh diuji: ini
             // justru gunanya, supaya guru memastikan nomornya benar sebelum
             // dinonaktifkan. Pesan tes tidak memuat data absensi pribadi.
-            $nama = trim((string) (session()->get('name') ?? '')) ?: 'Guru';
+            $nama = trim((string) (auth()->user()?->nama ?? '')) ?: 'Guru';
             $msg = "<b>PESAN TES</b>\n"
                  .'Halo <b>'.htmlspecialchars($nama, ENT_QUOTES, 'UTF-8')."</b>,\n"
                  .'Jika pesan ini sampai, nomor WhatsApp Anda sudah benar dan notifikasi '
@@ -5140,7 +5131,7 @@ class AttendanceController extends BaseController
         }
 
         try {
-            $userId = session()->get('user_id');
+            $userId = auth()->id();
             $db = DB::connection();
             $notifications = [];
 
@@ -5618,7 +5609,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
         if (! $userId) {
             return $this->respond(false, 'Sesi tidak valid', null, null, 401);
         }
@@ -6149,12 +6140,12 @@ class AttendanceController extends BaseController
 
         $targetUserId = (int) ($this->request->query('user_id') ?? 0);
         if ($targetUserId <= 0) {
-            $targetUserId = (int) session()->get('user_id');
+            $targetUserId = (int) auth()->id();
         }
         if ($targetUserId <= 0) {
             return $this->respond(false, 'Parameter user_id tidak valid', null, null, 400);
         }
-        $sessionUid = (int) session()->get('user_id');
+        $sessionUid = (int) auth()->id();
         if ($targetUserId !== $sessionUid && ! $this->isAdmin() && ! $this->inGroup('admin')) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
@@ -6283,7 +6274,7 @@ class AttendanceController extends BaseController
             return redirect()->to('auth');
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
         $db = DB::connection();
         $this->patchAbsensiHarianTable();
 
@@ -6482,11 +6473,11 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $targetUserId = (int) ($this->request->query('user_id') ?? session()->get('user_id'));
+        $targetUserId = (int) ($this->request->query('user_id') ?? auth()->id());
         if ($targetUserId <= 0) {
             return $this->respond(false, 'Parameter user_id tidak valid', null, null, 400);
         }
-        $sessionUid2 = (int) session()->get('user_id');
+        $sessionUid2 = (int) auth()->id();
         if ($targetUserId !== $sessionUid2 && ! $this->isAdmin() && ! $this->inGroup('admin')) {
             return $this->respond(false, 'Akses ditolak', null, null, 403);
         }
@@ -6623,7 +6614,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
 
         // Check pending requests - maksimal 3 pending.
         // Bentuk angka legacy ikut dihitung supaya pengajuan lama tidak
@@ -6917,7 +6908,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = session()->get('user_id');
+        $userId = auth()->id();
 
         $pendingCount = $this->leaveModel
             ->where('user_id', $userId)
@@ -6941,7 +6932,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         if ($tahun < 2000 || $tahun > (int) date('Y') + 1) {
             $tahun = (int) date('Y');
@@ -7086,7 +7077,7 @@ class AttendanceController extends BaseController
                 return redirect()->to('auth');
             }
 
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
 
             $db = DB::connection();
@@ -7134,7 +7125,7 @@ class AttendanceController extends BaseController
             $waNumber = '';
             $waVerified = false;
             try {
-                $userIdForWa = (int) session()->get('user_id');
+                $userIdForWa = (int) auth()->id();
                 $waNumber = WhatsAppLink::numberForGuru(
                     (int) ($guru->id_guru ?? 0),
                     $userIdForWa
@@ -7224,7 +7215,7 @@ class AttendanceController extends BaseController
                 return $this->respond(false, 'Data tidak lengkap');
             }
 
-            $userId = session()->get('user_id');
+            $userId = auth()->id();
 
             // Whitelist field: hanya jam masuk/pulang yang bisa dikoreksi.
             // (Dulu: field_name bebas → mass-assignment kolom points/denda/status/user_id.)
@@ -7287,7 +7278,7 @@ class AttendanceController extends BaseController
 
             // Verify the attendance belongs to the user
             $attendance = $this->attendanceModel->find($attendanceId);
-            if (! $attendance || $attendance->user_id != session()->get('user_id')) {
+            if (! $attendance || $attendance->user_id != auth()->id()) {
                 return $this->respond(false, 'Data absensi tidak ditemukan');
             }
 
@@ -7322,7 +7313,7 @@ class AttendanceController extends BaseController
             $correctionModel = new AttendanceCorrectionModel;
             $correctionModel->newQuery()->insert([
                 'attendance_id' => $attendanceId,
-                'user_id' => session()->get('user_id'),
+                'user_id' => auth()->id(),
                 'field_name' => $fieldName,
                 'old_value' => $oldValue,
                 'new_value' => $formattedNewValue,
@@ -7629,7 +7620,7 @@ class AttendanceController extends BaseController
         $corrections = $correctionModel
             ->select('absensi_koreksi.*', 'a.tgl')
             ->join('absensi_harian as a', 'a.id', '=', 'absensi_koreksi.attendance_id')
-            ->where('absensi_koreksi.user_id', session()->get('user_id'))
+            ->where('absensi_koreksi.user_id', auth()->id())
             ->orderBy('absensi_koreksi.created_at', 'DESC')
             ->get();
 
@@ -7646,7 +7637,7 @@ class AttendanceController extends BaseController
         }
 
         $records = $this->attendanceModel
-            ->where('user_id', session()->get('user_id'))
+            ->where('user_id', auth()->id())
             ->orderBy('tgl', 'DESC')
             ->limit(30)
             ->get();
@@ -7657,7 +7648,7 @@ class AttendanceController extends BaseController
         if (Schema::hasTable('absensi_koreksi')) {
             $corrections = $db->table('absensi_koreksi')
                 ->select('attendance_id')
-                ->where('user_id', session()->get('user_id'))
+                ->where('user_id', auth()->id())
                 ->get()->map(fn ($r) => (array) $r)->all();
 
             $attendanceIdsWithCorrection = array_column($corrections, 'attendance_id');
@@ -7729,7 +7720,7 @@ class AttendanceController extends BaseController
             return redirect()->to('auth');
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $idGuru = $this->resolveIdGuru($userId);
         $db = DB::connection();
 
@@ -7792,7 +7783,6 @@ class AttendanceController extends BaseController
         // Skema yang dibuat di sini sengaja SINGKAP dengan versi migrasi
         // (tanpa unique key, tanpa kolom ack/dibatalkan_otomatis), jadi ini
         // hanya jaring pengaman untuk instalasi yang belum migrate; jalur
-        // normalnya tetap php spark migrate.
         if (! Schema::hasTable('absensi_surat_teguran')) {
             $forge = (new CiForge);
             $forge->addField([
@@ -8005,7 +7995,7 @@ class AttendanceController extends BaseController
             return redirect()->to('auth');
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $idGuru = $this->resolveIdGuru($userId);
         $db = DB::connection();
 
@@ -8254,7 +8244,7 @@ class AttendanceController extends BaseController
             return $this->respond(false, 'Unauthorized', null, null, 401);
         }
 
-        $userId = (int) session()->get('user_id');
+        $userId = (int) auth()->id();
         $idGuru = $this->resolveIdGuru($userId);
         if ($idGuru <= 0) {
             return $this->respond(true, 'Tidak ada surat', []);
@@ -8279,7 +8269,7 @@ class AttendanceController extends BaseController
 
         try {
 
-            $ipKey = 'teguran_ack_'.md5($this->request->ip().session()->get('user_id'));
+            $ipKey = 'teguran_ack_'.md5($this->request->ip().auth()->id());
             if ($this->throttleCheck($ipKey, 10, 60) === false) {
                 return $this->respond(false, 'Terlalu banyak permintaan. Coba lagi sebentar.', null, null, 429);
             }
@@ -8299,7 +8289,7 @@ class AttendanceController extends BaseController
                 return $this->respond(false, 'Tidak ada surat yang dikonfirmasi.');
             }
 
-            $userId = (int) session()->get('user_id');
+            $userId = (int) auth()->id();
             $idGuru = $this->resolveIdGuru($userId);
             if ($idGuru <= 0) {
                 return $this->respond(false, 'Data guru tidak ditemukan.', null, null, 403);
@@ -8387,7 +8377,7 @@ class AttendanceController extends BaseController
                 ->setJSON(['status' => false, 'message' => 'Akses ditolak']);
         }
 
-        $userId = (int) ($this->session->get('user_id') ?? 0);
+        $userId = (int) (auth()->id() ?? 0);
         if ($userId <= 0) {
             return $this->response->setStatusCode(401)
                 ->setJSON(['status' => false, 'message' => 'Sesi tidak valid']);
@@ -8450,7 +8440,7 @@ class AttendanceController extends BaseController
                 ->setJSON(['status' => false, 'message' => 'Method tidak diizinkan']);
         }
 
-        $userId = (int) ($this->session->get('user_id') ?? 0);
+        $userId = (int) (auth()->id() ?? 0);
         if ($userId <= 0) {
             return $this->response->setStatusCode(401)
                 ->setJSON(['status' => false, 'message' => 'Sesi tidak valid']);
