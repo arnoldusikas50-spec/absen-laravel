@@ -8,13 +8,20 @@
         width: 36px; height: 36px; border-radius: 10px;
         display: inline-flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
     }
+    .catalog-item { height: 100%; }
     .catalog-card {
-        border: 1.5px solid #eef0f6; border-radius: 0.875rem; background: #fff;
+        border: 1px solid #eef0f6; border-radius: 1rem; background: #fff; padding: 1rem;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04);
         transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
         display: flex; flex-direction: column; height: 100%;
     }
-    .catalog-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,23,42,.09); border-color: #cbd5e1; }
-    .catalog-card.is-inactive { opacity: .75; background: #fafbfc; }
+    .catalog-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,.08); border-color: #dbe3ee; }
+    .catalog-card.is-inactive { background: #fafbfc; }
+    .catalog-card.is-inactive .catalog-meta { opacity: .8; }
+    .catalog-meta { border: 1px solid #eef0f6; background: #f8fafc; border-radius: .75rem; }
+    .catalog-desc { min-height: 2.4rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .tab-pill { transition: background .15s, color .15s, box-shadow .15s; }
+    .tab-pill.active { background: #fff; color: var(--primary-600); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
     .stock-bar { height: 6px; border-radius: 9999px; background: #eef2f7; overflow: hidden; }
     .stock-bar > span { display: block; height: 100%; border-radius: inherit; transition: width .3s ease; }
     .stat-attention { border-color: #fbbf24 !important; box-shadow: 0 0 0 3px rgba(251,191,36,.18); }
@@ -29,8 +36,7 @@
     .empty-state i { font-size: 2.25rem; display: block; margin-bottom: .5rem; }
     .preview-chip { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .7rem; border-radius: 9999px; font-size: .75rem; font-weight: 700; }
     @media (max-width: 640px) {
-        .content-area { padding: 0.5rem 0.75rem 1.25rem; }
-        .card-tw-body { padding: 0.875rem; }
+        .catalog-card { padding: .875rem; }
     }
 </style>
 @endsection
@@ -41,25 +47,42 @@ $pendingCount = (int) ($stats['pending_count'] ?? 0);
 $claimedCount = (int) ($stats['claimed_count'] ?? 0);
 $rejectedCount = (int) ($stats['rejected_count'] ?? 0);
 $approvedCount = (int) ($stats['approved_count'] ?? 0);
+$aktifCount = 0;
+$voucherCount = 0;
+foreach ($rewards as $rw) {
+    if ((int) $rw->is_active) {
+        $aktifCount++;
+    }
+    if (isset($rw->nominal) && (float) $rw->nominal > 0) {
+        $voucherCount++;
+    }
+}
 ?>
-<div class="fade-in-up p-4 md:p-6 space-y-6">
-    <!-- Header (pola kartu/dapodik/izin) -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
+<div class="fade-in-up p-4 md:p-6 space-y-4 w-full max-w-none">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold" aria-label="Breadcrumb">
+        <a href="{{ url('dashboard') }}" class="hover:text-blue-600 no-underline">Dashboard</a>
+        <span>/</span>
+        <span class="text-slate-600">Poin &amp; Reward Guru</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-xs">
         <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold mb-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-[11px] font-bold mb-2">
                 <i class="bi bi-gift-fill"></i> Poin &amp; Kedisiplinan
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Kelola Reward &amp; Poin Kedisiplinan Guru</h1>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">Kelola Reward &amp; Poin Kedisiplinan Guru</h1>
             <p class="text-xs text-slate-500 mt-1">Katalog penukaran, persetujuan klaim voucher, dan manajemen saldo poin guru.</p>
         </div>
-        <div class="flex gap-2 flex-wrap items-center">
-            <button type="button" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors" id="btnRewardRefresh" title="Muat ulang data">
+        <div class="flex items-center gap-2 flex-wrap shrink-0">
+            <button type="button" class="btn-tw btn-light" id="btnRewardRefresh" title="Muat ulang data">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
             </button>
-            <a href="{{ url('admin/presensi/setting') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi/setting') }}" class="btn-tw btn-light">
                 <i class="bi bi-gear"></i> Pengaturan Poin
             </a>
-            <a href="{{ url('admin/presensi/denda') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi/denda') }}" class="btn-tw btn-light">
                 <i class="bi bi-cash-coin text-emerald-600"></i> Rekap Denda
             </a>
         </div>
@@ -72,38 +95,57 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
     </div>
     <?php endif; ?>
 
-    <!-- Kartu utama -->
+    <!-- Statistik -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Total Katalog</div>
+            <div class="text-2xl font-extrabold text-slate-900 num-tabular">{{ count($rewards) }}</div>
+            <div class="text-[11px] text-slate-400">{{ $aktifCount }} aktif &middot; {{ $voucherCount }} voucher</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Klaim Menunggu</div>
+            <div class="text-2xl font-extrabold text-amber-600 num-tabular">{{ $pendingCount }}</div>
+            <div class="text-[11px] text-slate-400">Perlu persetujuan admin</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Saldo Beredar</div>
+            <div class="text-2xl font-extrabold text-emerald-600 num-tabular">{{ number_format((float) ($stats['total_poin_beredar'] ?? 0)) }}</div>
+            <div class="text-[11px] text-slate-400">Akumulasi poin positif guru</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+            <div class="text-[11px] font-bold uppercase text-slate-400">Tier Disiplin</div>
+            <div class="text-2xl font-extrabold text-blue-700 num-tabular">{{ count($tiers) }}</div>
+            <div class="text-[11px] text-slate-400">Jenjang poin kinerja {{ $currentYear }}</div>
+        </div>
+    </div>
+
+    <!-- Kartu utama: tabs -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="px-5 pt-4" style="padding-bottom:0">
-            <ul class="nav-tabs" role="tablist" aria-label="Navigasi reward">
-                <li class="nav-item" role="presentation">
-                    <a class="nav-link active" data-ui-toggle="tab" href="#tab-rewards" role="tab" aria-selected="true">
+        <div class="p-3 border-b border-slate-100">
+            <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl max-w-full" role="tablist" aria-label="Navigasi reward">
+                    <button type="button" class="tab-pill active inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap" data-ui-toggle="tab" data-ui-target="#tab-rewards" role="tab" aria-selected="true">
                         <i class="bi bi-grid-fill"></i> Katalog
                         <span class="badge-tw badge-secondary">{{ count($rewards) }}</span>
-                    </a>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <a class="nav-link" data-ui-toggle="tab" href="#tab-redemptions" role="tab" aria-selected="false">
-                        <i class="bi bi-inbox-fill"></i> Klaim &amp; Penukaran
+                    </button>
+                    <button type="button" class="tab-pill inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-slate-500 whitespace-nowrap" data-ui-toggle="tab" data-ui-target="#tab-redemptions" role="tab" aria-selected="false">
+                        <i class="bi bi-inbox-fill"></i> Klaim
                         <?php if ($pendingCount > 0): ?><span class="badge-tw badge-danger">{{ $pendingCount }}</span><?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <a class="nav-link" data-ui-toggle="tab" href="#tab-teachers" role="tab" aria-selected="false">
+                    </button>
+                    <button type="button" class="tab-pill inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-slate-500 whitespace-nowrap" data-ui-toggle="tab" data-ui-target="#tab-teachers" role="tab" aria-selected="false">
                         <i class="bi bi-people-fill"></i> Saldo Guru
                         <span class="badge-tw badge-secondary">{{ count($teachers) }}</span>
-                    </a>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <a class="nav-link" data-ui-toggle="tab" href="#tab-tiers" role="tab" aria-selected="false">
+                    </button>
+                    <button type="button" class="tab-pill inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-slate-500 whitespace-nowrap" data-ui-toggle="tab" data-ui-target="#tab-tiers" role="tab" aria-selected="false">
                         <i class="bi bi-award-fill"></i> Tier
                         <span class="badge-tw badge-secondary">{{ count($tiers) }}</span>
-                    </a>
-                </li>
-            </ul>
+                    </button>
+                </div>
+                <span class="ml-auto hidden sm:inline text-[11px] font-semibold text-slate-400">Data tahun {{ $currentYear }}</span>
+            </div>
         </div>
 
-        <div class="card-tw-body">
+        <div class="p-4 md:p-5">
             <div class="tab-content">
                 <!-- TAB 1: KATALOG -->
                 <div class="tab-pane show active" id="tab-rewards" role="tabpanel">
@@ -149,7 +191,7 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
                             <button type="button" class="btn-tw btn-tw-sm btn-primary btn-add-reward"><i class="bi bi-plus-lg"></i> Tambah Reward Pertama</button>
                         </div>
                     <?php else: ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="rewardGrid">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="rewardGrid">
                             <?php foreach ($rewards as $r):
                                 $isVoucher = isset($r->nominal) && (float) $r->nominal > 0;
                                 $stok = (int) $r->stok;
@@ -158,46 +200,48 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
                                 $ratio = ($isVoucher && (int) $r->poin_dibutuhkan > 0) ? ((float) $r->nominal / (int) $r->poin_dibutuhkan) : 0;
                             ?>
                             <div class="catalog-item" data-nama="{{ strtolower($r->nama . ' ' . ($r->deskripsi ?? '')) }}" data-type="{{ $isVoucher ? 'voucher' : 'item' }}" data-active="{{ (int) $r->is_active }}" data-poin="{{ (int) $r->poin_dibutuhkan }}" data-stok="{{ $stok }}" data-nama-sort="{{ strtolower($r->nama) }}">
-                                <article class="catalog-card p-3 {{ (int) $r->is_active ? '' : 'is-inactive' }}">
-                                    <div class="flex justify-between items-start gap-2 mb-2">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="stat-icon" style="width:38px;height:38px;font-size:1.05rem;{{ $isVoucher ? 'background:#f3e8ff;color:#7e22ce' : 'background:var(--primary-50);color:var(--primary-600)' }}">
+                                <article class="catalog-card {{ (int) $r->is_active ? '' : 'is-inactive' }}">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <div class="stat-icon" style="width:40px;height:40px;font-size:1.05rem;{{ $isVoucher ? 'background:#f3e8ff;color:#7e22ce' : 'background:var(--primary-50);color:var(--primary-600)' }}">
                                                 <i class="bi {{ $isVoucher ? 'bi-ticket-perforated-fill' : 'bi-gift-fill' }}"></i>
                                             </div>
                                             <div class="min-w-0">
-                                                <h6 class="font-bold text-slate-800 mb-0 truncate" title="{{ $r->nama }}">{{ $r->nama }}</h6>
-                                                <span class="badge-tw {{ $isVoucher ? 'badge-purple' : 'badge-info' }} rounded-full" style="font-size:.65rem">{{ $isVoucher ? 'Voucher Potong Denda' : 'Item / Hadiah' }}</span>
+                                                <h6 class="font-bold text-slate-900 text-sm mb-1 truncate" title="{{ $r->nama }}">{{ $r->nama }}</h6>
+                                                <span class="badge-tw {{ $isVoucher ? 'badge-purple' : 'badge-info' }}">{{ $isVoucher ? 'Voucher Potong Denda' : 'Item / Hadiah' }}</span>
                                             </div>
                                         </div>
-                                        <span class="badge-tw {{ (int) $r->is_active ? 'badge-success' : 'badge-secondary' }} rounded-full">{{ (int) $r->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                                        <span class="badge-tw {{ (int) $r->is_active ? 'badge-success' : 'badge-secondary' }} shrink-0">{{ (int) $r->is_active ? 'Aktif' : 'Nonaktif' }}</span>
                                     </div>
-                                    <p class="text-slate-500 mb-3" style="min-height:36px;font-size:.78rem">{{ $r->deskripsi ?: 'Tidak ada deskripsi.' }}</p>
-                                    <div class="p-2 rounded-lg mb-2 border bg-slate-50">
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="text-xs text-slate-400 font-bold">HARGA</span>
+                                    <p class="catalog-desc text-xs text-slate-500 leading-relaxed mt-3 mb-3">{{ $r->deskripsi ?: 'Tidak ada deskripsi.' }}</p>
+                                    <div class="catalog-meta p-3 mb-3">
+                                        <div class="flex items-center justify-between gap-2 py-0.5">
+                                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Harga</span>
                                             <span class="font-bold text-amber-600 text-sm num-tabular"><i class="bi bi-star-fill mr-1"></i>{{ number_format((int) $r->poin_dibutuhkan) }} pts</span>
                                         </div>
                                         <?php if ($isVoucher): ?>
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="text-xs text-slate-400 font-bold">NILAI</span>
+                                        <div class="flex items-center justify-between gap-2 py-0.5">
+                                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Nilai</span>
                                             <span class="font-bold text-emerald-600 text-sm num-tabular">Rp {{ number_format((float) $r->nominal, 0, ',', '.') }}</span>
                                         </div>
                                         <?php if ($ratio > 0): ?>
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="text-xs text-slate-400 font-bold">RASIO</span>
+                                        <div class="flex items-center justify-between gap-2 py-0.5">
+                                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Rasio</span>
                                             <span class="text-xs text-slate-500 num-tabular">Rp {{ number_format($ratio, 0, ',', '.') }}/poin</span>
                                         </div>
                                         <?php endif; ?>
                                         <?php endif; ?>
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="text-xs text-slate-400 font-bold">STOK</span>
-                                            <span class="badge-tw {{ $stok <= 0 ? 'badge-danger' : ($stok <= 5 ? 'badge-warning' : 'badge-info') }} rounded-full">{{ $stok }} pcs</span>
+                                    </div>
+                                    <div class="mt-auto">
+                                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Stok</span>
+                                            <span class="badge-tw {{ $stok <= 0 ? 'badge-danger' : ($stok <= 5 ? 'badge-warning' : 'badge-info') }}">{{ $stok }} pcs</span>
                                         </div>
                                         <div class="stock-bar" role="progressbar" aria-valuenow="{{ $stok }}" aria-valuemin="0" aria-valuemax="20" title="Sisa stok {{ $stok }}">
                                             <span style="width:{{ $stokPct }}%;background:{{ $stokColor }}"></span>
                                         </div>
                                     </div>
-                                    <div class="flex gap-2 mt-auto">
+                                    <div class="flex gap-2 mt-3">
                                         <button type="button" class="btn-tw btn-tw-sm btn-outline-primary flex-1 justify-center btn-edit-reward" data-reward='{{ json_encode($r) }}' title="Edit reward">
                                             <i class="bi bi-pencil"></i> Edit
                                         </button>
@@ -209,7 +253,7 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
                             </div>
                             <?php endforeach; ?>
                         </div>
-                        <div class="empty-state hidden" id="rewardEmptySearch" style="display:none">
+                        <div class="empty-state" id="rewardEmptySearch" style="display:none">
                             <i class="bi bi-search"></i>
                             <div class="font-bold text-slate-700">Tidak ada hasil</div>
                             <p class="text-sm">Coba kata kunci atau filter lain.</p>
@@ -662,15 +706,15 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
         return '<span class="badge-tw ' + cls + ' rounded-full">' + esc(t || 'INFO') + '</span>';
     }
     function reloadKeepTab() {
-        var active = document.querySelector('.nav-tabs .nav-link.active');
-        var hash = active ? active.getAttribute('href') : '#tab-rewards';
+        var active = document.querySelector('[role="tablist"] [data-ui-toggle="tab"].active');
+        var hash = active ? active.getAttribute('data-ui-target') : '#tab-rewards';
         location.hash = hash;
         location.reload();
     }
     function restoreTab() {
         var h = location.hash;
         if (h) {
-            var link = document.querySelector('.nav-tabs .nav-link[href="' + h + '"]');
+            var link = document.querySelector('[role="tablist"] [data-ui-target="' + h + '"]');
             if (link && window.AdminUI) AdminUI.tabs.activate(link);
         }
     }
@@ -1029,7 +1073,7 @@ $approvedCount = (int) ($stats['approved_count'] ?? 0);
     document.getElementById('btnRewardRefresh').addEventListener('click', function() { location.reload(); });
     var btnGotoKlaim = document.getElementById('btnGotoKlaim');
     if (btnGotoKlaim) btnGotoKlaim.addEventListener('click', function() {
-        if (window.AdminUI) AdminUI.tabs.activate(document.querySelector('a[href="#tab-redemptions"]'));
+        if (window.AdminUI) AdminUI.tabs.activate(document.querySelector('[data-ui-target="#tab-redemptions"]'));
     });
     document.querySelectorAll('.btn-add-reward').forEach(function(b) {
         b.addEventListener('click', function() { openRewardModal(); });

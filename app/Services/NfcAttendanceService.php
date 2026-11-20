@@ -24,6 +24,15 @@ class NfcAttendanceService
      */
     public function processScan(string $nfcUid, string $jenisScan, array $options = []): array
     {
+        $nfcUid = $this->normalizeUid($nfcUid);
+        if ($nfcUid === '') {
+            return [
+                'success' => false,
+                'message' => 'UID kartu NFC tidak valid',
+                'status' => 'INVALID_UID',
+            ];
+        }
+
         $tanggal = date('Y-m-d');
         $jam = date('H:i:s');
         $lat = $options['lat'] ?? null;
@@ -45,9 +54,21 @@ class NfcAttendanceService
         }
 
         $tipeUser = $user['tipe']; // 'guru' atau 'siswa'
-        $userId = $user['user_id'];
-        $referenceId = $user['reference_id']; // id_guru atau id_siswa
-        $nama = $user['nama'];
+        $userId = ! empty($user['user_id']) ? (int) $user['user_id'] : null;
+        $referenceId = (int) $user['reference_id']; // id_guru atau id_siswa
+        $nama = (string) $user['nama'];
+
+        if ($tipeUser === 'guru' && $userId === null) {
+            $this->logScan($nfcUid, $tipeUser, null, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, 'Akun guru belum terhubung', null, $nama);
+
+            return [
+                'success' => false,
+                'message' => 'Akun guru belum terhubung. Hubungi admin.',
+                'status' => 'USER_ID_MISSING',
+                'nama' => $nama,
+                'tipe' => $tipeUser,
+            ];
+        }
 
         // 2. Validasi duplikasi scan (sama seperti QR)
         if ($this->isDuplicateScan($nfcUid, $tanggal, $jenisScan)) {
@@ -66,7 +87,7 @@ class NfcAttendanceService
 
         // 3. Validasi waktu absensi
         $setting = $this->getAttendanceSettings();
-        $timeValidation = $this->validateTime($jenisScan, $setting, $tanggal);
+        $timeValidation = $this->validateTime($jenisScan, $setting, $tanggal, $jam);
         if (! $timeValidation['valid']) {
             $this->logScan($nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $deviceId, $ip, false, $timeValidation['message'], null, $nama);
 
@@ -125,7 +146,7 @@ class NfcAttendanceService
             if ($tipeUser === 'guru') {
                 $result = $this->processGuruAttendance($referenceId, $userId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $setting, $deviceId, $ip);
             } else {
-                $result = $this->processSiswaAttendance($referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $setting);
+                $result = $this->processSiswaAttendance($referenceId, $jenisScan, $tanggal, $jam, $lat, $lng, $accuracy, $setting, $ip);
             }
         } catch (\Throwable $e) {
             Log::error('[NfcAttendanceService] Error: '.$e->getMessage());
@@ -140,17 +161,18 @@ class NfcAttendanceService
             ];
         }
 
-        // 7. Catat log sukses
+        // 7. Catat log dengan status hasil yang sebenarnya
+        $berhasil = ($result['status'] ?? 'ERROR') === 'SUCCESS';
         $this->logScan(
             $nfcUid, $tipeUser, $userId, $referenceId, $jenisScan, $tanggal, $jam,
-            $lat, $lng, $accuracy, $deviceId, $ip, true,
+            $lat, $lng, $accuracy, $deviceId, $ip, $berhasil,
             $result['message'] ?? 'Berhasil',
-            $result['presensi_id'] ?? null,
+            $berhasil ? ($result['presensi_id'] ?? null) : null,
             $nama
         );
 
         // 8. Kirim notifikasi (jika telat)
-        if (! empty($result['telat_menit']) && $result['telat_menit'] > 0) {
+        if ($berhasil && ! empty($result['telat_menit']) && $result['telat_menit'] > 0) {
             try {
                 (new NotificationService)->notifyLateCheckin($nama, $jam, $result['telat_menit'], $userId);
             } catch (\Throwable $e) {
@@ -159,9 +181,9 @@ class NfcAttendanceService
         }
 
         return [
-            'success' => true,
+            'success' => $berhasil,
             'message' => $result['message'],
-            'status' => $result['status'] ?? 'SUCCESS',
+            'status' => $result['status'] ?? 'ERROR',
             'nama' => $nama,
             'tipe' => $tipeUser,
             'jam' => $jam,
@@ -186,13 +208,13 @@ class NfcAttendanceService
     public function findUserByNfcUid(string $nfcUid): ?array
     {
         $db = DB::connection();
-        $nfcUid = trim($nfcUid);
+        $nfcUid = $this->normalizeUid($nfcUid);
 
-        if (empty($nfcUid)) {
+        if ($nfcUid === '') {
             return null;
         }
 
-        $cleanUid = strtolower(str_replace([':', '-', ' '], '', $nfcUid));
+        $cleanUid = strtolower($nfcUid);
 
         // Cari di master_guru
         if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'nomor_rfid')) {
@@ -202,13 +224,11 @@ class NfcAttendanceService
                 ->first();
 
             if ($guru) {
-                $userId = $db->table('users')->where('id', $guru->id_user)->value('id');
-
                 return [
                     'tipe' => 'guru',
-                    'user_id' => $userId,
-                    'reference_id' => $guru->id_guru,
-                    'nama' => $guru->nama_guru,
+                    'user_id' => ! empty($guru->id_user) ? (int) $guru->id_user : null,
+                    'reference_id' => (int) $guru->id_guru,
+                    'nama' => (string) $guru->nama_guru,
                 ];
             }
         }
@@ -221,13 +241,13 @@ class NfcAttendanceService
                 ->first();
 
             if ($siswa) {
-                $userId = $db->table('users')->where('id', $siswa->id_user)->value('id');
-
+                // master_siswa tidak memiliki kolom id_user; user_id pada
+                // nfc_scan_log memang nullable untuk siswa.
                 return [
                     'tipe' => 'siswa',
-                    'user_id' => $userId,
-                    'reference_id' => $siswa->id_siswa,
-                    'nama' => $siswa->nama,
+                    'user_id' => null,
+                    'reference_id' => (int) $siswa->id_siswa,
+                    'nama' => (string) $siswa->nama,
                 ];
             }
         }
@@ -290,9 +310,9 @@ class NfcAttendanceService
     /**
      * Validasi waktu absensi.
      */
-    private function validateTime(string $jenisScan, object $setting, string $tanggal): array
+    private function validateTime(string $jenisScan, object $setting, string $tanggal, string $jam): array
     {
-        $now = date('H:i:s');
+        $now = $jam;
         $dayOfWeek = (int) date('N', strtotime($tanggal));
 
         // Ambil jadwal kerja
@@ -380,6 +400,7 @@ class NfcAttendanceService
     private function processGuruAttendance(int $idGuru, int $userId, string $jenisScan, string $tanggal, string $jam, ?float $lat, ?float $lng, ?int $accuracy, object $setting, ?string $deviceId = null, ?string $ip = null): array
     {
         $db = DB::connection();
+        $jadwal = AttendancePolicy::jadwalGuru($userId, $tanggal);
 
         if ($jenisScan === 'masuk') {
             // Cek apakah sudah ada record hari ini
@@ -395,16 +416,9 @@ class NfcAttendanceService
                 ];
             }
 
-            // Hitung keterlambatan
-            $dayOfWeek = (int) date('N', strtotime($tanggal));
-            $jadwal = null;
-            if (Schema::hasTable('absensi_jadwal_kerja')) {
-                $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
-            }
-            $jamMasukEfektif = $jadwal->jam_masuk ?? ($setting->jam_masuk ?? '07:30:00');
-
-            $telatMenit = AttendancePolicy::telat($jam, $jamMasukEfektif, (int) ($setting->grace_period ?? 0));
-            $statusMasuk = $telatMenit > 0 ? 'LATE' : 'ONTIME';
+            $hit = AttendancePolicy::telat($tanggal, $jam, $jadwal);
+            $telatMenit = (int) $hit['telat_menit'];
+            $statusMasuk = $hit['status'];
 
             // Hitung denda
             $denda = 0;
@@ -435,13 +449,14 @@ class NfcAttendanceService
                 'user_id' => $userId,
                 'id_guru' => $idGuru,
                 'tgl' => $tanggal,
-                'jam_masuk' => $tanggal.' '.$jam.':00',
+                'jam_masuk' => $tanggal.' '.$jam,
                 'lat_masuk' => $lat,
                 'lng_masuk' => $lng,
                 'lokasi_masuk_id' => $lokasiId,
                 'jarak_masuk' => $jarak,
                 'status_masuk' => $statusMasuk,
                 'telat_menit' => $telatMenit,
+                'datang_awal_menit' => (int) $hit['datang_awal_menit'],
                 'points' => $poin,
                 'denda' => $denda,
                 'keterangan_denda' => $keteranganDenda,
@@ -472,105 +487,113 @@ class NfcAttendanceService
                 'denda' => $denda,
                 'presensi_id' => (string) $presensiId,
             ];
-        } else {
-            // Check-out
-            $existing = $db->table('absensi_harian')
-                ->where('user_id', $userId)
-                ->where('tgl', $tanggal)
-                ->first();
+        }
 
-            if (! $existing || ! $existing->jam_masuk) {
-                return [
-                    'status' => 'NO_CHECKIN',
-                    'message' => 'Belum ada absen masuk hari ini',
-                ];
-            }
+        // Check-out
+        $existing = $db->table('absensi_harian')
+            ->where('user_id', $userId)
+            ->where('tgl', $tanggal)
+            ->first();
 
-            if ($existing->jam_pulang) {
-                return [
-                    'status' => 'ALREADY_CHECKED',
-                    'message' => 'Sudah absen pulang pukul '.substr($existing->jam_pulang, 11, 5),
-                ];
-            }
-
-            // Hitung pulang cepat
-            $dayOfWeek = (int) date('N', strtotime($tanggal));
-            $jadwal = null;
-            if (Schema::hasTable('absensi_jadwal_kerja')) {
-                $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
-            }
-            $jamPulangEfektif = $jadwal->jam_pulang ?? ($setting->jam_pulang ?? '15:00:00');
-
-            $pulangCepat = AttendancePolicy::pulangCepat($jam, $jamPulangEfektif);
-            $statusPulang = $pulangCepat > 0 ? 'EARLY' : 'ONTIME';
-
-            // Validasi lokasi
-            $lokasiId = null;
-            $jarak = null;
-            if ($lat !== null && $lng !== null) {
-                $lokasi = $this->findNearestLocation($lat, $lng, $setting);
-                if ($lokasi) {
-                    $lokasiId = $lokasi->id;
-                    $jarak = $lokasi->jarak;
-                }
-            }
-
-            $data = [
-                'jam_pulang' => $tanggal.' '.$jam.':00',
-                'lat_pulang' => $lat,
-                'lng_pulang' => $lng,
-                'lokasi_pulang_id' => $lokasiId,
-                'jarak_pulang' => $jarak,
-                'status_pulang' => $statusPulang,
-                'pulang_cepat_menit' => $pulangCepat,
-                'device_info' => $deviceId ? substr('NFC: '.$deviceId, 0, 255) : 'NFC Android',
-                'ip_address' => $ip,
-                'updated_at' => now(),
-            ];
-
-            $db->table('absensi_harian')->where('id', $existing->id)->update($data);
-
+        if (! $existing || ! $existing->jam_masuk) {
             return [
-                'status' => 'SUCCESS',
-                'message' => $pulangCepat > 0
-                    ? "Absen pulang berhasil (Pulang cepat {$pulangCepat} menit)"
-                    : 'Absen pulang berhasil',
-                'presensi_id' => (string) $existing->id,
+                'status' => 'NO_CHECKIN',
+                'message' => 'Belum ada absen masuk hari ini',
             ];
         }
+
+        if ($existing->jam_pulang) {
+            return [
+                'status' => 'ALREADY_CHECKED',
+                'message' => 'Sudah absen pulang pukul '.substr($existing->jam_pulang, 11, 5),
+            ];
+        }
+
+        $jamPulangBatas = AttendancePolicy::pickTime($jadwal['jam_pulang'] ?? null)
+            ?? AttendancePolicy::DEFAULT_JAM_PULANG;
+        $pulang = (new AttendancePenaltyService)->calcStatusPulang($tanggal.' '.$jam, $tanggal, $jamPulangBatas);
+        $pulangCepat = (int) $pulang['pulang_cepat_menit'];
+        $statusPulang = $pulang['status'];
+
+        // Validasi lokasi
+        $lokasiId = null;
+        $jarak = null;
+        if ($lat !== null && $lng !== null) {
+            $lokasi = $this->findNearestLocation($lat, $lng, $setting);
+            if ($lokasi) {
+                $lokasiId = $lokasi->id;
+                $jarak = $lokasi->jarak;
+            }
+        }
+
+        $data = [
+            'jam_pulang' => $tanggal.' '.$jam,
+            'lat_pulang' => $lat,
+            'lng_pulang' => $lng,
+            'lokasi_pulang_id' => $lokasiId,
+            'jarak_pulang' => $jarak,
+            'status_pulang' => $statusPulang,
+            'pulang_cepat_menit' => $pulangCepat,
+            'pulang_akhir_menit' => (int) $pulang['pulang_akhir_menit'],
+            'device_info' => $deviceId ? substr('NFC: '.$deviceId, 0, 255) : 'NFC Android',
+            'ip_address' => $ip,
+            'updated_at' => now(),
+        ];
+
+        $db->table('absensi_harian')->where('id', $existing->id)->update($data);
+
+        return [
+            'status' => 'SUCCESS',
+            'message' => $pulangCepat > 0
+                ? "Absen pulang berhasil (Pulang cepat {$pulangCepat} menit)"
+                : 'Absen pulang berhasil',
+            'presensi_id' => (string) $existing->id,
+        ];
     }
 
     /**
      * Proses absensi siswa.
      */
-    private function processSiswaAttendance(int $idSiswa, string $jenisScan, string $tanggal, string $jam, ?float $lat, ?float $lng, object $setting): array
+    private function processSiswaAttendance(int $idSiswa, string $jenisScan, string $tanggal, string $jam, ?float $lat, ?float $lng, ?int $accuracy, object $setting, ?string $ip = null): array
     {
         $db = DB::connection();
+        $existing = $db->table('presensi_siswa')
+            ->where('id_siswa', $idSiswa)
+            ->where('tgl', $tanggal)
+            ->first();
 
-        // Ambil info siswa
         $siswa = $db->table('master_siswa')->where('id_siswa', $idSiswa)->first();
         if (! $siswa) {
             return ['status' => 'ERROR', 'message' => 'Data siswa tidak ditemukan'];
         }
 
-        // Cari kelas aktif
-        $tp = $db->table('master_tp')->where('active', 1)->first();
-        $smt = $db->table('master_smt')->where('active', 1)->first();
-        $kelasSiswa = $db->table('kelas_siswa')
-            ->where('id_siswa', $idSiswa)
-            ->when($tp, fn ($q) => $q->where('id_tp', $tp->id_tp))
-            ->when($smt, fn ($q) => $q->where('id_smt', $smt->id_smt))
-            ->first();
+        $kelasSiswa = null;
+        try {
+            if (Schema::hasTable('master_tp') && Schema::hasTable('master_smt') && Schema::hasTable('kelas_siswa')) {
+                $tp = $db->table('master_tp')->where('active', 1)->first();
+                $smt = $db->table('master_smt')->where('active', 1)->first();
+                if ($tp && $smt) {
+                    $kelasSiswa = $db->table('kelas_siswa')
+                        ->where('id_siswa', $idSiswa)
+                        ->where('id_tp', $tp->id_tp)
+                        ->where('id_smt', $smt->id_smt)
+                        ->first();
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[NfcAttendanceService] kelas siswa: '.$e->getMessage());
+        }
 
-        $idKelas = $kelasSiswa->id_kelas ?? null;
+        $idKelas = $kelasSiswa->id_kelas ?? $existing->id_kelas ?? $siswa->kelas_awal ?? null;
+        if ($idKelas === null || (int) $idKelas <= 0) {
+            return ['status' => 'KELAS_MISSING', 'message' => 'Kelas siswa belum ditentukan. Hubungi admin.'];
+        }
+        $idKelas = (int) $idKelas;
+
+        $hasJamCol = Schema::hasColumn('presensi_siswa', 'jam');
+        $lokasi = ($lat !== null && $lng !== null) ? $this->findNearestLocation($lat, $lng, $setting) : null;
 
         if ($jenisScan === 'masuk') {
-            // Cek record yang sudah ada
-            $existing = $db->table('presensi_siswa')
-                ->where('id_siswa', $idSiswa)
-                ->where('tgl', $tanggal)
-                ->first();
-
             if ($existing && $existing->jam_masuk) {
                 return [
                     'status' => 'ALREADY_CHECKED',
@@ -578,67 +601,150 @@ class NfcAttendanceService
                 ];
             }
 
+            $locCols = [];
+            foreach (['lat_masuk' => $lat, 'lng_masuk' => $lng, 'akurasi_masuk' => $accuracy, 'lokasi_id' => $lokasi?->id] as $col => $value) {
+                if ($value !== null && Schema::hasColumn('presensi_siswa', $col)) {
+                    $locCols[$col] = $value;
+                }
+            }
+            if (Schema::hasColumn('presensi_siswa', 'sumber_masuk')) {
+                $locCols['sumber_masuk'] = 'nfc';
+            }
+            if ($ip !== null && $ip !== '' && Schema::hasColumn('presensi_siswa', 'ip_masuk')) {
+                $locCols['ip_masuk'] = substr($ip, 0, 45);
+            }
+
             $data = [
                 'id_kelas' => $idKelas,
                 'id_siswa' => $idSiswa,
                 'tgl' => $tanggal,
-                'jam_masuk' => $jam.':00',
+                'jam_masuk' => $jam,
                 'status' => 'HADIR',
-                'sumber_masuk' => 'nfc',
-                'lat_masuk' => $lat,
-                'lng_masuk' => $lng,
                 'updated_at' => now(),
-            ];
+            ] + $locCols;
+            if ($hasJamCol && empty($existing->jam)) {
+                $data['jam'] = $jam;
+            }
 
             if ($existing) {
-                $db->table('presensi_siswa')->where('id', $existing->id)->update($data);
-                $presensiId = $existing->id;
+                $terupdate = $db->table('presensi_siswa')
+                    ->where('id', $existing->id)
+                    ->whereNull('jam_masuk')
+                    ->update($data);
+                if ($terupdate === 0) {
+                    $finalIn = $db->table('presensi_siswa')->where('id', $existing->id)->first();
+
+                    return [
+                        'status' => 'ALREADY_CHECKED',
+                        'message' => 'Sudah absen masuk pukul '.substr((string) ($finalIn->jam_masuk ?? $jam), 0, 5),
+                    ];
+                }
+                $presensiId = (int) $existing->id;
             } else {
                 $data['created_at'] = now();
-                $db->table('presensi_siswa')->insert($data);
-                $presensiId = DB::getPdo()->lastInsertId();
+                try {
+                    $db->table('presensi_siswa')->insert($data);
+                    $presensiId = (int) DB::getPdo()->lastInsertId();
+                } catch (\Throwable $e) {
+                    if (! $this->isDuplicateKeyError($e)) {
+                        throw $e;
+                    }
+                    $finalIn = $db->table('presensi_siswa')
+                        ->where('id_siswa', $idSiswa)
+                        ->where('tgl', $tanggal)
+                        ->first();
+
+                    return [
+                        'status' => 'ALREADY_CHECKED',
+                        'message' => 'Sudah absen masuk pukul '.substr((string) ($finalIn->jam_masuk ?? $jam), 0, 5),
+                    ];
+                }
             }
+
+            $this->syncSiswaPresensi($presensiId);
 
             return [
                 'status' => 'SUCCESS',
                 'message' => 'Absen masuk berhasil',
                 'presensi_id' => (string) $presensiId,
             ];
-        } else {
-            // Check-out
-            $existing = $db->table('presensi_siswa')
-                ->where('id_siswa', $idSiswa)
-                ->where('tgl', $tanggal)
-                ->first();
+        }
 
-            if (! $existing || ! $existing->jam_masuk) {
-                return [
-                    'status' => 'NO_CHECKIN',
-                    'message' => 'Belum ada absen masuk hari ini',
-                ];
-            }
-
-            if ($existing->jam_keluar) {
-                return [
-                    'status' => 'ALREADY_CHECKED',
-                    'message' => 'Sudah absen pulang pukul '.substr($existing->jam_keluar, 0, 5),
-                ];
-            }
-
-            $db->table('presensi_siswa')->where('id', $existing->id)->update([
-                'jam_keluar' => $jam.':00',
-                'sumber_keluar' => 'nfc',
-                'lat_keluar' => $lat,
-                'lng_keluar' => $lng,
-                'updated_at' => now(),
-            ]);
-
+        if (! $existing || ! $existing->jam_masuk) {
             return [
-                'status' => 'SUCCESS',
-                'message' => 'Absen pulang berhasil',
-                'presensi_id' => (string) $existing->id,
+                'status' => 'NO_CHECKIN',
+                'message' => 'Belum ada absen masuk hari ini',
             ];
         }
+
+        if ($existing->jam_keluar) {
+            return [
+                'status' => 'ALREADY_CHECKED',
+                'message' => 'Sudah absen pulang pukul '.substr($existing->jam_keluar, 0, 5),
+            ];
+        }
+
+        if ($jam < $existing->jam_masuk) {
+            $jam = $existing->jam_masuk;
+        }
+
+        $locOut = [];
+        foreach (['lat_keluar' => $lat, 'lng_keluar' => $lng] as $col => $value) {
+            if ($value !== null && Schema::hasColumn('presensi_siswa', $col)) {
+                $locOut[$col] = $value;
+            }
+        }
+        if (Schema::hasColumn('presensi_siswa', 'sumber_keluar')) {
+            $locOut['sumber_keluar'] = 'nfc';
+        }
+        if ($ip !== null && $ip !== '' && Schema::hasColumn('presensi_siswa', 'ip_keluar')) {
+            $locOut['ip_keluar'] = substr($ip, 0, 45);
+        }
+        if (Schema::hasColumn('presensi_siswa', 'pulang_tidak_tercatat')) {
+            $locOut['pulang_tidak_tercatat'] = 0;
+        }
+
+        $terupdate = $db->table('presensi_siswa')
+            ->where('id', $existing->id)
+            ->whereNull('jam_keluar')
+            ->update([
+                'jam_keluar' => $jam,
+                'updated_at' => now(),
+            ] + $locOut);
+        if ($terupdate === 0) {
+            $finalOut = $db->table('presensi_siswa')->where('id', $existing->id)->first();
+
+            return [
+                'status' => 'ALREADY_CHECKED',
+                'message' => 'Sudah absen pulang pukul '.substr((string) ($finalOut->jam_keluar ?? $jam), 0, 5),
+            ];
+        }
+
+        $this->syncSiswaPresensi((int) $existing->id);
+
+        return [
+            'status' => 'SUCCESS',
+            'message' => 'Absen pulang berhasil',
+            'presensi_id' => (string) $existing->id,
+        ];
+    }
+
+    private function syncSiswaPresensi(int $presensiId): void
+    {
+        try {
+            PresensiSiswaSyncService::sinkron($presensiId);
+        } catch (\Throwable $e) {
+            Log::error('[NfcAttendanceService] sinkron presensi siswa: '.$e->getMessage());
+        }
+    }
+
+    private function isDuplicateKeyError(\Throwable $e): bool
+    {
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'duplicate')
+            || str_contains($message, 'unique')
+            || str_contains($message, '1062');
     }
 
     /**

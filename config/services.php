@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'nfc' => [
+        'api_key' => env('NFC_API_KEY'),
+    ],
+
 ];

@@ -94,7 +94,9 @@ class AuthModel extends Model
             : static::find($userId);
 
         if ($user) {
-            $user->nama_lengkap = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+            $user->nama_lengkap = $user->first_name === $user->last_name
+                ? $user->first_name
+                : trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
         }
 
         return $user;
@@ -333,9 +335,17 @@ class AuthModel extends Model
      */
     public function resetErrorLogin(string $username): bool
     {
-        return (bool) DB::table('login_attempts')
-            ->where('login', $username)
-            ->delete();
+        try {
+            if (! Schema::hasTable('login_attempts')) {
+                return false;
+            }
+
+            return (bool) DB::table('login_attempts')
+                ->where('login', $username)
+                ->delete();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

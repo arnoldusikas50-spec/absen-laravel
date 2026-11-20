@@ -38,7 +38,10 @@ Sistem ini memungkinkan guru dan siswa melakukan absensi dengan menempelkan kart
 **Headers:**
 ```
 Content-Type: application/json
+X-API-KEY: your-api-key-here
 ```
+
+API key juga boleh dikirim sebagai field `api_key` di body.
 
 **Body:**
 ```json
@@ -58,8 +61,8 @@ Content-Type: application/json
 |-----------|------|-------|-----------|
 | nfc_uid | string | Ya | UID kartu NFC yang di-scan |
 | jenis_scan | string | Ya | "masuk" atau "pulang" |
-| lat | float | Tidak | Latitude GPS perangkat |
-| lng | float | Tidak | Longitude GPS perangkat |
+| lat | float | Ya | Latitude GPS perangkat |
+| lng | float | Ya | Longitude GPS perangkat |
 | accuracy | int | Tidak | Akurasi GPS dalam meter |
 | device_id | string | Tidak | ID unik perangkat Android |
 | api_key | string | Ya | API key untuk autentikasi |
@@ -95,6 +98,7 @@ Content-Type: application/json
 | ALREADY_CHECKED | Sudah melakukan absensi dengan jenis yang sama hari ini |
 | TIME_INVALID | Diluar waktu absensi yang diizinkan |
 | HOLIDAY | Hari libur |
+| GPS_REQUIRED | Koordinat GPS tidak dikirim |
 | OUT_OF_RANGE | Di luar area sekolah (geofence) |
 | NO_CHECKIN | Belum ada absen masuk (untuk check-out) |
 | RATE_LIMITED | Terlalu banyak permintaan |
@@ -158,14 +162,18 @@ Content-Type: application/json
 
 API key dapat dikonfigurasi di salah satu lokasi berikut (diprioritaskan):
 
-1. Tabel `setting` - kolom `api_key`
-2. Tabel `absensi_setting` - kolom `api_key`
-3. File `.env` - variabel `NFC_API_KEY`
+1. `config/services.php` → `services.nfc.api_key` (dari variabel `NFC_API_KEY`)
+2. Tabel `setting` - kolom `api_key` (kompatibilitas lama)
+3. Tabel `master_guru` - kolom `api_key` (per guru)
+
+Tabel `absensi_setting` **tidak** memiliki kolom `api_key` dan tidak diperiksa.
 
 ```env
 # .env
 NFC_API_KEY=your-secret-api-key-here
 ```
+
+Setelah mengubah `.env`, jalankan `php artisan config:clear` agar konfigurasi-cache tidak memakai nilai lama.
 
 ## Database Schema
 
@@ -178,14 +186,16 @@ Mencatat setiap tap kartu NFC untuk audit trail.
 | id | bigint | Primary key |
 | nfc_uid | string(128) | UID kartu NFC |
 | tipe_user | enum | 'guru' atau 'siswa' |
-| user_id | int | ID dari tabel users |
+| user_id | int, nullable | ID user (null untuk siswa) |
 | reference_id | int | id_guru atau id_siswa |
 | nama | string(150) | Nama lengkap |
 | jenis_scan | enum | 'masuk' atau 'pulang' |
 | tanggal | date | Tanggal scan |
 | jam | time | Jam scan |
 | lat, lng | decimal | Koordinat GPS |
+| akurasi_gps | int, nullable | Akurasi GPS dalam meter |
 | device_id | string(100) | ID perangkat Android |
+| ip_address | string(45) | IP perangkat |
 | berhasil | boolean | Status keberhasilan |
 | pesan | string(255) | Pesan hasil |
 | presensi_id | string | ID record absensi |
@@ -225,8 +235,9 @@ class NfcManager(private val context: Context) {
 suspend fun scanNfc(
     nfcUid: String,
     jenisScan: String,
-    lat: Double?,
-    lng: Double?,
+    lat: Double,
+    lng: Double,
+    accuracy: Int,
     deviceId: String,
     apiKey: String
 ): ScanResponse {
@@ -235,6 +246,7 @@ suspend fun scanNfc(
         "jenis_scan" to jenisScan,
         "lat" to lat,
         "lng" to lng,
+        "accuracy" to accuracy,
         "device_id" to deviceId,
         "api_key" to apiKey
     ))
@@ -250,7 +262,7 @@ suspend fun scanNfc(
 
 2. **Saat Kartu Di-tap**
    - Baca UID kartu
-   - Ambil lokasi GPS (opsional tapi direkomendasikan)
+   - Ambil lokasi GPS (wajib; jika gagal, minta user mengaktifkan GPS sebelum tap)
    - Tentukan jenis scan (masuk/pulang) - bisa otomatis berdasarkan waktu
    - Kirim request ke server
 
@@ -268,7 +280,7 @@ suspend fun scanNfc(
 1. **API Key Validation** - Setiap request harus menyertakan API key yang valid
 2. **Rate Limiting** - Maksimal 10 request per menit per device
 3. **Audit Log** - Semua scan dicatat di `nfc_scan_log` dengan nama pemilik kartu
-4. **GPS Validation** - Geofence radius sekolah wajib (jika GPS tersedia)
+4. **GPS Validation** - Koordinat GPS wajib dikirim dan geofence radius sekolah ditegakkan
 5. **Mock Location Detection** - Menolak akurasi GPS 0 (indikasi mock location)
 
 ## Troubleshooting
@@ -279,7 +291,8 @@ suspend fun scanNfc(
 - `04A1B2C3`, `04a1b2c3`, `04:A1:B2:C3` semuanya cocok
 
 ### API Key Tidak Valid
-- Cek API key di tabel `setting`, `absensi_setting`, atau `.env`
+- Cek `NFC_API_KEY` di `.env` lalu jalankan `php artisan config:clear`
+- Cek kolom `api_key` di tabel `setting` atau `master_guru`
 - Pastikan API key tidak kosong atau placeholder
 
 ### Duplikat Scan

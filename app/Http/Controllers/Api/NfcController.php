@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Controller untuk menangani request NFC dari aplikasi Android.
@@ -276,32 +277,42 @@ class NfcController extends BaseController
 
     /**
      * Validasi API key.
+     *
+     * Sumber yang didukung: config/services.php (NFC_API_KEY), tabel setting
+     * (legacy), dan api_key per guru di master_guru. Tabel absensi_setting
+     * sengaja tidak dipakai karena tidak memiliki kolom api_key.
      */
     private function validateApiKey(?string $apiKey): bool
     {
-        if (empty($apiKey)) {
+        $apiKey = trim((string) $apiKey);
+        if ($apiKey === '') {
             return false;
         }
 
-        // Cek di tabel setting
-        $settingKey = DB::table('setting')->value('api_key');
-
-        if (! empty($settingKey) && hash_equals($settingKey, $apiKey)) {
+        $configKey = config('services.nfc.api_key');
+        if (is_string($configKey) && $configKey !== '' && hash_equals($configKey, $apiKey)) {
             return true;
         }
 
-        // Cek di tabel absensi_setting
-        $absenKey = DB::table('absensi_setting')->value('api_key');
-
-        if (! empty($absenKey) && hash_equals($absenKey, $apiKey)) {
-            return true;
+        try {
+            if (Schema::hasTable('setting') && Schema::hasColumn('setting', 'api_key')) {
+                foreach (DB::table('setting')->pluck('api_key') as $settingKey) {
+                    if (is_string($settingKey) && $settingKey !== '' && hash_equals($settingKey, $apiKey)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[NfcController] Gagal membaca api_key dari setting: '.$e->getMessage());
         }
 
-        // Cek di .env
-        $envKey = env('NFC_API_KEY');
-
-        if (! empty($envKey) && hash_equals($envKey, $apiKey)) {
-            return true;
+        try {
+            if (Schema::hasTable('master_guru') && Schema::hasColumn('master_guru', 'api_key')
+                && DB::table('master_guru')->where('api_key', $apiKey)->exists()) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[NfcController] Gagal membaca api_key dari master_guru: '.$e->getMessage());
         }
 
         return false;

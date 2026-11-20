@@ -507,22 +507,11 @@ class BaseController extends Controller
 
     protected function authUser(?int $id = null): ?object
     {
-        $userId = $id ?? (int) (auth()->id() ?? 0);
-        if ($userId <= 0) {
-            return null;
-        }
         try {
-            $user = DB::table('users')->where('id', $userId)->first();
+            return $this->authModel()->user($id);
         } catch (\Throwable $e) {
             return null;
         }
-        if ($user) {
-            $user->nama_lengkap = ($user->first_name === $user->last_name)
-                ? $user->first_name
-                : trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
-        }
-
-        return $user;
     }
 
     private function authModel(): AuthModel
@@ -592,11 +581,7 @@ class BaseController extends Controller
     protected function authResetErrorLogin(string $username): bool
     {
         try {
-            if (! Schema::hasTable('login_attempts')) {
-                return false;
-            }
-
-            return (bool) DB::table('login_attempts')->where('login', $username)->delete();
+            return $this->authModel()->resetErrorLogin($username);
         } catch (\Throwable $e) {
             return false;
         }
