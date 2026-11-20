@@ -225,7 +225,7 @@ class PresensiSiswaQrController extends BaseController
         }
 
         try {
-            return trim((string) ($this->request->getCookie(self::KIOSK_GATE_COOKIE) ?? ''));
+            return trim((string) ($this->request->cookie(self::KIOSK_GATE_COOKIE) ?? ''));
         } catch (\Throwable $e) {
         }
 
@@ -261,15 +261,15 @@ class PresensiSiswaQrController extends BaseController
      */
     protected function pasangKioskGate($response, string $token): void
     {
-        $response->setCookie(
+        $response->cookie(
             self::KIOSK_GATE_COOKIE,
             self::kioskGateVerifier($token),
-            30 * 86400,
-            '',
+            30 * 24 * 60,
             '/',
-            '',
+            null,
             $this->request->isSecure(),
             true,
+            false,
             'Lax'
         );
     }
