@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\AttendancePolicy;
 use App\Services\PresensiBdrService;
 use App\Services\PresensiSiswaSyncService;
+use App\Services\SiswaPoinService;
 use App\Services\SuratPanggilanService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;

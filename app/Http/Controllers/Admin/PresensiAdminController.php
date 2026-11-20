@@ -8154,6 +8154,8 @@ class PresensiAdminController extends BaseController
                 'keterangan' => ['type' => 'TEXT', 'null' => true],
                 'status' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'pending'],
                 'bukti' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
+                // Legacy: dulu NOT NULL tanpa DEFAULT di skema CI lama.
+                'verifikasi' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => true],
                 'verifikasi_catatan' => ['type' => 'TEXT', 'null' => true],
                 'verified_by' => ['type' => 'INT', 'constraint' => 11, 'null' => true],
                 'verified_at' => ['type' => 'DATETIME', 'null' => true],
@@ -8183,6 +8185,7 @@ class PresensiAdminController extends BaseController
             // UPDATE penuh di tengah request admin, padahal di server sekarang
             // kolomnya sudah VARCHAR(20) dan tidak ada lagi nilai 0/1/2/''.
             $perluNormalisasi = false;
+            $verifikasiPerluNullable = false;
             try {
                 $sisaLama = count($db->select("SELECT 1 FROM absensi_izin
                     WHERE status IS NULL OR status = '' OR status IN ('0', '1', '2') LIMIT 1"));
@@ -8190,7 +8193,9 @@ class PresensiAdminController extends BaseController
                     if ($f['name'] === 'status') {
                         $perluNormalisasi = $sisaLama > 0
                             || strtolower((string) ($f['type_name'] ?? '')) !== 'varchar';
-                        break;
+                    }
+                    if ($f['name'] === 'verifikasi' && ! ($f['nullable'] ?? false)) {
+                        $verifikasiPerluNullable = true;
                     }
                 }
             } catch (\Throwable $e) {
@@ -8204,6 +8209,16 @@ class PresensiAdminController extends BaseController
                     $db->statement("UPDATE absensi_izin SET status = 'rejected' WHERE status = '2'");
                 } catch (\Throwable $e) {
                     Log::error('Normalisasi status absensi_izin gagal: '.$e->getMessage());
+                }
+            }
+            // Kolom legacy `verifikasi` (NOT NULL tanpa DEFAULT di skema lama)
+            // membuat insert izin manual & pengajuan guru ditolak MySQL strict
+            // mode. ALTER hanya sekali, saat kolomnya masih NOT NULL.
+            if ($verifikasiPerluNullable) {
+                try {
+                    $db->statement('ALTER TABLE absensi_izin MODIFY verifikasi VARCHAR(255) NULL DEFAULT NULL');
+                } catch (\Throwable $e) {
+                    Log::error('Normalisasi verifikasi absensi_izin gagal: '.$e->getMessage());
                 }
             }
         }
