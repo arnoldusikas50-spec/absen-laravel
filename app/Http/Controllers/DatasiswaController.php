@@ -91,8 +91,8 @@ class DatasiswaController extends BaseController
             return 'Data tidak valid.';
         }
 
-        // Pesan Laravel memakai "already been taken"; pesan CI4 lama memakai
-        // kata "unique". Keduanya ditangani agar teksnya tetap ramah pengguna.
+        // Pesan validator bisa memakai "already been taken" atau "unique".
+        // Keduanya ditangani agar teksnya tetap ramah pengguna.
         foreach (['nis' => 'NIS', 'nisn' => 'NISN', 'username' => 'Username'] as $field => $label) {
             $msg = strtolower((string) ($errors[$field] ?? ''));
             if (str_contains($msg, 'unique') || str_contains($msg, 'already been taken')) {

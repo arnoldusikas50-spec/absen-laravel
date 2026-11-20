@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  * Cek denda YTD seorang user: denda harian tercatat + missingAlphaFines
  * (logika guru) + statistik YTD admin + denda kotor bulan berjalan.
  *
- * App\Controllers\Admin\PresensiAdmin::getYTDDendaStats() dan
+ * App\Http\Controllers\Admin\PresensiAdmin::getYTDDendaStats() dan
  * command ini dibuat, jadi kedua bagian itu dijalankan hanya bila salah
  * satu kelas kandidat di bawah ini sudah ada; bila belum ada, dilewati
  * dengan peringatan (bukan error).
