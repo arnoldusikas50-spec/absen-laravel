@@ -38,11 +38,11 @@ class CronController extends BaseController
             // publik. Endpoint cron mengubah data absensi/poin.
             Log::critical('[Cron::dapodik_sync] CRON_SECRET_KEY kosong di .env — request ditolak.');
 
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Forbidden']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Forbidden']);
         }
 
         if (! hash_equals($raw, (string) $key)) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Forbidden']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Forbidden']);
         }
 
         $db = DB::connection();
@@ -52,7 +52,7 @@ class CronController extends BaseController
         }
 
         if (! $autoSync) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Auto-sync Dapodik nonaktif.',
             ]);
@@ -63,11 +63,11 @@ class CronController extends BaseController
             $service = new DapodikSyncService;
             $result = $service->syncAllFromApi($client, null);
 
-            return $this->response->setJSON($result);
+            return $this->response->json($result);
         } catch (\Throwable $e) {
             Log::error('[Cron::dapodik_sync] Gagal: '.$e->getMessage());
 
-            return $this->response->setStatusCode(500)->setJSON([
+            return $this->response->statusCode(500)->json([
                 'status' => false,
                 'message' => 'Sinkronisasi Dapodik gagal — periksa log aplikasi.',
             ]);

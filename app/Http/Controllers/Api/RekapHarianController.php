@@ -103,9 +103,9 @@ class RekapHarianController extends BaseController
         // ── 5. Format teks (siap tempel WA) ──────────────────────────
         if (strtolower((string) $this->request->query('format')) === 'teks') {
             return $this->response
-                ->setStatusCode(200)
-                ->setContentType('text/plain; charset=utf-8')
-                ->setBody($this->renderTeks($tgl, $guru, $siswa));
+                ->statusCode(200)
+                ->contentType('text/plain; charset=utf-8')
+                ->body($this->renderTeks($tgl, $guru, $siswa));
         }
 
         return $this->json(true, 'OK', $payload, 200);
@@ -122,7 +122,7 @@ class RekapHarianController extends BaseController
             $body['data'] = $data;
         }
 
-        return $this->response->setStatusCode($code)->setJSON($body);
+        return $this->response->statusCode($code)->json($body);
     }
 
     private function extractKey(): string

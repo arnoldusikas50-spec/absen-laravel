@@ -97,20 +97,20 @@ class CronControllerController extends BaseController
     public function dailyProcess()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         // Kunci yang sama dipakai /cron/mark-alpha: keduanya menulis alpha
         // harian, jadi tidak boleh berjalan berdampingan.
         if (! $this->cobaKunci('absen-cron-alpha-harian')) {
-            return $this->response->setStatusCode(409)->setBody('SKIP: cron harian/alpha masih berjalan.');
+            return $this->response->statusCode(409)->body('SKIP: cron harian/alpha masih berjalan.');
         }
 
         $db = DB::connection();
         $setting = $this->settingModel->first();
 
         if (! $setting) {
-            return $this->response->setBody('Setting not found');
+            return $this->response->body('Setting not found');
         }
 
         $log = [];
@@ -150,12 +150,12 @@ class CronControllerController extends BaseController
 
         $prefix = $adaGagal ? 'GAGAL: ' : 'OK: ';
 
-        $response = $this->response->setBody($prefix.date('Y-m-d H:i:s')."\n".implode("\n", array_filter($log)));
+        $response = $this->response->body($prefix.date('Y-m-d H:i:s')."\n".implode("\n", array_filter($log)));
 
         if ($adaGagal) {
             // 500 bukan 200: pemantau cron berbasis HTTP (curl --fail)
             // hinges-nya di sini.
-            $response->setStatusCode(500);
+            $response->statusCode(500);
         }
 
         return $response;
@@ -174,13 +174,13 @@ class CronControllerController extends BaseController
     public function rekapPiket()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $tanggal = trim((string) $this->request->query('tanggal'));
         if ($tanggal !== '' && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal)) {
-            return $this->response->setStatusCode(400)
-                ->setBody('Format tanggal harus YYYY-MM-DD');
+            return $this->response->statusCode(400)
+                ->body('Format tanggal harus YYYY-MM-DD');
         }
 
         $force = $this->dimintaForce();
@@ -190,8 +190,8 @@ class CronControllerController extends BaseController
         // Kegagalan kirim harus terlihat oleh pemantau cron — HTTP 200 yang
         // merem semua akan menyembunyikan gateway yang down berhari-hari.
         return $this->response
-            ->setStatusCode($failed ? 500 : 200)
-            ->setBody($result.' — '.date('Y-m-d H:i:s'));
+            ->statusCode($failed ? 500 : 200)
+            ->body($result.' — '.date('Y-m-d H:i:s'));
     }
 
     /**
@@ -201,23 +201,23 @@ class CronControllerController extends BaseController
     public function markAlpha()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         if (! $this->cobaKunci('absen-cron-alpha-harian')) {
-            return $this->response->setStatusCode(409)->setBody('SKIP: cron harian/alpha masih berjalan.');
+            return $this->response->statusCode(409)->body('SKIP: cron harian/alpha masih berjalan.');
         }
 
         $db = DB::connection();
         $setting = $this->settingModel->first();
 
         if (! $setting) {
-            return $this->response->setBody('Setting not found');
+            return $this->response->body('Setting not found');
         }
 
         $result = $this->markAbsentTeachers($db, $setting);
 
-        return $this->response->setBody('Alpha marked: '.date('Y-m-d H:i:s').' | '.$result);
+        return $this->response->body('Alpha marked: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -229,24 +229,24 @@ class CronControllerController extends BaseController
     public function poinSiswa()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $bulan = (int) ($this->request->query('bulan') ?? date('n'));
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
         if ($bulan < 1 || $bulan > 12 || $tahun < 2020 || $tahun > (int) date('Y') + 1) {
-            return $this->response->setStatusCode(400)->setBody(
+            return $this->response->statusCode(400)->body(
                 'PARAM: bulan harus 1-12 dan tahun antara 2020 dan '.((int) date('Y') + 1).'.'
             );
         }
 
         if (! $this->cobaKunci('absen-cron-poin-siswa')) {
-            return $this->response->setStatusCode(409)->setBody('SKIP: recalc poin siswa masih berjalan.');
+            return $this->response->statusCode(409)->body('SKIP: recalc poin siswa masih berjalan.');
         }
 
         $res = (new SiswaPoinService)->recalcBulan($bulan, $tahun);
 
-        return $this->response->setBody(
+        return $this->response->body(
             'Poin siswa '.date('Y-m-d H:i:s').' | '.$res['message']
         );
     }
@@ -258,11 +258,11 @@ class CronControllerController extends BaseController
     public function semesterRecap()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         if (! $this->cobaKunci('absen-cron-semester-recap')) {
-            return $this->response->setStatusCode(409)->setBody('SKIP: rekap semester masih berjalan.');
+            return $this->response->statusCode(409)->body('SKIP: rekap semester masih berjalan.');
         }
 
         $tahun = (int) ($this->request->query('tahun') ?? date('Y'));
@@ -275,15 +275,15 @@ class CronControllerController extends BaseController
         // sehingga `?tahun=abc` terlihat sama sehatnya dengan rekap yang
         // benar-benar berhasil.
         if (str_starts_with($result, 'PARAM:')) {
-            return $this->response->setStatusCode(400)->setBody('Semester rekap: '.$result);
+            return $this->response->statusCode(400)->body('Semester rekap: '.$result);
         }
         if ($this->isSendFailure($result)) {
-            return $this->response->setStatusCode(500)->setBody(
+            return $this->response->statusCode(500)->body(
                 'Semester rekap: '.date('Y-m-d H:i:s').' | '.$result
             );
         }
 
-        return $this->response->setBody('Semester rekap: '.date('Y-m-d H:i:s').' | '.$result);
+        return $this->response->body('Semester rekap: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -1034,7 +1034,7 @@ class CronControllerController extends BaseController
         }
 
         try {
-            (new CiForge)->addColumn($tabel, [$kolom => $definisi]);
+            (new SchemaForge)->addColumn($tabel, [$kolom => $definisi]);
         } catch (\Throwable $e) {
             Log::error("[Cron] buat kolom {$tabel}.{$kolom}: ".$e->getMessage());
 
@@ -2173,7 +2173,7 @@ class CronControllerController extends BaseController
     public function weeklyDendaRecap()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         // Pastikan hari Sabtu (opsional: tetap bisa dipanggil manual)
@@ -2194,16 +2194,16 @@ class CronControllerController extends BaseController
             Log::error('[Cron] weeklyDendaRecap periode tidak valid: monday='.$monday.', saturday='.$saturday);
 
             return $this->response
-                ->setStatusCode(500)
-                ->setBody('Weekly denda recap: GAGAL menentukan periode Sabtu (tanggal tidak valid).');
+                ->statusCode(500)
+                ->body('Weekly denda recap: GAGAL menentukan periode Sabtu (tanggal tidak valid).');
         }
 
         $result = $this->sendDendaRecap($monday, $saturday, $periode, $this->dimintaForce());
         $failed = $this->isSendFailure($result);
 
         return $this->response
-            ->setStatusCode($failed ? 500 : 200)
-            ->setBody('Weekly denda recap: '.date('Y-m-d H:i:s').' | '.$result);
+            ->statusCode($failed ? 500 : 200)
+            ->body('Weekly denda recap: '.date('Y-m-d H:i:s').' | '.$result);
     }
 
     /**
@@ -2223,12 +2223,12 @@ class CronControllerController extends BaseController
     public function monthlyPdf()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         [$bulan, $tahun, $paramError] = $this->targetPeriodePdf();
         if ($paramError !== null) {
-            return $this->response->setStatusCode(400)->setBody('PARAM: '.$paramError);
+            return $this->response->statusCode(400)->body('PARAM: '.$paramError);
         }
 
         $force = $this->dimintaForce();
@@ -2270,8 +2270,8 @@ class CronControllerController extends BaseController
         $gagal = $this->isSendFailure($gabungan);
 
         return $this->response
-            ->setStatusCode($gagal ? 500 : 200)
-            ->setBody('Monthly PDF '.$label.': '.date('Y-m-d H:i:s')."\n".$gabungan);
+            ->statusCode($gagal ? 500 : 200)
+            ->body('Monthly PDF '.$label.': '.date('Y-m-d H:i:s')."\n".$gabungan);
     }
 
     /**
@@ -2486,7 +2486,7 @@ class CronControllerController extends BaseController
     public function ucapanPagi()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $tanggal = $this->request->query('tanggal');
@@ -2495,7 +2495,7 @@ class CronControllerController extends BaseController
             : date('Y-m-d');
 
         if ($skip = $this->grupDinonaktifkan('ucapan_pagi', 'Ucapan pagi')) {
-            return $this->response->setBody($skip);
+            return $this->response->body($skip);
         }
 
         // `?tanggal=` membuat endpoint ini bisa diputar ulang untuk tanggal
@@ -2503,7 +2503,7 @@ class CronControllerController extends BaseController
         // Penjaga idempotensi mencegah pengulangan yang tidak disengaja;
         // ?force=1 tetap tersedia untuk uji varian yang memang dimaksudkan.
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ucapan_pagi', $tanggal)) {
-            return $this->response->setBody('Ucapan pagi untuk '.$tanggal
+            return $this->response->body('Ucapan pagi untuk '.$tanggal
                 .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
         }
 
@@ -2524,7 +2524,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan pagi', $e->getMessage());
             $this->catatNotifikasiCron('ucapan_pagi', $tanggal, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: '.$e->getMessage());
+            return $this->response->statusCode(500)->body('Ucapan pagi GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2534,12 +2534,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan pagi', $reason);
             $this->catatNotifikasiCron('ucapan_pagi', $tanggal, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan pagi GAGAL: '.$reason);
+            return $this->response->statusCode(500)->body('Ucapan pagi GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('ucapan_pagi', $tanggal, true);
 
-        return $this->response->setBody(sprintf(
+        return $this->response->body(sprintf(
             'Ucapan pagi terkirim — %s (%s) %s',
             $info['tanggal_panjang'],
             $info['status'],
@@ -2561,7 +2561,7 @@ class CronControllerController extends BaseController
     public function ucapanSore()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $tanggal = date('Y-m-d');
@@ -2572,18 +2572,18 @@ class CronControllerController extends BaseController
         // kalender). Bukan hari kerja = tidak ada yang perlu dipulangkan.
         $statusHari = $svc->status($tanggal);
         if (($statusHari['status'] ?? HariSekolahService::AKTIF) !== HariSekolahService::AKTIF) {
-            return $this->response->setBody(
+            return $this->response->body(
                 'Ucapan sore dilewati: '.$info['tanggal_panjang']
                 .' bukan hari kerja sekolah ('.($statusHari['keterangan'] ?? $statusHari['status']).').'
             );
         }
 
         if ($skip = $this->grupDinonaktifkan('ucapan_sore', 'Ucapan sore')) {
-            return $this->response->setBody($skip);
+            return $this->response->body($skip);
         }
 
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ucapan_sore', $tanggal)) {
-            return $this->response->setBody('Ucapan sore untuk '.$tanggal
+            return $this->response->body('Ucapan sore untuk '.$tanggal
                 .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
         }
 
@@ -2593,7 +2593,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan sore', $e->getMessage());
             $this->catatNotifikasiCron('ucapan_sore', $tanggal, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: '.$e->getMessage());
+            return $this->response->statusCode(500)->body('Ucapan sore GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2603,12 +2603,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan sore', $reason);
             $this->catatNotifikasiCron('ucapan_sore', $tanggal, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan sore GAGAL: '.$reason);
+            return $this->response->statusCode(500)->body('Ucapan sore GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('ucapan_sore', $tanggal, true);
 
-        return $this->response->setBody('Ucapan sore terkirim — '.$info['tanggal_panjang']);
+        return $this->response->body('Ucapan sore terkirim — '.$info['tanggal_panjang']);
     }
 
     /**
@@ -2620,7 +2620,7 @@ class CronControllerController extends BaseController
     public function apelKesadaran()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $tanggal = date('Y-m-d');
@@ -2628,7 +2628,7 @@ class CronControllerController extends BaseController
 
         // Hanya dikirim pada tanggal 16 (kecuali dengan ?force=1 untuk pengujian manual)
         if ($tglHariIni !== 16 && ! $this->dimintaForce()) {
-            return $this->response->setBody(
+            return $this->response->body(
                 'Pengingat Apel Kesadaran hanya dijalankan pada tanggal 16 setiap bulan (hari ini tanggal '.$tglHariIni.'). Gunakan ?force=1 untuk pengujian.'
             );
         }
@@ -2646,11 +2646,11 @@ class CronControllerController extends BaseController
         $kunciPeriode = 'apel_kesadaran_'.date('Y-m', $tsBesok);
 
         if ($skip = $this->grupDinonaktifkan('apel_kesadaran', 'Pengingat Apel Kesadaran')) {
-            return $this->response->setBody($skip);
+            return $this->response->body($skip);
         }
 
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('apel_kesadaran', $kunciPeriode)) {
-            return $this->response->setBody(
+            return $this->response->body(
                 'Pengingat Apel Kesadaran KORPRI untuk '.$tgl17Text
                 .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.'
             );
@@ -2667,7 +2667,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Apel kesadaran', $e->getMessage());
             $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: '.$e->getMessage());
+            return $this->response->statusCode(500)->body('Pengingat Apel Kesadaran GAGAL: '.$e->getMessage());
         }
 
         if ($sent !== true) {
@@ -2677,12 +2677,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Apel kesadaran', $reason);
             $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Pengingat Apel Kesadaran GAGAL: '.$reason);
+            return $this->response->statusCode(500)->body('Pengingat Apel Kesadaran GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('apel_kesadaran', $kunciPeriode, true);
 
-        return $this->response->setBody('Pengingat Apel Kesadaran KORPRI terkirim — '.$tgl17Text);
+        return $this->response->body('Pengingat Apel Kesadaran KORPRI terkirim — '.$tgl17Text);
     }
 
     /**
@@ -2693,7 +2693,7 @@ class CronControllerController extends BaseController
     public function ulangTahun()
     {
         if (! $this->validateKey()) {
-            return $this->response->setStatusCode(403)->setBody('Invalid key');
+            return $this->response->statusCode(403)->body('Invalid key');
         }
 
         $tanggal = $this->request->query('tanggal');
@@ -2702,18 +2702,18 @@ class CronControllerController extends BaseController
             : date('Y-m-d');
 
         if ($this->notification->isAllChannelsDisabled('ulang_tahun')) {
-            return $this->response->setBody('Ucapan ulang tahun dilewati: seluruh channel (grup & personal) dinonaktifkan di Pengaturan → Channel Notifikasi.');
+            return $this->response->body('Ucapan ulang tahun dilewati: seluruh channel (grup & personal) dinonaktifkan di Pengaturan → Channel Notifikasi.');
         }
 
         if (! $this->dimintaForce() && $this->notifikasiCronTerkirim('ulang_tahun', $tanggal)) {
-            return $this->response->setBody('Ucapan ulang tahun untuk '.$tanggal
+            return $this->response->body('Ucapan ulang tahun untuk '.$tanggal
                 .' sudah terkirim sebelumnya, dilewati. Gunakan ?force=1 untuk mengirim ulang.');
         }
 
         $guruList = $this->getGuruUlangTahun($tanggal);
 
         if (empty($guruList)) {
-            return $this->response->setBody('Ucapan ulang tahun dilewati: tidak ada guru yang berulang tahun pada tanggal '.$tanggal.'.');
+            return $this->response->body('Ucapan ulang tahun dilewati: tidak ada guru yang berulang tahun pada tanggal '.$tanggal.'.');
         }
 
         $svc = new HariSekolahService;
@@ -2725,7 +2725,7 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan ulang tahun', $e->getMessage());
             $this->catatNotifikasiCron('ulang_tahun', $tanggal, false, $e->getMessage());
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan ulang tahun GAGAL: '.$e->getMessage());
+            return $this->response->statusCode(500)->body('Ucapan ulang tahun GAGAL: '.$e->getMessage());
         }
 
         $daftarNama = array_map(static fn ($g) => $g->nama_guru, $guruList);
@@ -2738,12 +2738,12 @@ class CronControllerController extends BaseController
             $this->logCronFailure('Ucapan ulang tahun', $reason);
             $this->catatNotifikasiCron('ulang_tahun', $tanggal, false, $reason);
 
-            return $this->response->setStatusCode(500)->setBody('Ucapan ulang tahun GAGAL: '.$reason);
+            return $this->response->statusCode(500)->body('Ucapan ulang tahun GAGAL: '.$reason);
         }
 
         $this->catatNotifikasiCron('ulang_tahun', $tanggal, true, 'Guru: '.$namaStr);
 
-        return $this->response->setBody(sprintf(
+        return $this->response->body(sprintf(
             'Ucapan ulang tahun terkirim untuk %d guru (%s) — Grup: %s, Personal: %d terkirim',
             count($guruList),
             $namaStr,

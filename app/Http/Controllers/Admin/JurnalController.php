@@ -873,9 +873,9 @@ class JurnalController extends BaseController
             : $p['tanggal']).'.csv';
 
         return $this->response
-            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($csv);
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($csv);
     }
 
     /**
@@ -1196,9 +1196,9 @@ class JurnalController extends BaseController
         $filename = 'rekap-jurnal-'.$r['tahun'].'-'.$r['bulan'].'.csv';
 
         return $this->response
-            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($csv);
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($csv);
     }
 
     /** Versi cetak rekap untuk kepala sekolah / arsip. */

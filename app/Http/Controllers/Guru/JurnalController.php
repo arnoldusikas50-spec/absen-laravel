@@ -485,7 +485,7 @@ class JurnalController extends BaseController
     {
         $tData = $this->getTeacherData();
         if (! $tData || ! $tData['user']) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
         }
 
         $idKelas = (int) $idKelas;
@@ -499,7 +499,7 @@ class JurnalController extends BaseController
             ->where('id_smt', $idSmt)
             ->first();
         if (! $kelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif.']);
         }
 
         $tanggal = trim((string) ($this->request->query('tanggal') ?? $this->request->query('tgl') ?? date('Y-m-d')));
@@ -571,7 +571,7 @@ class JurnalController extends BaseController
             ];
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'nama_kelas' => (string) ($kelas->nama_kelas ?? ''),
             'tanggal' => $tanggal,
@@ -816,7 +816,7 @@ class JurnalController extends BaseController
         $tData = $this->getTeacherData();
         if (! $tData || ! $tData['user']) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+                return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
             }
 
             return redirect()->to('auth');
@@ -951,7 +951,7 @@ class JurnalController extends BaseController
             }
 
             if ($this->request->ajax()) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => true,
                     'message' => $msg,
                     'id_jurnal' => $idJurnal,
@@ -1067,7 +1067,7 @@ class JurnalController extends BaseController
     private function failSave(string $message)
     {
         if ($this->request->ajax()) {
-            return $this->response->setJSON(['status' => false, 'message' => $message]);
+            return $this->response->json(['status' => false, 'message' => $message]);
         }
 
         $idJurnal = (int) $this->request->input('id_jurnal');
@@ -1096,7 +1096,7 @@ class JurnalController extends BaseController
         $jurnal = $this->jurnalModel->getJurnalDetail((int) $id);
         if (! $jurnal) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jurnal tidak ditemukan']);
+                return $this->response->json(['status' => false, 'message' => 'Jurnal tidak ditemukan']);
             }
 
             return redirect()->to('guru/jurnal')->with('error', 'Jurnal tidak ditemukan.');
@@ -1105,7 +1105,7 @@ class JurnalController extends BaseController
         $isOwner = $tData['guru'] && (int) $jurnal->id_guru === (int) $tData['guru']->id_guru;
         if (! $isOwner && ! $this->isAdmin()) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke jurnal ini']);
+                return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke jurnal ini']);
             }
 
             return redirect()->to('guru/jurnal')->with('error', 'Anda tidak memiliki akses ke jurnal ini.');
@@ -1118,7 +1118,7 @@ class JurnalController extends BaseController
         $absenLabel = implode(', ', (array) ($absenInfo['nama'] ?? []));
 
         if ($this->request->ajax()) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'data' => $jurnal,
                 'profil_list' => ! empty($jurnal->profil_pancasila) ? json_decode($jurnal->profil_pancasila, true) : [],

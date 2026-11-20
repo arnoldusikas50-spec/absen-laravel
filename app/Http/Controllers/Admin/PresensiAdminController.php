@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Api\TelegramBotController;
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\CiForge;
 use App\Http\Controllers\CronControllerController;
+use App\Http\Controllers\SchemaForge;
 use App\Libraries\QrToken;
 use App\Libraries\SuratNomor;
 use App\Libraries\SuratTeguranLevel;
@@ -1487,9 +1487,9 @@ class PresensiAdminController extends BaseController
         $body = view('admin.presensi.rekap_excel', $data);
 
         return $this->response
-            ->setHeader('Content-Type', 'application/vnd.ms-excel')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($body);
+            ->header('Content-Type', 'application/vnd.ms-excel')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($body);
     }
 
     /**
@@ -1653,10 +1653,10 @@ class PresensiAdminController extends BaseController
         $output = $dompdf->output();
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="'.$filename.'.pdf"')
-            ->setBody($output)
-            ->setStatusCode(200);
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$filename.'.pdf"')
+            ->body($output)
+            ->statusCode(200);
     }
 
     /**
@@ -2841,7 +2841,7 @@ class PresensiAdminController extends BaseController
 
         // --- AUTO UGRADE DB (MAX IZIN/CUTI) ---
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
         if (Schema::hasTable('absensi_setting')) {
             $fields = Schema::getColumnListing('absensi_setting');
             if (! in_array('max_izin_hari', $fields)) {
@@ -4309,7 +4309,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiQrTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
         if (! Schema::hasTable('absensi_qr')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
@@ -4377,7 +4377,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiQrLogTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
         if (! Schema::hasTable('absensi_qr_log')) {
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
@@ -4894,7 +4894,7 @@ class PresensiAdminController extends BaseController
     public function batchManualAbsen()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         $this->patchAbsensiHarianTable();
 
@@ -4902,16 +4902,16 @@ class PresensiAdminController extends BaseController
         $entries = $this->request->input('entries'); // array of {user_id, jam_masuk, jam_pulang, keterangan, status}
 
         if (empty($tanggal) || empty($entries)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
 
         // Validasi tanggal & siapkan transaksi (dulu: tanpa validasi, tanpa transaksi)
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
         if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
+            return $this->response->json(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
 
         $db = DB::connection();
@@ -5132,7 +5132,7 @@ class PresensiAdminController extends BaseController
             DB::rollBack();
             Log::error('Batch manual absen gagal: '.$ex->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan batch — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan batch — periksa log aplikasi.']);
         }
 
         // Batch absen manual juga dapat relieving hari alpha -> surat teguran
@@ -5156,7 +5156,7 @@ class PresensiAdminController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => "Berhasil menyimpan {$saved} data absensi".($errors ? ' ('.count($errors).' baris dilewati)' : '')
                 .($libur['libur'] ? " — {$tanggal} berstatus LIBUR, hanya DINAS/izin/sakit yang dicatat" : '')
@@ -5451,7 +5451,7 @@ class PresensiAdminController extends BaseController
     public function processManualCheckin()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $this->patchAbsensiHarianTable();
@@ -5463,24 +5463,24 @@ class PresensiAdminController extends BaseController
         $status = strtoupper(trim((string) ($this->request->input('status') ?? 'HADIR'))); // HADIR, IJIN, SAKIT, CUTI
 
         if (empty($userId) || empty($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
         if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
+            return $this->response->json(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
         if (! in_array($status, ['HADIR', 'IJIN', 'SAKIT', 'CUTI', 'DINAS'], true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Status tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Status tidak valid']);
         }
         if ($status === 'HADIR') {
             if (empty($jamMasuk)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jam masuk harus diisi untuk status Hadir']);
+                return $this->response->json(['status' => false, 'message' => 'Jam masuk harus diisi untuk status Hadir']);
             }
             if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamMasuk)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid (HH:MM)']);
+                return $this->response->json(['status' => false, 'message' => 'Format jam masuk tidak valid (HH:MM)']);
             }
         }
 
@@ -5494,7 +5494,7 @@ class PresensiAdminController extends BaseController
             ->where('u.active', 1)
             ->count() > 0;
         if (! $userExists) {
-            return $this->response->setJSON(['status' => false, 'message' => 'User guru tidak ditemukan / non-aktif']);
+            return $this->response->json(['status' => false, 'message' => 'User guru tidak ditemukan / non-aktif']);
         }
 
         // Check if already exists
@@ -5516,7 +5516,7 @@ class PresensiAdminController extends BaseController
         // jadwal per hari (is_libur), dan kalender nasional.
         $alasanLibur = AttendancePolicy::alasanLibur($tanggal);
         if ($alasanLibur !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
         }
 
         // Get setting for late calculation
@@ -5691,7 +5691,7 @@ class PresensiAdminController extends BaseController
             }
             Log::error('Manual checkin gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat absen masuk — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal mencatat absen masuk — periksa log aplikasi.']);
         }
 
         // AUDIT LOG
@@ -5728,7 +5728,7 @@ class PresensiAdminController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $msg,
         ]);
@@ -5773,7 +5773,7 @@ class PresensiAdminController extends BaseController
     public function processManualCheckout()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $userId = (int) $this->request->input('user_id');
@@ -5781,17 +5781,17 @@ class PresensiAdminController extends BaseController
         $jamPulang = trim((string) $this->request->input('jam_pulang'));
 
         if (empty($userId) || empty($tanggal) || empty($jamPulang)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
         if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
+            return $this->response->json(['status' => false, 'message' => 'Format tanggal tidak valid (YYYY-MM-DD)']);
         }
         if ($tanggal > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
         if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $jamPulang)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam pulang tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam pulang tidak valid (HH:MM)']);
         }
 
         $db = DB::connection();
@@ -5803,7 +5803,7 @@ class PresensiAdminController extends BaseController
             ->first();
 
         if (! $existing) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data absen masuk tidak ditemukan untuk tanggal tersebut']);
+            return $this->response->json(['status' => false, 'message' => 'Data absen masuk tidak ditemukan untuk tanggal tersebut']);
         }
 
         // Absen pulang WAJIB punya absen masuk lebih dulu. Baris bisa sudah ada
@@ -5813,7 +5813,7 @@ class PresensiAdminController extends BaseController
         // bug yang dulu membangkitkan baris "pulang tanpa masuk".
         // Setara dengan guard yang sama di Guru\Attendance::checkOut().
         if (empty($existing->jam_masuk)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Absen masuk belum tercatat pada tanggal '.$tanggal
                     .'. Isi absen masuk terlebih dahulu sebelum mengisi absen pulang.',
@@ -5824,7 +5824,7 @@ class PresensiAdminController extends BaseController
         if (preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_masuk, $m)) {
             $jamMasukEff = $m[0];
             if (substr($jamPulang, 0, 5) < $jamMasukEff) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jam pulang tidak boleh lebih awal dari jam masuk ('.$jamMasukEff.')']);
+                return $this->response->json(['status' => false, 'message' => 'Jam pulang tidak boleh lebih awal dari jam masuk ('.$jamMasukEff.')']);
             }
         }
 
@@ -5832,7 +5832,7 @@ class PresensiAdminController extends BaseController
         // menghitung ulang (mencegah penalti pulang-awal terakumulasi ganda)
         if (! empty($existing->jam_pulang) && preg_match('/([01]\d|2[0-3]):[0-5]\d/', (string) $existing->jam_pulang, $mp)) {
             if (substr($jamPulang, 0, 5) === $mp[0]) {
-                return $this->response->setJSON(['status' => true, 'message' => 'Jam pulang sudah tercatat ('.$mp[0].')']);
+                return $this->response->json(['status' => true, 'message' => 'Jam pulang sudah tercatat ('.$mp[0].')']);
             }
         }
 
@@ -5846,7 +5846,7 @@ class PresensiAdminController extends BaseController
         // jadwal per hari (is_libur), dan kalender nasional.
         $alasanLibur = AttendancePolicy::alasanLibur($tanggal);
         if ($alasanLibur !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa absen di hari libur: '.$alasanLibur]);
         }
 
         // Get setting for checkout calculation
@@ -5864,7 +5864,7 @@ class PresensiAdminController extends BaseController
         $exIsLeave = in_array($exStatusMasuk, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true)
             || in_array($exStatusPulang, ['DINAS_APPROVED', 'DINAS_PENDING', 'DINAS_REJECTED', 'DINAS', 'DINAS_OUT', 'IJIN', 'IZIN', 'SAKIT', 'CUTI', 'WFH'], true);
         if ($exIsWfh || $exIsLeave || in_array($exStatusMasuk, ['ALPHA', 'ALPA'], true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Baris '.$exStatusMasuk.' tidak bisa di-checkout manual']);
+            return $this->response->json(['status' => false, 'message' => 'Baris '.$exStatusMasuk.' tidak bisa di-checkout manual']);
         }
 
         // Calculate Early
@@ -5995,7 +5995,7 @@ class PresensiAdminController extends BaseController
             }
             Log::error('Manual checkout gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat absen pulang — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal mencatat absen pulang — periksa log aplikasi.']);
         }
 
         // AUDIT LOG
@@ -6015,7 +6015,7 @@ class PresensiAdminController extends BaseController
             Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Absen pulang berhasil dicatat'.($statusPulang === 'EARLY' ? " (Pulang Cepat {$pulangCepatMenit} menit)" : ''),
         ]);
@@ -6027,18 +6027,18 @@ class PresensiAdminController extends BaseController
     public function getAttendanceStatus()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $userId = (int) $this->request->query('user_id');
         $tanggal = trim((string) $this->request->query('tanggal'));
 
         if (empty($userId) || empty($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
         if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format tanggal tidak valid']);
         }
 
         $db = DB::connection();
@@ -6060,7 +6060,7 @@ class PresensiAdminController extends BaseController
             $sched = null;
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => $att,
             'jadwal' => $sched,
@@ -6073,18 +6073,18 @@ class PresensiAdminController extends BaseController
     public function deleteAttendance()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $userId = (int) $this->request->input('user_id');
         $tanggal = trim((string) $this->request->input('tanggal'));
 
         if (empty($userId) || empty($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
         $dt = \DateTime::createFromFormat('Y-m-d', $tanggal);
         if (! $dt || $dt->format('Y-m-d') !== $tanggal) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format tanggal tidak valid']);
         }
 
         $db = DB::connection();
@@ -6094,7 +6094,7 @@ class PresensiAdminController extends BaseController
             ->first();
 
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
         }
 
         DB::beginTransaction();
@@ -6109,7 +6109,7 @@ class PresensiAdminController extends BaseController
             DB::rollBack();
             Log::error('Delete attendance gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus data']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menghapus data']);
         }
 
         // AUDIT LOG (dulu: hapus tanpa jejak + total poin tidak direcompute)
@@ -6128,7 +6128,7 @@ class PresensiAdminController extends BaseController
             Log::error('Failed to create audit log: '.$ex->getMessage());
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Data presensi berhasil direset / dihapus',
         ]);
@@ -6140,7 +6140,7 @@ class PresensiAdminController extends BaseController
     public function batchAttendanceStatus()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tanggal = trim((string) ($this->request->query('tanggal') ?? date('Y-m-d')));
@@ -6180,7 +6180,7 @@ class PresensiAdminController extends BaseController
             ];
         }
 
-        return $this->response->setJSON(['status' => true, 'data' => $data]);
+        return $this->response->json(['status' => true, 'data' => $data]);
     }
 
     /**
@@ -7553,7 +7553,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiShiftTables()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_shift')) {
             $forge->addField([
@@ -7643,7 +7643,7 @@ class PresensiAdminController extends BaseController
                 }
             }
             if ($add !== []) {
-                (new CiForge)->addColumn('setting', $add);
+                (new SchemaForge)->addColumn('setting', $add);
             }
 
             SuratNomor::flushCache();
@@ -7660,7 +7660,7 @@ class PresensiAdminController extends BaseController
             return;
         }
 
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasColumn('absensi_setting', 'foto_wajib')) {
             $forge->addColumn('absensi_setting', [
@@ -7945,7 +7945,7 @@ class PresensiAdminController extends BaseController
             $db->statement('ALTER TABLE absensi_harian MODIFY jam_pulang DATETIME NULL');
         }
 
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasColumn('absensi_harian', 'status_pulang')) {
             $forge->addColumn('absensi_harian', [
@@ -8044,7 +8044,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiKoreksiTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         // If table doesn't exist, create it
         if (! Schema::hasTable('absensi_koreksi')) {
@@ -8100,7 +8100,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiLokasiTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         // If table doesn't exist, create it
         if (! Schema::hasTable('absensi_lokasi')) {
@@ -8141,7 +8141,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiIzinTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_izin')) {
             $forge->addField([
@@ -8237,7 +8237,7 @@ class PresensiAdminController extends BaseController
     {
         try {
             $db = DB::connection();
-            $forge = (new CiForge);
+            $forge = (new SchemaForge);
 
             if (! Schema::hasTable('absensi_harian')) {
                 return;
@@ -8260,7 +8260,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiLiburTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_hari_libur')) {
             $forge->addField([
@@ -8276,7 +8276,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiJadwalTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_jadwal_kerja')) {
             $forge->addField([
@@ -8343,7 +8343,7 @@ class PresensiAdminController extends BaseController
     private function patchAbsensiPembayaranDendaTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_pembayaran_denda')) {
             $forge->addField([
@@ -8714,9 +8714,9 @@ class PresensiAdminController extends BaseController
         $hasil = $this->buildDendaPdf($bulan, $tahun);
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="'.$hasil['filename'].'"')
-            ->setBody($hasil['pdf']);
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="'.$hasil['filename'].'"')
+            ->body($hasil['pdf']);
     }
 
     /**
@@ -10059,10 +10059,10 @@ class PresensiAdminController extends BaseController
             .'_sd_'.($data['filterTglSampai'] ?? date('Y-m-d')).'.pdf';
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($dompdf->output())
-            ->setStatusCode(200);
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($dompdf->output())
+            ->statusCode(200);
     }
 
     /**
@@ -10889,11 +10889,11 @@ class PresensiAdminController extends BaseController
         $filename = "Rekap_Semester_{$semLabel}_{$tahun}.xls";
 
         return $this->response
-            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
-            ->setHeader('Content-Disposition', "attachment; filename=\"{$filename}\"")
-            ->setHeader('Cache-Control', 'max-age=0, no-cache, must-revalidate')
-            ->setHeader('Pragma', 'no-cache')
-            ->setBody("\xEF\xBB\xBF".$html);
+            ->header('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"")
+            ->header('Cache-Control', 'max-age=0, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->body("\xEF\xBB\xBF".$html);
     }
 
     /**
@@ -10992,10 +10992,10 @@ class PresensiAdminController extends BaseController
         $filename = "Rekap_Semester_{$export['semLabel']}_{$tahun}.pdf";
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', "attachment; filename=\"{$filename}\"")
-            ->setHeader('Cache-Control', 'max-age=0, no-cache, must-revalidate')
-            ->setBody($dompdf->output());
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"")
+            ->header('Cache-Control', 'max-age=0, no-cache, must-revalidate')
+            ->body($dompdf->output());
     }
 
     // ============================================
@@ -11382,18 +11382,18 @@ class PresensiAdminController extends BaseController
     public function saveNotifConfig()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405)
-                ->setJSON(['status' => false, 'message' => 'Method tidak diizinkan']);
+            return $this->response->statusCode(405)
+                ->json(['status' => false, 'message' => 'Method tidak diizinkan']);
         }
 
         $raw = $this->request->input('notif') ?? [];
         if (! is_array($raw)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak valid']);
         }
 
         // Sanitasi: pastikan hanya jenis dan channel yang dikenal yang diproses
@@ -11429,7 +11429,7 @@ class PresensiAdminController extends BaseController
         $cfgModel = new NotifChannelConfigModel;
         $ok = $cfgModel->saveConfig($clean);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $ok,
             'message' => $ok ? 'Konfigurasi notifikasi berhasil disimpan.' : 'Gagal menyimpan sebagian konfigurasi.',
         ]);
@@ -12217,9 +12217,9 @@ class PresensiAdminController extends BaseController
         $namaFile = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($letter->nama ?? 'Siswa'));
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="Surat_Panggilan_'.$namaFile.'.pdf"')
-            ->setBody($dompdf->output());
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="Surat_Panggilan_'.$namaFile.'.pdf"')
+            ->body($dompdf->output());
     }
 
     /**

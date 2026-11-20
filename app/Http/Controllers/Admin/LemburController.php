@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\CiForge;
+use App\Http\Controllers\SchemaForge;
 use App\Models\AuditLogModel;
 use App\Models\DashboardModel;
 use App\Models\LemburModel;
@@ -44,7 +44,7 @@ class LemburController extends BaseController
 
         try {
             if (! Schema::hasColumn('presensi_lembur', 'catatan_admin')) {
-                $forge = (new CiForge);
+                $forge = (new SchemaForge);
                 $forge->addColumn('presensi_lembur', [
                     'catatan_admin' => ['type' => 'TEXT', 'null' => true, 'after' => 'keterangan'],
                 ]);

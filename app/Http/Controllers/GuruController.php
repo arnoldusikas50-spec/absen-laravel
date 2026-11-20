@@ -106,14 +106,14 @@ class GuruController extends BaseController
     public function updateProfil()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $user = $this->getUser();
         $existingGuru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
 
         if (! $existingGuru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
         $id_guru = $existingGuru->id_guru; // Force use ID from session context
@@ -170,7 +170,7 @@ class GuruController extends BaseController
             }
             if ($ditolak !== []) {
                 // Ditolak sebelum ada file yang dipindah — tidak ada state setengah jadi.
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Dokumen harus PDF/JPG/PNG/GIF maksimal 5 MB — tidak ada yang diunggah ('.implode(', ', array_unique($ditolak)).').',
                 ]);
@@ -217,7 +217,7 @@ class GuruController extends BaseController
         }
 
         if ($data === []) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada perubahan yang tersimpan.']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada perubahan yang tersimpan.']);
         }
 
         // Update Data Guru
@@ -242,10 +242,10 @@ class GuruController extends BaseController
 
             $this->saveAuditLog(2, 'Guru mengupdate profilnya sendiri. ID: '.$id_guru);
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Profil berhasil diupdate']);
+            return $this->response->json(['status' => true, 'message' => 'Profil berhasil diupdate']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal update profil']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal update profil']);
     }
 
     /**
@@ -254,7 +254,7 @@ class GuruController extends BaseController
     public function updateLogin()
     {
         if (! $this->inGroup('guru') || ! $this->isLoggedIn()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $user = $this->getUser();
@@ -272,7 +272,7 @@ class GuruController extends BaseController
         }
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON(['status' => false, 'errors' => $this->validator->getErrors()]);
+            return $this->response->json(['status' => false, 'errors' => $this->validator->getErrors()]);
         }
 
         $db = DB::connection();
@@ -285,7 +285,7 @@ class GuruController extends BaseController
         if ($username !== trim((string) ($user->username ?? ''))) {
             $rename = $akun->renameUser((int) $user->id, $username);
             if (empty($rename['status'])) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => $rename['message'] ?? 'Username gagal diganti — tidak ada yang berubah.',
                 ]);
@@ -297,7 +297,7 @@ class GuruController extends BaseController
             // agar konsisten dengan Auth::login() yang memakai Hash::check().
             $row = $db->table('users')->where('id', $user->id)->first();
             if (! $row || ! Hash::check($oldPass, (string) ($row->password ?? ''))) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Password lama salah — password belum diubah.']);
+                return $this->response->json(['status' => false, 'message' => 'Password lama salah — password belum diubah.']);
             }
 
             try {
@@ -307,7 +307,7 @@ class GuruController extends BaseController
             } catch (\Throwable $e) {
                 Log::error('[Guru::updateLogin] update users.password gagal: '.$e->getMessage());
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Password gagal disimpan. Login masih memakai password lama — coba lagi.',
                 ]);
@@ -316,7 +316,7 @@ class GuruController extends BaseController
 
         $this->saveAuditLog(2, 'Guru update login info. UserID: '.$user->id);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'text' => $newPass !== ''
                 ? 'Username dan password berhasil diupdate'
@@ -330,13 +330,13 @@ class GuruController extends BaseController
     public function uploadFoto()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $user = $this->getUser();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
         $id_guru = $guru->id_guru;
 
@@ -348,12 +348,12 @@ class GuruController extends BaseController
         ];
 
         if (! $this->validate($validationRule)) {
-            return $this->response->setJSON(['status' => false, 'error' => $this->validator->getErrors()]);
+            return $this->response->json(['status' => false, 'error' => $this->validator->getErrors()]);
         }
 
         $img = $this->request->file('foto');
         if (false /* was: $img->hasMoved() */) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File sudah pernah diproses — muat ulang halaman lalu unggah lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'File sudah pernah diproses — muat ulang halaman lalu unggah lagi.']);
         }
 
         $newName = $img->hashName();
@@ -370,7 +370,7 @@ class GuruController extends BaseController
         if (! $img->move(public_path().'/'.$path, $newName)) {
             Log::error('[Guru::uploadFoto] move gagal: '.$img->getError());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Foto gagal disimpan di server. Foto lama masih terpakai — coba lagi, dan bila berulang lapor ke pengembang.',
             ]);
@@ -382,7 +382,7 @@ class GuruController extends BaseController
             @unlink(public_path().'/'.$dbPath);
             Log::error('[Guru::uploadFoto] simpan path foto ke master_guru gagal untuk id_guru '.$id_guru);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Foto gagal ditautkan ke data Anda. Foto lama masih terpakai — coba lagi.',
             ]);
@@ -399,7 +399,7 @@ class GuruController extends BaseController
             $db->table('users')->where('id', $user->id)->update(['foto' => $dbPath]);
         }
 
-        return $this->response->setJSON(['status' => true, 'src' => url($dbPath)]);
+        return $this->response->json(['status' => true, 'src' => url($dbPath)]);
     }
 
     /**
@@ -408,13 +408,13 @@ class GuruController extends BaseController
     public function deleteFoto()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $user = $this->getUser();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         if ($guru->foto && file_exists(public_path().'/'.$guru->foto)) {
@@ -429,7 +429,7 @@ class GuruController extends BaseController
             $db->table('users')->where('id', $user->id)->update(['foto' => null]);
         }
 
-        return $this->response->setJSON(['status' => true]);
+        return $this->response->json(['status' => true]);
     }
 
     /**
@@ -438,13 +438,13 @@ class GuruController extends BaseController
     public function saveSignature()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $user = $this->getUser();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $image = (string) $this->request->input('image');
@@ -453,7 +453,7 @@ class GuruController extends BaseController
         $data = base64_decode($image, true);
         // Validasi hasil decode + tanda tangan PNG + ukuran wajar (≤ 2MB).
         if ($data === false || strlen($data) > 2 * 1024 * 1024 || ! str_starts_with($data, "\x89PNG\r\n\x1a\n")) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Gambar tanda tangan tidak valid (PNG, maks 2MB)']);
+            return $this->response->json(['status' => false, 'message' => 'Gambar tanda tangan tidak valid (PNG, maks 2MB)']);
         }
 
         $fileName = 'ttd_'.preg_replace('/[^A-Za-z0-9_-]/', '', (string) $guru->nip).'_'.time().'.png';
@@ -473,10 +473,10 @@ class GuruController extends BaseController
                 @unlink(public_path().'/'.$guru->ttd);
             }
 
-            return $this->response->setJSON(['status' => true, 'src' => url($dbPath), 'message' => 'Tanda tangan berhasil disimpan']);
+            return $this->response->json(['status' => true, 'src' => url($dbPath), 'message' => 'Tanda tangan berhasil disimpan']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan file']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan file']);
     }
 
     /**
@@ -485,13 +485,13 @@ class GuruController extends BaseController
     public function deleteTtd()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $user = $this->getUser();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         if (! empty($guru->ttd) && file_exists(public_path().'/'.$guru->ttd)) {
@@ -500,7 +500,7 @@ class GuruController extends BaseController
 
         $this->updateMasterData('master_guru', ['ttd' => null], 'id_guru', $guru->id_guru);
 
-        return $this->response->setJSON(['status' => true]);
+        return $this->response->json(['status' => true]);
     }
 
     /**
@@ -509,7 +509,7 @@ class GuruController extends BaseController
     public function deleteDokumen()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $src = $this->request->query('src'); // Can be passed via GET or POST
@@ -518,13 +518,13 @@ class GuruController extends BaseController
         }
 
         if (! $src) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $user = $this->getUser();
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, null, null);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         // Enrich to get dokumen field
@@ -573,6 +573,6 @@ class GuruController extends BaseController
 
         $this->updateMasterData('master_guru', ['dokumen' => json_encode($newDokumen)], 'id_guru', $guru->id_guru);
 
-        return $this->response->setJSON(['status' => true, 'dokumen' => $newDokumen]);
+        return $this->response->json(['status' => true, 'dokumen' => $newDokumen]);
     }
 }

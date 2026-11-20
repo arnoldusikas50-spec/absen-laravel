@@ -122,12 +122,12 @@ class WhatsappWebhookController extends BaseController
         try {
             $setting = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
 
         $openwaKey = trim((string) ($setting->wa_api_key ?? ''));
         if ($openwaKey === '') {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
 
         // Header diutamakan agar secret tidak tertinggal di URL/access log;
@@ -139,18 +139,18 @@ class WhatsappWebhookController extends BaseController
         if ($secret === '' || ! hash_equals(self::webhookSecret($openwaKey), $secret)) {
             Log::warning('[openwa-webhook] secret tidak cocok, ditolak.');
 
-            return $this->response->setStatusCode(403);
+            return $this->response->statusCode(403);
         }
 
         try {
             $payload = $this->request->json()->all() ?? [];
         } catch (\Throwable $e) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
 
         $event = (string) ($payload['event'] ?? '');
         if (! in_array($event, self::WANTED_EVENTS, true)) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
 
         $data = $payload['data'] ?? [];
@@ -208,7 +208,7 @@ class WhatsappWebhookController extends BaseController
         }
 
         // Selalu 200 agar OpenWA tidak retry event yang tidak kita-Azukan.
-        return $this->response->setStatusCode(200);
+        return $this->response->statusCode(200);
     }
 
     /**
@@ -293,6 +293,6 @@ class WhatsappWebhookController extends BaseController
             $body['data'] = $data;
         }
 
-        return $this->response->setStatusCode($code)->setJSON($body);
+        return $this->response->statusCode($code)->json($body);
     }
 }

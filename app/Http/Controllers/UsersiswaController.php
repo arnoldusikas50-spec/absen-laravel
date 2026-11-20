@@ -62,11 +62,11 @@ class UsersiswaController extends BaseController
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON([]);
+            return $this->response->json([]);
         }
         $rows = $this->users->getUserSiswa($tp->id_tp, $smt->id_smt);
 
-        return $this->response->setJSON($rows);
+        return $this->response->json($rows);
     }
 
     // Manual pagination endpoint
@@ -85,7 +85,7 @@ class UsersiswaController extends BaseController
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['lists' => [], 'total' => 0, 'pages' => 0, 'search' => $search, 'perpage' => $limit]);
+            return $this->response->json(['lists' => [], 'total' => 0, 'pages' => 0, 'search' => $search, 'perpage' => $limit]);
         }
 
         $count_siswa = $this->users->getUserSiswaTotalPage($search, $reset);
@@ -105,25 +105,25 @@ class UsersiswaController extends BaseController
             'perpage' => $limit,
         ];
 
-        return $this->response->setJSON($data);
+        return $this->response->json($data);
     }
 
     public function activate()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $id_siswa = (int) $this->request->input('id_siswa');
         $is_active = $this->request->input('is_active') === 'aktifkan' ? 'aktifkan' : 'nonaktifkan';
 
         if ($id_siswa <= 0) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'ID siswa tidak valid']);
+            return $this->response->json(['status' => false, 'msg' => 'ID siswa tidak valid']);
         }
 
         $siswa = $this->master->getSiswa($id_siswa);
         if (! $siswa || empty($siswa->username)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Data siswa / username tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'Data siswa / username tidak ditemukan']);
         }
 
         $active = false;
@@ -139,7 +139,7 @@ class UsersiswaController extends BaseController
                 // Cegah duplikat username di master (indikasi data ganda)
                 $duplikat = $this->users->usernameCheck($siswa->username, 'master_siswa');
                 if (count($duplikat) > 1) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'msg' => 'Username '.$siswa->username.' dipakai '.count($duplikat).' data siswa — perbaiki dulu datanya',
                     ]);
@@ -162,7 +162,7 @@ class UsersiswaController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $active,
             'msg' => $active ? ('Siswa '.($is_active === 'aktifkan' ? 'diaktifkan' : 'dinonaktifkan')) : 'Gagal mengubah status',
         ]);
@@ -171,15 +171,15 @@ class UsersiswaController extends BaseController
     public function reset_login()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         $username = trim((string) $this->request->input('username'));
         if ($username === '') {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Username kosong']);
+            return $this->response->json(['status' => false, 'msg' => 'Username kosong']);
         }
         $ok = $this->authResetErrorLogin($username);
 
-        return $this->response->setJSON(['status' => (bool) $ok, 'msg' => $ok ? 'Login berhasil direset' : 'Gagal mereset login']);
+        return $this->response->json(['status' => (bool) $ok, 'msg' => $ok ? 'Login berhasil direset' : 'Gagal mereset login']);
     }
 
     /**
@@ -193,11 +193,11 @@ class UsersiswaController extends BaseController
     public function reset_password()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         $username = trim((string) $this->request->input('username'));
         if ($username === '') {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Username kosong']);
+            return $this->response->json(['status' => false, 'msg' => 'Username kosong']);
         }
 
         $db = DB::connection();
@@ -206,16 +206,16 @@ class UsersiswaController extends BaseController
             $siswa = $db->table('master_siswa')->where('username', $username)->first();
         }
         if (! $siswa) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Data siswa "'.$username.'" tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'Data siswa "'.$username.'" tidak ditemukan']);
         }
         $nisn = trim((string) ($siswa->nisn ?? ''));
         if ($nisn === '') {
-            return $this->response->setJSON(['status' => false, 'msg' => 'NISN siswa kosong — lengkapi data siswa dulu']);
+            return $this->response->json(['status' => false, 'msg' => 'NISN siswa kosong — lengkapi data siswa dulu']);
         }
 
         $account = $db->table('users')->where('username', $username)->first();
         if (! $account) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
+            return $this->response->json(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
         }
 
         // Password hanya disimpan sebagai hash di users. Menulis cermin
@@ -229,7 +229,7 @@ class UsersiswaController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Usersiswa::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
         }
 
         // Nama, bukan username: di sekolah ini username = NISN = password
@@ -237,7 +237,7 @@ class UsersiswaController extends BaseController
         // di layar admin.
         $nama = trim((string) ($siswa->nama ?? ''));
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'msg' => ($nama !== '' ? 'Password siswa '.$nama.' ' : 'Password siswa ini ')
                 .'berhasil direset ke NISN-nya.',
@@ -247,7 +247,7 @@ class UsersiswaController extends BaseController
     public function aktifkansemua()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $is_active = $this->request->input('is_active');
@@ -268,7 +268,7 @@ class UsersiswaController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Usersiswa::aktifkansemua] UPDATE users gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Gagal mengubah status akun siswa — periksa log aplikasi']);
+            return $this->response->json(['status' => false, 'msg' => 'Gagal mengubah status akun siswa — periksa log aplikasi']);
         }
 
         // "Aktifkan Semua" juga harus membuatkan akun bagi siswa master
@@ -335,7 +335,7 @@ class UsersiswaController extends BaseController
             $msg = $affected > 0 ? $affected.' akun dinonaktifkan' : 'Tidak ada perubahan (semua akun sudah nonaktif)';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $gagal === 0,
             'msg' => 'Siswa berhasil diupdate: '.$msg,
         ]);

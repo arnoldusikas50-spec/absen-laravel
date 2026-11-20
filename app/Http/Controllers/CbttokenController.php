@@ -48,9 +48,9 @@ class CbttokenController extends BaseController
                 }
             }
 
-            return $this->response->setJSON($data);
+            return $this->response->json($data);
         } catch (\Throwable $th) {
-            return $this->response->setJSON((object) [
+            return $this->response->json((object) [
                 'token' => 'GARUDA',
                 'auto' => '0',
                 'jarak' => '15',
@@ -82,13 +82,13 @@ class CbttokenController extends BaseController
 
             $this->saveToken($data);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'data' => (object) $data,
                 'token' => $newToken,
             ]);
         } catch (\Throwable $th) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'data' => (object) [
                     'token' => 'GARUDA',

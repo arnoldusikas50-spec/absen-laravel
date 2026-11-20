@@ -305,11 +305,11 @@ class PresensiController extends BaseController
     public function history()
     {
         if (! $this->isSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses khusus siswa']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses khusus siswa']);
         }
         $siswa = $this->resolveSiswa();
         if (! $siswa) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data siswa tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data siswa tidak ditemukan']);
         }
 
         $bulan = $this->request->query('bulan') ?? date('Y-m');
@@ -338,7 +338,7 @@ class PresensiController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Siswa\Presensi::history] riwayat#'.$siswa->id_siswa.' gagal dibaca: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal memuat riwayat']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal memuat riwayat']);
         }
 
         $stats = $this->monthStats((int) $siswa->id_siswa, $bulan);
@@ -347,7 +347,7 @@ class PresensiController extends BaseController
             $stats['denda'] = $denda;
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => $rows,
             'stats' => $stats,

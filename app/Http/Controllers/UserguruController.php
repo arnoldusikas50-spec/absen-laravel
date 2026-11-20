@@ -68,12 +68,12 @@ class UserguruController extends BaseController
     public function data()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON([]);
+            return $this->response->json([]);
         }
         $data = $this->users->getUserGuru($tp->id_tp, $smt->id_smt);
         foreach ($data as $list) {
@@ -81,7 +81,7 @@ class UserguruController extends BaseController
                 ?? url('assets/img/guru.png');
         }
 
-        return $this->response->setJSON($data);
+        return $this->response->json($data);
     }
 
     public function edit($id)
@@ -139,7 +139,7 @@ class UserguruController extends BaseController
     public function activate()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $id_guru = (int) $this->request->input('id_guru');
@@ -148,17 +148,17 @@ class UserguruController extends BaseController
         $is_active = $this->request->input('is_active') === 'aktifkan' ? 'aktifkan' : 'nonaktifkan';
 
         if ($id_guru <= 0) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'ID guru tidak valid']);
+            return $this->response->json(['status' => false, 'msg' => 'ID guru tidak valid']);
         }
 
         $guru = $this->users->getDataGuru($id_guru);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Data guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'Data guru tidak ditemukan']);
         }
         $usernames = $this->users->usernameCheck($guru->username ?? '-', 'master_guru');
 
         if (count($usernames) > 1 && $is_active == 'aktifkan') {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'msg' => 'ada '.count($usernames).' username menggunakan '.$guru->username.', silahkan ganti username',
                 'users' => $usernames,
@@ -169,7 +169,7 @@ class UserguruController extends BaseController
 
         if ($id_user) {
             if (! $this->authUser($id_user)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
+                return $this->response->json(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
             }
             // Toggle active status in users table
             $status = ($is_active == 'aktifkan') ? 1 : 0;
@@ -177,14 +177,14 @@ class UserguruController extends BaseController
             $msg = $is_active == 'aktifkan' ? ' diaktifkan' : ' dinonaktifkan';
         } else {
             if ($is_active !== 'aktifkan') {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Akun belum ada — hanya bisa diaktifkan']);
+                return $this->response->json(['status' => false, 'msg' => 'Akun belum ada — hanya bisa diaktifkan']);
             }
             $username = trim((string) ($guru->username ?? ''));
             if ($username === '') {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Username guru kosong — lengkapi data guru dulu']);
+                return $this->response->json(['status' => false, 'msg' => 'Username guru kosong — lengkapi data guru dulu']);
             }
             if ($this->authIsExist($username)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Username '.$username.' sudah dipakai akun lain']);
+                return $this->response->json(['status' => false, 'msg' => 'Username '.$username.' sudah dipakai akun lain']);
             }
             $nama = preg_split('/\s+/', trim($guru->nama_guru ?? ''), -1, PREG_SPLIT_NO_EMPTY);
             $first_name = $nama[0] ?? 'Guru';
@@ -206,7 +206,7 @@ class UserguruController extends BaseController
             if ($id_user <= 0) {
                 // id_user punya UNIQUE index; menulis 0 membuat guru kedua
                 // menabrak duplikat dan guru tetap tanpa akun.
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'msg' => 'Guru '.$nama_guru.' gagal: akun login tidak berhasil dibuat (lihat log aplikasi)',
                 ]);
@@ -217,7 +217,7 @@ class UserguruController extends BaseController
             $msg = ' diaktifkan';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => (bool) $active,
             'msg' => $active ? 'Guru '.$nama_guru.$msg : 'Guru '.$nama_guru.' gagal'.$msg,
         ]);
@@ -226,14 +226,14 @@ class UserguruController extends BaseController
     public function reset_login()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $username = trim((string) $this->request->input('username'));
         $nama = mb_substr(trim((string) $this->request->input('nama')), 0, 60);
 
         if ($username === '') {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Username kosong']);
+            return $this->response->json(['status' => false, 'msg' => 'Username kosong']);
         }
 
         if ($this->authResetErrorLogin($username)) {
@@ -242,7 +242,7 @@ class UserguruController extends BaseController
             $data = ['status' => false, 'msg' => 'User '.$nama.' gagal direset (Mungkin tidak ada error login)'];
         }
 
-        return $this->response->setJSON($data);
+        return $this->response->json($data);
     }
 
     /**
@@ -255,18 +255,18 @@ class UserguruController extends BaseController
     public function reset_password()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $username = trim((string) $this->request->input('username'));
         if ($username === '') {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Username kosong']);
+            return $this->response->json(['status' => false, 'msg' => 'Username kosong']);
         }
 
         $db = DB::connection();
         $account = $db->table('users')->where('username', $username)->first();
         if (! $account) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
+            return $this->response->json(['status' => false, 'msg' => 'Akun login "'.$username.'" belum ada — aktifkan akun dulu']);
         }
 
         $default = '123456';
@@ -287,10 +287,10 @@ class UserguruController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Userguru::reset_password] update gagal untuk "'.$username.'": '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'msg' => 'Password gagal direset — periksa log aplikasi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => 'Password "'.$username.'" berhasil direset ke password default.']);
+        return $this->response->json(['status' => true, 'msg' => 'Password "'.$username.'" berhasil direset ke password default.']);
     }
 
     public function aktifkan_all()
@@ -301,7 +301,7 @@ class UserguruController extends BaseController
     public function aktifkansemua()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'msg' => 'Unauthorized']);
         }
 
         try {
@@ -312,10 +312,10 @@ class UserguruController extends BaseController
             $smt = DB::table('master_smt')->where('active', 1)->first();
 
             if (! $tp || ! isset($tp->id_tp)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Tahun Pelajaran aktif tidak ditemukan']);
+                return $this->response->json(['status' => false, 'msg' => 'Tahun Pelajaran aktif tidak ditemukan']);
             }
             if (! $smt || ! isset($smt->id_smt)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Semester aktif tidak ditemukan']);
+                return $this->response->json(['status' => false, 'msg' => 'Semester aktif tidak ditemukan']);
             }
 
             $gurus = $this->users->getUserGuru($tp->id_tp, $smt->id_smt);
@@ -389,13 +389,13 @@ class UserguruController extends BaseController
                 $msg .= ', '.$fail_count.' gagal (lihat log aplikasi)';
             }
 
-            return $this->response->setJSON(['status' => $fail_count === 0, 'msg' => $msg]);
+            return $this->response->json(['status' => $fail_count === 0, 'msg' => $msg]);
 
         } catch (\Throwable $th) {
             // Pesan exception mentah tidak dikirim ke klien.
             Log::error('[Userguru::aktifkansemua] '.$th->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Terjadi kesalahan sistem — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'msg' => 'Terjadi kesalahan sistem — periksa log aplikasi.']);
         }
     }
 
@@ -408,12 +408,12 @@ class UserguruController extends BaseController
     public function update_iduser()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $db = DB::connection();
         if (! Schema::hasTable('master_guru')) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Tabel master_guru tidak ditemukan.']);
+            return $this->response->json(['status' => false, 'msg' => 'Tabel master_guru tidak ditemukan.']);
         }
 
         try {
@@ -431,11 +431,11 @@ class UserguruController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Userguru::update_iduser] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => 'Status tautan akun gagal diperiksa — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'msg' => 'Status tautan akun gagal diperiksa — periksa log aplikasi.']);
         }
 
         if ($belum === 0 && $yatim === 0) {
-            return $this->response->setJSON(['status' => true, 'msg' => 'Semua data guru sudah terhubung ke akun login.']);
+            return $this->response->json(['status' => true, 'msg' => 'Semua data guru sudah terhubung ke akun login.']);
         }
 
         $catatan = [];
@@ -447,13 +447,13 @@ class UserguruController extends BaseController
         }
         $msg = 'Tautan akun belum lengkap: '.implode(', ', $catatan).'. Aktifkan akun per guru atau gunakan Aktifkan Semua.';
 
-        return $this->response->setJSON(['status' => false, 'msg' => $msg]);
+        return $this->response->json(['status' => false, 'msg' => $msg]);
     }
 
     public function editlogin()
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Login required']);
+            return $this->response->json(['status' => false, 'msg' => 'Login required']);
         }
 
         $id = $this->request->input('id'); // guru id? or user id? View passes $guru->id (master_guru id likely? Or user id?)
@@ -492,24 +492,24 @@ class UserguruController extends BaseController
         if (! $this->isAdmin()) {
             $me = $this->getUser();
             if (! $me || strcasecmp((string) $me->username, (string) $currentUsername) !== 0) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+                return $this->response->json(['status' => false, 'msg' => 'Akses ditolak']);
             }
         }
 
         // Akun users milik username lama
         $account = $this->authIsExist($currentUsername);
         if (! $account) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'Akun user tidak ditemukan']);
         }
 
         // If changing password — verifikasi dulu, sebelum ada tulis-menulis
         $wantPassword = (string) $new !== '';
         if ($wantPassword) {
             if (strlen((string) $new) < 6) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Password baru minimal 6 karakter']);
+                return $this->response->json(['status' => false, 'msg' => 'Password baru minimal 6 karakter']);
             }
             if (! Hash::check((string) $old, (string) $account->password)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'Password lama salah']);
+                return $this->response->json(['status' => false, 'msg' => 'Password lama salah']);
             }
         }
 
@@ -518,7 +518,7 @@ class UserguruController extends BaseController
         if ($username !== '' && strcasecmp($username, $currentUsername) !== 0) {
             $hasilRename = $this->authRenameUser((int) $account->id, $username);
             if (! $hasilRename['status']) {
-                return $this->response->setJSON(['status' => false, 'msg' => $hasilRename['message']]);
+                return $this->response->json(['status' => false, 'msg' => $hasilRename['message']]);
             }
             $renamed = (bool) ($hasilRename['changed'] ?? false);
             if ($renamed) {
@@ -532,7 +532,7 @@ class UserguruController extends BaseController
         }
 
         if ($wantPassword && ! $this->authChangePassword($currentUsername, (string) $old, (string) $new)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'msg' => $renamed
                     ? 'Username sudah berganti, tapi password gagal diubah — ulangi ubah password.'
@@ -552,7 +552,7 @@ class UserguruController extends BaseController
             }
             $email = trim((string) $this->request->input('email'));
             if ($email !== '' && (! filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 100)) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'msg' => 'Format email tidak valid (max 100 karakter).',
                 ]);
@@ -566,7 +566,7 @@ class UserguruController extends BaseController
             if ($tersimpan === false) {
                 Log::error('[Userguru::editlogin] simpan profil users#'.(int) $account->id.' gagal');
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'msg' => ($renamed || $wantPassword)
                         ? 'Login sudah diperbarui, tapi nama/email gagal disimpan — ulangi simpan profil.'
@@ -575,6 +575,6 @@ class UserguruController extends BaseController
             }
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => $renamed ? 'Username & login berhasil diperbarui' : 'Berhasil diupdate']);
+        return $this->response->json(['status' => true, 'msg' => $renamed ? 'Username & login berhasil diperbarui' : 'Berhasil diupdate']);
     }
 }

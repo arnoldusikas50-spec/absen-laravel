@@ -122,7 +122,7 @@ class PiketController extends BaseController
             return null;
         }
         if ($this->request->ajax()) {
-            return $this->response->setStatusCode(403)->setJSON([
+            return $this->response->statusCode(403)->json([
                 'status' => false,
                 'message' => 'Hanya petugas piket hari ini yang dapat mengakses menu ini',
             ]);
@@ -263,7 +263,7 @@ class PiketController extends BaseController
     public function saveTamu()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -273,16 +273,16 @@ class PiketController extends BaseController
         $jamMasuk = trim((string) $this->request->input('jam_masuk'));
         $nama = mb_substr(trim((string) $this->request->input('nama')), 0, 255);
         if (! $this->validTanggalLaporan($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid (bukan masa depan)']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid (bukan masa depan)']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($nama === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama tamu wajib diisi']);
+            return $this->response->json(['status' => false, 'message' => 'Nama tamu wajib diisi']);
         }
         if ($jamMasuk !== '' && ! $this->validJamTamu($jamMasuk)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam masuk tidak valid (HH:MM)']);
         }
 
         $data = [
@@ -295,16 +295,16 @@ class PiketController extends BaseController
         ];
 
         if ($this->piketModel->saveTamu($data)) {
-            return $this->response->setJSON(['status' => true, 'message' => 'Data tamu disimpan']);
+            return $this->response->json(['status' => true, 'message' => 'Data tamu disimpan']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan']);
     }
 
     public function deleteTamu()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -312,24 +312,24 @@ class PiketController extends BaseController
         $id = (int) $this->request->input('id');
         $row = $id > 0 ? $this->piketModel->getTamuById($id) : null;
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tamu tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tamu tidak ditemukan']);
         }
         if ($this->terlaluLama($row)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($this->piketModel->deleteTamu($id) === false) {
             Log::error('[piket] deleteTamu gagal untuk id '.$id);
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus data tamu']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menghapus data tamu']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Data tamu dihapus']);
+        return $this->response->json(['status' => true, 'message' => 'Data tamu dihapus']);
     }
 
     public function updateTamuKeluar()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -337,23 +337,23 @@ class PiketController extends BaseController
         $id = (int) $this->request->input('id');
         $row = $id > 0 ? $this->piketModel->getTamuById($id) : null;
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tamu tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tamu tidak ditemukan']);
         }
         // Idempoten: sudah keluar → kembalikan jam tercatat, jangan timpa
         if (! empty($row->jam_keluar)) {
-            return $this->response->setJSON(['status' => true, 'message' => 'Tamu sudah tercatat keluar', 'jam_keluar' => substr((string) $row->jam_keluar, 0, 5)]);
+            return $this->response->json(['status' => true, 'message' => 'Tamu sudah tercatat keluar', 'jam_keluar' => substr((string) $row->jam_keluar, 0, 5)]);
         }
         if ($this->terlaluLama($row)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($this->piketModel->updateTamuKeluar($id)) {
             $fresh = $this->piketModel->getTamuById($id);
             $jam = substr((string) ($fresh->jam_keluar ?? ''), 0, 5);
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Jam keluar berhasil dicatat', 'jam_keluar' => $jam]);
+            return $this->response->json(['status' => true, 'message' => 'Jam keluar berhasil dicatat', 'jam_keluar' => $jam]);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal mencatat jam keluar']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal mencatat jam keluar']);
     }
 
     /**
@@ -423,7 +423,7 @@ class PiketController extends BaseController
     public function saveKejadian()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -437,22 +437,22 @@ class PiketController extends BaseController
         $keterangan = mb_substr(trim((string) $this->request->input('keterangan')), 0, 2000);
 
         if (! $this->validTanggalLaporan($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid (bukan masa depan)']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid (bukan masa depan)']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($jenis === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jenis kejadian wajib diisi']);
+            return $this->response->json(['status' => false, 'message' => 'Jenis kejadian wajib diisi']);
         }
         if ($jam !== '' && ! $this->validJamTamu($jam)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
         }
         if (! in_array($tingkat, ['ringan', 'sedang', 'berat'], true)) {
             $tingkat = 'ringan';
         }
         if ($keterangan === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Keterangan kejadian wajib diisi']);
+            return $this->response->json(['status' => false, 'message' => 'Keterangan kejadian wajib diisi']);
         }
         if ($terlapor > 0) {
             try {
@@ -462,7 +462,7 @@ class PiketController extends BaseController
                 $ada = false;
             }
             if (! $ada) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Siswa terlapor tidak ditemukan']);
+                return $this->response->json(['status' => false, 'message' => 'Siswa terlapor tidak ditemukan']);
             }
         }
 
@@ -480,16 +480,16 @@ class PiketController extends BaseController
         ];
 
         if ($this->piketModel->saveKejadian($data)) {
-            return $this->response->setJSON(['status' => true, 'message' => 'Kejadian berhasil dicatat']);
+            return $this->response->json(['status' => true, 'message' => 'Kejadian berhasil dicatat']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan kejadian']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan kejadian']);
     }
 
     public function updateKejadianStatus()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -498,25 +498,25 @@ class PiketController extends BaseController
         $status = trim((string) $this->request->input('status'));
         $allowed = ['belum', 'proses', 'selesai'];
         if (! in_array($status, $allowed, true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Status tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Status tidak valid']);
         }
         if ($id <= 0 || ! ($row = $this->piketModel->getKejadianById($id))) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data kejadian tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data kejadian tidak ditemukan']);
         }
         if ($this->terlaluLama($row)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($this->piketModel->updateKejadianStatus($id, $status)) {
-            return $this->response->setJSON(['status' => true, 'message' => 'Status kejadian diperbarui']);
+            return $this->response->json(['status' => true, 'message' => 'Status kejadian diperbarui']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal memperbarui status']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal memperbarui status']);
     }
 
     public function deleteKejadian()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -524,18 +524,18 @@ class PiketController extends BaseController
         $id = (int) $this->request->input('id');
         $row = $id > 0 ? $this->piketModel->getKejadianById($id) : null;
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data kejadian tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data kejadian tidak ditemukan']);
         }
         if ($this->terlaluLama($row)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if ($this->piketModel->deleteKejadian($id) === false) {
             Log::error('[piket] deleteKejadian gagal untuk id '.$id);
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus data kejadian']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menghapus data kejadian']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Data kejadian dihapus']);
+        return $this->response->json(['status' => true, 'message' => 'Data kejadian dihapus']);
     }
 
     // --- ABSENSI HANDLERS ---
@@ -692,13 +692,13 @@ class PiketController extends BaseController
     public function saveAbsensi()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
         if (! $this->tp || ! $this->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $tanggal = trim((string) $this->request->input('tanggal'));
@@ -706,22 +706,22 @@ class PiketController extends BaseController
         $absensi = $this->request->input('absensi'); // Array of [id_siswa => status]
 
         if (! $this->validTanggalLaporan($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
         }
         if (($libur = $this->isHariLiburPiket($tanggal)) !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => $libur]);
+            return $this->response->json(['status' => false, 'message' => $libur]);
         }
         if ($id_kelas <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak valid']);
         }
         if (! $absensi || ! is_array($absensi) || empty($absensi)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data yang diubah']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data yang diubah']);
         }
         if (count($absensi) > 500) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Batch terlalu besar (maks 500 siswa)']);
+            return $this->response->json(['status' => false, 'message' => 'Batch terlalu besar (maks 500 siswa)']);
         }
 
         // Sanitasi + whitelist status; kunci id ke integer
@@ -733,12 +733,12 @@ class PiketController extends BaseController
                 continue;
             }
             if (! in_array($st, self::ABSENSI_STATUS_VALID, true)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Status tidak valid untuk siswa ID '.$id]);
+                return $this->response->json(['status' => false, 'message' => 'Status tidak valid untuk siswa ID '.$id]);
             }
             $clean[$id] = $st;
         }
         if (empty($clean)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data yang valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data yang valid']);
         }
 
         // Keanggotaan: semua id harus anggota kelas ini (TP/SMT aktif)
@@ -762,7 +762,7 @@ class PiketController extends BaseController
             }
             foreach (array_keys($clean) as $id) {
                 if (! isset($anggota[$id])) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'Siswa ID '.$id.' bukan anggota kelas ini']);
+                    return $this->response->json(['status' => false, 'message' => 'Siswa ID '.$id.' bukan anggota kelas ini']);
                 }
             }
             // Tolak siswa non-AKTIF (LULUS/PINDAH/KELUAR).
@@ -776,7 +776,7 @@ class PiketController extends BaseController
                         }
                     }
                     if (empty($clean)) {
-                        return $this->response->setJSON(['status' => false, 'message' => 'Seluruh siswa yang dikirim sudah tidak aktif (lulus/pindah/keluar)']);
+                        return $this->response->json(['status' => false, 'message' => 'Seluruh siswa yang dikirim sudah tidak aktif (lulus/pindah/keluar)']);
                     }
                 }
             } catch (\Throwable $e2) {
@@ -784,7 +784,7 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Piket::saveAbsensi] cek anggota: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal memverifikasi data siswa']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal memverifikasi data siswa']);
         }
 
         $pencatat = (int) ($this->user->id ?? 0);
@@ -801,12 +801,12 @@ class PiketController extends BaseController
 
         try {
             if (! $this->piketModel->saveAbsensiBatch($batch)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan absensi']);
+                return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan absensi']);
             }
         } catch (\Throwable $e) {
             Log::error('[Piket::saveAbsensi] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan absensi']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan absensi']);
         }
         // Isian piket = patokan: S/I/A menimpa status formal (jam scan
         // dipertahankan). Best-effort — kegagalan sync tak menggagalkan simpan utama.
@@ -821,7 +821,7 @@ class PiketController extends BaseController
             Log::error('[Piket::saveAbsensi] sync formal: '.$e->getMessage());
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Absensi '.count($batch).' siswa disimpan'.$syncMsg]);
+        return $this->response->json(['status' => true, 'message' => 'Absensi '.count($batch).' siswa disimpan'.$syncMsg]);
     }
 
     /**
@@ -833,13 +833,13 @@ class PiketController extends BaseController
     public function saveJam()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
         if (! $this->tp || ! $this->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $tanggal = trim((string) $this->request->input('tanggal'));
@@ -847,22 +847,22 @@ class PiketController extends BaseController
         $jam = $this->request->input('jam'); // Array [id_siswa => ['masuk' => ?, 'pulang' => ?]]
 
         if (! $this->validTanggalLaporan($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
         }
         if (($libur = $this->isHariLiburPiket($tanggal)) !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => $libur]);
+            return $this->response->json(['status' => false, 'message' => $libur]);
         }
         if ($id_kelas <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak valid']);
         }
         if (! $jam || ! is_array($jam) || empty($jam)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jam yang diubah']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada jam yang diubah']);
         }
         if (count($jam) > 500) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Batch terlalu besar (maks 500 siswa)']);
+            return $this->response->json(['status' => false, 'message' => 'Batch terlalu besar (maks 500 siswa)']);
         }
 
         // Normalisasi per sisi; sisi kosong = jangan sentuh, format ngawur = tolak.
@@ -877,10 +877,10 @@ class PiketController extends BaseController
             $masuk = $masukRaw !== '' ? PiketModel::normalisasiJam($masukRaw) : null;
             $pulang = $pulangRaw !== '' ? PiketModel::normalisasiJam($pulangRaw) : null;
             if ($masukRaw !== '' && $masuk === null) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid untuk siswa ID '.$id.' (HH:MM)']);
+                return $this->response->json(['status' => false, 'message' => 'Format jam masuk tidak valid untuk siswa ID '.$id.' (HH:MM)']);
             }
             if ($pulangRaw !== '' && $pulang === null) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format jam pulang tidak valid untuk siswa ID '.$id.' (HH:MM)']);
+                return $this->response->json(['status' => false, 'message' => 'Format jam pulang tidak valid untuk siswa ID '.$id.' (HH:MM)']);
             }
             if ($masuk === null && $pulang === null) {
                 continue;
@@ -888,7 +888,7 @@ class PiketController extends BaseController
             $rows[] = ['id_siswa' => $id, 'masuk' => $masuk, 'pulang' => $pulang];
         }
         if (empty($rows)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jam yang valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada jam yang valid']);
         }
 
         Log::info('[Piket::saveJam] masuk: tanggal='.$tanggal.' kelas='.$id_kelas
@@ -916,7 +916,7 @@ class PiketController extends BaseController
             }
             foreach ($rows as $r) {
                 if (! isset($anggota[(int) $r['id_siswa']])) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'Siswa ID '.(int) $r['id_siswa'].' bukan anggota kelas ini']);
+                    return $this->response->json(['status' => false, 'message' => 'Siswa ID '.(int) $r['id_siswa'].' bukan anggota kelas ini']);
                 }
             }
             // Tolak siswa non-AKTIF (LULUS/PINDAH/KELUAR): keluarkan dari batch.
@@ -934,7 +934,7 @@ class PiketController extends BaseController
                     if (! empty($buang)) {
                         $rows = array_values(array_filter($rows, static fn ($r) => ! isset($buang[(int) $r['id_siswa']])));
                         if (empty($rows)) {
-                            return $this->response->setJSON(['status' => false, 'message' => 'Seluruh siswa yang dikirim sudah tidak aktif (lulus/pindah/keluar)']);
+                            return $this->response->json(['status' => false, 'message' => 'Seluruh siswa yang dikirim sudah tidak aktif (lulus/pindah/keluar)']);
                         }
                     }
                 }
@@ -943,7 +943,7 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Piket::saveJam] cek anggota: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal memverifikasi data siswa']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal memverifikasi data siswa']);
         }
 
         $pencatat = (! empty($this->guru) && ! empty($this->guru->id_guru)) ? (int) $this->guru->id_guru : null;
@@ -957,14 +957,14 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Piket::saveJam] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan jam']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan jam']);
         }
 
         $n = count($hasil['disimpan'] ?? []);
         if (! empty($hasil['gagal_total'])) {
             Log::error('[Piket::saveJam] transaksi dibatalkan: tanggal='.$tanggal.' kelas='.$id_kelas);
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan jam (transaksi dibatalkan). Coba lagi, bila berlanjut hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan jam (transaksi dibatalkan). Coba lagi, bila berlanjut hubungi admin.']);
         }
         Log::info('[Piket::saveJam] hasil: tanggal='.$tanggal.' kelas='.$id_kelas
             .' disimpan='.$n.' dibuat='.(int) ($hasil['dibuat'] ?? 0)
@@ -973,7 +973,7 @@ class PiketController extends BaseController
         if ($n === 0) {
             $alasan = isset($hasil['dilewati'][0]['alasan']) ? (string) $hasil['dilewati'][0]['alasan'] : '';
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jam tersimpan'.($alasan !== '' ? ': '.$alasan : '')]);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada jam tersimpan'.($alasan !== '' ? ': '.$alasan : '')]);
         }
         $msg = 'Jam '.$n.' siswa disimpan';
         if (! empty($hasil['dilewati'])) {
@@ -983,7 +983,7 @@ class PiketController extends BaseController
             $msg .= ' — sebagian hanya mengisi 1 sisi';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $msg,
             'disimpan' => $n,
@@ -1001,25 +1001,25 @@ class PiketController extends BaseController
     public function selarasDivergensi()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
         if (! $this->tp || ! $this->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $tanggal = trim((string) $this->request->input('tanggal'));
         $idSiswa = (int) $this->request->input('id_siswa');
         if (! $this->validTanggalLaporan($tanggal) || $idSiswa <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak valid']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin.']);
         }
         if (($libur = $this->isHariLiburPiket($tanggal)) !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => $libur]);
+            return $this->response->json(['status' => false, 'message' => $libur]);
         }
 
         try {
@@ -1027,7 +1027,7 @@ class PiketController extends BaseController
             $piket = $db->table('piket_absensi')
                 ->where('tanggal', $tanggal)->where('id_siswa', $idSiswa)->first();
             if (! $piket) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Data piket tidak ditemukan']);
+                return $this->response->json(['status' => false, 'message' => 'Data piket tidak ditemukan']);
             }
             $formal = $db->table('presensi_siswa')
                 ->where('id_siswa', $idSiswa)->where('tgl', $tanggal)->first();
@@ -1036,10 +1036,10 @@ class PiketController extends BaseController
             if (in_array($piketSt, ['S', 'I', 'A'], true)) {
                 $targetFormal = PiketModel::piketKeFormal($piketSt);
                 if ($targetFormal === null) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'Status piket tidak valid']);
+                    return $this->response->json(['status' => false, 'message' => 'Status piket tidak valid']);
                 }
                 if ($formal !== null && strtoupper(trim((string) ($formal->status ?? ''))) === $targetFormal) {
-                    return $this->response->setJSON(['status' => true, 'message' => 'Sudah selaras']);
+                    return $this->response->json(['status' => true, 'message' => 'Sudah selaras']);
                 }
                 $sync = $this->piketModel->syncPiketKeFormal([[
                     'tanggal' => $tanggal,
@@ -1048,10 +1048,10 @@ class PiketController extends BaseController
                     'status' => $piketSt,
                 ]], $tanggal);
                 if ((int) ($sync['dibuat'] ?? 0) + (int) ($sync['diupdate'] ?? 0) <= 0) {
-                    return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
+                    return $this->response->json(['status' => false, 'message' => 'Gagal menyelaraskan']);
                 }
 
-                return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti piket ('.$targetFormal.')']);
+                return $this->response->json(['status' => true, 'message' => 'Diselaraskan mengikuti piket ('.$targetFormal.')']);
             }
             // H/T tak mengalir ke formal → piket yang mengikuti sistem.
             $target = PiketModel::formalKePiket(
@@ -1071,10 +1071,10 @@ class PiketController extends BaseController
                 }
             }
             if ($target === null) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Sistem belum mencatat siswa ini — selaraskan via halaman Absensi']);
+                return $this->response->json(['status' => false, 'message' => 'Sistem belum mencatat siswa ini — selaraskan via halaman Absensi']);
             }
             if (strtoupper(trim((string) ($piket->status ?? ''))) === $target) {
-                return $this->response->setJSON(['status' => true, 'message' => 'Sudah selaras']);
+                return $this->response->json(['status' => true, 'message' => 'Sudah selaras']);
             }
             $pencatat = (int) ($this->user->id ?? 0);
             $ok = $this->piketModel->saveAbsensiBatch([[
@@ -1085,22 +1085,22 @@ class PiketController extends BaseController
                 'updated_by' => $pencatat > 0 ? $pencatat : null,
             ]]);
             if (! $ok) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
+                return $this->response->json(['status' => false, 'message' => 'Gagal menyelaraskan']);
             }
         } catch (\Throwable $e) {
             Log::error('[Piket::selarasDivergensi] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyelaraskan']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyelaraskan']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Diselaraskan mengikuti sistem ('.$target.')']);
+        return $this->response->json(['status' => true, 'message' => 'Diselaraskan mengikuti sistem ('.$target.')']);
     }
 
     // --- JURNAL DETAIL (dipakai modal di Laporan; halaman Monitoring sudah dilebur) ---
     public function jurnalDetail($id)
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
@@ -1108,12 +1108,12 @@ class PiketController extends BaseController
 
         $id = (int) $id;
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak valid']);
         }
 
         $j = $this->piketModel->getJurnalById($id);
         if (! $j) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jurnal tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Jurnal tidak ditemukan']);
         }
 
         $infoAbsen = $this->piketModel->infoAbsenJurnal($j);
@@ -1123,7 +1123,7 @@ class PiketController extends BaseController
         $countHadir = max(0, $totalSiswa - $countAbsent);
         $absentNames = $infoAbsen['nama'];
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => [
                 'id_jurnal' => (int) $j->id_jurnal,
@@ -1925,13 +1925,13 @@ class PiketController extends BaseController
     public function kirimRekap()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
         if (! $this->tp || ! $this->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $tanggal = $this->tanggalLaporanAktif(trim((string) $this->request->input('tanggal')));
@@ -1944,7 +1944,7 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Piket::kirimRekap] build: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyusun rekap']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyusun rekap']);
         }
 
         // Label tanggal Indonesia.
@@ -2031,7 +2031,7 @@ class PiketController extends BaseController
         try {
             $notif = new NotificationService;
             if ($notif->isGrupDisabled('rekap_piket')) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Kedua kanal grup (TG + WA) dinonaktifkan untuk Rekap Piket di Pengaturan → Channel Notifikasi.']);
+                return $this->response->json(['status' => false, 'message' => 'Kedua kanal grup (TG + WA) dinonaktifkan untuk Rekap Piket di Pengaturan → Channel Notifikasi.']);
             }
             $ok = $notif->notifyRekapPiket([
                 'tanggal' => $labelTgl,
@@ -2046,14 +2046,14 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Piket::kirimRekap] kirim: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal mengirim — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal mengirim — periksa log aplikasi.']);
         }
 
         if (! $ok) {
             $err = trim((string) $notif->lastError);
             Log::error('[Piket::kirimRekap] gateway: '.$err);
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal terkirim. '.$err]);
+            return $this->response->json(['status' => false, 'message' => 'Gagal terkirim. '.$err]);
         }
 
         try {
@@ -2070,7 +2070,7 @@ class PiketController extends BaseController
         } catch (\Throwable $e) {
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Rekap terkirim ke grup ('.count($absen).' guru tidak hadir)']);
+        return $this->response->json(['status' => true, 'message' => 'Rekap terkirim ke grup ('.count($absen).' guru tidak hadir)']);
     }
 
     public function inputLaporan()
@@ -2312,13 +2312,13 @@ class PiketController extends BaseController
     public function saveLaporanGuru()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
         if (! $this->tp || ! $this->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $tanggal = trim((string) $this->request->input('tanggal'));
@@ -2332,20 +2332,20 @@ class PiketController extends BaseController
         }
 
         if (! $this->validTanggalLaporan($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid (format YYYY-MM-DD, bukan masa depan)']);
         }
         if (! $this->bolehEditTanggal($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
+            return $this->response->json(['status' => false, 'message' => 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.']);
         }
         if (($libur = $this->isHariLiburPiket($tanggal)) !== null) {
-            return $this->response->setJSON(['status' => false, 'message' => $libur]);
+            return $this->response->json(['status' => false, 'message' => $libur]);
         }
         if ($idKelas <= 0 || $jamKe <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data kelas dan jam pelajaran harus valid']);
+            return $this->response->json(['status' => false, 'message' => 'Data kelas dan jam pelajaran harus valid']);
         }
         $allowedStatus = ['H', 'S', 'I', 'A'];
         if (! in_array($status, $allowedStatus, true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Status tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Status tidak valid']);
         }
 
         $idHari = (int) date('N', strtotime($tanggal));
@@ -2362,20 +2362,20 @@ class PiketController extends BaseController
 
         // Slot wajib ada di jadwal — cegah baris yatim untuk jam tak terjadwal
         if (! $slotFound) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Slot jam ke-'.$jamKe.' tidak ada di jadwal kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Slot jam ke-'.$jamKe.' tidak ada di jadwal kelas ini']);
         }
 
         // Mapel & guru bersifat otoritatif dari jadwal + penugasan (abaikan kiriman client bila beda)
         $idMapelSlot = (int) $slotFound->id_mapel;
         if ($idMapel > 0 && $idMapel !== $idMapelSlot) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel tidak sesuai jadwal jam ini']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel tidak sesuai jadwal jam ini']);
         }
         $idMapel = $idMapelSlot;
 
         [$teacherMap] = $this->resolveTeacherMap();
         $idGuru = (int) ($teacherMap[$idKelas][$idMapel] ?? 0);
         if ($idGuru <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru pengampu mapel ini belum diset. Hubungi admin/kurikulum.']);
+            return $this->response->json(['status' => false, 'message' => 'Guru pengampu mapel ini belum diset. Hubungi admin/kurikulum.']);
         }
 
         $pencatat = (int) ($this->user->id ?? 0);
@@ -2393,13 +2393,13 @@ class PiketController extends BaseController
 
         try {
             if ($this->piketModel->savePresensiGuru($data)) {
-                return $this->response->setJSON(['status' => true, 'message' => 'Data kehadiran berhasil disimpan']);
+                return $this->response->json(['status' => true, 'message' => 'Data kehadiran berhasil disimpan']);
             }
         } catch (\Throwable $e) {
             Log::error('[Piket::saveLaporanGuru] '.$e->getMessage());
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan data ke database']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan data ke database']);
     }
 
     /**
@@ -2414,14 +2414,14 @@ class PiketController extends BaseController
     public function validasiJurnal()
     {
         if (! $this->initUser()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
+            return $this->response->json(['status' => false, 'message' => 'Sesi berakhir, silakan login kembali']);
         }
         if ($block = $this->requireOnDuty()) {
             return $block;
         }
 
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405)->setJSON(['status' => false, 'message' => 'Metode tidak diizinkan']);
+            return $this->response->statusCode(405)->json(['status' => false, 'message' => 'Metode tidak diizinkan']);
         }
 
         $idJurnal = (int) $this->request->input('id_jurnal');
@@ -2471,7 +2471,7 @@ class PiketController extends BaseController
             $lama = JurnalGuruModel::VALIDASI_PENDING;
         }
         if ($lama === $statusBaru) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => $this->labelValidasi($statusBaru).' sudah tercatat.',
                 'validasi_status' => $statusBaru,
@@ -2538,7 +2538,7 @@ class PiketController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $this->labelValidasi($statusBaru)
                 .($catatanSimpan !== null ? ' — '.$catatanSimpan : ''),
@@ -2551,7 +2551,7 @@ class PiketController extends BaseController
 
     private function gagalValidasi(string $pesan, array $extra = [])
     {
-        return $this->response->setJSON(array_merge(['status' => false, 'message' => $pesan], $extra));
+        return $this->response->json(array_merge(['status' => false, 'message' => $pesan], $extra));
     }
 
     private function labelValidasi(string $status): string
@@ -2594,7 +2594,7 @@ class PiketController extends BaseController
     {
         if (! $this->initUser()) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+                return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
             }
 
             return redirect()->to('auth');
@@ -2604,7 +2604,7 @@ class PiketController extends BaseController
         }
         if (! $this->tp || ! $this->smt) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+                return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
             }
 
             return redirect()->to('dashboard')->with('error', 'Tahun Pelajaran / Semester aktif belum diset');
@@ -2616,14 +2616,14 @@ class PiketController extends BaseController
         if (! $this->bolehEditTanggal($tanggal)) {
             $msg = 'Edit historis dibatasi H-7. Hubungi admin untuk koreksi lebih lama.';
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => $msg]);
+                return $this->response->json(['status' => false, 'message' => $msg]);
             }
 
             return redirect()->back()->with('error', $msg);
         }
         if (($libur = $this->isHariLiburPiket($tanggal)) !== null) {
             if ($this->request->ajax()) {
-                return $this->response->setJSON(['status' => false, 'message' => $libur]);
+                return $this->response->json(['status' => false, 'message' => $libur]);
             }
 
             return redirect()->back()->with('error', $libur);
@@ -2749,7 +2749,7 @@ class PiketController extends BaseController
 
         $message = "Auto-fill selesai. Insert: {$result['inserted']}, Update: {$result['updated']}, Skip manual: {$result['skipped_manual']}.";
         if ($this->request->ajax()) {
-            return $this->response->setJSON(['status' => true, 'message' => $message, 'result' => $result]);
+            return $this->response->json(['status' => true, 'message' => $message, 'result' => $result]);
         }
 
         return redirect()->to(url('guru/piket/laporan').'?tanggal='.urlencode($tanggal).'&kelas='.$filterKelas.'&mapel='.$filterMapel)

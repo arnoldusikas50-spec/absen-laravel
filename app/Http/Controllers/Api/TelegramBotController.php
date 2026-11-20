@@ -98,7 +98,7 @@ class TelegramBotController extends BaseController
             $body['data'] = $data;
         }
 
-        return $this->response->setStatusCode($code)->setJSON($body);
+        return $this->response->statusCode($code)->json($body);
     }
 
     /**
@@ -109,11 +109,11 @@ class TelegramBotController extends BaseController
         try {
             $setting = (new AttendanceSettingModel)->first();
         } catch (\Throwable $e) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
         $botToken = trim((string) ($setting->telegram_bot_token ?? ''));
         if ($botToken === '') {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
         // Header resmi Telegram (secret_token saat setWebhook) diutamakan;
         // query tetap diterima untuk instalasi lama yang belum memakai header.
@@ -122,17 +122,17 @@ class TelegramBotController extends BaseController
             $secret = trim((string) ($this->request->query('secret') ?? ''));
         }
         if ($secret === '' || ! hash_equals($this->webhookSecret($botToken), $secret)) {
-            return $this->response->setStatusCode(403);
+            return $this->response->statusCode(403);
         }
 
         try {
             $update = $this->request->json()->all() ?? [];
         } catch (\Throwable $e) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
         $message = $update['message'] ?? $update['edited_message'] ?? null;
         if (! is_array($message)) {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
         // Payload datang dari jaringan dan bisa berbentuk apa pun: `chat`
         // yang bukan array membuat $message['chat']['id'] melempar TypeError
@@ -141,7 +141,7 @@ class TelegramBotController extends BaseController
         $chatId = is_array($chat) ? $this->teks($chat['id'] ?? null) : '';
         $text = $this->teks($message['text'] ?? null);
         if ($chatId === '' || $text === '' || $text[0] !== '/') {
-            return $this->response->setStatusCode(200);
+            return $this->response->statusCode(200);
         }
 
         $parts = preg_split('/\s+/', $text, 2);
@@ -175,7 +175,7 @@ class TelegramBotController extends BaseController
         }
 
         // Selalu 200 agar Telegram tidak retry membabi-buta
-        return $this->response->setStatusCode(200);
+        return $this->response->statusCode(200);
     }
 
     private function linkedUser(string $chatId): ?object

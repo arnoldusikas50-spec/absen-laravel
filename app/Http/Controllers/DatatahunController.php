@@ -67,7 +67,7 @@ class DatatahunController extends BaseController
             return $this->balas(false, 'Unauthorized');
         }
 
-        return $this->response->setJSON($this->dashboard->getDataTahun());
+        return $this->response->json($this->dashboard->getDataTahun());
     }
 
     public function gantiTahun()
@@ -172,7 +172,7 @@ class DatatahunController extends BaseController
      */
     private function balas(bool $status, string $pesan)
     {
-        return $this->response->setJSON(['status' => $status, 'msg' => $pesan]);
+        return $this->response->json(['status' => $status, 'msg' => $pesan]);
     }
 
     public function add()

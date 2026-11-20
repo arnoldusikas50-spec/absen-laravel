@@ -169,10 +169,10 @@ class DatasiswaController extends BaseController
     public function list()
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Login required']);
+            return $this->response->statusCode(401)->json(['status' => false, 'message' => 'Login required']);
         }
         if ($this->isSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak.']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak.']);
         }
 
         $page = max(1, (int) ($this->request->input('page') ?? 1));
@@ -203,7 +203,7 @@ class DatasiswaController extends BaseController
         $smt = DB::table('master_smt')->where('active', 1)->first();
 
         if (! $tp || ! $smt) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'lists' => [],
                 'total' => 0,
@@ -238,7 +238,7 @@ class DatasiswaController extends BaseController
             'stats' => $this->masterModel->getSiswaStats((int) $tp->id_tp, (int) $smt->id_smt),
         ];
 
-        return $this->response->setJSON($data);
+        return $this->response->json($data);
     }
 
     /**
@@ -275,7 +275,7 @@ class DatasiswaController extends BaseController
     public function create()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['insert' => false, 'text' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['insert' => false, 'text' => 'Akses ditolak']);
         }
 
         // Tanggal diterima sudah dinormalisasi lebih dulu supaya yang
@@ -311,7 +311,7 @@ class DatasiswaController extends BaseController
             // Rincian per-field ikut dikirim: pesan tunggal "Data Sudah
             // ada" menyesatkan kalau penyebabnya sebenarnya kolom lain
             // (mis. tanggal diterima yang formatnya salah).
-            return $this->response->setJSON([
+            return $this->response->json([
                 'insert' => false,
                 'error' => $errors,
                 'text' => $this->pesanValidasiSiswa($errors),
@@ -380,12 +380,12 @@ class DatasiswaController extends BaseController
             DB::rollBack();
             Log::error('[Datasiswa::create] '.$e->getMessage());
 
-            return $this->response->setJSON(['insert' => false, 'text' => 'Gagal menyimpan siswa']);
+            return $this->response->json(['insert' => false, 'text' => 'Gagal menyimpan siswa']);
         }
 
         $this->saveAuditLog(1, 'Menambahkan Siswa: '.$nama_siswa);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'insert' => true,
             'text' => 'Siswa berhasil ditambahkan',
         ]);
@@ -531,7 +531,7 @@ class DatasiswaController extends BaseController
     public function updateData()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['insert' => false, 'text' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['insert' => false, 'text' => 'Akses ditolak']);
         }
 
         $id_siswa = (int) $this->request->input('id_siswa');
@@ -539,12 +539,12 @@ class DatasiswaController extends BaseController
         $nisn = trim((string) $this->request->input('nisn'));
 
         if ($id_siswa <= 0) {
-            return $this->response->setJSON(['insert' => false, 'text' => 'ID siswa tidak valid']);
+            return $this->response->json(['insert' => false, 'text' => 'ID siswa tidak valid']);
         }
 
         $siswa = $this->masterModel->getSiswaById($id_siswa);
         if (! $siswa) {
-            return $this->response->setJSON(['insert' => false, 'text' => 'Siswa tidak ditemukan']);
+            return $this->response->json(['insert' => false, 'text' => 'Siswa tidak ditemukan']);
         }
         $u_nis = $siswa->nis == $nis ? '' : '|unique:master_siswa,nis';
         $u_nisn = $siswa->nisn == $nisn ? '' : '|unique:master_siswa,nisn';
@@ -558,7 +558,7 @@ class DatasiswaController extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'insert' => false,
                 'text' => implode('<br>', $this->validation()->getErrors()),
             ]);
@@ -574,14 +574,14 @@ class DatasiswaController extends BaseController
                     $val = strtoupper($val);
                 }
                 if (mb_strlen($val) > $maxLen) {
-                    return $this->response->setJSON(['insert' => false, 'text' => "Field {$field} terlalu panjang (maks {$maxLen})"]);
+                    return $this->response->json(['insert' => false, 'text' => "Field {$field} terlalu panjang (maks {$maxLen})"]);
                 }
                 $input[$field] = $val !== '' ? $val : null;
             }
         }
         $jk = strtoupper((string) ($input['jenis_kelamin'] ?? ''));
         if (isset($input['jenis_kelamin']) && ! in_array($jk, ['L', 'P', ''], true)) {
-            return $this->response->setJSON(['insert' => false, 'text' => 'Jenis kelamin tidak valid']);
+            return $this->response->json(['insert' => false, 'text' => 'Jenis kelamin tidak valid']);
         }
 
         // Tanggal diterima dinormalisasi di sini juga, bukan hanya di create().
@@ -595,7 +595,7 @@ class DatasiswaController extends BaseController
             // jangan diam-diam jadi NULL: admin mengira tanggalnya tersimpan
             // padahal kolomnya justru dikosongkan.
             if ($rawTanggal !== '' && $tanggal === null) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'insert' => false,
                     'text' => 'Tanggal diterima tidak valid',
                 ]);
@@ -629,7 +629,7 @@ class DatasiswaController extends BaseController
             $tpAktif = DB::table('master_tp')->where('active', 1)->first();
             $smtAktif = DB::table('master_smt')->where('active', 1)->first();
             if (! $tpAktif || ! $smtAktif) {
-                return $this->response->setJSON(['insert' => false, 'text' => 'TP/SMT aktif belum diset, kelas tidak dapat diubah']);
+                return $this->response->json(['insert' => false, 'text' => 'TP/SMT aktif belum diset, kelas tidak dapat diubah']);
             }
             $idTp = (int) $tpAktif->id_tp;
             $idSmt = (int) $smtAktif->id_smt;
@@ -648,7 +648,7 @@ class DatasiswaController extends BaseController
                     ->delete();
             } else {
                 if (! ctype_digit($kelasStr)) {
-                    return $this->response->setJSON(['insert' => false, 'text' => 'ID kelas tidak valid']);
+                    return $this->response->json(['insert' => false, 'text' => 'ID kelas tidak valid']);
                 }
                 $idKelas = (int) $kelasStr;
                 $kelasOk = $db->table('master_kelas')
@@ -657,7 +657,7 @@ class DatasiswaController extends BaseController
                     ->where('id_smt', $idSmt)
                     ->count() > 0;
                 if (! $kelasOk) {
-                    return $this->response->setJSON(['insert' => false, 'text' => 'Kelas tidak valid untuk TP/Semester aktif']);
+                    return $this->response->json(['insert' => false, 'text' => 'Kelas tidak valid untuk TP/Semester aktif']);
                 }
                 // Upsert eksplisit per kunci logis (tp,smt,siswa). replace()
                 // mencocokkan PRIMARY KEY (id_kelas_siswa) sehingga baris
@@ -687,7 +687,7 @@ class DatasiswaController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'insert' => true,
             'text' => 'Siswa berhasil diperbaharui',
         ]);
@@ -809,7 +809,7 @@ class DatasiswaController extends BaseController
             $this->saveAuditLog(5, 'menghapus '.count($idSiswa).' siswa tanpa riwayat presensi');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $status,
             'message' => 'Siswa berhasil '.($aksi == 'hapus' ? 'dihapus' : 'diupdate'),
         ]);
@@ -821,7 +821,7 @@ class DatasiswaController extends BaseController
     public function do_import()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         // Handle JSON input to avoid max_input_vars limit
@@ -839,7 +839,7 @@ class DatasiswaController extends BaseController
             return $this->respond(false, 'No data to import');
         }
         if (count($input) > 2000) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 2.000 baris per import']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 2.000 baris per import']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
@@ -853,7 +853,7 @@ class DatasiswaController extends BaseController
                 ->where('id_kelas', $id_kelas)->where('id_tp', $tp->id_tp)->where('id_smt', $smt->id_smt)
                 ->count() > 0;
             if (! $kelasOk) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Kelas tujuan tidak valid']);
+                return $this->response->json(['status' => false, 'message' => 'Kelas tujuan tidak valid']);
             }
         }
 
@@ -992,7 +992,7 @@ class DatasiswaController extends BaseController
         }
 
         if (empty($clean)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada baris valid (semua duplikat / tidak lengkap)',
                 'imported' => 0,
@@ -1104,7 +1104,7 @@ class DatasiswaController extends BaseController
             DB::rollBack();
             Log::error('[do_import] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal import (duplikat / kesalahan database)']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal import (duplikat / kesalahan database)']);
         }
 
         $this->saveAuditLog(1, 'Import siswa: '.count($clean).' berhasil, '.$skipped.' dilewati');
@@ -1113,7 +1113,7 @@ class DatasiswaController extends BaseController
         $assignedToKelas = count($kelasSiswa);
         $kelasInfo = $assignedToKelas > 0 ? " ({$assignedToKelas} siswa dimasukkan ke kelas)" : '';
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'total' => count($clean),
             'imported' => count($clean),
@@ -1164,25 +1164,25 @@ class DatasiswaController extends BaseController
     public function uploadFile($id_siswa)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $file = $this->request->file('foto');
         if ($file && $file->isValid() && ! false /* was: $file->hasMoved() */) {
             $siswa = $this->masterModel->getSiswaById($id_siswa);
             if (! $siswa) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
+                return $this->response->json(['status' => false, 'message' => 'Siswa tidak ditemukan']);
             }
             // Hanya gambar JPG/PNG ≤ 2MB (cegah upload skrip .php = RCE)
             // Cek MIME asli + is_image, bukan hanya ekstensi.
             if ($file->getSize() > 2 * 1024 * 1024) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Ukuran foto maksimal 2MB']);
+                return $this->response->json(['status' => false, 'message' => 'Ukuran foto maksimal 2MB']);
             }
             if (! $file->isValid() || ! in_array($file->getMimeType(), ['image/jpeg', 'image/png'], true)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
+                return $this->response->json(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
             if (! in_array(strtolower($file->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
+                return $this->response->json(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
             $safeNis = preg_replace('/[^0-9A-Za-z\-_]/', '', (string) ($siswa->nis ?? 'siswa'.$id_siswa));
             $newName = $safeNis.'.jpg';
@@ -1190,7 +1190,7 @@ class DatasiswaController extends BaseController
 
             $this->updateMasterData('master_siswa', ['foto' => 'uploads/foto_siswa/'.$newName], 'id_siswa', $id_siswa);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'src' => url('uploads/foto_siswa/'.$newName),
             ]);
@@ -1202,13 +1202,13 @@ class DatasiswaController extends BaseController
     public function downloadData($id_kelas)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
 
         $db = DB::connection();
@@ -1227,22 +1227,22 @@ class DatasiswaController extends BaseController
             $siswa->foto = ! empty($siswa->foto) && file_exists(public_path().'/'.$siswa->foto) ? url($siswa->foto) : url('assets/img/siswa_sm.png');
         }
 
-        return $this->response->setJSON(['status' => true, 'siswa' => $siswas]);
+        return $this->response->json(['status' => true, 'siswa' => $siswas]);
     }
 
     public function updateAll()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = $this->request->input('siswa'); // Array of student data
 
         if (empty($input) || ! is_array($input)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data untuk diupdate']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data untuk diupdate']);
         }
         if (count($input) > 2000) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 2.000 baris per update']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 2.000 baris per update']);
         }
 
         // Whitelist field bulk (blokir timpa username/password/foto/uid)
@@ -1316,20 +1316,20 @@ class DatasiswaController extends BaseController
         }
 
         if (empty($clean)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada baris valid (semua dilewati)']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada baris valid (semua dilewati)']);
         }
 
         $tertulis = $this->masterModel->updateBatchData('master_siswa', $clean, 'id_siswa');
         if ($tertulis === false) {
             Log::error('[Datasiswa::updateAll] updateBatch master_siswa ditolak DB ('.count($clean).' baris)');
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Perubahan siswa gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.',
             ]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Berhasil memperbarui '.count($clean).' siswa'.($skipped > 0 ? " ({$skipped} dilewati)" : ''),
             'siswa' => count($clean),
@@ -1339,15 +1339,15 @@ class DatasiswaController extends BaseController
     public function update_foto()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = $this->request->input('siswa');
         if (empty($input) || ! is_array($input)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada foto untuk diupdate']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada foto untuk diupdate']);
         }
         if (count($input) > 500) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 500 foto per batch']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 500 foto per batch']);
         }
 
         if (! is_dir(public_path().'/'.'uploads/foto_siswa/')) {
@@ -1421,7 +1421,7 @@ class DatasiswaController extends BaseController
             if ($tertulis === false) {
                 Log::error('[Datasiswa::update_foto] updateBatch ditolak DB ('.count($siswas).' baris)');
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Foto gagal ditautkan ke data siswa. File gambarnya sudah tersimpan — ulangi menyimpan, dan bila berulang lapor ke pengembang.',
                 ]);
@@ -1429,7 +1429,7 @@ class DatasiswaController extends BaseController
             $tersimpan = count($siswas);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $tersimpan > 0,
             'message' => $tersimpan > 0
                 ? 'Berhasil memperbarui '.$tersimpan.' foto siswa'.($skipped > 0 ? " ({$skipped} dilewati)" : '')
@@ -1444,12 +1444,12 @@ class DatasiswaController extends BaseController
     public function delete_foto($id_siswa)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $siswa = $this->masterModel->getSiswaById((int) $id_siswa);
         if (! $siswa) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa tidak ditemukan']);
         }
 
         if (! empty($siswa->foto)) {
@@ -1462,25 +1462,25 @@ class DatasiswaController extends BaseController
 
         $this->updateMasterData('master_siswa', ['foto' => null], 'id_siswa', (int) $id_siswa);
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Foto dihapus, kembali ke default']);
+        return $this->response->json(['status' => true, 'message' => 'Foto dihapus, kembali ke default']);
     }
 
     public function editLogin()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_siswa = (int) $this->request->input('id_siswa');
         $password = (string) $this->request->input('password');
 
         if (strlen($password) < 6 || strlen($password) > 72) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Password 6–72 karakter']);
+            return $this->response->json(['status' => false, 'message' => 'Password 6–72 karakter']);
         }
 
         $siswa = $this->masterModel->getSiswaById($id_siswa);
         if (! $siswa) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa tidak ditemukan']);
         }
 
         // Password hanya disimpan sebagai hash di users; kolom legacy
@@ -1490,7 +1490,7 @@ class DatasiswaController extends BaseController
             ->where('username', $siswa->username)
             ->update(['password' => Hash::make($password)]);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Password berhasil diperbarui',
         ]);
@@ -1498,7 +1498,7 @@ class DatasiswaController extends BaseController
 
     public function data()
     {
-        return $this->response->setJSON(['data' => []]);
+        return $this->response->json(['data' => []]);
     }
 
     /**
@@ -1507,7 +1507,7 @@ class DatasiswaController extends BaseController
     public function assignRfid()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idSiswa = (int) $this->request->input('id_siswa');
@@ -1515,18 +1515,18 @@ class DatasiswaController extends BaseController
         $rfid = strtoupper(str_replace([':', ' ', '-'], '', $rfidRaw));
 
         if ($idSiswa <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa tidak valid']);
         }
 
         $siswa = DB::table('master_siswa')->where('id_siswa', $idSiswa)->first();
         if (! $siswa) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data siswa tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data siswa tidak ditemukan']);
         }
 
         if ($rfid === '') {
             DB::table('master_siswa')->where('id_siswa', $idSiswa)->update(['nomor_rfid' => null]);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => 'Nomor kartu RFID siswa '.$siswa->nama.' berhasil dihapus',
                 'nomor_rfid' => '',
@@ -1545,7 +1545,7 @@ class DatasiswaController extends BaseController
             ->first();
 
         if ($duplicateSiswa) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama siswa: '.$duplicateSiswa->nama.' (NIS: '.$duplicateSiswa->nis.')',
             ]);
@@ -1562,7 +1562,7 @@ class DatasiswaController extends BaseController
                 ->first();
 
             if ($duplicateGuru) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama Guru/GTK: '.$duplicateGuru->nama_guru,
                 ]);
@@ -1571,7 +1571,7 @@ class DatasiswaController extends BaseController
 
         DB::table('master_siswa')->where('id_siswa', $idSiswa)->update(['nomor_rfid' => $rfid]);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Kartu RFID '.$rfid.' berhasil disimpan untuk '.$siswa->nama,
             'nomor_rfid' => $rfid,
@@ -1586,14 +1586,14 @@ class DatasiswaController extends BaseController
     public function getSiswaByKelas($idKelas = null)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
 
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'lists' => []]);
+            return $this->response->json(['status' => false, 'lists' => []]);
         }
 
         $idKelas = (int) $idKelas;
@@ -1621,7 +1621,7 @@ class DatasiswaController extends BaseController
                 : url('assets/img/siswa_sm.png');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'lists' => $lists,
         ]);

@@ -246,13 +246,13 @@ class SettingsController extends BaseController
     public function uploadFile($logo)
     {
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (! in_array($logo, self::MEDIA_FIELDS, true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Field media tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Field media tidak valid']);
         }
 
         $file = $this->request->file('logo');
@@ -267,7 +267,7 @@ class SettingsController extends BaseController
             $errors = $this->validation()->getErrors();
             $message = $errors['logo'] ?? 'File gambar tidak valid.';
 
-            return $this->response->setStatusCode(422)->setJSON([
+            return $this->response->statusCode(422)->json([
                 'status' => false,
                 'message' => $message,
                 'errors' => $errors,
@@ -279,7 +279,7 @@ class SettingsController extends BaseController
         if (! $file || ! $file->isValid()) {
             $message = $file ? $file->getErrorMessage() : 'Pilih file gambar untuk diunggah.';
 
-            return $this->response->setStatusCode(422)->setJSON([
+            return $this->response->statusCode(422)->json([
                 'status' => false,
                 'message' => $message,
                 'csrfName' => '_token',
@@ -293,7 +293,7 @@ class SettingsController extends BaseController
         ];
         $ext = $mimeMap[$file->getMimeType()] ?? null;
         if ($ext === null) {
-            return $this->response->setStatusCode(422)->setJSON([
+            return $this->response->statusCode(422)->json([
                 'status' => false,
                 'message' => 'Format gambar tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP.',
                 'csrfName' => '_token',
@@ -303,7 +303,7 @@ class SettingsController extends BaseController
 
         $uploadPath = public_path('uploads/settings');
         if (! is_dir($uploadPath) && ! mkdir($uploadPath, 0755, true) && ! is_dir($uploadPath)) {
-            return $this->response->setStatusCode(500)->setJSON([
+            return $this->response->statusCode(500)->json([
                 'status' => false,
                 'message' => 'Folder uploads/settings tidak dapat dibuat. Periksa izin tulis folder public.',
                 'csrfName' => '_token',
@@ -320,7 +320,7 @@ class SettingsController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Settings::uploadFile] move '.$fileName.' gagal: '.$e->getMessage());
 
-            return $this->response->setStatusCode(500)->setJSON([
+            return $this->response->statusCode(500)->json([
                 'status' => false,
                 'message' => 'File gagal disimpan ke server. Periksa izin tulis folder public/uploads/settings.',
                 'csrfName' => '_token',
@@ -329,7 +329,7 @@ class SettingsController extends BaseController
         }
 
         if (! is_file($destination) || (int) @filesize($destination) === 0) {
-            return $this->response->setStatusCode(500)->setJSON([
+            return $this->response->statusCode(500)->json([
                 'status' => false,
                 'message' => 'File gambar tidak ditemukan setelah proses unggah.',
                 'csrfName' => '_token',
@@ -342,7 +342,7 @@ class SettingsController extends BaseController
             @unlink($destination);
             Log::error('[Settings::uploadFile] simpan path '.$relativePath.' ke setting gagal');
 
-            return $this->response->setStatusCode(500)->setJSON([
+            return $this->response->statusCode(500)->json([
                 'status' => false,
                 'message' => 'File diterima, tetapi path-nya gagal disimpan ke pengaturan sekolah. File lama tetap dipertahankan.',
                 'csrfName' => '_token',
@@ -357,7 +357,7 @@ class SettingsController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'src' => url($relativePath),
             'relative_path' => $relativePath,
@@ -372,17 +372,17 @@ class SettingsController extends BaseController
     public function deleteFile()
     {
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $src = $this->request->input('src');
         $field = $this->request->input('field');
 
         if (empty($field) || ! in_array($field, self::MEDIA_FIELDS, true)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Field media tidak valid',
                 'csrfName' => '_token',
@@ -418,7 +418,7 @@ class SettingsController extends BaseController
             Log::error('[Settings::deleteFile] kosongkan kolom '.$field.' di setting gagal');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $dbTersimpan,
             'message' => $dbTersimpan
                 ? ($deletedFile ? 'File media dihapus.' : 'Kolom media dikosongkan (file sudah tidak ada di server).')
@@ -456,10 +456,10 @@ class SettingsController extends BaseController
     public function saveSetting()
     {
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = $this->request->input();
@@ -662,7 +662,7 @@ class SettingsController extends BaseController
             $pesan .= ' Bagian yang TIDAK tersimpan: '.implode(', ', $catatan).'.';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $status && $catatan === [],
             'message' => $pesan,
             'notifSync' => $syncNotif,
@@ -694,10 +694,10 @@ class SettingsController extends BaseController
     public function saveTheme()
     {
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $input = null;
@@ -714,12 +714,12 @@ class SettingsController extends BaseController
 
         $preset = strtolower(trim((string) ($input['preset'] ?? Theme::DEFAULT_PRESET)));
         if (! in_array($preset, Theme::presetKeys(), true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Preset tema tidak dikenal']);
+            return $this->response->json(['status' => false, 'message' => 'Preset tema tidak dikenal']);
         }
 
         $custom = Theme::normalizeHex($input['custom'] ?? null);
         if ($preset === 'custom' && $custom === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Warna dasar custom tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Warna dasar custom tidak valid']);
         }
 
         $this->ensureThemeColumns();
@@ -732,7 +732,7 @@ class SettingsController extends BaseController
         Theme::flushCache();
         $theme = Theme::resolve($preset, $custom);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => (bool) $status,
             'message' => $status ? 'Tema tampilan berhasil disimpan.' : 'Gagal menyimpan tema.',
             'theme' => [
@@ -762,7 +762,7 @@ class SettingsController extends BaseController
                 $add['theme_custom'] = ['type' => 'VARCHAR', 'constraint' => 7, 'null' => true, 'default' => null];
             }
             if ($add !== []) {
-                (new CiForge)->addColumn('setting', $add);
+                (new SchemaForge)->addColumn('setting', $add);
             }
         } catch (\Throwable $e) {
             Log::error('[Settings::ensureThemeColumns] '.$e->getMessage());
@@ -794,7 +794,7 @@ class SettingsController extends BaseController
                 }
             }
             if ($add !== []) {
-                (new CiForge)->addColumn('setting', $add);
+                (new SchemaForge)->addColumn('setting', $add);
             }
         } catch (\Throwable $e) {
             Log::error('[Settings::ensureNomorSettingColumns] '.$e->getMessage());
@@ -842,16 +842,16 @@ class SettingsController extends BaseController
     public function backupDb()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         $hasil = $this->buatDumpDatabase('db_backup_'.date('Ymd_His').'.sql');
 
         if (! $hasil['ok']) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => $hasil['error'] ?? 'Gagal menulis file backup',
                 'file' => $hasil['file'],
@@ -863,7 +863,7 @@ class SettingsController extends BaseController
 
         $this->catatLog(3, 'Backup database: '.$hasil['file'].' ('.number_to_size($hasil['size'], 2).')');
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Backup database berhasil: '.$hasil['file'],
             'file' => $hasil['file'],
@@ -1061,14 +1061,14 @@ class SettingsController extends BaseController
     public function backupData()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         if (! class_exists('ZipArchive')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Ekstensi ZipArchive tidak tersedia']);
+            return $this->response->json(['status' => false, 'message' => 'Ekstensi ZipArchive tidak tersedia']);
         }
 
         $backupPath = storage_path('app').'/'.'backups/';
@@ -1078,7 +1078,7 @@ class SettingsController extends BaseController
 
         $srcPath = base_path().'/'.'public/uploads/';
         if (! is_dir($srcPath)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Folder uploads tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Folder uploads tidak ditemukan']);
         }
 
         $filename = 'files_backup_'.date('Ymd_His').'.zip';
@@ -1086,7 +1086,7 @@ class SettingsController extends BaseController
 
         $zip = new ZipArchive;
         if ($zip->open($filepath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal membuat file zip']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal membuat file zip']);
         }
 
         $files = new RecursiveIteratorIterator(
@@ -1109,7 +1109,7 @@ class SettingsController extends BaseController
         if ($zip->close() !== true) {
             @unlink($filepath);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Backup file gagal ditutup/dirusak — arsip tidak disimpan. Periksa ruang disk folder writable.',
                 'csrfName' => '_token',
@@ -1118,7 +1118,7 @@ class SettingsController extends BaseController
         }
 
         if ($dimasukkan === 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada file di public/uploads — backup tidak dibuat.',
                 'csrfName' => '_token',
@@ -1128,7 +1128,7 @@ class SettingsController extends BaseController
 
         $this->catatLog(3, 'Backup file uploads: '.$filename.' ('.$dimasukkan.' file, '.number_to_size(filesize($filepath), 2).')');
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Backup file berhasil: '.$filename,
             'file' => $filename,
@@ -1145,15 +1145,15 @@ class SettingsController extends BaseController
     public function delBackup()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         $backupPath = storage_path('app').'/'.'backups/';
         if (! is_dir($backupPath)) {
-            return $this->response->setJSON(['status' => true, 'message' => 'Folder backup tidak ada',
+            return $this->response->json(['status' => true, 'message' => 'Folder backup tidak ada',
                 'csrfName' => '_token', 'csrfHash' => csrf_token()]);
         }
 
@@ -1186,7 +1186,7 @@ class SettingsController extends BaseController
         }
 
         if ($count === 0 && $gagalHapus === []) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada file backup manual yang bisa dihapus'
                     .(empty($dilindungi) ? '' : '. '.count($dilindungi).' file arsip otomatis dipertahankan.'),
@@ -1206,7 +1206,7 @@ class SettingsController extends BaseController
 
         $this->catatLog(6, "Hapus massal backup manual: $count file dihapus".($gagalHapus !== [] ? ', '.count($gagalHapus).' gagal' : ''));
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $gagalHapus === [],
             'message' => $pesan,
             'dihapus' => $count,
@@ -1223,15 +1223,15 @@ class SettingsController extends BaseController
     public function hapusBackup()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         $src = trim((string) $this->request->input('src'));
         if ($src === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama file tidak boleh kosong']);
+            return $this->response->json(['status' => false, 'message' => 'Nama file tidak boleh kosong']);
         }
 
         // Hanya file buatan halaman ini (db_backup_/files_backup_/pre_restore_)
@@ -1240,18 +1240,18 @@ class SettingsController extends BaseController
         // juga menahan path traversal (realpath harus tetap di folder backups).
         $filepath = $this->resolveBackupFile($src);
         if ($filepath === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File tidak ditemukan atau tidak boleh dihapus']);
+            return $this->response->json(['status' => false, 'message' => 'File tidak ditemukan atau tidak boleh dihapus']);
         }
 
         if (! @unlink($filepath)) {
             Log::error('[Settings::hapusBackup] gagal menghapus '.$filepath);
 
-            return $this->response->setJSON(['status' => false, 'message' => 'File tidak bisa dihapus (permission/owner?)']);
+            return $this->response->json(['status' => false, 'message' => 'File tidak bisa dihapus (permission/owner?)']);
         }
 
         $this->catatLog(6, 'Hapus file backup: '.$src);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'File backup dihapus',
             'csrfName' => '_token',
@@ -1347,17 +1347,17 @@ class SettingsController extends BaseController
     public function restore()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         // Konfirmasi ketik RESTORE: menahan klik-kecelakaan, klik ganda, dan
         // form autofill; restore menimpa seluruh database sehingga konfirmasi
         // sadar (bukan sekadar tombol OK) wajib.
         if (strtoupper(trim((string) $this->request->input('konfirmasi'))) !== 'RESTORE') {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Konfirmasi diperlukan: ketik RESTORE pada kolom konfirmasi.',
                 'csrfName' => '_token',
@@ -1369,7 +1369,7 @@ class SettingsController extends BaseController
         // menghajar server dan admin sempat menyadari restore yang salah kirim.
         $terakhir = (int) Cache::get('absen_restore_terakhir', 0);
         if ($terakhir > 0 && time() - $terakhir < 120) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Restore baru saja dijalankan '.(time() - $terakhir).' detik lalu. Tunggu beberapa saat lagi.',
                 'csrfName' => '_token',
@@ -1385,7 +1385,7 @@ class SettingsController extends BaseController
         // lolos parser lalu dieksekusi sebagai SQL rusak.
         $filepath = $this->resolveBackupFile($src, ['.sql']);
         if ($filepath === null) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'File backup tidak valid atau tidak ditemukan (hanya db_backup_*.sql / pre_restore_*.sql).',
                 'csrfName' => '_token',
@@ -1395,14 +1395,14 @@ class SettingsController extends BaseController
 
         $sql = file_get_contents($filepath);
         if ($sql === false || trim($sql) === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'File backup kosong atau tidak bisa dibaca']);
+            return $this->response->json(['status' => false, 'message' => 'File backup kosong atau tidak bisa dibaca']);
         }
 
         // Dump yang dilaporkan tidak lengkap saat dibuat tidak boleh dipakai untuk
         // restore: DROP TABLE di dalamnya akan menyapu data sedangkan tabel yang
         // tadi dilewati tidak ikut dipulihkan.
         if (preg_match('/^'.preg_quote(self::DUMP_MARK_TIDAK_LENGKAP, '/').'/m', $sql)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'File ini ditandai sebagai backup TIDAK lengkap saat dibuat. Buat backup baru dulu, lalu restore yang lengkap.',
                 'csrfName' => '_token',
@@ -1414,7 +1414,7 @@ class SettingsController extends BaseController
         // alat lain, atau payload SQL arbitrer yang menyamar sebagai backup,
         // ditolak — buat backup baru dari halaman ini bila perlu.
         if (! str_starts_with(ltrim($sql), self::DUMP_HEADER)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'File ini bukan dump hasil backup aplikasi (header tidak dikenal). Buat backup baru dari halaman ini, lalu restore file tersebut.',
                 'csrfName' => '_token',
@@ -1427,7 +1427,7 @@ class SettingsController extends BaseController
         // kembali.
         $snapshot = $this->buatDumpDatabase('pre_restore_'.date('Ymd_His').'.sql');
         if (! $snapshot['ok']) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Restore dibatalkan: gagal membuat snapshot keadaan saat ini ('.($snapshot['error'] ?? 'tidak diketahui').').',
                 'csrfName' => '_token',
@@ -1472,7 +1472,7 @@ class SettingsController extends BaseController
         if ($gagal > 0 || $ditolak > 0) {
             $this->catatLog(5, 'Restore TIDAK lengkap dari '.$src.' ('.$ringkasan.')');
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Restore TIDAK lengkap ('.$ringkasan.'). Snapshot keadaan sebelum restore tersimpan sebagai '
                     .$snapshot['file'].'. Periksa log server sebelum mencoba lagi.',
@@ -1484,7 +1484,7 @@ class SettingsController extends BaseController
 
         $this->catatLog(5, 'Restore database dari '.$src.' ('.$ringkasan.'), snapshot pre-restore: '.$snapshot['file']);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Restore database berhasil ('.$ringkasan.'). Snapshot otomatis pre-restore: '.$snapshot['file'],
             'snapshot' => $snapshot['file'],

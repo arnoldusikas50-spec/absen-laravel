@@ -700,7 +700,7 @@ class PresensiSiswaQrController extends BaseController
                 return redirect()->to('auth')->with('error', $auth['message']);
             }
             $target = ($this->inGroup('guru') || (string) auth()->user()?->role === '2') ? 'presensi' : 'dashboard';
-            $this->session->setFlashdata('error', $auth['message']);
+            $this->session->flash('error', $auth['message']);
 
             return redirect()->to($target)->with('error', $auth['message']);
         }
@@ -867,7 +867,7 @@ class PresensiSiswaQrController extends BaseController
         $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
         $gateBaru = false;
         if (! $isLoggedIn && ($tokenKiosk === null || $tokenKiosk === '')) {
-            return $this->response->setStatusCode($tokenKiosk === null ? 503 : 403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+            return $this->response->statusCode($tokenKiosk === null ? 503 : 403)->body(view('admin.presensi.scanner_kiosk_kunci', [
                 'judul' => 'Scanner Publik Belum Diaktifkan',
                 'action' => $this->urlKiosk($idKelas),
                 'pesan' => $tokenKiosk === null
@@ -880,7 +880,7 @@ class PresensiSiswaQrController extends BaseController
             if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
                 $gateBaru = true;
             } elseif (! $this->kioskGateLolos($tokenKiosk)) {
-                return $this->response->setStatusCode(403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+                return $this->response->statusCode(403)->body(view('admin.presensi.scanner_kiosk_kunci', [
                     'judul' => 'Scanner QR Terkunci',
                     'action' => $this->urlKiosk($idKelas),
                     'pesan' => (string) (session()->get('kiosk_kunci_gagal') ?? ''),
@@ -986,9 +986,9 @@ class PresensiSiswaQrController extends BaseController
         if ($this->wantMobileView()) {
             $data['title'] = 'Scan QR Presensi Siswa | '.($setting->nama_sekolah ?? 'Presensi & KBM');
             // lewat helper lalu tempelkan sebagai body response.
-            $response = $this->response->setBody(view('members.guru.presensi_siswa_qr', $data));
+            $response = $this->response->body(view('members.guru.presensi_siswa_qr', $data));
         } else {
-            $response = $this->response->setBody(view('admin.presensi.scanner_siswa_desktop', $data));
+            $response = $this->response->body(view('admin.presensi.scanner_siswa_desktop', $data));
         }
 
         if ($gateBaru) {
@@ -1012,7 +1012,7 @@ class PresensiSiswaQrController extends BaseController
         $tokenKiosk = $isLoggedIn ? '' : $this->tokenKioskDiset();
         $gateBaru = false;
         if (! $isLoggedIn && ($tokenKiosk === null || $tokenKiosk === '')) {
-            return $this->response->setStatusCode($tokenKiosk === null ? 503 : 403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+            return $this->response->statusCode($tokenKiosk === null ? 503 : 403)->body(view('admin.presensi.scanner_kiosk_kunci', [
                 'judul' => 'Kiosk RFID / NFC Belum Diaktifkan',
                 'action' => $this->urlKiosk($idKelas),
                 'pesan' => $tokenKiosk === null
@@ -1025,7 +1025,7 @@ class PresensiSiswaQrController extends BaseController
             if ($tokenUrl !== '' && hash_equals($tokenKiosk, $tokenUrl)) {
                 $gateBaru = true;
             } elseif (! $this->kioskGateLolos($tokenKiosk)) {
-                return $this->response->setStatusCode(403)->setBody(view('admin.presensi.scanner_kiosk_kunci', [
+                return $this->response->statusCode(403)->body(view('admin.presensi.scanner_kiosk_kunci', [
                     'judul' => 'Kiosk RFID / NFC Terkunci',
                     'action' => $this->urlKiosk($idKelas),
                     'pesan' => (string) (session()->get('kiosk_kunci_gagal') ?? ''),
@@ -1122,7 +1122,7 @@ class PresensiSiswaQrController extends BaseController
             'mode_tab' => $this->getModeTabState($tanggal),
         ];
 
-        $response = $this->response->setBody(view('admin.presensi.kiosk_rfid', $data));
+        $response = $this->response->body(view('admin.presensi.kiosk_rfid', $data));
 
         if ($gateBaru) {
             $this->pasangKioskGate($response, trim((string) $this->request->query('k')));
@@ -1176,7 +1176,7 @@ class PresensiSiswaQrController extends BaseController
         try {
 
             if ($this->throttleCheck('qrscan_'.md5($this->request->ip()), 240, 60) === false) {
-                return $this->response->setStatusCode(429)->setJSON([
+                return $this->response->statusCode(429)->json([
                     'status' => false, 'type' => 'error',
                     'message' => 'Terlalu banyak scan. Tunggu sebentar lalu coba lagi.',
                 ]);
@@ -1191,7 +1191,7 @@ class PresensiSiswaQrController extends BaseController
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();
             if (! $auth['authorized']) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'type' => 'error',
                     'message' => $auth['message'],
@@ -1204,7 +1204,7 @@ class PresensiSiswaQrController extends BaseController
                 } catch (\Throwable $e) {
                 }
 
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'type' => 'error',
                     'message' => 'Token keamanan (hash) tidak valid atau telah kedaluwarsa. Silakan muat ulang halaman.',
@@ -1215,7 +1215,7 @@ class PresensiSiswaQrController extends BaseController
             // kiosk; tamu wajib membawa token yang diatur admin.
             $kioskMsg = $this->checkKioskToken();
             if ($kioskMsg !== null) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false, 'type' => 'error', 'message' => $kioskMsg,
                 ]);
             }
@@ -1251,15 +1251,15 @@ class PresensiSiswaQrController extends BaseController
                 $accuracy = $this->request->input('accuracy');
                 $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
                 if (! $geoCheck['ok']) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
                 }
                 $scanLoc = ['lat' => $geoCheck['lat'], 'lng' => $geoCheck['lng'], 'akurasi' => $geoCheck['accuracy'], 'lokasi_id' => $geoCheck['lokasi_id']];
 
                 if ($liburMsg = $this->isHariLibur($tanggal)) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
                 }
                 if (($winMsg = $this->isOutsideScanWindow($mode)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $winMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $winMsg]);
                 }
 
                 $idGuru = $this->resolveGuruId();
@@ -1278,7 +1278,7 @@ class PresensiSiswaQrController extends BaseController
                     $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
                 }
                 if ($idKelas <= 0) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'type' => 'error',
                         'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
@@ -1287,7 +1287,7 @@ class PresensiSiswaQrController extends BaseController
                 }
 
                 if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'type' => 'error',
                         'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
@@ -1297,13 +1297,13 @@ class PresensiSiswaQrController extends BaseController
 
                 if ($mode === 'masuk') {
                     if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
-                        return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
+                        return $this->response->json(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                     }
 
                     return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $metode);
                 }
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
 
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $metode);
@@ -1323,7 +1323,7 @@ class PresensiSiswaQrController extends BaseController
                 ], $guruMetode);
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Nomor kartu tidak terdaftar. Tempel kartu RFID, tembak QR, atau ketik NIS yang sudah didaftarkan admin.',
@@ -1347,15 +1347,15 @@ class PresensiSiswaQrController extends BaseController
                 $accuracy = $this->request->input('accuracy');
                 $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
                 if (! $geoCheck['ok']) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
                 }
                 $scanLoc = ['lat' => $geoCheck['lat'], 'lng' => $geoCheck['lng'], 'akurasi' => $geoCheck['accuracy'], 'lokasi_id' => $geoCheck['lokasi_id']];
 
                 if ($liburMsg = $this->isHariLibur($tanggal)) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
                 }
                 if (($winMsg = $this->isOutsideScanWindow($mode)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $winMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $winMsg]);
                 }
 
                 $idGuru = $this->resolveGuruId();
@@ -1374,7 +1374,7 @@ class PresensiSiswaQrController extends BaseController
                     $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
                 }
                 if ($idKelas <= 0) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'type' => 'error',
                         'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
@@ -1383,7 +1383,7 @@ class PresensiSiswaQrController extends BaseController
                 }
 
                 if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'type' => 'error',
                         'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
@@ -1393,13 +1393,13 @@ class PresensiSiswaQrController extends BaseController
 
                 if ($mode === 'masuk') {
                     if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
-                        return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
+                        return $this->response->json(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                     }
 
                     return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc);
                 }
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
 
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc);
@@ -1416,7 +1416,7 @@ class PresensiSiswaQrController extends BaseController
                 ]);
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Sidik jari tidak terdaftar. Hubungi admin untuk pendaftaran UserID mesin.',
@@ -1424,10 +1424,10 @@ class PresensiSiswaQrController extends BaseController
         }
 
         if ($qrValue === '') {
-            return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => 'QR Code, NIS, atau kartu RFID kosong.']);
+            return $this->response->json(['status' => false, 'type' => 'error', 'message' => 'QR Code, NIS, atau kartu RFID kosong.']);
         }
         if (! in_array($mode, ['masuk', 'keluar'], true)) {
-            return $this->response->setStatusCode(400)->setJSON([
+            return $this->response->statusCode(400)->json([
                 'status' => false, 'type' => 'error',
                 'message' => 'Mode tidak valid. Gunakan mode masuk atau keluar.',
             ]);
@@ -1439,7 +1439,7 @@ class PresensiSiswaQrController extends BaseController
         $accuracy = $this->request->input('accuracy');
         $geoCheck = $this->checkScanLokasi($lat, $lng, $accuracy);
         if (! $geoCheck['ok']) {
-            return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
+            return $this->response->json(['status' => false, 'type' => 'error', 'message' => $geoCheck['message']]);
         }
         $scanLat = $geoCheck['lat'];
         $scanLng = $geoCheck['lng'];
@@ -1448,7 +1448,7 @@ class PresensiSiswaQrController extends BaseController
 
         // Tolak scan pada hari libur (konsisten dengan check-in manual)
         if ($liburMsg = $this->isHariLibur($tanggal)) {
-            return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
+            return $this->response->json(['status' => false, 'type' => 'error', 'message' => $liburMsg]);
         }
 
         // ── JAM OPERASIONAL: scan di luar jendela operasional qr_scan_* ditolak,
@@ -1456,7 +1456,7 @@ class PresensiSiswaQrController extends BaseController
         // mengikuti absen wajah dan dicek setelah siswa teridentifikasi (lihat
         // sebelum processCheckIn/CheckOut).
         if (($winMsg = $this->isOutsideScanWindow($mode)) !== null) {
-            return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $winMsg]);
+            return $this->response->json(['status' => false, 'type' => 'error', 'message' => $winMsg]);
         }
 
         $scanLoc = ['lat' => $scanLat, 'lng' => $scanLng, 'akurasi' => $scanAcc, 'lokasi_id' => $lokasiId];
@@ -1473,7 +1473,7 @@ class PresensiSiswaQrController extends BaseController
                 } catch (\Throwable $e) {
                 }
 
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false, 'type' => 'error',
                     'message' => 'Wali kelas hanya dapat mencatat siswa kelas perwaliannya.',
                 ]);
@@ -1485,7 +1485,7 @@ class PresensiSiswaQrController extends BaseController
                 return $this->processGuruScan($guru, $mode, $tanggal, $scanLoc, $guruSource);
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Guru tidak ditemukan. Pastikan QR Card Guru valid.',
@@ -1504,7 +1504,7 @@ class PresensiSiswaQrController extends BaseController
                     } catch (\Throwable $e) {
                     }
 
-                    return $this->response->setStatusCode(403)->setJSON([
+                    return $this->response->statusCode(403)->json([
                         'status' => false, 'type' => 'error',
                         'message' => 'Wali kelas hanya dapat mencatat siswa kelas perwaliannya.',
                     ]);
@@ -1514,7 +1514,7 @@ class PresensiSiswaQrController extends BaseController
                 return $this->processGuruScan($guru, $mode, $tanggal, $scanLoc, $guruSource);
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Data tidak ditemukan. Pastikan QR Card Siswa atau Guru valid.',
@@ -1524,7 +1524,7 @@ class PresensiSiswaQrController extends BaseController
         // Hanya siswa AKTIF (buku_induk.status = '1') boleh diabsen.
         // LULUS (2) / PINDAH (3) / KELUAR (4) ditolak di semua jalur scan.
         if (! self::isSiswaAktif((int) $siswa->id_siswa)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => "Siswa {$siswa->nama} sudah tidak aktif (lulus/pindah/keluar) sehingga tidak dapat diabsen.",
@@ -1537,7 +1537,7 @@ class PresensiSiswaQrController extends BaseController
             $idKelas = $this->getKelasAktifSiswa((int) $siswa->id_siswa);
         }
         if ($idKelas <= 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => "Siswa {$siswa->nama} tidak terdaftar di kelas aktif.",
                 'siswa' => $this->formatSiswaInfo($siswa, null, 0),
@@ -1548,7 +1548,7 @@ class PresensiSiswaQrController extends BaseController
         if ($auth && ($auth['reason'] ?? '') === 'wali_kelas') {
             $allowedKelas = array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? []))));
             if (! in_array($idKelas, $allowedKelas, true)) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'type' => 'error',
                     'message' => "Siswa {$siswa->nama} bukan siswa kelas perwalian Anda. Anda hanya dapat mencatat kelas perwalian.",
@@ -1582,7 +1582,7 @@ class PresensiSiswaQrController extends BaseController
                 // Batasan jadwal masuk ala absen wajah (buka 1 jam sebelum
                 // jam_masuk, tutup 3 jam setelah jam_masuk hari ini).
                 if (($jadwalMsg = $this->isOutsideJadwalMasukSiswa($tanggal, $jam)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $jadwalMsg]);
                 }
 
                 return $this->processCheckIn($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $source);
@@ -1590,7 +1590,7 @@ class PresensiSiswaQrController extends BaseController
                 // Batasan jadwal pulang: tolak scan keluar sebelum pulang
                 // dibuka (jendela masuk ditutup atau jam_pulang tercapai).
                 if (($pulangMsg = $this->isTooEarlyPulangSiswa($tanggal, $jam)) !== null) {
-                    return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
+                    return $this->response->json(['status' => false, 'type' => 'error', 'message' => $pulangMsg]);
                 }
 
                 return $this->processCheckOut($db, $siswa, $existing, $idKelas, $idGuru, $tanggal, $jam, $scanLoc, $source);
@@ -1599,7 +1599,7 @@ class PresensiSiswaQrController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[PresensiSiswaQr::scanQr] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'type' => 'error', 'message' => 'Terjadi kesalahan sistem. Coba scan ulang.']);
+            return $this->response->json(['status' => false, 'type' => 'error', 'message' => 'Terjadi kesalahan sistem. Coba scan ulang.']);
         }
     }
 
@@ -1939,7 +1939,7 @@ class PresensiSiswaQrController extends BaseController
         if (strpos($uriStr, 'presensi-siswa') !== false) {
             $auth = $this->checkAuthorization();
             if (! $auth['authorized']) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'data' => [],
                     'message' => $auth['message'],
@@ -1947,7 +1947,7 @@ class PresensiSiswaQrController extends BaseController
             }
             $hash = $this->requestHash();
             if (! self::isValidHash($hash, (int) $auth['user']->id)) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'data' => [],
                     'message' => 'Token keamanan (hash) tidak valid atau telah kedaluwarsa.',
@@ -1957,7 +1957,7 @@ class PresensiSiswaQrController extends BaseController
             // Jalur publik: throttle ringan + token kiosk bila diaktifkan.
             try {
                 if ($this->throttleCheck('qrhist_'.md5($this->request->ip()), 120, 60) === false) {
-                    return $this->response->setStatusCode(429)->setJSON(['status' => false, 'data' => [], 'message' => 'Terlalu banyak permintaan. Coba lagi.']);
+                    return $this->response->statusCode(429)->json(['status' => false, 'data' => [], 'message' => 'Terlalu banyak permintaan. Coba lagi.']);
                 }
             } catch (\Throwable $e) {
             }
@@ -1968,7 +1968,7 @@ class PresensiSiswaQrController extends BaseController
             if (! $stafLogin) {
                 $kioskMsg = $this->checkKioskToken();
                 if ($kioskMsg !== null) {
-                    return $this->response->setStatusCode(403)->setJSON(['status' => false, 'data' => [], 'message' => $kioskMsg]);
+                    return $this->response->statusCode(403)->json(['status' => false, 'data' => [], 'message' => $kioskMsg]);
                 }
             }
         }
@@ -1979,7 +1979,7 @@ class PresensiSiswaQrController extends BaseController
         }
         // Riwayat selain hari ini memuat data pribadi siswa — wajib login
         if ($tanggal !== date('Y-m-d') && ! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'data' => [], 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'data' => [], 'message' => 'Akses ditolak']);
         }
         $idKelas = (int) ($this->request->query('id_kelas') ?? 0);
         $filterRole = trim((string) ($this->request->query('filter_role') ?? ''));
@@ -1994,7 +1994,7 @@ class PresensiSiswaQrController extends BaseController
         $allowedKelas = $isWali ? array_values(array_unique(array_map('intval', (array) ($auth['wali_kelas'] ?? [])))) : [];
         if ($isWali) {
             if ($idKelas > 0 && ! in_array($idKelas, $allowedKelas, true)) {
-                return $this->response->setStatusCode(403)->setJSON([
+                return $this->response->statusCode(403)->json([
                     'status' => false,
                     'data' => [],
                     'message' => 'Anda hanya dapat melihat riwayat kelas perwalian Anda.',
@@ -2112,7 +2112,7 @@ class PresensiSiswaQrController extends BaseController
                 $stats = $this->getStatsHariIni($tanggal, $idKelas ?: null);
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'data' => $rows,
                 'stats' => $stats,
@@ -2124,7 +2124,7 @@ class PresensiSiswaQrController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[PresensiSiswaQr::getHistory] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'data' => [], 'message' => 'Gagal mengambil riwayat.']);
+            return $this->response->json(['status' => false, 'data' => [], 'message' => 'Gagal mengambil riwayat.']);
         }
     }
 
@@ -2329,7 +2329,7 @@ class PresensiSiswaQrController extends BaseController
 
         if ($existing) {
             if (! empty($existing->jam_masuk)) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'type' => 'already_in',
                     'message' => "{$siswa->nama} sudah absen masuk pukul ".substr($existing->jam_masuk, 0, 5).'.',
@@ -2337,7 +2337,7 @@ class PresensiSiswaQrController extends BaseController
                 ]);
             }
             if (in_array($existing->status, ['SAKIT', 'IZIN'], true)) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'type' => 'izin',
                     'message' => "{$siswa->nama} berstatus {$existing->status}.",
@@ -2364,7 +2364,7 @@ class PresensiSiswaQrController extends BaseController
             if ($terupdate === 0) {
                 $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'type' => 'already_in',
                     'message' => "{$siswa->nama} sudah absen masuk pukul ".substr((string) ($finalIn->jam_masuk ?? $jam), 0, 5).'.',
@@ -2404,7 +2404,7 @@ class PresensiSiswaQrController extends BaseController
                         ->where('tgl', $tanggal)
                         ->first();
 
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'type' => 'already_in',
                         'message' => "{$siswa->nama} sudah absen masuk pukul ".substr((string) ($existing->jam_masuk ?? $jam), 0, 5).'.',
@@ -2440,7 +2440,7 @@ class PresensiSiswaQrController extends BaseController
         } catch (\Throwable $e) {
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'type' => 'check_in',
             'metode' => $source,
@@ -2459,7 +2459,7 @@ class PresensiSiswaQrController extends BaseController
         int $idKelas, ?int $idGuru, string $tanggal, string $jam, array $scanLoc = [], string $source = 'qr'
     ) {
         if (! $existing || empty($existing->jam_masuk)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'not_in',
                 'message' => "{$siswa->nama} belum absen masuk hari ini.",
@@ -2467,7 +2467,7 @@ class PresensiSiswaQrController extends BaseController
             ]);
         }
         if (! empty($existing->jam_keluar)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'already_out',
                 'message' => "{$siswa->nama} sudah absen keluar pukul ".substr($existing->jam_keluar, 0, 5).'.',
@@ -2513,7 +2513,7 @@ class PresensiSiswaQrController extends BaseController
             $finalOut = $db->table('presensi_siswa')->select('jam_keluar')->where('id', $existing->id)->first();
             $shown = ! empty($finalOut->jam_keluar) ? substr($finalOut->jam_keluar, 0, 5) : substr($jam, 0, 5);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'already_out',
                 'message' => "{$siswa->nama} sudah absen keluar pukul ".$shown.'.',
@@ -2528,7 +2528,7 @@ class PresensiSiswaQrController extends BaseController
 
         $existing = (object) array_merge((array) $existing, ['jam_keluar' => $jam, 'id_kelas' => $idKelas]);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'type' => 'check_out',
             'metode' => $source,
@@ -2800,7 +2800,7 @@ class PresensiSiswaQrController extends BaseController
     {
         $db = DB::connection();
         if (! Schema::hasTable('absensi_harian')) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Tabel absensi guru belum siap di database.',
@@ -2816,7 +2816,7 @@ class PresensiSiswaQrController extends BaseController
             }
         }
         if ($userId <= 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => "Akun login untuk {$guru->nama_guru} belum terhubung ke sistem pengguna.",
@@ -2841,7 +2841,7 @@ class PresensiSiswaQrController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[PresensiSiswaQr::processGuruScan] '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'error',
                 'message' => 'Terjadi kesalahan sistem saat memproses presensi guru — periksa log aplikasi.',
@@ -2861,7 +2861,7 @@ class PresensiSiswaQrController extends BaseController
                 ? substr((string) $existing->jam_masuk, 11, 5)
                 : substr((string) $existing->jam_masuk, 0, 5);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'already_in',
                 'role' => 'guru',
@@ -2991,7 +2991,7 @@ class PresensiSiswaQrController extends BaseController
                     ? substr((string) ($existing->jam_masuk ?? $jam), 11, 5)
                     : substr((string) ($existing->jam_masuk ?? $jam), 0, 5);
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'type' => 'already_in',
                     'role' => 'guru',
@@ -3017,7 +3017,7 @@ class PresensiSiswaQrController extends BaseController
 
         $statusKet = ($statusMasuk === 'LATE') ? " (Terlambat {$telatMenit} mnt)" : ' (Tepat Waktu)';
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'type' => 'check_in',
             'role' => 'guru',
@@ -3036,7 +3036,7 @@ class PresensiSiswaQrController extends BaseController
         string $tanggal, string $jam, string $recordedTime, array $scanLoc = [], string $source = 'qr'
     ) {
         if (! $existing || empty($existing->jam_masuk)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'not_in',
                 'role' => 'guru',
@@ -3050,7 +3050,7 @@ class PresensiSiswaQrController extends BaseController
                 ? substr((string) $existing->jam_pulang, 11, 5)
                 : substr((string) $existing->jam_pulang, 0, 5);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'already_out',
                 'role' => 'guru',
@@ -3081,7 +3081,7 @@ class PresensiSiswaQrController extends BaseController
             if ($gate !== null) {
                 // message = pesan lengkap (daftar sesi dibutuhkan operator di
                 // gerbang); layar scanner membacakan versi pendek lewat TTS.
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'type' => 'jurnal_kurang',
                     'role' => 'guru',
@@ -3199,7 +3199,7 @@ class PresensiSiswaQrController extends BaseController
                     : substr((string) $setelah->jam_pulang, 0, 5))
                 : null;
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'type' => 'already_out',
                 'role' => 'guru',
@@ -3224,7 +3224,7 @@ class PresensiSiswaQrController extends BaseController
 
         $statusKet = ($statusPulang === 'EARLY') ? " (Pulang lebih awal {$pulangCepatMenit} mnt)" : ' (Tepat Waktu)';
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'type' => 'check_out',
             'role' => 'guru',

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\CiForge;
+use App\Http\Controllers\SchemaForge;
 use App\Models\DashboardModel;
 use App\Models\PoinHistoryModel;
 use Illuminate\Support\Facades\DB;
@@ -180,7 +180,7 @@ class PoinGuruController extends BaseController
     private function ensureTableExists()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasColumn('master_guru', 'poin_tahunan')) {
             $forge->addColumn('master_guru', [

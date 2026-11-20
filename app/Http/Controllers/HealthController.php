@@ -24,9 +24,9 @@ class HealthController extends BaseController
         $ok = ! in_array(false, [$checks['database'], $checks['writable'], $checks['disk']], true);
 
         return $this->response
-            ->setStatusCode($ok ? 200 : 503)
-            ->setContentType('application/json')
-            ->setJSON([
+            ->statusCode($ok ? 200 : 503)
+            ->contentType('application/json')
+            ->json([
                 'status' => $ok ? 'ok' : 'fail',
                 'checks' => $checks,
                 'time' => date('Y-m-d H:i:s'),

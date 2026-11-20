@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\CiForge;
+use App\Http\Controllers\SchemaForge;
 use App\Libraries\QrToken;
 use App\Libraries\RememberLogin;
 use App\Libraries\RouterosAPI;
@@ -2704,14 +2704,14 @@ class AttendanceController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[rekapGuruPdf] '.$e->getMessage());
 
-            return $this->response->setStatusCode(500)
-                ->setBody('Gagal membuat PDF rekap guru. Silakan coba lagi.');
+            return $this->response->statusCode(500)
+                ->body('Gagal membuat PDF rekap guru. Silakan coba lagi.');
         }
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$rekap['filename'].'"')
-            ->setBody($rekap['pdf']);
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="'.$rekap['filename'].'"')
+            ->body($rekap['pdf']);
     }
 
     public function notifPage()
@@ -3830,7 +3830,7 @@ class AttendanceController extends BaseController
 
         try {
             $db = DB::connection();
-            $forge = (new CiForge);
+            $forge = (new SchemaForge);
             $userId = auth()->id();
 
             // Auto-create face_descriptor column if missing
@@ -4399,7 +4399,7 @@ class AttendanceController extends BaseController
 
         try {
             if (! Schema::hasColumn('absensi_qr_log', 'jenis')) {
-                (new CiForge)->addColumn('absensi_qr_log', [
+                (new SchemaForge)->addColumn('absensi_qr_log', [
                     'jenis' => ['type' => 'VARCHAR', 'constraint' => 10, 'default' => 'masuk', 'null' => false],
                 ]);
             }
@@ -7379,7 +7379,7 @@ class AttendanceController extends BaseController
     private function patchAbsensiHarianTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         $harianFields = [
             'denda' => ['type' => 'DECIMAL', 'constraint' => '15,2', 'default' => 0, 'after' => 'status_masuk'],
@@ -7570,7 +7570,7 @@ class AttendanceController extends BaseController
     private function patchAbsensiKoreksiTable()
     {
         $db = DB::connection();
-        $forge = (new CiForge);
+        $forge = (new SchemaForge);
 
         if (! Schema::hasTable('absensi_koreksi')) {
             $forge->addField([
@@ -7784,7 +7784,7 @@ class AttendanceController extends BaseController
         // (tanpa unique key, tanpa kolom ack/dibatalkan_otomatis), jadi ini
         // hanya jaring pengaman untuk instalasi yang belum migrate; jalur
         if (! Schema::hasTable('absensi_surat_teguran')) {
-            $forge = (new CiForge);
+            $forge = (new SchemaForge);
             $forge->addField([
                 'id' => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
                 'id_guru' => ['type' => 'INT', 'constraint' => 11],
@@ -8373,26 +8373,26 @@ class AttendanceController extends BaseController
     public function getNotifPrefs()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $userId = (int) (auth()->id() ?? 0);
         if ($userId <= 0) {
-            return $this->response->setStatusCode(401)
-                ->setJSON(['status' => false, 'message' => 'Sesi tidak valid']);
+            return $this->response->statusCode(401)
+                ->json(['status' => false, 'message' => 'Sesi tidak valid']);
         }
 
         try {
             $model = new UserNotifikasiModel;
             $prefs = $model->getPrefs($userId);
 
-            return $this->response->setJSON(['status' => true, 'prefs' => $prefs]);
+            return $this->response->json(['status' => true, 'prefs' => $prefs]);
         } catch (\Throwable $e) {
             Log::error('[NotifPrefs] getNotifPrefs gagal: '.$e->getMessage());
 
-            return $this->response->setStatusCode(500)
-                ->setJSON(['status' => false, 'message' => 'Gagal memuat preferensi']);
+            return $this->response->statusCode(500)
+                ->json(['status' => false, 'message' => 'Gagal memuat preferensi']);
         }
     }
 
@@ -8407,13 +8407,13 @@ class AttendanceController extends BaseController
     public function csrfRefresh()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         return $this->response
-            ->setHeader('Cache-Control', 'no-store, max-age=0')
-            ->setJSON([
+            ->header('Cache-Control', 'no-store, max-age=0')
+            ->json([
                 'status' => true,
                 'csrfName' => '_token',
                 'csrfHash' => csrf_token(),
@@ -8431,24 +8431,24 @@ class AttendanceController extends BaseController
     public function saveNotifPrefs()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405)
-                ->setJSON(['status' => false, 'message' => 'Method tidak diizinkan']);
+            return $this->response->statusCode(405)
+                ->json(['status' => false, 'message' => 'Method tidak diizinkan']);
         }
 
         $userId = (int) (auth()->id() ?? 0);
         if ($userId <= 0) {
-            return $this->response->setStatusCode(401)
-                ->setJSON(['status' => false, 'message' => 'Sesi tidak valid']);
+            return $this->response->statusCode(401)
+                ->json(['status' => false, 'message' => 'Sesi tidak valid']);
         }
 
         $raw = $this->request->input('prefs') ?? [];
         if (! is_array($raw)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak valid']);
         }
 
         // Sanitasi: hanya kunci dari PREF_DEFAULTS yang diizinkan
@@ -8463,7 +8463,7 @@ class AttendanceController extends BaseController
             $model = new UserNotifikasiModel;
             $ok = $model->setPrefs($userId, $clean);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => $ok,
                 'message' => $ok
                     ? 'Preferensi notifikasi berhasil disimpan.'
@@ -8473,8 +8473,8 @@ class AttendanceController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[NotifPrefs] saveNotifPrefs gagal: '.$e->getMessage());
 
-            return $this->response->setStatusCode(500)
-                ->setJSON(['status' => false, 'message' => 'Gagal menyimpan — periksa log aplikasi.']);
+            return $this->response->statusCode(500)
+                ->json(['status' => false, 'message' => 'Gagal menyimpan — periksa log aplikasi.']);
         }
     }
 }

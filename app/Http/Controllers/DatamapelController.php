@@ -88,7 +88,7 @@ class DatamapelController extends BaseController
 
         $data = $builder->get();
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'draw' => $this->request->input('draw'),
             'recordsTotal' => count($data),
             'recordsFiltered' => count($data),
@@ -108,7 +108,7 @@ class DatamapelController extends BaseController
 
         $data = $builder->get();
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'draw' => $this->request->input('draw'),
             'recordsTotal' => count($data),
             'recordsFiltered' => count($data),
@@ -161,7 +161,7 @@ class DatamapelController extends BaseController
         }
         unset($row);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'draw' => (int) $this->request->input('draw', 1),
             'recordsTotal' => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
@@ -347,26 +347,26 @@ class DatamapelController extends BaseController
         $id = (int) ($this->request->input('id_kel_mapel') ?? 0);
 
         if ($nama === '' || mb_strlen($nama) > 100) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama kelompok wajib diisi (maks 100 karakter).']);
+            return $this->response->json(['status' => false, 'message' => 'Nama kelompok wajib diisi (maks 100 karakter).']);
         }
         if ($kode === '' || mb_strlen($kode) > 10 || ! preg_match('/^[A-Za-z0-9._-]+$/', $kode)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kode kelompok wajib diisi, maks 10 karakter, tanpa spasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Kode kelompok wajib diisi, maks 10 karakter, tanpa spasi.']);
         }
         if ($kategori === '' || mb_strlen($kategori) > 20) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kategori kelompok wajib diisi (maks 20 karakter).']);
+            return $this->response->json(['status' => false, 'message' => 'Kategori kelompok wajib diisi (maks 20 karakter).']);
         }
 
         $db = DB::connection();
         if ($idParent > 0) {
             $induk = $db->table('master_kelompok_mapel')->where('id_kel_mapel', $idParent)->get()->map(fn ($r) => (array) $r)->first();
             if (! $induk) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Induk kelompok #'.$idParent.' tidak ditemukan.']);
+                return $this->response->json(['status' => false, 'message' => 'Induk kelompok #'.$idParent.' tidak ditemukan.']);
             }
             if ((int) $induk['id_parent'] !== 0) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Sub-kelompok hanya boleh punya satu level — pilih kelompok utama sebagai induk.']);
+                return $this->response->json(['status' => false, 'message' => 'Sub-kelompok hanya boleh punya satu level — pilih kelompok utama sebagai induk.']);
             }
             if ($id > 0 && $idParent === $id) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Kelompok tidak bisa menjadi induk bagi dirinya sendiri.']);
+                return $this->response->json(['status' => false, 'message' => 'Kelompok tidak bisa menjadi induk bagi dirinya sendiri.']);
             }
         }
 
@@ -375,7 +375,7 @@ class DatamapelController extends BaseController
             $cekKode->where('id_kel_mapel', '!=', $id);
         }
         if ($cekKode->count() > 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kode "'.$kode.'" sudah dipakai kelompok lain.']);
+            return $this->response->json(['status' => false, 'message' => 'Kode "'.$kode.'" sudah dipakai kelompok lain.']);
         }
 
         $data = [
@@ -387,27 +387,27 @@ class DatamapelController extends BaseController
 
         if ($id > 0) {
             if (! $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->count()) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Kelompok #'.$id.' tidak ditemukan — tidak ada yang diubah.']);
+                return $this->response->json(['status' => false, 'message' => 'Kelompok #'.$id.' tidak ditemukan — tidak ada yang diubah.']);
             }
             try {
                 $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->update($data);
             } catch (\Throwable $e) {
                 Log::error('[Datamapel::addkelompokmapel] update '.$id.' gagal: '.$e->getMessage());
 
-                return $this->response->setJSON(['status' => false, 'message' => 'Kelompok gagal diperbarui. Data belum berubah — coba lagi.']);
+                return $this->response->json(['status' => false, 'message' => 'Kelompok gagal diperbarui. Data belum berubah — coba lagi.']);
             }
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Kelompok "'.$nama.'" berhasil diperbarui.']);
+            return $this->response->json(['status' => true, 'message' => 'Kelompok "'.$nama.'" berhasil diperbarui.']);
         }
 
         $tersimpan = $db->table('master_kelompok_mapel')->insert($data);
         if ($tersimpan === false) {
             Log::error('[Datamapel::addkelompokmapel] insert gagal: '.json_encode(['code' => 0, 'message' => '']));
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelompok gagal disimpan. Data belum berubah — coba lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelompok gagal disimpan. Data belum berubah — coba lagi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Kelompok "'.$nama.'" berhasil ditambahkan.']);
+        return $this->response->json(['status' => true, 'message' => 'Kelompok "'.$nama.'" berhasil ditambahkan.']);
     }
 
     public function create()
@@ -418,7 +418,7 @@ class DatamapelController extends BaseController
 
         [$data, $error] = $this->validasiMapelPayload();
         if ($error) {
-            return $this->response->setJSON(['status' => false, 'message' => $error]);
+            return $this->response->json(['status' => false, 'message' => $error]);
         }
 
         $setting = $this->getSettingRow();
@@ -429,10 +429,10 @@ class DatamapelController extends BaseController
         if ($tersimpan === false) {
             Log::error('[Datamapel::create] insert gagal: '.json_encode(['code' => 0, 'message' => '']));
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel gagal disimpan. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Mata pelajaran "'.$data['nama_mapel'].'" berhasil ditambahkan.']);
+        return $this->response->json(['status' => true, 'message' => 'Mata pelajaran "'.$data['nama_mapel'].'" berhasil ditambahkan.']);
     }
 
     public function save()
@@ -452,17 +452,17 @@ class DatamapelController extends BaseController
 
         $id = (int) ($this->request->input('id_mapel') ?? 0);
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID mapel tidak valid — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'message' => 'ID mapel tidak valid — tidak ada yang diubah.']);
         }
 
         $db = DB::connection();
         if (! $db->table('master_mapel')->where('id_mapel', $id)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel #'.$id.' tidak ditemukan — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel #'.$id.' tidak ditemukan — tidak ada yang diubah.']);
         }
 
         [$data, $error] = $this->validasiMapelPayload($id);
         if ($error) {
-            return $this->response->setJSON(['status' => false, 'message' => $error]);
+            return $this->response->json(['status' => false, 'message' => $error]);
         }
         if ($this->request->input('status') === null) {
             // field tidak dikirim sama sekali: jangan paksa jadi aktif, kalau tidak
@@ -475,10 +475,10 @@ class DatamapelController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Datamapel::update] update '.$id.' gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel gagal diperbarui. Data belum berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Mata pelajaran "'.$data['nama_mapel'].'" berhasil diperbarui.']);
+        return $this->response->json(['status' => true, 'message' => 'Mata pelajaran "'.$data['nama_mapel'].'" berhasil diperbarui.']);
     }
 
     public function hapuskelompok()
@@ -489,23 +489,23 @@ class DatamapelController extends BaseController
 
         $id = (int) ($this->request->input('id_kel') ?? 0);
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID kelompok tidak valid.']);
+            return $this->response->json(['status' => false, 'message' => 'ID kelompok tidak valid.']);
         }
 
         $db = DB::connection();
         $row = $db->table('master_kelompok_mapel')->where('id_kel_mapel', $id)->get()->map(fn ($r) => (array) $r)->first();
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelompok tidak ditemukan — tidak ada yang dihapus.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelompok tidak ditemukan — tidak ada yang dihapus.']);
         }
 
         $anak = $db->table('master_kelompok_mapel')->where('id_parent', $id)->count();
         if ($anak > 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" masih punya '.$anak.' sub-kelompok. Hapus sub-kelompoknya dulu.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" masih punya '.$anak.' sub-kelompok. Hapus sub-kelompoknya dulu.']);
         }
 
         $pakai = $db->table('master_mapel')->where('kelompok', (string) $row['kode_kel_mapel'])->count();
         if ($pakai > 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" masih dipakai '.$pakai.' mapel. Pindahkan mapel itu ke kelompok lain dulu.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" masih dipakai '.$pakai.' mapel. Pindahkan mapel itu ke kelompok lain dulu.']);
         }
 
         try {
@@ -513,10 +513,10 @@ class DatamapelController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Datamapel::hapuskelompok] '.$id.' gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelompok gagal dihapus. Data belum berubah — coba lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'Kelompok gagal dihapus. Data belum berubah — coba lagi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" berhasil dihapus.']);
+        return $this->response->json(['status' => true, 'message' => 'Kelompok "'.$row['nama_kel_mapel'].'" berhasil dihapus.']);
     }
 
     public function delete()
@@ -539,10 +539,10 @@ class DatamapelController extends BaseController
         $ids = array_values($ids);
 
         if ($ids === []) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada mapel yang dipilih untuk dihapus.']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada mapel yang dipilih untuk dihapus.']);
         }
         if (count($ids) > 200) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 200 mapel sekaligus.']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 200 mapel sekaligus.']);
         }
 
         $db = DB::connection();
@@ -583,7 +583,7 @@ class DatamapelController extends BaseController
                 $alasan[] = $asing.' id tidak ditemukan';
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada mapel yang terhapus: '.implode('; ', $alasan).'. Hapus atau pindahkan data terkait lebih dulu.',
                 'kunci' => $kunci,
@@ -598,7 +598,7 @@ class DatamapelController extends BaseController
             DB::rollBack();
             Log::error('[Datamapel::delete] hapus massal gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal dihapus. Tidak ada data yang berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel gagal dihapus. Tidak ada data yang berubah — coba lagi, dan bila berulang lapor ke pengembang.']);
         }
         $this->bersihkanPeminatan($db, $boleh);
         DB::commit();
@@ -609,7 +609,7 @@ class DatamapelController extends BaseController
             $pesan .= ' ('.$dilewati.' tidak dihapus: bawaan sistem / masih dipakai / tidak ditemukan)';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $pesan,
             'total' => count($boleh),
@@ -627,7 +627,7 @@ class DatamapelController extends BaseController
         $id = (int) $id;
         $db = DB::connection();
         if ($id <= 0 || ! $db->table('master_mapel')->where('id_mapel', $id)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel tidak ditemukan — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel tidak ditemukan — tidak ada yang diubah.']);
         }
 
         try {
@@ -635,9 +635,9 @@ class DatamapelController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Datamapel::aktifkan] '.$id.' gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel gagal diaktifkan. Coba lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel gagal diaktifkan. Coba lagi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Mapel berhasil diaktifkan.']);
+        return $this->response->json(['status' => true, 'message' => 'Mapel berhasil diaktifkan.']);
     }
 }

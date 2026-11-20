@@ -216,13 +216,13 @@ class DatakelasController extends BaseController
     public function save()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
         $id_tp = $tp->id_tp;
         $id_smt = $smt->id_smt;
@@ -238,10 +238,10 @@ class DatakelasController extends BaseController
         $siswasRaw = $this->request->input('siswa') ?? [];
 
         if ($nama_kelas === '' || mb_strlen($nama_kelas) < 2) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama kelas minimal 2 karakter']);
+            return $this->response->json(['status' => false, 'message' => 'Nama kelas minimal 2 karakter']);
         }
         if ($id_kelas > 0 && ! $db->table('master_kelas')->where('id_kelas', $id_kelas)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
         // Validasi id siswa: integer, ada di master, unik
@@ -266,7 +266,7 @@ class DatakelasController extends BaseController
 
         // Validasi wali kelas: harus jabatan_guru valid pada TP/SMT ini
         if ($guru_id > 0 && ! $this->jabatanModel->findForGuru($guru_id, (int) $id_tp, (int) $id_smt)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data wali kelas tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Data wali kelas tidak valid']);
         }
 
         // level_id punya FK ke level_kelas.id_level dan jurusan_id ikut
@@ -274,10 +274,10 @@ class DatakelasController extends BaseController
         // lama/seretan bisa tidak dikenal lagi — tanpa cek di sini query-nya
         // gagal oleh FK (update) atau rombel diam-diam kehilangan level/jurusan.
         if ($level_id <= 0 || ! $db->table('level_kelas')->where('id_level', $level_id)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Level kelas tidak valid — pilih level dari daftar']);
+            return $this->response->json(['status' => false, 'message' => 'Level kelas tidak valid — pilih level dari daftar']);
         }
         if ($jurusan_id > 0 && ! $db->table('master_jurusan')->where('id_jurusan', $jurusan_id)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jurusan tidak valid — pilih jurusan dari daftar']);
+            return $this->response->json(['status' => false, 'message' => 'Jurusan tidak valid — pilih jurusan dari daftar']);
         }
 
         // Build jumlah_siswa JSON for storing in master_kelas
@@ -374,19 +374,19 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::save] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan kelas']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan kelas']);
         }
 
         if ($gagal > 0) {
             Log::error('[Datakelas::save] '.$gagal.' penempatan siswa gagal (terpasang '.$terpasang.')');
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Kelas tersimpan, tetapi '.$gagal.' penempatan siswa gagal — periksa kembali daftar siswa rombel ini.',
             ]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Kelas tersimpan ('.count($siswas).' siswa)',
             'siswa' => $terpasang,
@@ -442,21 +442,21 @@ class DatakelasController extends BaseController
     public function bulk_create()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['success' => false, 'message' => 'Unauthorized']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['success' => false, 'message' => 'TP/SMT aktif belum diset']);
+            return $this->response->json(['success' => false, 'message' => 'TP/SMT aktif belum diset']);
         }
 
         $classes = json_decode($this->request->input('kelas') ?? '[]');
         if (! is_array($classes) || empty($classes)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada kelas yang dikirim']);
+            return $this->response->json(['success' => false, 'message' => 'Tidak ada kelas yang dikirim']);
         }
         if (count($classes) > 50) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Maksimal 50 kelas sekaligus']);
+            return $this->response->json(['success' => false, 'message' => 'Maksimal 50 kelas sekaligus']);
         }
 
         $db = DB::connection();
@@ -525,20 +525,20 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::bulk_create] '.$e->getMessage());
 
-            return $this->response->setJSON(['success' => false, 'message' => 'Pembuatan kelas gagal disimpan.']);
+            return $this->response->json(['success' => false, 'message' => 'Pembuatan kelas gagal disimpan.']);
         }
 
         $this->saveAuditLog(1, "Bulk create $insert_count kelas".($lewat ? ', '.count($lewat).' dilewati' : ''));
 
         if ($insert_count === 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'success' => false,
                 'insert' => 0,
                 'message' => 'Tidak ada kelas dibuat — '.implode(', ', array_slice($lewat, 0, 5)),
             ]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'success' => true,
             'insert' => $insert_count,
             'message' => $insert_count.' kelas dibuat'.($lewat ? '; '.count($lewat).' dilewati' : ''),
@@ -551,18 +551,18 @@ class DatakelasController extends BaseController
     public function hapus($id)
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['kelas' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['kelas' => false, 'message' => 'Unauthorized']);
         }
 
         $id = (int) $id;
         if ($id <= 0) {
-            return $this->response->setJSON(['kelas' => false, 'message' => 'ID kelas tidak valid']);
+            return $this->response->json(['kelas' => false, 'message' => 'ID kelas tidak valid']);
         }
 
         $db = DB::connection();
         $kelas = $db->table('master_kelas')->where('id_kelas', $id)->get()->map(fn ($r) => (array) $r)->first();
         if (! $kelas) {
-            return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas tidak ditemukan']);
+            return $this->response->json(['kelas' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
         // Enrollment tidak dihapus: barisnya adalah catatan "siswa ini aktif pada
@@ -586,12 +586,12 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::hapus] '.$e->getMessage());
 
-            return $this->response->setJSON(['kelas' => false, 'message' => 'Kelas gagal dihapus.']);
+            return $this->response->json(['kelas' => false, 'message' => 'Kelas gagal dihapus.']);
         }
 
         $this->saveAuditLog(3, 'Menghapus kelas ID: '.$id.' ('.$kelas['nama_kelas'].', '.$tertaut.' siswa dilepas)');
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'kelas' => true,
             'message' => 'Kelas terhapus'.($tertaut > 0 ? '; '.$tertaut.' siswa dilepas dari rombel ini' : ''),
         ]);
@@ -629,17 +629,17 @@ class DatakelasController extends BaseController
     public function copyallfromsmt1()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['success' => false, 'message' => 'Unauthorized']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         if (! $tp) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Tahun pelajaran aktif belum diset']);
+            return $this->response->json(['success' => false, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
 
         $id_kelas_smt1 = $this->request->input('kelas_satu');
         if (! is_array($id_kelas_smt1) || empty($id_kelas_smt1)) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada kelas sumber yang dikirim']);
+            return $this->response->json(['success' => false, 'message' => 'Tidak ada kelas sumber yang dikirim']);
         }
 
         $db = DB::connection();
@@ -731,14 +731,14 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::copyallfromsmt1] '.$e->getMessage());
 
-            return $this->response->setJSON(['success' => false, 'message' => 'Penyalinan kelas gagal disimpan.']);
+            return $this->response->json(['success' => false, 'message' => 'Penyalinan kelas gagal disimpan.']);
         }
 
         if ($siswa_gagal > 0) {
             Log::warning('[Datakelas::copyallfromsmt1] '.$siswa_gagal.' siswa gagal dipasangkan');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'success' => $terproses > 0,
             'insert' => $row_insert,
             'message' => $row_insert.' kelas dibuat di semester 2'
@@ -918,12 +918,12 @@ class DatakelasController extends BaseController
     public function naikkelas()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Unauthorized']);
+            return $this->response->json(['res' => 0, 'message' => 'Unauthorized']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         if (! $tp) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
+            return $this->response->json(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
         $id_tp = (int) $tp->id_tp;
         $id_smt = 1;
@@ -933,7 +933,7 @@ class DatakelasController extends BaseController
         $db = DB::connection();
 
         if (! is_array($kelas) || empty($kelas)) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Tidak ada data kelas yang dikirim']);
+            return $this->response->json(['res' => 0, 'message' => 'Tidak ada data kelas yang dikirim']);
         }
 
         // Nama rombel tujuan -> id_kelas, hanya untuk periode aktif.
@@ -982,14 +982,14 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::naikkelas] '.$e->getMessage());
 
-            return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas gagal disimpan.']);
+            return $this->response->json(['res' => 0, 'message' => 'Kenaikan kelas gagal disimpan.']);
         }
 
         if ($lewat > 0) {
             Log::warning('[Datakelas::naikkelas] '.$lewat.' siswa dilewati (rombel tujuan tidak ditemukan)');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'res' => $row_insert,
             'message' => $row_insert > 0
                 ? $row_insert.' siswa dipindahkan'.($lewat > 0 ? '; '.$lewat.' dilewati karena rombel tujuan tidak ada' : '')
@@ -1000,16 +1000,16 @@ class DatakelasController extends BaseController
     public function naikkan_semua()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Unauthorized']);
+            return $this->response->json(['res' => 0, 'message' => 'Unauthorized']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         if (! $tp) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
+            return $this->response->json(['res' => 0, 'message' => 'Tahun pelajaran aktif belum diset']);
         }
         $tpBefore = $this->dashboardModel->getTpBefore($tp->tahun);
         if (! $tpBefore) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Tahun pelajaran sebelumnya tidak ditemukan — tidak ada yang bisa dinaikkan.']);
+            return $this->response->json(['res' => 0, 'message' => 'Tahun pelajaran sebelumnya tidak ditemukan — tidak ada yang bisa dinaikkan.']);
         }
         $id_tp = (int) $tp->id_tp;
         $id_smt = 1;
@@ -1018,7 +1018,7 @@ class DatakelasController extends BaseController
         $db = DB::connection();
 
         if (! is_array($kelas_baru) || empty($kelas_baru)) {
-            return $this->response->setJSON(['res' => 0, 'message' => 'Tidak ada pemetaan rombel yang dikirim']);
+            return $this->response->json(['res' => 0, 'message' => 'Tidak ada pemetaan rombel yang dikirim']);
         }
 
         // Rombel tujuan wajib ada di periode aktif; yang tidak valid dikumpulkan
@@ -1057,14 +1057,14 @@ class DatakelasController extends BaseController
             DB::rollBack();
             Log::error('[Datakelas::naikkan_semua] '.$e->getMessage());
 
-            return $this->response->setJSON(['res' => 0, 'message' => 'Kenaikan kelas massal gagal disimpan.']);
+            return $this->response->json(['res' => 0, 'message' => 'Kenaikan kelas massal gagal disimpan.']);
         }
 
         if ($lewat) {
             Log::warning('[Datakelas::naikkan_semua] rombel tujuan dilewati: '.implode(', ', $lewat));
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'res' => $row_insert,
             'message' => $row_insert.' siswa dinaikkan'
                 .($lewat ? '; '.count($lewat).' rombel tujuan tidak ada di periode aktif dan dilewati' : ''),

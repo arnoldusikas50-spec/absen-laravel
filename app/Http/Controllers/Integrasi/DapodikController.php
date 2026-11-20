@@ -37,7 +37,7 @@ class DapodikController extends BaseController
         }
 
         if ($this->request->ajax()) {
-            return $this->response->setStatusCode(403)->setJSON([
+            return $this->response->statusCode(403)->json([
                 'status' => false,
                 'message' => 'Akses ditolak. Hanya admin yang dapat mengelola integrasi Dapodik.',
             ]);
@@ -201,7 +201,7 @@ class DapodikController extends BaseController
 
         $serverUrl = trim((string) ($this->request->input('server_url') ?? ''));
         if ($serverUrl !== '' && ! filter_var($serverUrl, FILTER_VALIDATE_URL)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'URL Server Dapodik tidak valid. Gunakan alamat lengkap, contoh http://localhost:5774.',
             ]);
@@ -216,7 +216,7 @@ class DapodikController extends BaseController
 
         // Isi respons Dapodik TIDAK diteruskan ke browser: endpoint ini
         // memanggil alamat bebas, jadi badan respons bisa berisi data internal.
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => (bool) ($result['status'] ?? false),
             'message' => $result['message'] ?? 'Gagal menghubungi endpoint Dapodik.',
             'code' => $result['code'] ?? null,
@@ -240,7 +240,7 @@ class DapodikController extends BaseController
         $entitasDikenal = ['gtk', 'siswa', 'rombel', 'mapel', 'sekolah', 'pembelajaran', 'ruang', 'all'];
         $entitas = strtolower(trim((string) ($this->request->input('entitas') ?? 'all')));
         if (! in_array($entitas, $entitasDikenal, true)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Jenis data sinkronisasi tidak dikenal. Pilih salah satu: '.implode(', ', $entitasDikenal).'.',
             ]);
@@ -280,11 +280,11 @@ class DapodikController extends BaseController
             $res['csrfName'] = '_token';
             $res['csrfHash'] = csrf_token();
 
-            return $this->response->setJSON($res);
+            return $this->response->json($res);
         } catch (\Throwable $e) {
             Log::error('Dapodik::syncApi Error: '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Sinkronisasi Dapodik berhenti karena galat sistem. Detail sudah dicatat di log; data yang sudah masuk tidak diurut ulang.',
                 'csrfName' => '_token',
@@ -303,12 +303,12 @@ class DapodikController extends BaseController
         }
 
         if (strtolower($this->request->method()) !== 'post') {
-            return $this->response->setStatusCode(405);
+            return $this->response->statusCode(405);
         }
 
         $db = DB::connection();
         if (! Schema::hasTable('dapodik_log')) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tabel riwayat Dapodik tidak ditemukan, jadi tidak ada yang dibersihkan.',
                 'csrfName' => '_token',
@@ -323,7 +323,7 @@ class DapodikController extends BaseController
         if ($hasil === false || $sisa > 0) {
             Log::error('[Dapodik::clearLogs] truncate dapodik_log gagal/tidak lengkap: '.json_encode(['code' => 0, 'message' => '']));
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Riwayat log gagal dibersihkan ('.$sisa.' baris masih tersisa).',
                 'csrfName' => '_token',
@@ -331,7 +331,7 @@ class DapodikController extends BaseController
             ]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $jumlahSebelum > 0
                 ? 'Riwayat log sinkronisasi Dapodik telah dibersihkan ('.$jumlahSebelum.' baris).'

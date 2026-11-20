@@ -161,12 +161,12 @@ class JadwalController extends BaseController
     {
         $user = $this->getUser();
         if (! $user) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -291,7 +291,7 @@ class JadwalController extends BaseController
             'max_time' => $maxTime,
         ];
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => $data,
             'is_admin' => false,
@@ -315,19 +315,19 @@ class JadwalController extends BaseController
     {
         $user = $this->getUser();
         if (! $user) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp, $smt);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
         $id = (int) ($this->request->input('id') ?? 0);
@@ -342,36 +342,36 @@ class JadwalController extends BaseController
         }
 
         if ($hari < 1 || $hari > 7) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Hari tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Hari tidak valid']);
         }
         if (! $this->isValidTime($jamMulai) || ! $this->isValidTime($jamSelesai)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid']);
         }
         if (strtotime($jamMulai) >= strtotime($jamSelesai)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jam mulai harus lebih kecil dari jam selesai']);
+            return $this->response->json(['status' => false, 'message' => 'Jam mulai harus lebih kecil dari jam selesai']);
         }
         if ($idMapel <= 0 || $idKelas <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Mapel dan kelas wajib dipilih']);
+            return $this->response->json(['status' => false, 'message' => 'Mapel dan kelas wajib dipilih']);
         }
         if ($ruangan !== null && mb_strlen($ruangan) > 50) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Ruangan terlalu panjang (maks 50 karakter)']);
+            return $this->response->json(['status' => false, 'message' => 'Ruangan terlalu panjang (maks 50 karakter)']);
         }
 
         if ($id) {
             $row = $this->jadwalPribadiModel->find($id);
             if (! $row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
+                return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
             }
         }
 
         $conflictsGuru = $this->jadwalPribadiModel->findConflictsForGuru((int) $guru->id_guru, $tp, $smt, $hari, $jamMulai, $jamSelesai, $id ?: null);
         if (! empty($conflictsGuru)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jadwal bentrok: Anda sudah memiliki jadwal di jam tersebut']);
+            return $this->response->json(['status' => false, 'message' => 'Jadwal bentrok: Anda sudah memiliki jadwal di jam tersebut']);
         }
 
         $conflictsKelas = $this->jadwalPribadiModel->findConflictsForKelas($idKelas, $tp, $smt, $hari, $jamMulai, $jamSelesai, $id ?: null);
         if (! empty($conflictsKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jadwal bentrok: kelas sudah memiliki jadwal di jam tersebut']);
+            return $this->response->json(['status' => false, 'message' => 'Jadwal bentrok: kelas sudah memiliki jadwal di jam tersebut']);
         }
 
         $payload = [
@@ -389,45 +389,45 @@ class JadwalController extends BaseController
         if ($id) {
             $this->jadwalPribadiModel->where('id', $id)->update($payload);
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil diperbarui']);
+            return $this->response->json(['status' => true, 'message' => 'Jadwal berhasil diperbarui']);
         }
 
         $this->jadwalPribadiModel->newQuery()->insert($payload);
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil ditambahkan']);
+        return $this->response->json(['status' => true, 'message' => 'Jadwal berhasil ditambahkan']);
     }
 
     public function delete_pribadi()
     {
         $user = $this->getUser();
         if (! $user) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran atau Semester Aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $guru = $this->dashboardModel->getDataGuruByUserId($user->id, $tp, $smt);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data guru tidak ditemukan']);
         }
 
         $id = (int) ($this->request->input('id') ?? 0);
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak valid']);
         }
 
         $row = $this->jadwalPribadiModel->find($id);
         if (! $row || (int) $row->id_guru !== (int) $guru->id_guru || (int) $row->id_tp !== $tp || (int) $row->id_smt !== $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan atau akses ditolak']);
         }
 
         $this->jadwalPribadiModel->where('id', $id)->delete();
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Jadwal berhasil dihapus']);
+        return $this->response->json(['status' => true, 'message' => 'Jadwal berhasil dihapus']);
     }
 }

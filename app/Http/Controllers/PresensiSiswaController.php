@@ -428,28 +428,28 @@ class PresensiSiswaController extends BaseController
     public function getSiswa()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
 
         if (! $idKelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
 
         // TP/SMT diambil dari server (aktif), bukan dari POST client
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $db = DB::connection();
         if (! $db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
 
         $siswa = $this->presensiModel->getSiswaByKelas($idKelas, $tp->id_tp, $smt->id_smt);
@@ -457,7 +457,7 @@ class PresensiSiswaController extends BaseController
             $s->foto_url = self::resolveFotoSiswa($s->foto, $s->nis);
         }
 
-        return $this->response->setJSON(['status' => true, 'data' => $siswa]);
+        return $this->response->json(['status' => true, 'data' => $siswa]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -467,23 +467,23 @@ class PresensiSiswaController extends BaseController
     public function getPresensi()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
         $tgl = $this->request->input('tgl');
 
         if (! $idKelas || ! $this->validTgl($tgl)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
 
         // Grain harian tak butuh filter TP/SMT (satu baris per siswa per hari)
         $presensi = $this->presensiModel->getPresensiSiswa($idKelas, null, $tgl);
 
-        return $this->response->setJSON(['status' => true, 'data' => $presensi]);
+        return $this->response->json(['status' => true, 'data' => $presensi]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -495,12 +495,12 @@ class PresensiSiswaController extends BaseController
     public function getBdr()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tgl = (string) $this->request->input('tgl');
         if (! $this->validTgl($tgl)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
 
         $peta = [];
@@ -512,7 +512,7 @@ class PresensiSiswaController extends BaseController
             Log::error('[PresensiSiswa::getBdr] '.$e->getMessage());
         }
 
-        return $this->response->setJSON(['status' => true, 'data' => (object) $peta]);
+        return $this->response->json(['status' => true, 'data' => (object) $peta]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ class PresensiSiswaController extends BaseController
     {
         // Panitia boleh input seperti di halaman index (hapus tetap admin/guru)
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
@@ -533,13 +533,13 @@ class PresensiSiswaController extends BaseController
         $presensi = $this->request->input('presensi');
 
         if (! $idKelas || ! $this->validTgl($tgl) || empty($presensi) || ! is_array($presensi)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap (kelas/tanggal tidak valid)']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap (kelas/tanggal tidak valid)']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($tgl > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa mengisi presensi tanggal masa depan']);
         }
         if (! $this->validJam($jamMasuk)) {
             $jamMasuk = date('H:i:s');
@@ -690,7 +690,7 @@ class PresensiSiswaController extends BaseController
                 $msg .= " ({$ditolakLibur} ditolak: {$liburLabel})";
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => $msg,
                 'saved' => $saved,
@@ -703,7 +703,7 @@ class PresensiSiswaController extends BaseController
             Log::error('[PresensiSiswa::save] '.$e->getMessage());
 
             // Detail exception hanya ke log — pesan mentah bisa memuat SQL/struktur data.
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan presensi — tidak ada yang tersimpan, coba lagi atau periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan presensi — tidak ada yang tersimpan, coba lagi atau periksa log aplikasi.']);
         }
     }
 
@@ -715,7 +715,7 @@ class PresensiSiswaController extends BaseController
     public function checkIn()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $idSiswa = (int) $this->request->input('id_siswa');
@@ -724,27 +724,27 @@ class PresensiSiswaController extends BaseController
         $jamMasuk = $this->request->input('jam_masuk') ?: date('H:i:s');
 
         if (! $idSiswa || ! $idKelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
         if (! $this->validJam($jamMasuk)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid']);
         }
         $jamMasuk = $this->normJam($jamMasuk);
         if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
         $idGuru = $this->resolveGuruId();
 
         // Cegah check-in pada hari libur (mingguan/nasional)
         $liburMsg = $this->isHariLibur($tgl);
         if ($liburMsg) {
-            return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
+            return $this->response->json(['status' => false, 'message' => $liburMsg]);
         }
 
         $db = DB::connection();
@@ -759,13 +759,13 @@ class PresensiSiswaController extends BaseController
         try {
             if ($existing) {
                 if (! empty($existing->jam_masuk)) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Siswa sudah check-in pada '.substr($existing->jam_masuk, 0, 5),
                     ]);
                 }
                 if (in_array($existing->status, ['SAKIT', 'IZIN', 'ALPA'], true)) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Siswa berstatus '.$existing->status.'. Ubah status dulu via Simpan Absensi.',
                     ]);
@@ -797,7 +797,7 @@ class PresensiSiswaController extends BaseController
                 if ($terupdate === 0) {
                     $finalIn = $db->table('presensi_siswa')->select('jam_masuk')->where('id', $existing->id)->first();
 
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Siswa sudah check-in pada '.substr((string) ($finalIn->jam_masuk ?? $jamMasuk), 0, 5),
                     ]);
@@ -831,14 +831,14 @@ class PresensiSiswaController extends BaseController
                     // Balapan insert ganda (unique key) → anggap sudah ada
                     $m = strtolower($e->getMessage().' '.$e->getCode());
                     if (str_contains($m, 'duplicate') || str_contains($m, 'uq_ps') || str_contains($m, '1062')) {
-                        return $this->response->setJSON(['status' => false, 'message' => 'Data sudah dicatat (duplikat dicegah)']);
+                        return $this->response->json(['status' => false, 'message' => 'Data sudah dicatat (duplikat dicegah)']);
                     }
                     throw $e;
                 }
                 PresensiSiswaSyncService::sinkron((int) DB::getPdo()->lastInsertId());
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => 'Check-in berhasil pukul '.substr($jamMasuk, 0, 5),
                 'jam_masuk' => substr($jamMasuk, 0, 5),
@@ -847,7 +847,7 @@ class PresensiSiswaController extends BaseController
         } catch (\Exception $e) {
             Log::error('[PresensiSiswa::checkIn] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
+            return $this->response->json(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
 
@@ -859,7 +859,7 @@ class PresensiSiswaController extends BaseController
     public function checkOut()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $idSiswa = (int) $this->request->input('id_siswa');
@@ -868,16 +868,16 @@ class PresensiSiswaController extends BaseController
         $jamKeluar = $this->request->input('jam_keluar') ?: date('H:i:s');
 
         if (! $idSiswa || ! $idKelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
         if (! $this->validJam($jamKeluar)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam keluar tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam keluar tidak valid']);
         }
         $jamKeluar = $this->normJam($jamKeluar);
 
@@ -886,7 +886,7 @@ class PresensiSiswaController extends BaseController
         // validasi ini ada, jadi penutupannya tidak cukup hanya di check-in.
         $liburMsg = $this->isHariLibur($tgl);
         if ($liburMsg) {
-            return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
+            return $this->response->json(['status' => false, 'message' => $liburMsg]);
         }
 
         $db = DB::connection();
@@ -898,39 +898,39 @@ class PresensiSiswaController extends BaseController
             ->first();
 
         if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
 
         if (! $existing) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Siswa belum check-in hari ini',
             ]);
         }
 
         if ($existing->status !== 'HADIR') {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Absen Pulang hanya untuk siswa berstatus HADIR (saat ini: '.$existing->status.')',
             ]);
         }
 
         if (empty($existing->jam_masuk)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Jam masuk belum tercatat',
             ]);
         }
 
         if (! empty($existing->jam_keluar)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Siswa sudah check-out pada '.substr($existing->jam_keluar, 0, 5),
             ]);
         }
 
         if ($jamKeluar < substr($existing->jam_masuk, 0, 8)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk ('.substr($existing->jam_masuk, 0, 5).')',
             ]);
@@ -963,14 +963,14 @@ class PresensiSiswaController extends BaseController
                 ->whereNull('jam_keluar')
                 ->update($manualOut);
             if ($terupdate === 0) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Siswa sudah check-out (dicegah saat menyimpan)',
                 ]);
             }
             PresensiSiswaSyncService::sinkron((int) $existing->id);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => 'Absen Pulang berhasil pukul '.substr($jamKeluar, 0, 5),
                 'jam_keluar' => substr($jamKeluar, 0, 5),
@@ -979,7 +979,7 @@ class PresensiSiswaController extends BaseController
         } catch (\Exception $e) {
             Log::error('[PresensiSiswa::checkOut] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
+            return $this->response->json(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
 
@@ -991,7 +991,7 @@ class PresensiSiswaController extends BaseController
     public function updateJam()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $idSiswa = (int) $this->request->input('id_siswa');
@@ -1001,22 +1001,22 @@ class PresensiSiswaController extends BaseController
         $jamKeluar = $this->request->input('jam_keluar');
 
         if (! $idSiswa || ! $idKelas || ! $this->validTgl($tgl)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter tidak lengkap']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($tgl > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
         if (($jamMasuk === null || $jamMasuk === '') && ($jamKeluar === null || $jamKeluar === '')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jam yang diubah']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada jam yang diubah']);
         }
         if ($jamMasuk !== null && $jamMasuk !== '' && ! $this->validJam($jamMasuk)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam masuk tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam masuk tidak valid']);
         }
         if ($jamKeluar !== null && $jamKeluar !== '' && ! $this->validJam($jamKeluar)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam keluar tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam keluar tidak valid']);
         }
 
         // Koreksi jam pada hari libur ditolak. Endpoint ini bukan sekadar
@@ -1027,7 +1027,7 @@ class PresensiSiswaController extends BaseController
         // ubah dulu status liburnya di /settings, baru koreksi datanya.
         $liburMsg = $this->isHariLibur($tgl);
         if ($liburMsg) {
-            return $this->response->setJSON(['status' => false, 'message' => $liburMsg]);
+            return $this->response->json(['status' => false, 'message' => $liburMsg]);
         }
 
         $db = DB::connection();
@@ -1039,25 +1039,25 @@ class PresensiSiswaController extends BaseController
             ->first();
 
         if (! $this->isSiswaKelas($idSiswa, $idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Siswa bukan anggota kelas ini']);
         }
 
         if (! $existing) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data presensi tidak ditemukan']);
         }
 
         if (in_array($existing->status, ['SAKIT', 'IZIN', 'ALPA'], true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak bisa mengatur jam untuk status '.$existing->status]);
+            return $this->response->json(['status' => false, 'message' => 'Tidak bisa mengatur jam untuk status '.$existing->status]);
         }
 
         $effMasuk = ($jamMasuk !== null && $jamMasuk !== '') ? $this->normJam($jamMasuk) : substr((string) ($existing->jam_masuk ?? ''), 0, 8);
         $effKeluar = ($jamKeluar !== null && $jamKeluar !== '') ? $this->normJam($jamKeluar) : substr((string) ($existing->jam_keluar ?? ''), 0, 8);
         if ($effMasuk !== '' && $effKeluar !== '' && $effKeluar < $effMasuk) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk']);
+            return $this->response->json(['status' => false, 'message' => 'Jam keluar tidak boleh lebih awal dari jam masuk']);
         }
         // Jam keluar tanpa jam masuk = state yatim: tolak, isi masuk dulu.
         if ($effMasuk === '' && $effKeluar !== '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Isi jam masuk dulu sebelum jam keluar']);
+            return $this->response->json(['status' => false, 'message' => 'Isi jam masuk dulu sebelum jam keluar']);
         }
 
         $updateData = ['updated_at' => date('Y-m-d H:i:s')];
@@ -1085,11 +1085,11 @@ class PresensiSiswaController extends BaseController
             // Koreksi jam bisa mengubah status keterlambatan → poin dihitung ulang.
             PresensiSiswaSyncService::sinkron((int) $existing->id);
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Jam berhasil diperbarui', 'promoted' => ($updateData['status'] ?? null) === 'HADIR']);
+            return $this->response->json(['status' => true, 'message' => 'Jam berhasil diperbarui', 'promoted' => ($updateData['status'] ?? null) === 'HADIR']);
         } catch (\Exception $e) {
             Log::error('[PresensiSiswa::updateJam] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Terjadi kesalahan server']);
+            return $this->response->json(['status' => false, 'message' => 'Terjadi kesalahan server']);
         }
     }
 
@@ -1100,7 +1100,7 @@ class PresensiSiswaController extends BaseController
     public function rekapBulanan()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
@@ -1109,18 +1109,18 @@ class PresensiSiswaController extends BaseController
         $curYear = (int) date('Y');
 
         if (! $idKelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas wajib dipilih']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas wajib dipilih']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if ($bulan < 1 || $bulan > 12 || $tahun < attendance_tahun_tertua() || $tahun > $curYear + 1) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Periode tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Periode tidak valid']);
         }
 
         $rekap = $this->presensiModel->getRekapBulanan($idKelas, $bulan, $tahun);
 
-        return $this->response->setJSON(['status' => true, 'data' => $rekap]);
+        return $this->response->json(['status' => true, 'data' => $rekap]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1130,25 +1130,25 @@ class PresensiSiswaController extends BaseController
     public function delete()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $id = (int) $this->request->input('id');
         if (! $id) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak ditemukan']);
         }
 
         $db = DB::connection();
         $row = $db->table('presensi_siswa')->where('id', $id)->first();
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan']);
         }
         // Sanity: baris harus menunjuk ke kelas yang benar-benar ada
         if (! $db->table('master_kelas')->where('id_kelas', $row->id_kelas)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas pada data tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas pada data tidak valid']);
         }
         if (! $this->kelasAllowed((int) $row->id_kelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         $deleted = $db->table('presensi_siswa')->where('id', ['id' => $id])->delete();
 
@@ -1157,7 +1157,7 @@ class PresensiSiswaController extends BaseController
             SiswaPoinService::batalkan($id);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => (bool) $deleted,
             'message' => $deleted ? 'Data berhasil dihapus' : 'Gagal menghapus data',
         ]);
@@ -1212,20 +1212,20 @@ class PresensiSiswaController extends BaseController
     public function getMonitoringHarian()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idKelas = (int) $this->request->input('id_kelas');
         $tgl = $this->request->input('tgl') ?: date('Y-m-d');
 
         if (! $idKelas) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas wajib dipilih']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas wajib dipilih']);
         }
         if (! $this->kelasAllowed($idKelas)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
+            return $this->response->json(['status' => false, 'message' => 'Anda tidak memiliki akses ke kelas ini']);
         }
         if (! $this->validTgl($tgl) || $tgl > date('Y-m-d')) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tanggal tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Tanggal tidak valid']);
         }
 
         // TP/SMT diambil dari server (aktif), bukan dari POST client
@@ -1237,7 +1237,7 @@ class PresensiSiswaController extends BaseController
         $db = DB::connection();
         // Pastikan kelas benar-benar ada (cegah id ngawur)
         if (! $db->table('master_kelas')->where('id_kelas', $idKelas)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak ditemukan']);
         }
 
         $data = $this->presensiModel->getMonitoringHarian($idKelas, $tgl, $idTp, $idSmt);
@@ -1247,7 +1247,7 @@ class PresensiSiswaController extends BaseController
 
         $stat = $this->presensiModel->getStatHarian($idKelas, $tgl);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => $data,
             'stat' => self::hitungStatHarian($data, $stat),
@@ -1304,9 +1304,9 @@ class PresensiSiswaController extends BaseController
         $filename = "Monitoring_Siswa_{$kelasClean}_{$tgl}.pdf";
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($dompdf->output());
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($dompdf->output());
     }
 
     public static function resolveFotoSiswa(?string $foto, ?string $nis): ?string
@@ -1416,9 +1416,9 @@ class PresensiSiswaController extends BaseController
         $body = view('admin.presensi.rekap_siswa_excel', $data);
 
         return $this->response
-            ->setHeader('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setBody($body);
+            ->header('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->body($body);
     }
 
     /**
@@ -1458,9 +1458,9 @@ class PresensiSiswaController extends BaseController
         $disposition = $this->request->query('download') ? 'attachment' : 'inline';
 
         return $this->response
-            ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', $disposition.'; filename="'.$filename.'"')
-            ->setBody($dompdf->output());
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', $disposition.'; filename="'.$filename.'"')
+            ->body($dompdf->output());
     }
 
     /**
@@ -1470,7 +1470,7 @@ class PresensiSiswaController extends BaseController
     public function kelasRekapOptions()
     {
         if (! $this->isLoggedIn() || ! $this->canManageSiswa()) {
-            return $this->response->setStatusCode(403)->setJSON([
+            return $this->response->statusCode(403)->json([
                 'status' => false,
                 'message' => 'Akses ditolak',
             ]);
@@ -1499,7 +1499,7 @@ class PresensiSiswaController extends BaseController
             ];
         }
 
-        return $this->response->setJSON(['status' => true, 'kelas' => $items]);
+        return $this->response->json(['status' => true, 'kelas' => $items]);
     }
 
     /**

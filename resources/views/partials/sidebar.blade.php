@@ -369,9 +369,9 @@ if (! function_exists('sidebarBadge')) {
         </div>
         <div class="sidebar-label min-w-0">
             <p class="text-sm font-bold text-white leading-tight truncate">
-                {{ $setting->nama_sekolah ?? 'Presensi & KBM' }}
+                {{ $setting->nama_aplikasi ?? 'Aplikasi' }}
             </p>
-            <p class="text-[10px] text-blue-300 font-medium uppercase tracking-widest">Presensi & Jurnal</p>
+            <p class="text-[10px] text-blue-300 font-medium uppercase tracking-widest">Panel Administrator</p>
         </div>
     </div>
 

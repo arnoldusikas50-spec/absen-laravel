@@ -87,7 +87,7 @@ class DatajurusanController extends BaseController
     public function data()
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         $jurusans = $this->masterModel->getAllJurusan();
@@ -123,7 +123,7 @@ class DatajurusanController extends BaseController
         // For serverSide: true, we need draw from POST
         $draw = $this->request->input('draw') ?? $this->request->query('draw') ?? 1;
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'draw' => intval($draw),
             'recordsTotal' => count($jurusans),
             'recordsFiltered' => count($jurusans),
@@ -200,12 +200,12 @@ class DatajurusanController extends BaseController
     public function save()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         [$data, $error] = $this->validateJurusanPayload();
         if ($error) {
-            return $this->response->setJSON(['status' => false, 'message' => $error]);
+            return $this->response->json(['status' => false, 'message' => $error]);
         }
 
         $db = DB::connection();
@@ -217,10 +217,10 @@ class DatajurusanController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Datajurusan::save] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan data']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan data']);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => (bool) $result,
             'message' => $result ? 'Data jurusan berhasil disimpan' : 'Gagal menyimpan data',
         ]);
@@ -229,23 +229,23 @@ class DatajurusanController extends BaseController
     public function update()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id = (int) $this->request->input('id_jurusan');
 
         if (! $id) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak valid']);
         }
 
         [$data, $error] = $this->validateJurusanPayload($id);
         if ($error) {
-            return $this->response->setJSON(['status' => false, 'message' => $error]);
+            return $this->response->json(['status' => false, 'message' => $error]);
         }
 
         $db = DB::connection();
         if (! $db->table('master_jurusan')->where('id_jurusan', $id)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan']);
         }
 
         try {
@@ -253,10 +253,10 @@ class DatajurusanController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Datajurusan::update] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal memperbarui data']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal memperbarui data']);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $result !== false,
             'message' => $result !== false ? 'Data jurusan berhasil diperbarui' : 'Gagal memperbarui data',
         ]);
@@ -265,23 +265,23 @@ class DatajurusanController extends BaseController
     public function delete()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id = (int) $this->request->input('id_jurusan');
 
         if (! $id) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak valid']);
         }
 
         $db = DB::connection();
         $row = $db->table('master_jurusan')->where('id_jurusan', $id)->first();
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan']);
         }
         // Hormati flag proteksi data bawaan sistem
         if (isset($row->deletable) && (int) $row->deletable === 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jurusan bawaan sistem tidak dapat dihapus']);
+            return $this->response->json(['status' => false, 'message' => 'Jurusan bawaan sistem tidak dapat dihapus']);
         }
 
         // Tidak ada foreign key di DB ini: selama ini jurusan yang masih dipakai
@@ -290,7 +290,7 @@ class DatajurusanController extends BaseController
         if (Schema::hasTable('master_kelas')) {
             $pakaiKelas = $db->table('master_kelas')->where('jurusan_id', $id)->count();
             if ($pakaiKelas > 0) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Jurusan "'.($row->nama_jurusan ?? $id).'" masih dipakai '.$pakaiKelas.' kelas. Pindahkan kelas itu ke jurusan lain sebelum menghapus.',
                 ]);
@@ -302,10 +302,10 @@ class DatajurusanController extends BaseController
         if ($result === false) {
             Log::error('[Datajurusan::delete] '.$id.' gagal: '.json_encode(['code' => 0, 'message' => '']));
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Jurusan gagal dihapus. Data belum berubah — coba lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'Jurusan gagal dihapus. Data belum berubah — coba lagi.']);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Data berhasil dihapus',
         ]);
@@ -314,21 +314,21 @@ class DatajurusanController extends BaseController
     public function get_data($id = null)
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Unauthorized']);
+            return $this->response->json(['status' => false, 'message' => 'Unauthorized']);
         }
 
         if (! $id) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID tidak valid']);
         }
 
         $db = DB::connection();
         $jurusan = $db->table('master_jurusan')->where('id_jurusan', $id)->first();
 
         if (! $jurusan) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak ditemukan']);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => [
                 'id_jurusan' => $jurusan->id_jurusan,

@@ -225,8 +225,8 @@ class KartuGuruController extends BaseController
             $mode = 'grid';
         }
 
-        $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        $this->response->setHeader('Pragma', 'no-cache');
+        $this->response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $this->response->header('Pragma', 'no-cache');
 
         $data = [
             'setting' => $setting,

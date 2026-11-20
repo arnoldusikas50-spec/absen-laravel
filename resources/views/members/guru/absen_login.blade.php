@@ -401,7 +401,7 @@
             });
         });
 
-        // Error handling for flashdata
+        // Error handling for flash message
         <?php if (session('error')): ?>
             Swal.fire({
                 icon: 'warning',

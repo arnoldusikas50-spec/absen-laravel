@@ -59,16 +59,16 @@ class UseradminController extends BaseController
     public function data()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
-        return $this->response->setJSON($this->users->getAllAdmin());
+        return $this->response->json($this->users->getAllAdmin());
     }
 
     public function create()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $rules = [
@@ -80,7 +80,7 @@ class UseradminController extends BaseController
         ];
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
             ]);
@@ -92,7 +92,7 @@ class UseradminController extends BaseController
             $email = trim((string) $this->request->input('email'));
 
             if ($this->authIsExist($username)) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'msg' => 'Username tidak tersedia (sudah digunakan).',
                 ]);
@@ -106,13 +106,13 @@ class UseradminController extends BaseController
                 ];
                 $id_user = $this->authRegister($user, '1');
                 if ($id_user <= 0) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'msg' => 'Akun gagal dibuat (username baru saja dipakai atau basis data menolak tulisannya).',
                     ]);
                 }
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => true,
                     'msg' => 'User berhasil dibuat.',
                 ]);
@@ -159,17 +159,17 @@ class UseradminController extends BaseController
     public function edit_info()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         if (! $this->validate(['first_name' => 'required|string|max:50'])) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
             ]);
         } else {
             $id = (int) $this->request->input('id');
             if ($id <= 0 || ! $this->authUser($id)) {
-                return $this->response->setJSON(['status' => false, 'msg' => 'User tidak ditemukan']);
+                return $this->response->json(['status' => false, 'msg' => 'User tidak ditemukan']);
             }
             $input = [
                 'first_name' => trim((string) $this->request->input('first_name')),
@@ -179,68 +179,68 @@ class UseradminController extends BaseController
             ];
             $update = $this->updateMasterData('users', $input, 'id', $id);
 
-            return $this->response->setJSON(['status' => (bool) $update]);
+            return $this->response->json(['status' => (bool) $update]);
         }
     }
 
     public function edit_status()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         if (! $this->validate(['status' => 'required|in:0,1'])) {
-            return $this->response->setJSON(['status' => false, 'errors' => $this->validator->getErrors()]);
+            return $this->response->json(['status' => false, 'errors' => $this->validator->getErrors()]);
         }
         $id = (int) $this->request->input('id');
         $status = (int) $this->request->input('status');
         if ($id <= 0 || ! $this->authUser($id)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'User tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'User tidak ditemukan']);
         }
         // Cegah admin menonaktifkan akunnya sendiri
         if ($id === (int) $this->getUserId() && $status === 0) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Tidak bisa menonaktifkan akun sendiri']);
+            return $this->response->json(['status' => false, 'msg' => 'Tidak bisa menonaktifkan akun sendiri']);
         }
         $update = $this->updateMasterData('users', ['active' => $status], 'id', $id);
 
-        return $this->response->setJSON(['status' => (bool) $update]);
+        return $this->response->json(['status' => (bool) $update]);
     }
 
     public function delete($id)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         // Hanya izinkan POST (route GET sudah dihapus)
         if (strtoupper($this->request->method()) !== 'POST') {
-            return $this->response->setStatusCode(405)->setJSON(['status' => false, 'msg' => 'Metode tidak diizinkan']);
+            return $this->response->statusCode(405)->json(['status' => false, 'msg' => 'Metode tidak diizinkan']);
         }
         $id = (int) $id;
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'ID tidak valid']);
+            return $this->response->json(['status' => false, 'msg' => 'ID tidak valid']);
         }
         // Cegah hapus akun sendiri & superadmin utama (id 1)
         if ($id === (int) $this->getUserId()) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Tidak bisa menghapus akun sendiri']);
+            return $this->response->json(['status' => false, 'msg' => 'Tidak bisa menghapus akun sendiri']);
         }
         if ($id === 1) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akun superadmin utama tidak bisa dihapus']);
+            return $this->response->json(['status' => false, 'msg' => 'Akun superadmin utama tidak bisa dihapus']);
         }
         if (! $this->authUser($id)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'User tidak ditemukan']);
+            return $this->response->json(['status' => false, 'msg' => 'User tidak ditemukan']);
         }
         $status = $this->authDeleteUser($id);
 
-        return $this->response->setJSON(['status' => (bool) $status, 'msg' => $status ? 'Admin dihapus' : 'Gagal menghapus']);
+        return $this->response->json(['status' => (bool) $status, 'msg' => $status ? 'Admin dihapus' : 'Gagal menghapus']);
     }
 
     public function uploadFile($id_user)
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         $id_user = (int) $id_user;
         if (! $this->isAdmin() && $id_user !== (int) $this->getUserId()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         // Batas ukuran & tipe ditegakkan di server: periksa nama ekstensi saja
@@ -252,7 +252,7 @@ class UseradminController extends BaseController
             ],
         ];
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => implode(' ', $this->validator->getErrors()),
             ]);
@@ -260,10 +260,10 @@ class UseradminController extends BaseController
 
         $file = $this->request->file('foto');
         if (! $file || ! $file->isValid()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada file yang diunggah.']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada file yang diunggah.']);
         }
         if (false /* was: $file->hasMoved() */) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File sudah pernah diproses — muat ulang halaman lalu unggah lagi.']);
+            return $this->response->json(['status' => false, 'message' => 'File sudah pernah diproses — muat ulang halaman lalu unggah lagi.']);
         }
 
         // Ekstensi simpan diturunkan dari MIME asli (sudah disaring mime_in),
@@ -276,7 +276,7 @@ class UseradminController extends BaseController
         ];
         $ext = $extMap[(string) $file->getMimeType()] ?? null;
         if ($ext === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format file tidak diizinkan. Gunakan JPG, PNG, WEBP, atau GIF.']);
+            return $this->response->json(['status' => false, 'message' => 'Format file tidak diizinkan. Gunakan JPG, PNG, WEBP, atau GIF.']);
         }
 
         // Kepemilikan baris diperiksa SEBELUM move: dulu file sudah menimpa foto
@@ -284,21 +284,21 @@ class UseradminController extends BaseController
         // pernah ada path yang tersimpan di database.
         $target = $this->authUser($id_user);
         if (! $target) {
-            return $this->response->setJSON(['status' => false, 'message' => 'User tidak ditemukan — foto tidak disimpan.']);
+            return $this->response->json(['status' => false, 'message' => 'User tidak ditemukan — foto tidak disimpan.']);
         }
 
         $targetDir = public_path().'/'.'uploads/profiles/';
         if (! is_dir($targetDir) && ! mkdir($targetDir, 0755, true)) {
             Log::error('[Useradmin::uploadFile] folder uploads/profiles gagal dibuat');
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Foto gagal disimpan di server — coba lagi atau lapor ke pengembang.']);
+            return $this->response->json(['status' => false, 'message' => 'Foto gagal disimpan di server — coba lagi atau lapor ke pengembang.']);
         }
 
         $newName = 'foto_'.$id_user.'.'.$ext;
         if (! $file->move($targetDir, $newName, true)) {
             Log::error('[Useradmin::uploadFile] move gagal untuk user#'.$id_user.': '.$file->getError());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Foto gagal disimpan di server — coba lagi, dan bila berulang lapor ke pengembang.',
             ]);
@@ -311,13 +311,13 @@ class UseradminController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Useradmin::uploadFile] update kolom foto users#'.$id_user.' gagal: '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'File foto sudah tersimpan, tapi data user gagal diperbarui — ulangi unggah foto.',
             ]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'src' => url($src).'?v='.time(),
             'filename' => $newName,
@@ -328,14 +328,14 @@ class UseradminController extends BaseController
     public function deleteFile()
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         $idUser = (int) $this->request->input('id_user');
         if (! $this->isAdmin() && $idUser !== (int) $this->getUserId()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         if ($idUser <= 0 || ! $this->authUser($idUser)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID User tidak valid.']);
+            return $this->response->json(['status' => false, 'message' => 'ID User tidak valid.']);
         }
 
         $src = (string) $this->request->input('src');
@@ -344,7 +344,7 @@ class UseradminController extends BaseController
             // File masih ada di disk: jangan laporkan penghapusan yang tidak terjadi.
             Log::error('[Useradmin::deleteFile] unlink gagal untuk '.$rel);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'File foto tidak bisa dihapus dari server — hapus kolomnya saja bila perlu.',
             ]);
@@ -356,10 +356,10 @@ class UseradminController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Useradmin::deleteFile] update kolom foto users#'.$idUser.' gagal: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Data gagal diperbarui — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Data gagal diperbarui — periksa log aplikasi.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Foto profil berhasil dihapus.']);
+        return $this->response->json(['status' => true, 'message' => 'Foto profil berhasil dihapus.']);
     }
 
     /**
@@ -404,7 +404,7 @@ class UseradminController extends BaseController
     public function change_password()
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
         // Username selalu divalidasi; password hanya wajib bila ingin diganti
         // (kolom password dikosongkan = hanya ganti username)
@@ -421,7 +421,7 @@ class UseradminController extends BaseController
         }
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
             ]);
@@ -434,19 +434,19 @@ class UseradminController extends BaseController
 
         // Non-admin hanya boleh mengganti password akunnya sendiri
         if (! $this->isAdmin() && $id !== (int) $this->getUserId()) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'msg' => 'Akses ditolak']);
         }
 
         $user = $this->authUser($id);
         if (! $user) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'User not found']);
+            return $this->response->json(['status' => false, 'msg' => 'User not found']);
         }
 
         // Verifikasi password lama dilakukan SEBELUM ada tulis-menulis.
         // Urutan lama (ganti password, lalu validasi rename) meninggalkan akun
         // dengan password baru ketika rename ditolak.
         if ($wantPassword && ! Hash::check((string) $old, (string) $user->password)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Password lama salah.']);
+            return $this->response->json(['status' => false, 'msg' => 'Password lama salah.']);
         }
 
         $msg = $wantPassword ? 'Password berhasil diubah' : 'Username berhasil diperbarui';
@@ -458,7 +458,7 @@ class UseradminController extends BaseController
             // kehilangan akunnya dan "aktifkan" lalu membuat akun kedua.
             $hasilRename = $this->authRenameUser((int) $user->id, $newUsername);
             if (! $hasilRename['status']) {
-                return $this->response->setJSON(['status' => false, 'msg' => $hasilRename['message']]);
+                return $this->response->json(['status' => false, 'msg' => $hasilRename['message']]);
             }
             $renamed = (bool) ($hasilRename['changed'] ?? false);
             if ($renamed) {
@@ -471,7 +471,7 @@ class UseradminController extends BaseController
 
         $usernameLogin = $renamed ? $newUsername : (string) $user->username;
         if ($wantPassword && ! $this->authChangePassword($usernameLogin, (string) $old, (string) $new)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'msg' => $renamed
                     ? 'Username sudah berganti, tapi password gagal diubah — ulangi ubah password.'
@@ -479,6 +479,6 @@ class UseradminController extends BaseController
             ]);
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => $msg]);
+        return $this->response->json(['status' => true, 'msg' => $msg]);
     }
 }

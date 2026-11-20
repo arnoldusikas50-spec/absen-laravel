@@ -124,23 +124,23 @@ class JadwalController extends BaseController
     public function get_jadwal(?string $hari = null)
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         // Route dengan path (get_jadwal/{hari}) mengirim hari lewat URL,
         // route POST tanpa path (get-jadwal) mengirimnya lewat body/query.
         $hari = trim((string) ($hari ?? $this->request->input('hari', $this->request->input('day', ''))));
         if ($hari === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter hari belum diisi']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter hari belum diisi']);
         }
         if (! preg_match('/^[0-9]{1,2}$/', $hari) || (int) $hari < 1 || (int) $hari > 7) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Parameter hari tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Parameter hari tidak valid']);
         }
         $hari = (string) (int) $hari;
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = $tpSmt->tp;
         $smt = $tpSmt->smt;
@@ -215,7 +215,7 @@ class JadwalController extends BaseController
             $jadwalData[$idKelas] = $mapelKls;
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => [
                 'times' => $timeSlots,
@@ -233,12 +233,12 @@ class JadwalController extends BaseController
     public function save_setting()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -249,13 +249,13 @@ class JadwalController extends BaseController
         $formatted = $this->request->input('format') === 'on';
 
         if ($mulai === null || $selesai === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
         }
         if ($mulai >= $selesai) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jam masuk harus lebih awal dari jam pulang']);
+            return $this->response->json(['status' => false, 'message' => 'Jam masuk harus lebih awal dari jam pulang']);
         }
         if (! in_array($libur, ['0', '1', '2', '3', '4', '5', '6', '7'], true)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Hari libur tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Hari libur tidak valid']);
         }
 
         // Upacara
@@ -314,7 +314,7 @@ class JadwalController extends BaseController
         }
 
         if (empty($insertKbm) && empty($updateKbm)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada rombel pada periode aktif']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada rombel pada periode aktif']);
         }
 
         // insertBatch/updateBatch mengembalikan false tanpa melempar
@@ -334,7 +334,7 @@ class JadwalController extends BaseController
                 DB::rollBack();
                 Log::error('[save_setting] gagal menyimpan KBM: '.implode('; ', $gagal));
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Pengaturan jadwal gagal disimpan ('.implode('; ', $gagal).') — perubahan tidak diterapkan.',
                 ]);
@@ -345,14 +345,14 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[save_setting] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan pengaturan jadwal']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan pengaturan jadwal']);
         }
 
         // Terapkan susunan waktu ke seluruh kelas. Baris istirahat/upacara
         // selalu disinkronkan; slot kosong hanya dibuat bila format dicentang.
         $susun = $this->syncKbmLayout($tp, $smt, $formatted);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $susun
                 ? 'Pengaturan jadwal berhasil disimpan'
@@ -368,12 +368,12 @@ class JadwalController extends BaseController
     public function save_mapel_slot()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -388,18 +388,18 @@ class JadwalController extends BaseController
         $jamSelesai = $this->normalizeTime((string) $this->request->input('jam_selesai'));
 
         if ($idHari < 1 || $idHari > 7) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Hari tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Hari tidak valid']);
         }
         if ($jamMulai === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
         }
         if ($jumlahJam < 0 || $jumlahJam > 20) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jumlah jam pelajaran tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Jumlah jam pelajaran tidak valid']);
         }
 
         $allKelas = $this->elearningModel->getAllKelasSort($tp, $smt);
         if (! isset($allKelas[$idKelas])) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas tidak ditemukan pada periode aktif']);
         }
 
         // Satu sesi mapel diisi sekali saja: jumlah jam menentukan jam selesai,
@@ -412,15 +412,15 @@ class JadwalController extends BaseController
             $jamSelesai = $this->minutesToTime($this->timeToMinutes($jamMulai) + ($jumlahJam * $jamPel));
         }
         if ($jamSelesai === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
+            return $this->response->json(['status' => false, 'message' => 'Format jam tidak valid (HH:MM)']);
         }
         if ($jamMulai >= $jamSelesai) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jam mulai harus lebih awal dari jam selesai']);
+            return $this->response->json(['status' => false, 'message' => 'Jam mulai harus lebih awal dari jam selesai']);
         }
 
         $jamPulang = $this->normalizeTime((string) ($kbmRow->kbm_jam_selesai ?? ''));
         if ($jamPulang !== null && $jamSelesai > $jamPulang) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Rentang '.($jumlahJam > 0 ? $jumlahJam.' jam ' : '').'melebihi jam pulang ('.$jamPulang.')',
             ]);
@@ -428,17 +428,17 @@ class JadwalController extends BaseController
 
         $db = DB::connection();
         if ($idMapel > 0 && ! $db->table('master_mapel')->where('id_mapel', $idMapel)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Mata pelajaran tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Mata pelajaran tidak ditemukan']);
         }
         if ($idMapel > 0 && $idGuru <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Pilih guru pengajar agar jadwal terhubung ke jurnal']);
+            return $this->response->json(['status' => false, 'message' => 'Pilih guru pengajar agar jadwal terhubung ke jurnal']);
         }
 
         $guruNama = '';
         if ($idGuru > 0) {
             $guruRow = $db->table('master_guru')->select('id_guru', 'nama_guru')->where('id_guru', $idGuru)->first();
             if (! $guruRow) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Guru pengajar tidak ditemukan']);
+                return $this->response->json(['status' => false, 'message' => 'Guru pengajar tidak ditemukan']);
             }
             $guruNama = (string) $guruRow->nama_guru;
         }
@@ -451,7 +451,7 @@ class JadwalController extends BaseController
                 ->where('id_smt', $smt)
                 ->first();
             if (! $oldRow) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
+                return $this->response->json(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
             }
         }
 
@@ -475,7 +475,7 @@ class JadwalController extends BaseController
                 $conflictLabel = 'Upacara';
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Bentrok: kelas sudah memiliki '.$conflictLabel.' '.substr((string) $classConflict->dari, 0, 5).'-'.substr((string) $classConflict->sampai, 0, 5),
             ]);
@@ -502,7 +502,7 @@ class JadwalController extends BaseController
                     continue;
                 }
                 if (isset($pairs[(int) $tr->id_kelas.':'.(int) $tr->id_mapel])) {
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Bentrok guru: '.($guruNama ?: 'guru ini').' sudah mengajar di '.($tr->nama_kelas ?: ('kelas #'.$tr->id_kelas)).' pada jam tersebut',
                     ]);
@@ -563,7 +563,7 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[save_mapel_slot] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan jadwal']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan jadwal']);
         }
 
         // Bersihkan penugasan pasangan lama yang sudah tidak punya slot.
@@ -574,7 +574,7 @@ class JadwalController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $msg,
             'id_jadwal' => $idJadwal,
@@ -588,19 +588,19 @@ class JadwalController extends BaseController
     public function delete_mapel()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
 
         $id = (int) $this->request->input('id_jadwal');
         if (! $id) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID Jadwal tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'ID Jadwal tidak ditemukan']);
         }
 
         $db = DB::connection();
@@ -610,7 +610,7 @@ class JadwalController extends BaseController
             ->where('id_smt', $smt)
             ->first();
         if (! $row) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
+            return $this->response->json(['status' => false, 'message' => 'Jadwal tidak ditemukan pada periode aktif']);
         }
 
         DB::beginTransaction();
@@ -619,7 +619,7 @@ class JadwalController extends BaseController
             if (! $deleted) {
                 DB::rollBack();
 
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
+                return $this->response->json(['status' => false, 'message' => 'Gagal menghapus jadwal']);
             }
 
             $this->reindexJamKe($tp, $smt, (int) $row->id_kelas, (int) $row->id_hari);
@@ -633,14 +633,14 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[delete_mapel] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menghapus jadwal']);
         }
 
         if ((int) $row->id_mapel > 0) {
             $this->cleanupPairAssignments($tp, $smt, [(int) $row->id_kelas.':'.(int) $row->id_mapel => true]);
         }
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Jadwal mapel berhasil dihapus']);
+        return $this->response->json(['status' => true, 'message' => 'Jadwal mapel berhasil dihapus']);
     }
 
     /**
@@ -649,7 +649,7 @@ class JadwalController extends BaseController
     public function delete_jadwal()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $type = $this->request->input('type');
@@ -658,7 +658,7 @@ class JadwalController extends BaseController
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -675,7 +675,7 @@ class JadwalController extends BaseController
 
         $affected = $builder->get();
         if (empty($affected)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada jadwal pada periode ini'.($idHari ? ' untuk hari tersebut' : '')]);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada jadwal pada periode ini'.($idHari ? ' untuk hari tersebut' : '')]);
         }
 
         DB::beginTransaction();
@@ -684,7 +684,7 @@ class JadwalController extends BaseController
             if (! $terhapus) {
                 DB::rollBack();
 
-                return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
+                return $this->response->json(['status' => false, 'message' => 'Gagal menghapus jadwal']);
             }
 
             // Sama seperti delete_mapel: jurnal yang tertaut ke slot hari ini
@@ -697,7 +697,7 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[delete_jadwal] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menghapus jadwal']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menghapus jadwal']);
         }
 
         $pairs = [];
@@ -708,7 +708,7 @@ class JadwalController extends BaseController
         }
         $this->cleanupPairAssignments($tp, $smt, $pairs);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => count($affected).' slot jadwal berhasil dihapus',
         ]);
@@ -717,12 +717,12 @@ class JadwalController extends BaseController
     public function reformat_jadwal()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -757,7 +757,7 @@ class JadwalController extends BaseController
             }
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'min_time' => $minTime,
             'max_time' => $maxTime,
@@ -768,12 +768,12 @@ class JadwalController extends BaseController
     public function copy_jadwal()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Access Denied']);
+            return $this->response->json(['status' => false, 'message' => 'Access Denied']);
         }
 
         $tpSmt = $this->getTpSmt();
         if (! $tpSmt->tp || ! $tpSmt->smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tp = (int) $tpSmt->tp->id_tp;
         $smt = (int) $tpSmt->smt->id_smt;
@@ -783,17 +783,17 @@ class JadwalController extends BaseController
 
         $thnLalu = $this->elearningModel->getTpByTahun($thnLaluStr);
         if (! $thnLalu) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun lalu tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun lalu tidak ditemukan']);
         }
         if ($smtLalu <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Semester sumber tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Semester sumber tidak valid']);
         }
 
         // Menyalin periode ke dirinya sendiri akan menghapus jadwal lebih
         // dulu lalu membaca sumber yang sudah kosong — hasil akhirnya
         // semester ini bersih tanpa data. Tolak sebelum apa pun ditulis.
         if ((int) $thnLalu->id_tp === $tp && $smtLalu === $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Periode sumber sama dengan periode aktif — salin dari periode lain.']);
+            return $this->response->json(['status' => false, 'message' => 'Periode sumber sama dengan periode aktif — salin dari periode lain.']);
         }
 
         // Baca sumber sebelum transaksi penghapusan. Kalau sumbernya kosong,
@@ -801,7 +801,7 @@ class JadwalController extends BaseController
         $jadwalKbmLalu = $this->elearningModel->getAllJadwalKbmFull($thnLalu->id_tp, $smtLalu);
         $jadwalMapelLalu = $this->elearningModel->getAllJadwalHarianFull($thnLalu->id_tp, $smtLalu);
         if (empty($jadwalKbmLalu) && empty($jadwalMapelLalu)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Periode sumber tidak punya jadwal untuk disalin — jadwal aktif tidak diubah.']);
+            return $this->response->json(['status' => false, 'message' => 'Periode sumber tidak punya jadwal untuk disalin — jadwal aktif tidak diubah.']);
         }
 
         // 1. Delete Existing for Current TP/SMT
@@ -919,7 +919,7 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[copy_jadwal] '.$e->getMessage().' | baris '.$e->getLine());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Jadwal gagal disalin — jadwal lama Anda tidak diubah. Silakan ulangi.',
             ]);
@@ -934,7 +934,7 @@ class JadwalController extends BaseController
                 .'. Perbaiki kode rombel lalu salin ulang.';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $pesan,
             'lewat' => array_keys($lewatKelas ?? []),
@@ -1506,10 +1506,10 @@ class JadwalController extends BaseController
         }
 
         return $this->response
-            ->setContentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            ->setHeader('Content-Disposition', 'attachment; filename="'.$filename.'"')
-            ->setHeader('Cache-Control', 'no-cache, must-revalidate')
-            ->setBody($content);
+            ->contentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"')
+            ->header('Cache-Control', 'no-cache, must-revalidate')
+            ->body($content);
     }
 
     /**
@@ -1620,7 +1620,7 @@ class JadwalController extends BaseController
     public function import_jadwal()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $tpSmt = $this->getTpSmt();
@@ -1628,19 +1628,19 @@ class JadwalController extends BaseController
         $smt = $tpSmt->smt;
 
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun pelajaran/semester aktif belum diset']);
         }
         $tpId = (int) $tp->id_tp;
         $smtId = (int) $smt->id_smt;
 
         $file = $this->request->file('jadwal_file');
         if (! $file || ! $file->isValid() || false /* was: $file->hasMoved() */) {
-            return $this->response->setJSON(['status' => false, 'message' => 'File tidak valid atau tidak diunggah']);
+            return $this->response->json(['status' => false, 'message' => 'File tidak valid atau tidak diunggah']);
         }
 
         $ext = strtolower((string) $file->getClientOriginalExtension());
         if (! in_array($ext, ['xlsx', 'xls', 'xml', 'csv'], true)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Format file tidak didukung. Gunakan .xlsx, .xls, .xml (Excel 2003) atau .csv',
             ]);
@@ -1651,14 +1651,14 @@ class JadwalController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[import_jadwal] baca file gagal: '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Gagal membaca file. Pastikan isinya benar-benar .xlsx, .xls, .xml (Excel 2003) atau .csv',
             ]);
         }
 
         if (empty($rows)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data valid yang ditemukan dalam file']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data valid yang ditemukan dalam file']);
         }
 
         // Baris judul template bukan data jadwal — jangan dilaporkan gagal.
@@ -1850,7 +1850,7 @@ class JadwalController extends BaseController
         }
 
         if (empty($insert) && ! empty($errorRows)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Semua baris gagal diimpor',
                 'errors' => $errorRows,
@@ -1867,7 +1867,7 @@ class JadwalController extends BaseController
             DB::rollBack();
             Log::error('[import_jadwal] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal mengimpor jadwal']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal mengimpor jadwal']);
         }
 
         // Reindex jam_ke untuk semua kelas yang terpengaruh
@@ -1891,7 +1891,7 @@ class JadwalController extends BaseController
             $pesan .= ' ('.count($errorRows).' baris gagal)';
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => $pesan,
             'inserted' => $success,

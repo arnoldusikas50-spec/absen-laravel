@@ -53,7 +53,7 @@ class KalenderController extends BaseController
     public function getEvents()
     {
         if (! $this->inGroup('guru')) {
-            return $this->response->setStatusCode(403)->setJSON(['error' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['error' => 'Akses ditolak']);
         }
 
         [$bulan, $tahun] = $this->bulanTahunValid();
@@ -99,7 +99,7 @@ class KalenderController extends BaseController
             ];
         }
 
-        return $this->response->setJSON($result);
+        return $this->response->json($result);
     }
 
     /**

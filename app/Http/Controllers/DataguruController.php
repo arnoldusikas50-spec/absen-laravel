@@ -116,7 +116,7 @@ class DataguruController extends BaseController
 
         $gurus = $this->masterModel->getDataGuru($tp->id_tp, $smt->id_smt, $search);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'draw' => $this->request->query('draw'),
             'recordsTotal' => count($gurus),
             'recordsFiltered' => count($gurus),
@@ -232,7 +232,7 @@ class DataguruController extends BaseController
     public function create()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         $nip = $this->request->input('nip');
         $nama_guru = $this->request->input('nama_guru');
@@ -250,7 +250,7 @@ class DataguruController extends BaseController
         }
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
             ]);
@@ -259,7 +259,7 @@ class DataguruController extends BaseController
         // Username juga harus unik di tabel users (akun admin/guru/siswa lain)
         $dbDup = DB::connection();
         if ($dbDup->table('users')->where('username', $username)->count() > 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => ['username' => 'Username sudah dipakai akun lain'],
             ]);
@@ -306,7 +306,7 @@ class DataguruController extends BaseController
                 } catch (\InvalidArgumentException $e) {
                     DB::rollBack();
 
-                    return $this->response->setJSON(['status' => false, 'message' => $e->getMessage()]);
+                    return $this->response->json(['status' => false, 'message' => $e->getMessage()]);
                 }
                 if ($telegramId !== '') {
                     $input['telegram_id'] = $telegramId;
@@ -352,7 +352,7 @@ class DataguruController extends BaseController
                 }
             }
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'kanal' => $kanalNote,
             ]);
@@ -360,13 +360,13 @@ class DataguruController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[Dataguru::create] '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Gagal menyimpan data guru — periksa log aplikasi.',
             ]);
         }
 
-        return $this->response->setJSON(['status' => false]);
+        return $this->response->json(['status' => false]);
     }
 
     /**
@@ -403,12 +403,12 @@ class DataguruController extends BaseController
     public function save()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_guru = (int) $this->request->input('id_guru');
         if ($id_guru <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID guru tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID guru tidak valid']);
         }
 
         // Kolom MySQL yang menolak string kosong — harus dikonversi ke NULL.
@@ -426,7 +426,7 @@ class DataguruController extends BaseController
                     $val = strtoupper($val);
                 }
                 if (mb_strlen($val) > $maxLen) {
-                    return $this->response->setJSON(['status' => false, 'message' => "Field {$field} terlalu panjang (maks {$maxLen} karakter)"]);
+                    return $this->response->json(['status' => false, 'message' => "Field {$field} terlalu panjang (maks {$maxLen} karakter)"]);
                 }
                 // Konversi string kosong → NULL untuk kolom DATE / INT
                 if ($val === '' && (in_array($field, $dateColumns, true) || in_array($field, $intColumns, true))) {
@@ -437,10 +437,10 @@ class DataguruController extends BaseController
             }
         }
         if (empty($data['nama_guru'])) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Nama guru wajib diisi']);
+            return $this->response->json(['status' => false, 'message' => 'Nama guru wajib diisi']);
         }
         if (isset($data['email']) && $data['email'] !== '' && ! filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format email tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format email tidak valid']);
         }
 
         // Status pegawai: hanya nilai resmi yang boleh (mempengaruhi
@@ -450,13 +450,13 @@ class DataguruController extends BaseController
         if (array_key_exists('tmt', $data) && $data['tmt'] !== null) {
             [$thn, $bln, $hri] = array_pad(explode('-', $data['tmt']), 3, '0');
             if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
+                return $this->response->json(['status' => false, 'message' => 'TMT pengangkatan tidak valid (yyyy-mm-dd)']);
             }
         }
         if (array_key_exists('tgl_lahir', $data) && $data['tgl_lahir'] !== null) {
             [$thn, $bln, $hri] = array_pad(explode('-', $data['tgl_lahir']), 3, '0');
             if (! checkdate((int) $bln, (int) $hri, (int) $thn)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Tanggal lahir tidak valid (yyyy-mm-dd)']);
+                return $this->response->json(['status' => false, 'message' => 'Tanggal lahir tidak valid (yyyy-mm-dd)']);
             }
         }
 
@@ -469,7 +469,7 @@ class DataguruController extends BaseController
                 try {
                     $data['telegram_id'] = TelegramLink::normalizeChatId($data['telegram_id']);
                 } catch (\InvalidArgumentException $e) {
-                    return $this->response->setJSON(['status' => false, 'message' => $e->getMessage()]);
+                    return $this->response->json(['status' => false, 'message' => $e->getMessage()]);
                 }
             }
         }
@@ -486,7 +486,7 @@ class DataguruController extends BaseController
         // Get existing guru data to retrieve id_user and existing documents
         $existingGuru = $this->masterModel->getGuruById($id_guru);
         if (! $existingGuru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak ditemukan']);
         }
 
         // Status pegawai nilainya divalidasi di sini (data existing sudah
@@ -499,7 +499,7 @@ class DataguruController extends BaseController
             if ($tetap || in_array($data['status_pegawai'], self::STATUS_PEGAWAI_OPSI, true)) {
                 // ok
             } else {
-                return $this->response->setJSON(['status' => false, 'message' => 'Status pegawai tidak valid']);
+                return $this->response->json(['status' => false, 'message' => 'Status pegawai tidak valid']);
             }
         }
 
@@ -670,7 +670,7 @@ class DataguruController extends BaseController
         }
 
         // method save() ditutup di bawah; blok di atas adalah_if ($success && $waSent)
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $success,
             // Daftar kanal yang benar-benar berubah. Kosong = tidak ada
             // yang perlu disebutkan, dan UI cukup menampilkan pesan umum.
@@ -692,7 +692,7 @@ class DataguruController extends BaseController
             if (Schema::hasColumn('master_guru', 'telegram_id')) {
                 return true;
             }
-            (new CiForge)->addColumn('master_guru', [
+            (new SchemaForge)->addColumn('master_guru', [
                 'telegram_id' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],
             ]);
 
@@ -711,22 +711,22 @@ class DataguruController extends BaseController
     public function delete()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak.']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak.']);
         }
 
         $id = (int) $this->request->input('id_guru');
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak dipilih.']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak dipilih.']);
         }
 
         $guru = $this->masterModel->getGuruById($id);
         if ($guru === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan.']);
+            return $this->response->json(['status' => false, 'message' => 'Data guru tidak ditemukan.']);
         }
 
         if ((int) ($guru->id_user ?? 0) > 0 && (int) $guru->id_user === (int) $this->getUserId()) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Data guru ini tertaut dengan akun yang sedang Anda gunakan dan tidak dapat dihapus.',
             ]);
@@ -736,7 +736,7 @@ class DataguruController extends BaseController
         $total = array_sum($linked);
 
         if ($total > 0) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'count' => $total,
                 'breakdown' => $linked,
@@ -745,7 +745,7 @@ class DataguruController extends BaseController
         }
 
         if (! $this->masterModel->deleteGuruLinked($id)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Gagal menghapus guru. Silakan coba lagi.',
             ]);
@@ -753,7 +753,7 @@ class DataguruController extends BaseController
 
         $this->saveAuditLog(3, 'Menghapus guru ID: '.$id);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Data guru berhasil dihapus.',
         ]);
@@ -766,22 +766,22 @@ class DataguruController extends BaseController
     public function forcedelete()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)
-                ->setJSON(['status' => false, 'message' => 'Akses ditolak.']);
+            return $this->response->statusCode(403)
+                ->json(['status' => false, 'message' => 'Akses ditolak.']);
         }
 
         $id = (int) $this->request->input('id_guru');
         if ($id <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak dipilih.']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak dipilih.']);
         }
 
         $guru = $this->masterModel->getGuruById($id);
         if ($guru === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data guru tidak ditemukan.']);
+            return $this->response->json(['status' => false, 'message' => 'Data guru tidak ditemukan.']);
         }
 
         if ((int) ($guru->id_user ?? 0) > 0 && (int) $guru->id_user === (int) $this->getUserId()) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Data guru ini tertaut dengan akun yang sedang Anda gunakan dan tidak dapat dihapus.',
             ]);
@@ -789,14 +789,14 @@ class DataguruController extends BaseController
 
         $konfirmasi = trim((string) $this->request->input('confirm_nama'));
         if ($konfirmasi === '' || $konfirmasi !== trim((string) $guru->nama_guru)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Konfirmasi nama guru tidak cocok. Ketik nama guru dengan tepat untuk melanjutkan.',
             ]);
         }
 
         if (! $this->masterModel->deleteGuruLinked($id)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Gagal menghapus guru. Periksa log aplikasi lalu coba lagi.',
             ]);
@@ -804,7 +804,7 @@ class DataguruController extends BaseController
 
         $this->saveAuditLog(3, 'Menghapus permanen guru ID: '.$id.' ('.$guru->nama_guru.')');
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Data guru berhasil dihapus permanen.',
         ]);
@@ -1010,14 +1010,14 @@ class DataguruController extends BaseController
     public function do_import()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
         $input = $this->request->input('guru');
         if (empty($input) || ! is_array($input)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data untuk diimport']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data untuk diimport']);
         }
         if (count($input) > 1000) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 1000 baris per import']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 1000 baris per import']);
         }
 
         $db = DB::connection();
@@ -1119,7 +1119,7 @@ class DataguruController extends BaseController
         }
 
         if (empty($valid)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada baris valid untuk diimport',
                 'imported' => 0,
@@ -1158,7 +1158,7 @@ class DataguruController extends BaseController
             DB::rollBack();
             Log::error('[Dataguru::do_import] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan ke database — periksa log aplikasi.']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan ke database — periksa log aplikasi.']);
         }
 
         try {
@@ -1166,7 +1166,7 @@ class DataguruController extends BaseController
         } catch (\Throwable $e) {
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => "Berhasil mengimport {$imported} guru".($errors ? ' ('.count($errors).' baris dilewati)' : ''),
             'total' => $imported,
@@ -1203,9 +1203,9 @@ class DataguruController extends BaseController
         fclose($out);
 
         return $this->response
-            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="format_guru.csv"')
-            ->setBody($csv);
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="format_guru.csv"')
+            ->body($csv);
     }
 
     /**
@@ -1282,7 +1282,7 @@ class DataguruController extends BaseController
     public function saveJabatan()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_guru = (int) $this->request->input('id_guru');
@@ -1290,27 +1290,27 @@ class DataguruController extends BaseController
         $kelas_wali = (int) ($this->request->input('kelas_wali') ?? 0);
 
         if ($id_guru <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID guru tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID guru tidak valid']);
         }
 
         $tp = DB::table('master_tp')->where('active', 1)->first();
         $smt = DB::table('master_smt')->where('active', 1)->first();
         if (! $tp || ! $smt) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
+            return $this->response->json(['status' => false, 'message' => 'Tahun Pelajaran / Semester aktif belum diset']);
         }
 
         $db = DB::connection();
 
         // Guru harus ada
         if (! $db->table('master_guru')->where('id_guru', $id_guru)->count()) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak ditemukan']);
         }
 
         // Level jabatan harus terdaftar (boleh kosong = tanpa jabatan)
         if ($id_level !== '') {
             $levelOk = $db->table('level_guru')->where('id_level', $id_level)->count() > 0;
             if (! $levelOk) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Jabatan tidak valid']);
+                return $this->response->json(['status' => false, 'message' => 'Jabatan tidak valid']);
             }
         }
 
@@ -1332,7 +1332,7 @@ class DataguruController extends BaseController
 
         // Wali kelas harus kelas valid pada TP/SMT aktif
         if ($kelas_wali > 0 && ! isset($validKelas[$kelas_wali])) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Kelas wali tidak valid pada TP/SMT aktif']);
+            return $this->response->json(['status' => false, 'message' => 'Kelas wali tidak valid pada TP/SMT aktif']);
         }
         // Hanya level 4 (Wali Kelas) yang boleh punya kelas wali
         if ($id_level !== '4') {
@@ -1504,7 +1504,7 @@ class DataguruController extends BaseController
                     $labelText .= ' dan '.(count($labels) - 3).' lainnya';
                 }
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Tidak bisa melepas '.$labelText
                         .' karena masih terpasang di jadwal. Tugaskan guru pengganti lewat halaman Edit Jabatan guru baru, atau hapus slot jadwalnya terlebih dahulu.',
@@ -1549,12 +1549,12 @@ class DataguruController extends BaseController
             DB::rollBack();
             Log::error('[saveJabatan] '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan data']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan data']);
         }
 
         $this->saveAuditLog(2, "Mengedit jabatan guru ID: $id_guru pada TP: $tp->id_tp SMT: $smt->id_smt");
 
-        return $this->response->setJSON(['status' => true, 'message' => 'Data berhasil disimpan']);
+        return $this->response->json(['status' => true, 'message' => 'Data berhasil disimpan']);
     }
 
     /**
@@ -1632,31 +1632,31 @@ class DataguruController extends BaseController
     public function save_signature()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_guru = $this->request->input('id_guru');
         $image = $this->request->input('image');
 
         if (empty($image) || empty($id_guru)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data tidak lengkap']);
+            return $this->response->json(['status' => false, 'message' => 'Data tidak lengkap']);
         }
 
         // Batasi ukuran payload base64 ±700KB (≈500KB PNG) cegah DoS
         if (strlen((string) $image) > 700 * 1024) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Gambar tanda tangan terlalu besar']);
+            return $this->response->json(['status' => false, 'message' => 'Gambar tanda tangan terlalu besar']);
         }
 
         $guru = $this->masterModel->getGuruById((int) $id_guru);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak ditemukan']);
         }
         if (! $guru->id_user) {
-            return $this->response->setJSON(['status' => false, 'message' => 'User ID tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'User ID tidak valid']);
         }
 
         if (! preg_match('/^data:image\/png;base64,/', $image)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format gambar tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format gambar tidak valid']);
         }
 
         $image = preg_replace('#^data:image/\w+;base64,#i', '', $image);
@@ -1664,12 +1664,12 @@ class DataguruController extends BaseController
         $data = base64_decode($image, true);
 
         if ($data === false || $data === '') {
-            return $this->response->setJSON(['status' => false, 'message' => 'Gagal decode gambar']);
+            return $this->response->json(['status' => false, 'message' => 'Gagal decode gambar']);
         }
 
         // Pastikan benar file PNG (magic bytes), bukan skrip tersamar
         if (substr($data, 0, 8) !== "\x89PNG\r\n\x1a\n") {
-            return $this->response->setJSON(['status' => false, 'message' => 'Format gambar tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Format gambar tidak valid']);
         }
 
         $file_name = 'ttd_'.$id_guru.'_'.time().'.png';
@@ -1688,14 +1688,14 @@ class DataguruController extends BaseController
 
             $this->updateMasterData('master_guru', ['ttd' => $dbPath], 'id_guru', $id_guru);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'src' => url($dbPath),
                 'message' => 'Tanda tangan berhasil disimpan',
             ]);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal menyimpan file tanda tangan']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal menyimpan file tanda tangan']);
     }
 
     /**
@@ -1704,7 +1704,7 @@ class DataguruController extends BaseController
     public function delete_ttd()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_guru = $this->request->input('id_guru');
@@ -1716,10 +1716,10 @@ class DataguruController extends BaseController
             }
             $this->updateMasterData('master_guru', ['ttd' => null], 'id_guru', $id_guru);
 
-            return $this->response->setJSON(['status' => true, 'message' => 'Tanda tangan berhasil dihapus']);
+            return $this->response->json(['status' => true, 'message' => 'Tanda tangan berhasil dihapus']);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Tanda tangan tidak ditemukan']);
+        return $this->response->json(['status' => false, 'message' => 'Tanda tangan tidak ditemukan']);
     }
 
     /**
@@ -1728,32 +1728,32 @@ class DataguruController extends BaseController
     public function uploadFile($id_guru)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $file = $this->request->file('foto');
         $guru = $this->masterModel->getGuruById((int) $id_guru);
 
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak ditemukan']);
         }
 
         if ($file && $file->isValid() && ! false /* was: $file->hasMoved() */) {
             $id_user = $guru->id_user;
             if (! $id_user) {
-                return $this->response->setJSON(['status' => false, 'message' => 'User ID null']);
+                return $this->response->json(['status' => false, 'message' => 'User ID null']);
             }
 
             // Validasi foto: JPG/PNG ≤ 2MB — cek MIME asli + is_image,
             // bukan hanya ekstensi nama file (mencegah polyglot/upload PHP).
             if ($file->getSize() > 2 * 1024 * 1024) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Ukuran foto maksimal 2MB']);
+                return $this->response->json(['status' => false, 'message' => 'Ukuran foto maksimal 2MB']);
             }
             if (! $file->isValid() || ! in_array($file->getMimeType(), ['image/jpeg', 'image/png'], true)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
+                return $this->response->json(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
             if (! in_array(strtolower($file->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true)) {
-                return $this->response->setJSON(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
+                return $this->response->json(['status' => false, 'message' => 'Format foto harus JPG/PNG']);
             }
 
             $newName = $file->hashName();
@@ -1774,14 +1774,14 @@ class DataguruController extends BaseController
 
             $this->saveAuditLog(2, 'Mengubah foto guru: '.$guru->nama_guru);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'src' => url($dbPath),
                 'filename' => $newName,
             ]);
         }
 
-        return $this->response->setJSON(['status' => false, 'message' => 'Gagal upload foto']);
+        return $this->response->json(['status' => false, 'message' => 'Gagal upload foto']);
     }
 
     /**
@@ -1790,7 +1790,7 @@ class DataguruController extends BaseController
     public function delete_foto($id_guru)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $guru = $this->masterModel->getGuruById((int) $id_guru);
@@ -1810,7 +1810,7 @@ class DataguruController extends BaseController
             $db->table('users')->where('id', $guru->id_user)->update(['foto' => null]);
         }
 
-        return $this->response->setJSON(['status' => true]);
+        return $this->response->json(['status' => true]);
     }
 
     /**
@@ -1853,7 +1853,7 @@ class DataguruController extends BaseController
     public function deleteFile($id_guru)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $src = $this->request->query('src');
@@ -1864,10 +1864,10 @@ class DataguruController extends BaseController
             $this->updateMasterData('master_guru', ['foto' => ''], 'id_guru', $id_guru);
             $this->saveAuditLog(3, 'Menghapus foto guru: '.$file_path);
 
-            return $this->response->setJSON(['status' => true]);
+            return $this->response->json(['status' => true]);
         }
 
-        return $this->response->setJSON(['status' => false]);
+        return $this->response->json(['status' => false]);
     }
 
     /**
@@ -1876,18 +1876,18 @@ class DataguruController extends BaseController
     public function delete_dokumen($id_guru)
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $src = $this->request->query('src');
         $file_name = $this->resolveDeletablePath($src);
         if ($file_name === null) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Path file tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'Path file tidak valid']);
         }
 
         $guru = $this->masterModel->getGuruById((int) $id_guru);
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Guru tidak ditemukan']);
         }
         $dokumen = json_decode($guru->dokumen ?? '{}', true);
         if (! is_array($dokumen)) {
@@ -1917,7 +1917,7 @@ class DataguruController extends BaseController
             $this->saveAuditLog(3, 'Menghapus dokumen '.$file_type.' guru: '.$guru->nama_guru);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Dokumen berhasil dihapus',
             'dokumen' => $dokumen,
@@ -1930,7 +1930,7 @@ class DataguruController extends BaseController
     public function editLogin()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $id_guru = (int) $this->request->input('id_guru');
@@ -1946,7 +1946,7 @@ class DataguruController extends BaseController
         }
 
         if (! $this->validate($rules)) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'errors' => $this->validator->getErrors(),
             ]);
@@ -1956,16 +1956,16 @@ class DataguruController extends BaseController
         $guru = $db->table('master_guru')->where('id_guru', $id_guru)->first();
 
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'text' => 'Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'text' => 'Guru tidak ditemukan']);
         }
         if (! $guru->id_user) {
-            return $this->response->setJSON(['status' => false, 'text' => 'Akun user guru belum ada']);
+            return $this->response->json(['status' => false, 'text' => 'Akun user guru belum ada']);
         }
 
         // Username harus unik (kecuali milik sendiri)
         $dupe = $db->table('users')->where('username', $username)->where('id', '!=', $guru->id_user)->count();
         if ($dupe > 0) {
-            return $this->response->setJSON(['status' => false, 'errors' => ['username' => 'Username sudah dipakai akun lain']]);
+            return $this->response->json(['status' => false, 'errors' => ['username' => 'Username sudah dipakai akun lain']]);
         }
 
         // Update identity
@@ -1983,7 +1983,7 @@ class DataguruController extends BaseController
 
         $this->saveAuditLog(2, 'Mengubah login guru: '.$guru->nama_guru);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'text' => $changedPassword ? 'Berhasil mengganti username & password' : 'Username berhasil diperbarui (password tidak diubah)',
         ]);
@@ -2034,7 +2034,7 @@ class DataguruController extends BaseController
             $guru->jenis_kelamin = $guru->jenis_kelamin ?? '';
         }
 
-        return $this->response->setJSON(['status' => true, 'guru' => $result]);
+        return $this->response->json(['status' => true, 'guru' => $result]);
     }
 
     /**
@@ -2043,15 +2043,15 @@ class DataguruController extends BaseController
     public function update_all()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $update_guru = $this->request->input('guru');
         if (empty($update_guru) || ! is_array($update_guru)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada data untuk diupdate']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada data untuk diupdate']);
         }
         if (count($update_guru) > 1000) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 1.000 baris per update']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 1.000 baris per update']);
         }
 
         // Hanya kolom yang memang boleh ditimpa dari lembar Excel. Sheet selalu
@@ -2189,7 +2189,7 @@ class DataguruController extends BaseController
         if ($clean === []) {
             $petikan = $alasan === [] ? '' : ' — '.implode('; ', array_slice($alasan, 0, 8));
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Tidak ada baris yang bisa disimpan, jadi tidak ada data yang berubah.'.$petikan,
             ]);
@@ -2214,7 +2214,7 @@ class DataguruController extends BaseController
                     DB::rollBack();
                     Log::error('[Dataguru::update_all] update users.password gagal untuk id_user '.$idUser.': '.$e->getMessage());
 
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Sandi guru gagal disimpan. Tidak ada data yang diubah — coba lagi.',
                     ]);
@@ -2228,7 +2228,7 @@ class DataguruController extends BaseController
                     DB::rollBack();
                     Log::error('[Dataguru::update_all] update users.username gagal untuk id_user '.$idUser.': '.$e->getMessage());
 
-                    return $this->response->setJSON([
+                    return $this->response->json([
                         'status' => false,
                         'message' => 'Perubahan username gagal disimpan. Tidak ada data yang diubah — coba lagi.',
                     ]);
@@ -2240,7 +2240,7 @@ class DataguruController extends BaseController
             DB::rollBack();
             Log::error('[Dataguru::update_all] '.$e->getMessage());
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Data guru gagal disimpan. Tidak ada yang diubah — coba lagi, dan bila berulang lapor ke pengembang.',
             ]);
@@ -2249,7 +2249,7 @@ class DataguruController extends BaseController
         $kurang = count($update_guru) - count($clean);
         $this->saveAuditLog(2, 'Mengupdate data '.count($clean).' guru');
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'user' => count($clean),
             'message' => 'Berhasil memperbarui '.count($clean).' guru'
@@ -2263,15 +2263,15 @@ class DataguruController extends BaseController
     public function update_foto()
     {
         if (! $this->isAdmin()) {
-            return $this->response->setJSON(['status' => false]);
+            return $this->response->json(['status' => false]);
         }
 
         $input = $this->request->input('guru');
         if (empty($input) || ! is_array($input)) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Tidak ada foto untuk diupdate']);
+            return $this->response->json(['status' => false, 'message' => 'Tidak ada foto untuk diupdate']);
         }
         if (count($input) > 500) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Maksimal 500 foto per batch']);
+            return $this->response->json(['status' => false, 'message' => 'Maksimal 500 foto per batch']);
         }
 
         $db = DB::connection();
@@ -2354,7 +2354,7 @@ class DataguruController extends BaseController
             } catch (\Throwable $e) {
                 Log::error('[Dataguru::update_foto] update master_guru ditolak DB ('.count($siswas).' baris): '.$e->getMessage());
 
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Foto gagal ditautkan ke data guru. File gambarnya sudah tersimpan — ulangi menyimpan, dan bila berulang lapor ke pengembang.',
                 ]);
@@ -2363,7 +2363,7 @@ class DataguruController extends BaseController
             $this->saveAuditLog(2, 'Mengupdate foto '.$tersimpan.' guru');
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => $tersimpan > 0,
             'user' => $tersimpan,
             'message' => $tersimpan > 0
@@ -2378,7 +2378,7 @@ class DataguruController extends BaseController
     public function assignRfid()
     {
         if (! $this->isLoggedIn() || ! $this->isAdmin()) {
-            return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+            return $this->response->statusCode(403)->json(['status' => false, 'message' => 'Akses ditolak']);
         }
 
         $idGuru = (int) $this->request->input('id_guru');
@@ -2386,19 +2386,19 @@ class DataguruController extends BaseController
         $rfid = strtoupper(str_replace([':', ' ', '-'], '', $rfidRaw));
 
         if ($idGuru <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID Guru tidak valid']);
+            return $this->response->json(['status' => false, 'message' => 'ID Guru tidak valid']);
         }
 
         $guru = DB::table('master_guru')->where('id_guru', $idGuru)->first();
         if (! $guru) {
-            return $this->response->setJSON(['status' => false, 'message' => 'Data Guru tidak ditemukan']);
+            return $this->response->json(['status' => false, 'message' => 'Data Guru tidak ditemukan']);
         }
 
         // Hapus tautan jika dikirim kosong
         if ($rfid === '') {
             DB::table('master_guru')->where('id_guru', $idGuru)->update(['nomor_rfid' => null]);
 
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => true,
                 'message' => 'Kartu RFID guru '.$guru->nama_guru.' berhasil dihapus/dilepas',
                 'nomor_rfid' => '',
@@ -2417,7 +2417,7 @@ class DataguruController extends BaseController
             ->first();
 
         if ($duplicateGuru) {
-            return $this->response->setJSON([
+            return $this->response->json([
                 'status' => false,
                 'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama guru lain: '.$duplicateGuru->nama_guru,
             ]);
@@ -2434,7 +2434,7 @@ class DataguruController extends BaseController
                 ->first();
 
             if ($duplicateSiswa) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'message' => 'Kartu RFID ini ('.$rfid.') sudah terdaftar atas nama Siswa: '.$duplicateSiswa->nama.' (NIS: '.$duplicateSiswa->nis.')',
                 ]);
@@ -2443,7 +2443,7 @@ class DataguruController extends BaseController
 
         DB::table('master_guru')->where('id_guru', $idGuru)->update(['nomor_rfid' => $rfid]);
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'message' => 'Kartu RFID '.$rfid.' berhasil disimpan untuk '.$guru->nama_guru,
             'nomor_rfid' => $rfid,

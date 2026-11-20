@@ -648,7 +648,7 @@ class DashboardController extends BaseController
      */
     public function get_status_siswa()
     {
-        return $this->response->setJSON([
+        return $this->response->json([
             'ruangs' => [],
             'jadwals_ujian' => [],
             'sesisiswa' => [],
@@ -671,7 +671,7 @@ class DashboardController extends BaseController
         $setting = $this->getSettingRow();
 
         if (! $tp || ! $smt || ! $setting) {
-            return $this->response->setJSON(['info_box' => [], 'ujian_box' => []]);
+            return $this->response->json(['info_box' => [], 'ujian_box' => []]);
         }
 
         $data = [
@@ -679,7 +679,7 @@ class DashboardController extends BaseController
             'ujian_box' => $this->getUjianBox($tp->id_tp, $smt->id_smt),
         ];
 
-        return $this->response->setJSON($data);
+        return $this->response->json($data);
     }
 
     /**
@@ -725,9 +725,9 @@ class DashboardController extends BaseController
                 ];
             }
 
-            return $this->response->setJSON(['logs' => $dataLogs, 'total' => $total]);
+            return $this->response->json(['logs' => $dataLogs, 'total' => $total]);
         } catch (\Throwable $th) {
-            return $this->response->setJSON(['logs' => [], 'total' => 0]);
+            return $this->response->json(['logs' => [], 'total' => 0]);
         }
     }
 
@@ -736,7 +736,7 @@ class DashboardController extends BaseController
      */
     public function checkTokenJadwal()
     {
-        return $this->response->setJSON([
+        return $this->response->json([
             'ada_ujian' => 0,
             'token' => (object) ['token' => '', 'auto' => '0', 'jarak' => '1', 'elapsed' => '00:00:00'],
         ]);
@@ -747,7 +747,7 @@ class DashboardController extends BaseController
      */
     public function loadtoken()
     {
-        return $this->response->setJSON((object) ['token' => '', 'auto' => '0', 'now' => date('H:i:s')]);
+        return $this->response->json((object) ['token' => '', 'auto' => '0', 'now' => date('H:i:s')]);
     }
 
     /**
@@ -761,7 +761,7 @@ class DashboardController extends BaseController
 
             if (! $user) {
                 // Return empty if no user (session technically expired but handled gracefully for dashboard widgets)
-                return $this->response->setJSON(['posts' => [], 'total' => 0]);
+                return $this->response->json(['posts' => [], 'total' => 0]);
             }
 
             $role = $this->getUserRole();
@@ -838,13 +838,13 @@ class DashboardController extends BaseController
                 }
             }
 
-            return $this->response->setJSON(['posts' => $mappedPosts, 'total' => count($mappedPosts)]);
+            return $this->response->json(['posts' => $mappedPosts, 'total' => count($mappedPosts)]);
 
         } catch (\Throwable $th) {
             // Log error and return empty to prevent dashboard breakage
             Log::error('[Dashboard::getpost] '.$th->getMessage());
 
-            return $this->response->setJSON(['posts' => [], 'total' => 0, 'error' => 'Gagal memuat postingan']);
+            return $this->response->json(['posts' => [], 'total' => 0, 'error' => 'Gagal memuat postingan']);
         }
     }
 
@@ -885,7 +885,7 @@ class DashboardController extends BaseController
         $ids = $this->request->input($pk) ?? [];
         $label = $this->request->input($kolomLabel) ?? [];
         if (! is_array($ids) || ! is_array($label)) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Data '.strtolower($nama).' tidak terbaca — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'msg' => 'Data '.strtolower($nama).' tidak terbaca — tidak ada yang diubah.']);
         }
 
         $update = [];
@@ -896,7 +896,7 @@ class DashboardController extends BaseController
             }
             $nilaiLabel = trim((string) ($label[$i] ?? ''));
             if ($nilaiLabel === '' || mb_strlen($nilaiLabel) > $maksLabel) {
-                return $this->response->setJSON([
+                return $this->response->json([
                     'status' => false,
                     'msg' => 'Label '.strtolower($nama).' kosong atau lebih dari '.$maksLabel.' karakter — tidak ada yang diubah.',
                 ]);
@@ -905,10 +905,10 @@ class DashboardController extends BaseController
         }
 
         if ($update === []) {
-            return $this->response->setJSON(['status' => false, 'msg' => 'Tidak ada '.strtolower($nama).' yang valid — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'msg' => 'Tidak ada '.strtolower($nama).' yang valid — tidak ada yang diubah.']);
         }
         if (! isset($update[$aktif])) {
-            return $this->response->setJSON(['status' => false, 'msg' => $nama.' yang ingin diaktifkan tidak ada di daftar — tidak ada yang diubah.']);
+            return $this->response->json(['status' => false, 'msg' => $nama.' yang ingin diaktifkan tidak ada di daftar — tidak ada yang diubah.']);
         }
 
         $db = DB::connection();
@@ -923,17 +923,17 @@ class DashboardController extends BaseController
             if ($db->table($tabel)->where('active', 1)->count() !== 1) {
                 DB::rollBack();
 
-                return $this->response->setJSON(['status' => false, 'msg' => $nama.' gagal disimpan: jumlah periode aktif tidak tepat satu.']);
+                return $this->response->json(['status' => false, 'msg' => $nama.' gagal disimpan: jumlah periode aktif tidak tepat satu.']);
             }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('[Dashboard::gantiPeriodeAktif] '.$tabel.' aktif='.$aktif.': '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'msg' => $nama.' gagal disimpan. Data belum berubah.']);
+            return $this->response->json(['status' => false, 'msg' => $nama.' gagal disimpan. Data belum berubah.']);
         }
 
-        return $this->response->setJSON(['status' => true, 'msg' => $nama.' berhasil diganti', 'update' => array_values($update)]);
+        return $this->response->json(['status' => true, 'msg' => $nama.' berhasil diganti', 'update' => array_values($update)]);
     }
 
     /**
@@ -943,7 +943,7 @@ class DashboardController extends BaseController
      */
     private function fiturBelumTersedia(string $apa)
     {
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => false,
             'message' => $apa.' belum tersedia di versi ini — tidak ada data yang diubah.',
             'msg' => $apa.' belum tersedia di versi ini — tidak ada data yang diubah.',

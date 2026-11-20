@@ -601,8 +601,8 @@ class KartuSiswaController extends BaseController
         $lembar = $mode === 'bolakbalik' ? self::pecahPerLembar($siswaList->all(), $grid, $flip) : [];
 
         // Halaman cetak: jangan di-cache browser/proxy agar revisi desain langsung tampil
-        $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        $this->response->setHeader('Pragma', 'no-cache');
+        $this->response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $this->response->header('Pragma', 'no-cache');
 
         $data = [
             'setting' => $setting,
@@ -638,31 +638,31 @@ class KartuSiswaController extends BaseController
     public function getSiswaByKelas(int $idKelas)
     {
         if (! $this->isLoggedIn()) {
-            return $this->response->setStatusCode(401)->setJSON([
+            return $this->response->statusCode(401)->json([
                 'status' => false, 'message' => 'Unauthorized', 'data' => [],
             ]);
         }
         if (! $this->isAdmin() && ! $this->isGuru()) {
-            return $this->response->setStatusCode(403)->setJSON([
+            return $this->response->statusCode(403)->json([
                 'status' => false, 'message' => 'Akses ditolak', 'data' => [],
             ]);
         }
         if ($idKelas <= 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'ID kelas tidak valid', 'data' => []]);
+            return $this->response->json(['status' => false, 'message' => 'ID kelas tidak valid', 'data' => []]);
         }
 
         // Endpoint ini mengembalikan nama/NIS seluruh anggota kelas —
         // wali hanya boleh menanyakan kelasnya sendiri.
         $scopeKelas = $this->idKelasBolehDilihat();
         if ($scopeKelas !== null && ! in_array($idKelas, $scopeKelas, true)) {
-            return $this->response->setStatusCode(403)->setJSON([
+            return $this->response->statusCode(403)->json([
                 'status' => false, 'message' => 'Akses ditolak', 'data' => [],
             ]);
         }
 
         [$idTp, $idSmt, $catatan] = $this->periodeKartu();
         if ($catatan !== '') {
-            return $this->response->setJSON(['status' => false, 'message' => $catatan, 'data' => []]);
+            return $this->response->json(['status' => false, 'message' => $catatan, 'data' => []]);
         }
 
         try {
@@ -682,10 +682,10 @@ class KartuSiswaController extends BaseController
         } catch (\Throwable $e) {
             Log::error('[KartuSiswa::getSiswaByKelas] kelas#'.$idKelas.' gagal dibaca: '.$e->getMessage());
 
-            return $this->response->setJSON(['status' => false, 'message' => 'Daftar siswa kelas ini gagal dibaca — periksa log aplikasi.', 'data' => []]);
+            return $this->response->json(['status' => false, 'message' => 'Daftar siswa kelas ini gagal dibaca — periksa log aplikasi.', 'data' => []]);
         }
 
-        return $this->response->setJSON([
+        return $this->response->json([
             'status' => true,
             'data' => $siswa,
         ]);

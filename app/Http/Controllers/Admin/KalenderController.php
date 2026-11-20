@@ -289,8 +289,8 @@ class KalenderController extends BaseController
         }
 
         return $this->response
-            ->setHeader('Cache-Control', 'no-store, max-age=0')
-            ->setJSON($result);
+            ->header('Cache-Control', 'no-store, max-age=0')
+            ->json($result);
     }
 
     private function payloadEvent(object $e): array
