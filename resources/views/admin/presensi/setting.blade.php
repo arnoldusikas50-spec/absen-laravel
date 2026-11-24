@@ -1,256 +1,150 @@
 @extends('layouts.main')
 
-@section('styles')
-<link rel="stylesheet" href="{{ asset('assets/plugins/dropify/css/dropify.min.css') }}">
-<style>
-    .setting-card {
-        border-radius: 16px;
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        background: #ffffff;
-        transition: box-shadow 0.2s ease, border-color 0.2s ease;
-    }
-    .setting-card:hover {
-        border-color: rgba(203, 213, 225, 0.9);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-    }
-    .tier-box {
-        border-radius: 14px;
-        border: 1.5px solid #e2e8f0;
-        background: #ffffff;
-        transition: all 0.2s ease;
-    }
-    .tier-box:hover {
-        border-color: var(--primary-300);
-        box-shadow: 0 6px 16px rgb(var(--primary-500-rgb) / 0.08);
-        transform: translateY(-1px);
-    }
-    .theme-card {
-        position: relative;
-        text-align: left;
-        border-radius: 16px;
-        border: 1.5px solid #e2e8f0;
-        background: #ffffff;
-        padding: 14px;
-        transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .2s ease;
-    }
-    .theme-card:hover {
-        transform: translateY(-1px);
-        border-color: #cbd5e1;
-        box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
-    }
-    .theme-card.selected {
-        border-color: var(--primary-500);
-        background: var(--primary-50);
-        box-shadow: 0 0 0 3px rgb(var(--primary-500-rgb) / 0.18);
-    }
-    .theme-card .theme-check {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 20px;
-        height: 20px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--primary-600);
-        color: #fff;
-        font-size: 11px;
-        opacity: 0;
-        transform: scale(.7);
-        transition: opacity .18s ease, transform .18s ease;
-    }
-    .theme-card.selected .theme-check {
-        opacity: 1;
-        transform: scale(1);
-    }
-    .theme-swatch {
-        width: 100%;
-        height: 26px;
-        border-radius: 8px;
-        border: 1px solid rgba(15, 23, 42, .06);
-    }
-    .theme-custom-swatch {
-        height: 26px;
-        border-radius: 8px;
-        border: 1px solid rgba(15, 23, 42, .06);
-    }
-    .dropify-wrapper {
-        border-radius: 14px !important;
-        border: 1.5px dashed #cbd5e1 !important;
-        background-color: #f8fafc !important;
-        transition: all 0.2s ease;
-    }
-    .dropify-wrapper:hover {
-        border-color: var(--primary-500) !important;
-        background-color: var(--primary-50) !important;
-    }
-    .dropify-wrapper .dropify-message p {
-        font-size: 0.8rem !important;
-        line-height: 1.3 !important;
-        color: #64748b !important;
-    }
-    .dropify-wrapper .dropify-message span.file-icon {
-        font-size: 1.8rem !important;
-        color: #94a3b8 !important;
-    }
-    .custom-switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-    }
-    .custom-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .custom-switch-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #cbd5e1;
-        transition: .3s;
-        border-radius: 24px;
-    }
-    .custom-switch-slider:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .3s;
-        border-radius: 50%;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    }
-    .custom-switch input:checked + .custom-switch-slider {
-        background-color: var(--primary-600);
-    }
-    .custom-switch input:checked + .custom-switch-slider:before {
-        transform: translateX(20px);
-    }
-    .fixed-bottom-bar {
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-    }
-    @media (max-width: 1023.98px) {
-        .fixed-bottom-bar {
-            left: 0 !important;
-        }
-    }
-    @media (min-width: 1024px) {
-        #main-sidebar:not(.collapsed) ~ div .fixed-bottom-bar {
-            left: 256px !important;
-        }
-        #main-sidebar.collapsed ~ div .fixed-bottom-bar {
-            left: 4.5rem !important;
-        }
-    }
-    .spinner-tw {
-        display: inline-block;
-        width: 1rem;
-        height: 1rem;
-        border: 2px solid rgba(255, 255, 255, 0.45);
-        border-top-color: #fff;
-        border-radius: 50%;
-        animation: spin-tw 0.6s linear infinite;
-        vertical-align: -0.15em;
-        flex-shrink: 0;
-    }
-    .spinner-tw.spinner-tw-dark {
-        border: 2px solid rgb(var(--primary-600-rgb) / 0.25);
-        border-top-color: var(--primary-600);
-    }
-    @keyframes spin-tw {
-        to { transform: rotate(360deg); }
-    }
-    .btn-tw:disabled,
-    .btn-tw[disabled] {
-        opacity: 0.55;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
-    /* Tab Panes */
-    .tab-content, .tab-content-tw { width: 100%; }
-    .tab-pane, .tab-pane-tw { display: none !important; }
-    .tab-pane.active, .tab-pane.show.active,
-    .tab-pane-tw.active, .tab-pane-tw.show.active { display: block !important; animation: fadeInUp 0.2s ease-out; }
-</style>
-@endsection
-
 @section('content')
+@php
+    $satuanPerJenjang = ['1' => ['SD', 'MI'], '2' => ['SMP', 'MTs'], '3' => ['SMA', 'MA', 'SMK']];
 
-<div class="fade-in-up">
-    <!-- Page Header -->
-    <div class="content-header fade-in-up">
-        <div class="page-header">
-            <div class="flex items-center gap-3">
-                <div class="p-2.5 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-500/20">
-                    <i class="bi bi-sliders text-xl"></i>
-                </div>
-                <div>
-                    <h3 class="mb-0 font-bold text-slate-800">Pengaturan Sistem</h3>
-                </div>
-            </div>
-            <nav class="breadcrumb-tw">
-                <a href="{{ url('dashboard') }}" class="no-underline"><i class="bi bi-house-door mr-1"></i>Dashboard</a>
-                <span class="sep">/</span>
-                <span class="active">Pengaturan Sistem</span>
-            </nav>
-        </div>
-    </div>
+    $jadwalAwal = [];
+    foreach ([1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'] as $hariKe => $namaHari) {
+        $baris = null;
+        foreach (($jadwal ?? []) as $j) {
+            if ((int) $j->hari === $hariKe) {
+                $baris = $j;
+                break;
+            }
+        }
+        $jadwalAwal[$hariKe] = [
+            'masuk' => substr((string) ($baris->jam_masuk ?? '07:30'), 0, 5),
+            'pulang' => substr((string) ($baris->jam_pulang ?? '15:00'), 0, 5),
+            'libur' => (bool) ($baris ? $baris->is_libur : ($hariKe === 7 ? 1 : 0)),
+        ];
+    }
 
-    <!-- Main Content Area -->
-    <div class="content-area">
+    $mediaUploads = [
+        ['field' => 'logo_kiri', 'label' => 'Logo Kiri / Aplikasi', 'desc' => 'Logo sidebar & navbar'],
+        ['field' => 'logo_kanan', 'label' => 'Logo Kanan / Yayasan', 'desc' => 'Logo instansi pembina'],
+        ['field' => 'stampel', 'label' => 'Cap / Stempel Sekolah', 'desc' => 'Stempel resmi dokumen (PNG)'],
+        ['field' => 'tanda_tangan', 'label' => 'TTD Kepala Sekolah', 'desc' => 'Tanda tangan digital kepsek'],
+        ['field' => 'kopsekolah', 'label' => 'Kop Surat Sekolah', 'desc' => 'Kop resmi cetak rapor & surat'],
+        ['field' => 'kartu_bg_depan', 'label' => 'Latar Kartu Depan', 'desc' => 'Latar PNG kartu siswa sisi depan (rasio 54:85,6)'],
+        ['field' => 'kartu_bg_belakang', 'label' => 'Latar Kartu Belakang', 'desc' => 'Latar PNG kartu siswa sisi belakang'],
+    ];
+
+    $mediaAwal = [];
+    foreach ($mediaUploads as $item) {
+        // Tampilkan preview hanya bila file benar-benar ada di disk.
+        $rawPath = trim((string) ($setting->{$item['field']} ?? ''));
+        $relPath = ltrim(str_replace(url('/').'/', '', $rawPath), '/');
+        $mediaAwal[$item['field']] = ($rawPath !== '' && strpos($relPath, '..') === false
+            && strpos($relPath, 'uploads/') === 0
+            && is_file(public_path().'/'.$relPath))
+            ? url($relPath)
+            : '';
+    }
+
+    $waModeAwal = strtolower(trim((string) ($absenSetting->wa_gateway_mode ?? '')));
+    if ($waModeAwal === '') {
+        // Instalasi lama hanya punya Fonnte — jangan diam-diam jadi "off".
+        $waModeAwal = (! empty($absenSetting->wa_token) && ! empty($absenSetting->wa_target_number)) ? 'fonnte' : 'off';
+    }
+
+    $teguranFormat = (string) ($setting->surat_teguran_format ?? \App\Libraries\SuratNomor::DEFAULT_FORMAT);
+    $teguranPadding = (int) ($setting->surat_teguran_padding ?? \App\Libraries\SuratNomor::DEFAULT_PADDING);
+    if ($teguranPadding < 1 || $teguranPadding > 6) {
+        $teguranPadding = \App\Libraries\SuratNomor::DEFAULT_PADDING;
+    }
+
+    $pageConfig = [
+        'csrf' => csrf_token(),
+        'urls' => [
+            'profil' => url('settings/saveSetting'),
+            'setting' => url('admin/presensi/setting/save'),
+            'upload' => url('settings/uploadFile'),
+            'hapusFile' => url('settings/deleteFile'),
+            'testNotif' => url('admin/presensi/test-notification'),
+            'cleanPhotos' => url('admin/presensi/clean-photos'),
+            'saveTheme' => url('settings/saveTheme'),
+        ],
+        'satuan' => $satuanPerJenjang,
+        'jenjang' => (string) ($setting->jenjang ?? '3'),
+        'satuanAwal' => (string) ($setting->satuan_pendidikan ?? '1'),
+        'jadwal' => $jadwalAwal,
+        'media' => $mediaAwal,
+        'grace' => (int) ($absenSetting->grace_period ?? 15),
+        'threshold' => (float) ($absenSetting->face_threshold ?? 0.72),
+        'faceMode' => (string) ($absenSetting->face_match_mode ?? 'ai_match'),
+        'simMenit' => 45,
+        'tiers' => [
+            ['denda' => (int) ($absenSetting->denda_tier_1 ?? 100), 'poin' => (int) ($absenSetting->point_tier_1 ?? 1)],
+            ['denda' => (int) ($absenSetting->denda_tier_2 ?? 200), 'poin' => (int) ($absenSetting->point_tier_2 ?? 2)],
+            ['denda' => (int) ($absenSetting->denda_tier_3 ?? 500), 'poin' => (int) ($absenSetting->point_tier_3 ?? 5)],
+        ],
+        'waMode' => $waModeAwal,
+        'wfh' => (bool) ($absenSetting->wfh_enabled ?? 0),
+        'qr' => (bool) ($absenSetting->qr_scan_aktif ?? 1),
+        'teguran' => [
+            'format' => $teguranFormat,
+            'padding' => $teguranPadding,
+            'kode' => (string) ($setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH),
+            'defaultFormat' => \App\Libraries\SuratNomor::DEFAULT_FORMAT,
+            'defaultPadding' => \App\Libraries\SuratNomor::DEFAULT_PADDING,
+            'defaultKode' => \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH,
+            'sekolah' => (string) ($setting->sekolah ?? ''),
+            'npsn' => (string) ($setting->npsn ?? ''),
+            'nss' => (string) ($setting->nss ?? ''),
+            'kepsek' => (string) ($setting->kepsek ?? ''),
+            'nip' => (string) ($setting->nip ?? ''),
+        ],
+        'theme' => [
+            'preset' => (string) ($theme['preset'] ?? 'default'),
+            'custom' => (string) (! empty($theme['custom']) ? $theme['custom'] : '#2563eb'),
+            'client' => \App\Libraries\Theme::clientConfig(),
+        ],
+        'accentShift' => \App\Libraries\Theme::CUSTOM_ACCENT_HUE_SHIFT,
+        'tabAwal' => 'profil',
+    ];
+@endphp
+
+<div class="space-y-4" x-data="settingPage(@js($pageConfig))">
+
+    <x-ui.page-header
+        title="Pengaturan Sistem"
+        icon="bi-sliders"
+        tone="blue"
+        subtitle="Kelola identitas sekolah, jadwal kerja, kebijakan presensi, notifikasi, tema, dan pemeliharaan data."
+        :crumbs="['Pengaturan', 'Sistem']">
+        <x-slot:actions>
+            <a href="{{ url('dashboard') }}"
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-100">
+                <i class="bi bi-arrow-left"></i> Dashboard
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
+
         <div class="w-full">
-            
-            <!-- Modern Segmented Nav Tabs Pills -->
-            <div class="bg-slate-100/95 backdrop-blur-md p-1.5 rounded-2xl mb-6 border border-slate-200/80 overflow-x-auto no-scrollbar shadow-inner sticky top-0 z-20">
-                <div class="flex items-center gap-1.5 min-w-max" id="settingTabs" role="tablist">
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 bg-white text-blue-600 shadow-sm" id="profil-tab" data-ui-toggle="tab" data-ui-target="#profil" aria-selected="true">
-                        <i class="bi bi-building"></i> Profil Sekolah
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="jadwal-tab" data-ui-toggle="tab" data-ui-target="#jadwal" aria-selected="false">
-                        <i class="bi bi-calendar-week"></i> Jadwal &amp; Lokasi
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="wajah-tab" data-ui-toggle="tab" data-ui-target="#wajah" aria-selected="false">
-                        <i class="bi bi-person-bounding-box"></i> Wajah &amp; Kamera
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="poin-tab" data-ui-toggle="tab" data-ui-target="#poin" aria-selected="false">
-                        <i class="bi bi-calculator"></i> Poin &amp; Denda
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="aturan-tab" data-ui-toggle="tab" data-ui-target="#aturan" aria-selected="false">
-                        <i class="bi bi-shield-check"></i> Batasan &amp; WFH
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="notifikasi-tab" data-ui-toggle="tab" data-ui-target="#notifikasi" aria-selected="false">
-                        <i class="bi bi-bell"></i> Notifikasi &amp; OAuth
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="tampilan-tab" data-ui-toggle="tab" data-ui-target="#tampilan" aria-selected="false">
-                        <i class="bi bi-palette"></i> Tampilan
-                    </button>
-                    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-slate-500 hover:text-slate-800 hover:bg-white/60" id="maintenance-tab" data-ui-toggle="tab" data-ui-target="#maintenance" aria-selected="false">
-                        <i class="bi bi-database-gear"></i> Backup &amp; Database
-                    </button>
+
+            <!-- Navigasi tab -->
+            <div class="sticky top-0 z-20 mb-6 overflow-x-auto rounded-2xl border border-slate-200/80 bg-slate-100/95 p-1.5 shadow-inner backdrop-blur">
+                <div class="flex min-w-max items-center gap-1.5" role="tablist">
+                    <template x-for="t in tabOpsi" :key="t.key">
+                        <button type="button" role="tab" @click="pilihTab(t.key)"
+                            :aria-selected="tab === t.key ? 'true' : 'false'"
+                            :class="tab === t.key ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-white/60 hover:text-slate-800'"
+                            class="flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all">
+                            <i class="bi" :class="t.icon"></i>
+                            <span x-text="t.label"></span>
+                        </button>
+                    </template>
                 </div>
             </div>
 
-            <div class="tab-content-tw pt-1" id="settingTabContent">
+            <div class="pt-1">
                 
                 <!-- ==================================================== -->
                 <!-- TAB 1: PROFIL & IDENTITAS SEKOLAH                    -->
                 <!-- ==================================================== -->
-                <div class="tab-pane tab-pane-tw show active" id="profil" role="tabpanel">
+                <div class="space-y-6" x-show="tab === 'profil'" x-cloak id="profil" role="tabpanel">
                     <?php
-                    $satuanList = ['1' => ['SD', 'MI'], '2' => ['SMP', 'MTs'], '3' => ['SMA', 'MA', 'SMK']];
-                    $curJenjang = (string) ($setting->jenjang ?? '3');
-                    $activeSatuan = $satuanList[$curJenjang] ?? ['SMA', 'MA', 'SMK'];
-
                     $bankSoalDateTime = '';
                     if (! empty($setting->ba_waktu) && $setting->ba_waktu !== '0000-00-00 00:00:00') {
                         $dtObj = DateTime::createFromFormat('Y-m-d H:i:s', (string) $setting->ba_waktu);
@@ -261,13 +155,13 @@
                     ?>
                     
                     <!-- Form Text Identitas -->
-                    <form id="profileForm" class="space-y-6">
+                    <form class="space-y-6" x-ref="profilForm" @submit.prevent="simpanProfil()">
                         @csrf
                         
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- Card 1: Identitas Pokok Sekolah -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
@@ -278,50 +172,47 @@
                                             <p class="text-xs text-slate-500 mb-0">Nama resmi sekolah dan jenjang satuan pendidikan</p>
                                         </div>
                                     </div>
-                                    <span class="badge-tw badge-primary text-[10px]">Wajib</span>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Wajib</span>
                                 </div>
                                 <div class="p-6 space-y-4">
                                     <div>
-                                        <label class="form-label-tw">Nama Aplikasi <span class="text-red-500">*</span></label>
-                                        <input type="text" name="nama_aplikasi" class="form-control-tw" value="{{ $setting->nama_aplikasi ?? 'absensi by ikasmedia' }}" required>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Aplikasi <span class="text-red-500">*</span></label>
+                                        <input type="text" name="nama_aplikasi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nama_aplikasi ?? 'absensi by ikasmedia' }}" required>
                                     </div>
                                     <div>
-                                        <label class="form-label-tw">Nama Sekolah / Madrasah <span class="text-red-500">*</span></label>
-                                        <input type="text" name="nama_sekolah" class="form-control-tw" value="{{ $setting->sekolah ?? '' }}" required>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sekolah / Madrasah <span class="text-red-500">*</span></label>
+                                        <input type="text" name="nama_sekolah" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->sekolah ?? '' }}" required>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label class="form-label-tw">NPSN</label>
-                                            <input type="text" name="npsn" class="form-control-tw" value="{{ $setting->npsn ?? '' }}" pattern="[0-9]{8}" title="8 digit angka" placeholder="Contoh: 12345678">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NPSN</label>
+                                            <input type="text" name="npsn" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->npsn ?? '' }}" pattern="[0-9]{8}" title="8 digit angka" placeholder="Contoh: 12345678">
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">NSS / NSM</label>
-                                            <input type="text" name="nss" class="form-control-tw" value="{{ $setting->nss ?? '' }}" placeholder="Nomor statistik sekolah">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NSS / NSM</label>
+                                            <input type="text" name="nss" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nss ?? '' }}" placeholder="Nomor statistik sekolah">
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Kode Sekolah</label>
-                                            <input type="text" name="kode_sekolah" id="kodeSekolahInput" class="form-control-tw" value="{{ $setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH }}" maxlength="50" placeholder="SMAN2.AT">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Sekolah</label>
+                                            <input type="text" name="kode_sekolah" x-model="teguran.kode" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH }}" maxlength="50" placeholder="SMAN2.AT">
                                             <span class="text-xs text-slate-400 mt-1 block">Dipakai pada nomor surat teguran.</span>
                                         </div>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Jenjang <span class="text-red-500">*</span></label>
-                                            <select id="jenjangSelect" class="form-select-tw" name="jenjang" required>
-                                                <option value="1" {{ $curJenjang === '1' ? 'selected' : '' }}>SD / MI</option>
-                                                <option value="2" {{ $curJenjang === '2' ? 'selected' : '' }}>SMP / MTs</option>
-                                                <option value="3" {{ $curJenjang === '3' ? 'selected' : '' }}>SMA / MA / SMK</option>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jenjang <span class="text-red-500">*</span></label>
+                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="jenjang" x-model="jenjang" required>
+                                                <option value="1">SD / MI</option>
+                                                <option value="2">SMP / MTs</option>
+                                                <option value="3">SMA / MA / SMK</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Satuan Pendidikan <span class="text-red-500">*</span></label>
-                                            <select id="satuanSelect" class="form-select-tw" name="satuan_pendidikan" required>
-                                                <?php foreach ($activeSatuan as $idx => $label) {
-                                                    $val = $idx + 1;
-                                                    $selected = ((string) ($setting->satuan_pendidikan ?? '')) === (string) $val ? 'selected' : '';
-                                                    ?>
-                                                    <option value="{{ $val }}" {{ $selected }}>{{ $label }}</option>
-                                                <?php } ?>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Satuan Pendidikan <span class="text-red-500">*</span></label>
+                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="satuan_pendidikan" x-model="satuan" required>
+                                                <template x-for="s in satuanOpsi" :key="s.value">
+                                                    <option :value="s.value" x-text="s.label"></option>
+                                                </template>
                                             </select>
                                         </div>
                                     </div>
@@ -329,7 +220,7 @@
                             </div>
 
                             <!-- Card 2: Alamat & Wilayah -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
@@ -343,38 +234,38 @@
                                 </div>
                                 <div class="p-6 space-y-4">
                                     <div>
-                                        <label class="form-label-tw">Alamat Lengkap Jalan <span class="text-red-500">*</span></label>
-                                        <textarea name="alamat" rows="2" class="form-control-tw" placeholder="Nama jalan, nomor, RT/RW" required>{{ $setting->alamat ?? '' }}</textarea>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alamat Lengkap Jalan <span class="text-red-500">*</span></label>
+                                        <textarea name="alamat" rows="2" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="Nama jalan, nomor, RT/RW" required>{{ $setting->alamat ?? '' }}</textarea>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Desa / Kelurahan <span class="text-red-500">*</span></label>
-                                            <input type="text" name="desa" class="form-control-tw" value="{{ $setting->desa ?? '' }}" required>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Desa / Kelurahan <span class="text-red-500">*</span></label>
+                                            <input type="text" name="desa" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->desa ?? '' }}" required>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Kecamatan <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kec" class="form-control-tw" value="{{ $setting->kecamatan ?? '' }}" required>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kecamatan <span class="text-red-500">*</span></label>
+                                            <input type="text" name="kec" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kecamatan ?? '' }}" required>
                                         </div>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Kabupaten / Kota <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kota" class="form-control-tw" value="{{ $setting->kota ?? '' }}" required>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kabupaten / Kota <span class="text-red-500">*</span></label>
+                                            <input type="text" name="kota" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kota ?? '' }}" required>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Provinsi <span class="text-red-500">*</span></label>
-                                            <input type="text" name="provinsi" class="form-control-tw" value="{{ $setting->provinsi ?? '' }}" required>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Provinsi <span class="text-red-500">*</span></label>
+                                            <input type="text" name="provinsi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->provinsi ?? '' }}" required>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Kode Pos</label>
-                                            <input type="text" name="kode_pos" class="form-control-tw" value="{{ $setting->kode_pos ?? '' }}" placeholder="5 digit">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Pos</label>
+                                            <input type="text" name="kode_pos" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_pos ?? '' }}" placeholder="5 digit">
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Card 3: Kontak Resmi -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
@@ -389,29 +280,29 @@
                                 <div class="p-6 space-y-4">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Nomor Telepon</label>
-                                            <input type="tel" name="tlp" class="form-control-tw" value="{{ $setting->telp ?? '' }}" placeholder="021-xxxxxx">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor Telepon</label>
+                                            <input type="tel" name="tlp" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->telp ?? '' }}" placeholder="021-xxxxxx">
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Faksimili</label>
-                                            <input type="text" name="fax" class="form-control-tw" value="{{ $setting->fax ?? '' }}" placeholder="Nomor fax">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Faksimili</label>
+                                            <input type="text" name="fax" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->fax ?? '' }}" placeholder="Nomor fax">
                                         </div>
                                     </div>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Email Resmi</label>
-                                            <input type="email" name="email" class="form-control-tw" value="{{ $setting->email ?? '' }}" placeholder="admin@sekolah.sch.id">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Email Resmi</label>
+                                            <input type="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->email ?? '' }}" placeholder="admin@sekolah.sch.id">
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Website Resmi</label>
-                                            <input type="url" name="web" class="form-control-tw" value="{{ $setting->web ?? '' }}" placeholder="https://sekolah.sch.id">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Website Resmi</label>
+                                            <input type="url" name="web" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->web ?? '' }}" placeholder="https://sekolah.sch.id">
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Card 4: Penanggung Jawab & Parameter absensi by ikasmedia/AI -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-purple-100/80 rounded-xl p-2.5 text-purple-600">
@@ -425,25 +316,25 @@
                                 <div class="p-6 space-y-4">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Kepala Sekolah <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kepsek" class="form-control-tw" value="{{ $setting->kepsek ?? '' }}" required>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kepala Sekolah <span class="text-red-500">*</span></label>
+                                            <input type="text" name="kepsek" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kepsek ?? '' }}" required>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">NIP Kepala Sekolah</label>
-                                            <input type="text" name="nip" class="form-control-tw" value="{{ $setting->nip ?? '' }}" placeholder="NIP / NUPTK">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NIP Kepala Sekolah</label>
+                                            <input type="text" name="nip" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nip ?? '' }}" placeholder="NIP / NUPTK">
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label class="form-label-tw">API Key AI (OpenAI / Gemini)</label>
-                                        <input type="password" name="api_key" class="form-control-tw" value="{{ $setting->api_key ?? '' }}" placeholder="sk-...">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key AI (OpenAI / Gemini)</label>
+                                        <input type="password" name="api_key" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->api_key ?? '' }}" placeholder="sk-...">
                                         <span class="text-xs text-slate-400 mt-1 block">Digunakan untuk fitur pembuatan soal otomatis berbasis kecerdasan buatan.</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Card 5: Format Penomoran Surat Teguran -->
-                            <div class="setting-card overflow-hidden lg:col-span-2">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden lg:col-span-2">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
@@ -454,51 +345,43 @@
                                             <p class="text-xs text-slate-500 mb-0">Atur pola nomor surat yang tercetak pada PDF dan daftar surat teguran</p>
                                         </div>
                                     </div>
-                                    <span class="badge-tw badge-primary text-[10px]">Surat Teguran</span>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Surat Teguran</span>
                                 </div>
                                 <div class="p-6 space-y-4">
                                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="form-label-tw">Format Nomor</label>
-                                            <input type="text" name="surat_teguran_format" id="teguranFormatInput" class="form-control-tw font-mono" maxlength="120"
-                                                value="{{ $setting->surat_teguran_format ?? \App\Libraries\SuratNomor::DEFAULT_FORMAT }}"
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Format Nomor</label>
+                                            <input type="text" name="surat_teguran_format" x-ref="teguranFormat" x-model="teguran.format"
+                                                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" maxlength="120"
+                                                value="{{ $teguranFormat }}"
                                                 placeholder="{{ \App\Libraries\SuratNomor::DEFAULT_FORMAT }}">
                                             <span class="text-xs text-slate-400 mt-1 block">Gunakan placeholder di bawah. Kosongkan untuk memakai format bawaan.</span>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Jumlah Digit Nomor Urut</label>
-                                            <select name="surat_teguran_padding" id="teguranPaddingInput" class="form-select-tw">
-                                                <?php $curPad = (int) ($setting->surat_teguran_padding ?? \App\Libraries\SuratNomor::DEFAULT_PADDING);
-                    if ($curPad < 1 || $curPad > 6) {
-                        $curPad = \App\Libraries\SuratNomor::DEFAULT_PADDING;
-                    } ?>
-                                                <?php for ($p = 1; $p <= 6; $p++) { ?>
-                                                    <option value="{{ $p }}" {{ $curPad === $p ? 'selected' : '' }}>{{ $p }} digit{{ $p === 3 ? ' (standar)' : '' }}</option>
-                                                <?php } ?>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jumlah Digit Nomor Urut</label>
+                                            <select name="surat_teguran_padding" x-model.number="teguran.padding"
+                                                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                                @for ($p = 1; $p <= 6; $p++)
+                                                    <option value="{{ $p }}">{{ $p }} digit{{ $p === 3 ? ' (standar)' : '' }}</option>
+                                                @endfor
                                             </select>
                                             <span class="text-xs text-slate-400 mt-1 block">Contoh: 3 digit menghasilkan 001, 002, 003.</span>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label class="form-label-tw">Pratinjau Nomor</label>
-                                        <div class="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm text-slate-800 break-all" id="teguranPreview">
-                                            {{ \App\Libraries\SuratNomor::preview(
-                                                (string) ($setting->surat_teguran_format ?? \App\Libraries\SuratNomor::DEFAULT_FORMAT),
-                                                (int) ($setting->surat_teguran_padding ?? \App\Libraries\SuratNomor::DEFAULT_PADDING),
-                                                (string) ($setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH),
-                                                1
-                                            ) }}
-                                        </div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Pratinjau Nomor</label>
+                                        <div class="break-all rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-800" x-text="teguranPreview"></div>
                                     </div>
 
                                     <div>
-                                        <label class="form-label-tw">Placeholder yang Tersedia</label>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Placeholder yang Tersedia</label>
                                         <div class="flex flex-wrap gap-2">
-                                            <?php foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc) { ?>
-                                                <button type="button" class="teguran-ph-btn px-2.5 py-1 rounded-lg text-[11px] font-mono bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200 transition-colors"
-                                                    title="{{ $desc }}" data-ph="{{ $ph }}">{{ $ph }}</button>
-                                            <?php } ?>
+                                            @foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc)
+                                                <button type="button" @click="sisipPlaceholder(@js($ph))"
+                                                    class="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                                                    title="{{ $desc }}">{{ $ph }}</button>
+                                            @endforeach
                                         </div>
                                         <span class="text-xs text-slate-400 mt-2 block">Klik placeholder untuk menyisipkannya ke field format. Perubahan berlaku untuk surat yang terbit setelah disimpan.</span>
                                     </div>
@@ -508,14 +391,17 @@
 
                         <!-- Action Bar Simpan Profil -->
                         <div class="flex justify-end pt-2">
-                            <button type="submit" id="btnSaveProfile" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all">
-                                <i class="bi bi-save"></i> Simpan Profil Sekolah
+                            <button type="submit" :disabled="menyimpanProfil"
+                                class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                <span x-show="menyimpanProfil" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                <i x-show="!menyimpanProfil" class="bi bi-save"></i>
+                                <span x-text="menyimpanProfil ? 'Menyimpan…' : 'Simpan Profil Sekolah'"></span>
                             </button>
                         </div>
                     </form>
 
                     <!-- Card: Identitas Visual & Media Upload -->
-                    <div class="setting-card overflow-hidden mt-8 mb-6">
+                    <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden mt-8 mb-6">
                         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                             <div class="flex items-center gap-3">
                                 <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
@@ -526,60 +412,55 @@
                                     <p class="text-xs text-slate-500 mb-0">Unggah logo resmi, cap stempel, tanda tangan digital, dan kop surat sekolah (Format: JPG/PNG/WEBP, Maks. 5MB)</p>
                                 </div>
                             </div>
-                            <span class="badge-tw badge-warning text-[10px]">Realtime Upload</span>
+                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Realtime Upload</span>
                         </div>
                         <div class="p-6">
-                            <?php
-                            $dropifyUploads = [
-                                ['field' => 'logo_kiri',     'label' => 'Logo Kiri / Aplikasi', 'desc' => 'Logo sidebar & navbar'],
-                                ['field' => 'logo_kanan',    'label' => 'Logo Kanan / Yayasan', 'desc' => 'Logo instansi pembina'],
-                                ['field' => 'stampel',       'label' => 'Cap / Stempel Sekolah', 'desc' => 'Stempel resmi dokumen (PNG)'],
-                                ['field' => 'tanda_tangan',  'label' => 'TTD Kepala Sekolah',   'desc' => 'Tanda tangan digital kepsek'],
-                                ['field' => 'kopsekolah',    'label' => 'Kop Surat Sekolah',    'desc' => 'Kop resmi cetak rapor & surat'],
-                                ['field' => 'kartu_bg_depan',    'label' => 'Latar Kartu Depan',    'desc' => 'Latar PNG kartu siswa sisi depan (rasio 54:85,6)'],
-                                ['field' => 'kartu_bg_belakang', 'label' => 'Latar Kartu Belakang', 'desc' => 'Latar PNG kartu siswa sisi belakang'],
-                            ];
-                    ?>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                <?php foreach ($dropifyUploads as $item) {
-                                    // Tampilkan preview hanya bila file benar-benar ada di disk.
-                                    // Path basi di DB (file sudah hilang) dirender kosong, bukan overlay gelap rusak.
-                                    $rawPath = trim((string) ($setting->{$item['field']} ?? ''));
-                                    $relPath = ltrim(str_replace(url('/').'/', '', $rawPath), '/');
-                                    $fileVal = ($rawPath !== '' && strpos($relPath, '..') === false
-                                        && strpos($relPath, 'uploads/') === 0
-                                        && is_file(public_path().'/'.$relPath))
-                                        ? url($relPath)
-                                        : '';
-                                    ?>
-                                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between hover:border-slate-300 transition-colors">
-                                    <div class="mb-2.5">
-                                        <label class="font-bold text-xs text-slate-800 block mb-0.5">{{ $item['label'] }}</label>
-                                        <span class="text-[11px] text-slate-400 block truncate">{{ $item['desc'] }}</span>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                @foreach ($mediaUploads as $item)
+                                    @php $field = $item['field']; @endphp
+                                    <div class="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 transition-colors hover:border-slate-300">
+                                        <div class="mb-2.5">
+                                            <label class="mb-0.5 block text-xs font-bold text-slate-800">{{ $item['label'] }}</label>
+                                            <span class="block truncate text-[11px] text-slate-400">{{ $item['desc'] }}</span>
+                                        </div>
+                                        <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white">
+                                            <img x-show="media['{{ $field }}']" :src="media['{{ $field }}']" alt="{{ $item['label'] }}"
+                                                class="h-full w-full object-contain p-1">
+                                            <span x-show="!media['{{ $field }}']" class="text-[11px] text-slate-400">Belum ada file</span>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <label class="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100">
+                                                <i class="bi bi-upload me-1"></i>Pilih File
+                                                <input type="file" class="hidden" accept="image/png,image/jpeg,image/webp"
+                                                    @change="unggahMedia($event, '{{ $field }}')">
+                                            </label>
+                                            <button type="button" x-show="media['{{ $field }}']" x-cloak
+                                                @click="hapusMedia('{{ $field }}')"
+                                                class="rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-red-600 transition-colors hover:bg-red-50">
+                                                <i class="bi bi-trash me-1"></i>Hapus
+                                            </button>
+                                            <span x-show="mediaLoading['{{ $field }}']" x-cloak class="text-[11px] text-slate-400">Mengunggah…</span>
+                                        </div>
                                     </div>
-                                    <input type="file" name="logo" class="dropify" data-field="{{ $item['field'] }}"
-                                           data-max-file-size="5M" data-allowed-file-extensions="jpg jpeg png webp"
-                                           data-default-file="{{ $fileVal }}">
-                                </div>
-                                <?php } ?>
+                                @endforeach
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Form Setting Presensi Wrapping Tab 2 to 6 -->
-                <form id="settingForm" autocomplete="off">
+                <form autocomplete="off" x-ref="settingForm" @submit.prevent="simpanPengaturan()">
                     @csrf
 
                     <!-- ==================================================== -->
                     <!-- TAB 2: JADWAL KERJA & LOKASI GEOFENCE                -->
                     <!-- ==================================================== -->
-                    <div class="tab-pane tab-pane-tw" id="jadwal" role="tabpanel">
+                    <div class="space-y-6" x-show="tab === 'jadwal'" x-cloak id="jadwal" role="tabpanel">
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             
                             <!-- Jadwal Kerja Mingguan Table -->
                             <div class="lg:col-span-2">
-                                <div class="setting-card overflow-hidden">
+                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50">
                                         <div class="flex items-center gap-3">
                                             <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
@@ -590,14 +471,14 @@
                                                 <p class="text-xs text-slate-500 mb-0">Atur jam masuk, jam pulang, dan status hari libur</p>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn-tw btn-tw-sm btn-outline-primary" id="btnCopyMon">
+                                        <button type="button" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50" @click="terapkanSenin()">
                                             <i class="bi bi-copy mr-1"></i> Terapkan Senin ke Semua
                                         </button>
                                     </div>
                                     <div class="p-0">
                                         <div class="overflow-x-auto">
-                                            <table class="table-tw w-full">
-                                                <thead class="table-tw">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                                     <tr>
                                                         <th class="w-32">Hari</th>
                                                         <th>Jam Masuk</th>
@@ -628,18 +509,15 @@
                                                             {{ $dayName }}
                                                         </td>
                                                         <td>
-                                                            <input type="time" class="form-control-tw py-1.5 text-sm" 
-                                                                name="jadwal[{{ $k }}][jam_masuk]" id="masuk_{{ $k }}" value="{{ substr($jamMasuk, 0, 5) }}">
+                                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
+                                                                name="jadwal[{{ $k }}][jam_masuk]" x-model="jadwal[{{ $k }}].masuk" value="{{ substr($jamMasuk, 0, 5) }}">
                                                         </td>
                                                         <td>
-                                                            <input type="time" class="form-control-tw py-1.5 text-sm" 
-                                                                name="jadwal[{{ $k }}][jam_pulang]" id="pulang_{{ $k }}" value="{{ substr($jamPulang, 0, 5) }}">
+                                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
+                                                                name="jadwal[{{ $k }}][jam_pulang]" x-model="jadwal[{{ $k }}].pulang" value="{{ substr($jamPulang, 0, 5) }}">
                                                         </td>
                                                         <td class="text-center">
-                                                            <label class="custom-switch my-auto">
-                                                                <input type="checkbox" name="jadwal[{{ $k }}][is_libur]" value="1" {{ $isLibur ? 'checked' : '' }}>
-                                                                <span class="custom-switch-slider"></span>
-                                                            </label>
+                                                            <label class="relative my-auto inline-flex h-6 w-11 shrink-0 cursor-pointer items-center"><input type="checkbox" class="peer sr-only" name="jadwal[{{ $k }}][is_libur]" value="1" x-model="jadwal[{{ $k }}].libur"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span></label>
                                                         </td>
                                                     </tr>
                                                     <?php } ?>
@@ -661,7 +539,7 @@
                                  diturunkan otomatis saat disimpan. -->
                             <div class="space-y-6">
                                 <!-- Toleransi Batas Waktu Keterlambatan (Grace Period) -->
-                                <div class="setting-card overflow-hidden border-l-4 border-l-amber-500 shadow-sm">
+                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden border-l-4 border-l-amber-500 shadow-sm">
                                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
                                         <div class="flex items-center gap-3">
                                             <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600 shrink-0">
@@ -672,18 +550,18 @@
                                                 <p class="text-xs text-slate-500 mb-0">Kelonggaran menit sebelum absensi dinyatakan terlambat</p>
                                             </div>
                                         </div>
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0" id="badge-grace-preview">
-                                            <i class="bi bi-stopwatch"></i> <span id="text-grace-preview">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</span>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                            <i class="bi bi-stopwatch"></i> <span x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</span>
                                         </span>
                                     </div>
                                     <div class="p-6 space-y-4">
                                         <div>
-                                            <label class="form-label-tw" for="input_grace_period">Toleransi Keterlambatan (Grace Period)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="input_grace_period">Toleransi Keterlambatan (Grace Period)</label>
                                             <div class="flex items-center gap-2">
                                                 <div class="relative flex-1">
                                                     <i class="bi bi-stopwatch absolute left-3 top-3 text-slate-400"></i>
-                                                    <input type="number" class="form-control-tw pl-9 font-bold text-slate-800 text-base" 
-                                                        id="input_grace_period" name="grace_period" 
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9 font-bold text-slate-800 text-base" 
+                                                        id="input_grace_period" name="grace_period" x-model.number="grace"
                                                         value="{{ $absenSetting->grace_period ?? 15 }}" min="0" max="120" step="1" required>
                                                 </div>
                                                 <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 shrink-0">Menit</span>
@@ -696,19 +574,19 @@
                                             <div class="font-bold flex items-center gap-1.5 text-amber-800 text-xs">
                                                 <i class="bi bi-info-circle-fill text-amber-600"></i> Contoh Simulasi Batas Waktu Masuk:
                                             </div>
-                                            <div class="bg-white/90 rounded-xl p-3 border border-amber-200/80 text-slate-700 leading-relaxed font-mono text-[11px] space-y-1" id="grace-simulation-box">
+                                            <div class="bg-white/90 rounded-xl p-3 border border-amber-200/80 text-slate-700 leading-relaxed font-mono text-[11px] space-y-1">
                                                 <div class="text-slate-600 font-sans font-semibold pb-1 border-b border-slate-100 flex items-center justify-between">
-                                                    <span>Jam Masuk: <strong id="sim-jam-masuk" class="text-slate-800">07:15</strong></span>
-                                                    <span>Toleransi: <strong id="sim-toleransi" class="text-amber-700">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</strong></span>
+                                                    <span>Jam Masuk: <strong class="text-slate-800" x-text="jadwal[1].masuk || '07:15'">07:15</strong></span>
+                                                    <span>Toleransi: <strong class="text-amber-700" x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</strong></span>
                                                 </div>
                                                 <div class="pt-1 flex items-center gap-2">
                                                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    <span>Absensi s/d <strong class="text-emerald-700 font-bold font-mono" id="sim-batas-ontime">07:30</strong>:</span>
+                                                    <span>Absensi s/d <strong class="font-bold font-mono text-emerald-700" x-text="batasOntime">07:30</strong>:</span>
                                                     <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-sans font-bold">Tepat Waktu (Belum Terlambat)</span>
                                                 </div>
                                                 <div class="flex items-center gap-2">
                                                     <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                                                    <span>Absensi mulai <strong class="text-red-700 font-bold font-mono" id="sim-batas-late">07:31</strong>:</span>
+                                                    <span>Absensi mulai <strong class="font-bold font-mono text-red-700" x-text="batasTelat">07:31</strong>:</span>
                                                     <span class="inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-sans font-bold">Terlambat</span>
                                                 </div>
                                             </div>
@@ -720,7 +598,7 @@
                                 </div>
 
                                 <!-- Radius & Geofence GPS -->
-                                <div class="setting-card overflow-hidden">
+                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                     <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                         <div class="bg-rose-100/80 rounded-xl p-2 text-rose-600">
                                             <i class="bi bi-geo-alt-fill text-lg"></i>
@@ -732,11 +610,11 @@
                                     </div>
                                     <div class="p-6 space-y-4">
                                         <div>
-                                            <label class="form-label-tw">Toleransi Jarak Absen</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Jarak Absen</label>
                                             <div class="flex items-center gap-2">
                                                 <div class="relative flex-1">
                                                     <i class="bi bi-broadcast absolute left-3 top-3 text-slate-400"></i>
-                                                    <input type="number" class="form-control-tw pl-9" name="radius_meter" 
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9" name="radius_meter" 
                                                         value="{{ $absenSetting->radius_meter ?? 100 }}" min="10" max="5000" required>
                                                 </div>
                                                 <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">Meter</span>
@@ -749,7 +627,7 @@
                                                 <i class="bi bi-pin-map text-blue-600"></i> Titik Lokasi Kampus / Kantor
                                             </div>
                                             <p class="text-xs text-slate-500 mb-3">Kelola koordinat GPS multi-lokasi kantor cabang atau kampus pembelajaran.</p>
-                                            <a href="{{ url('admin/presensi/lokasi') }}" class="btn-tw btn-tw-sm btn-primary w-full justify-center">
+                                            <a href="{{ url('admin/presensi/lokasi') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 w-full">
                                                 <i class="bi bi-map mr-1"></i> Kelola Titik Lokasi ({{ count($locations ?? []) }} Lokasi)
                                             </a>
                                         </div>
@@ -759,7 +637,7 @@
                         </div>
 
                         <!-- Integrasi Jadwal & Jurnal Mengajar -->
-                        <div class="setting-card overflow-hidden mt-6">
+                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden mt-6">
                             <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                 <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
                                     <i class="bi bi-journal-check text-lg"></i>
@@ -778,9 +656,9 @@
                                             Guru tanpa jadwal, sesi yang belum selesai, hari libur, dan absen Dinas dikecualikan.
                                         </span>
                                     </div>
-                                    <label class="custom-switch shrink-0 ml-3">
-                                        <input type="checkbox" name="wajib_jurnal_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_sebelum_pulang ?? 1) === 1 ? 'checked' : '' }}>
-                                        <span class="custom-switch-slider"></span>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="wajib_jurnal_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_sebelum_pulang ?? 1) === 1 ? 'checked' : '' }}>
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                     </label>
                                 </div>
 
@@ -795,9 +673,9 @@
                                             Aktif hanya bila sakelar di atas juga aktif.
                                         </span>
                                     </div>
-                                    <label class="custom-switch shrink-0 ml-3">
-                                        <input type="checkbox" name="wajib_jurnal_tervalidasi_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_tervalidasi_sebelum_pulang ?? 0) === 1 ? 'checked' : '' }}>
-                                        <span class="custom-switch-slider"></span>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="wajib_jurnal_tervalidasi_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_tervalidasi_sebelum_pulang ?? 0) === 1 ? 'checked' : '' }}>
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                     </label>
                                 </div>
                             </div>
@@ -807,11 +685,11 @@
                     <!-- ==================================================== -->
                     <!-- TAB 3: VERIFIKASI BIOMETRIK & KAMERA                 -->
                     <!-- ==================================================== -->
-                    <div class="tab-pane tab-pane-tw" id="wajah" role="tabpanel">
+                    <div class="space-y-6" x-show="tab === 'wajah'" x-cloak id="wajah" role="tabpanel">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- AI Face Recognition -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-cyan-100/80 rounded-xl p-2.5 text-cyan-600">
@@ -822,10 +700,10 @@
                                             <p class="text-xs text-slate-500 mb-0">Model neural network pencocokan wajah guru</p>
                                         </div>
                                     </div>
-                                    <span class="badge-tw badge-info text-[10px]">ResNet-34 AI</span>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 text-[10px]">ResNet-34 AI</span>
                                 </div>
                                 <div class="p-6 space-y-5">
-                                    <div class="alert-tw alert-info flex items-center gap-3">
+                                    <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 flex items-center gap-3">
                                         <i class="bi bi-cpu text-2xl text-blue-600 shrink-0"></i>
                                         <div class="text-xs">
                                             Sistem menggunakan modul <b>Face-API AI (128D Face Descriptor)</b> untuk membandingkan wajah selfie dengan foto profil terdaftar secara real-time di browser.
@@ -834,18 +712,19 @@
 
                                     <!-- Mode Verifikasi Radio Cards -->
                                     <div>
-                                        <label class="form-label-tw">Mode Kamera Face ID</label>
-                                        <?php $matchMode = $absenSetting->face_match_mode ?? 'ai_match'; ?>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <label class="p-3.5 border-2 rounded-xl block cursor-pointer transition-all {{ $matchMode === 'ai_match' ? 'border-blue-500 bg-blue-50/50 text-blue-900' : 'border-slate-200 hover:border-slate-300' }}">
-                                                <input class="sr-only" type="radio" name="face_match_mode" value="ai_match" {{ $matchMode === 'ai_match' ? 'checked' : '' }}>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Mode Kamera Face ID</label>
+                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                            <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
+                                                :class="faceMode === 'ai_match' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
+                                                <input class="sr-only" type="radio" name="face_match_mode" value="ai_match" x-model="faceMode">
                                                 <div class="font-bold text-sm flex items-center gap-2">
                                                     <i class="bi bi-shield-check text-blue-600"></i> Selfie + AI Match
                                                 </div>
                                                 <span class="text-xs text-slate-500 block mt-1">Verifikasi kecocokan wajah selfie dengan foto profil guru secara biometrik.</span>
                                             </label>
-                                            <label class="p-3.5 border-2 rounded-xl block cursor-pointer transition-all {{ $matchMode === 'selfie_only' ? 'border-blue-500 bg-blue-50/50 text-blue-900' : 'border-slate-200 hover:border-slate-300' }}">
-                                                <input class="sr-only" type="radio" name="face_match_mode" value="selfie_only" {{ $matchMode === 'selfie_only' ? 'checked' : '' }}>
+                                            <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
+                                                :class="faceMode === 'selfie_only' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
+                                                <input class="sr-only" type="radio" name="face_match_mode" value="selfie_only" x-model="faceMode">
                                                 <div class="font-bold text-sm flex items-center gap-2">
                                                     <i class="bi bi-camera text-slate-600"></i> Hanya Foto Selfie
                                                 </div>
@@ -855,16 +734,15 @@
                                     </div>
 
                                     <!-- Sensitivitas / Threshold -->
-                                    <?php $currentThreshold = (float) ($absenSetting->face_threshold ?? 0.72); ?>
                                     <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label class="form-label-tw mb-0">Toleransi Kemiripan (Match Threshold)</label>
-                                            <span class="badge-tw badge-primary font-mono text-xs px-2.5 py-0.5" id="thresholdBadge">{{ number_format($currentThreshold, 2) }}</span>
+                                        <div class="mb-2 flex items-center justify-between">
+                                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Kemiripan (Match Threshold)</label>
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-bold text-blue-700" x-text="threshold.toFixed(2)">0.72</span>
                                         </div>
 
-                                        <input type="range" class="w-full accent-blue-600 cursor-pointer" id="thresholdRange" min="0.55" max="0.85" step="0.01" 
-                                            value="{{ $currentThreshold }}" oninput="updateThreshold(this.value)">
-                                        <input type="hidden" name="face_threshold" id="faceThresholdInput" value="{{ $currentThreshold }}">
+                                        <input type="range" class="w-full cursor-pointer accent-blue-600" min="0.55" max="0.85" step="0.01"
+                                            x-model.number="threshold">
+                                        <input type="hidden" name="face_threshold" :value="threshold">
 
                                         <div class="flex justify-between text-[11px] text-slate-400 mt-1 mb-3">
                                             <span>0.55 (Ketat)</span>
@@ -874,27 +752,25 @@
 
                                         <!-- Quick Presets -->
                                         <div class="flex gap-2 flex-wrap">
-                                            <button type="button" class="btn-tw btn-tw-sm {{ abs($currentThreshold - 0.65) < 0.01 ? 'btn-primary' : 'btn-light' }} text-xs py-1" onclick="setPreset(0.65)">
-                                                Ketat (0.65)
-                                            </button>
-                                            <button type="button" class="btn-tw btn-tw-sm {{ abs($currentThreshold - 0.72) < 0.01 ? 'btn-primary' : 'btn-light' }} text-xs py-1" onclick="setPreset(0.72)">
-                                                ⭐ Rekomendasi (0.72)
-                                            </button>
-                                            <button type="button" class="btn-tw btn-tw-sm {{ abs($currentThreshold - 0.78) < 0.01 ? 'btn-primary' : 'btn-light' }} text-xs py-1" onclick="setPreset(0.78)">
-                                                Fleksibel (0.78)
-                                            </button>
+                                            <template x-for="p in thresholdPreset" :key="p.nilai">
+                                                <button type="button" @click="threshold = p.nilai"
+                                                    :class="Math.abs(threshold - p.nilai) < 0.01 ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                                    class="rounded-lg px-3 py-1 text-[11px] font-bold transition-colors">
+                                                    <span x-text="p.label"></span>
+                                                </button>
+                                            </template>
                                         </div>
 
-                                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 mt-3" id="thresholdDesc">
-                                            <div class="font-semibold text-slate-800" id="descTitle">Rekomendasi (0.72)</div>
-                                            <p class="mb-0 mt-0.5" id="descDetail">Nilai seimbang terbaik untuk berbagai pencahayaan kamera smartphone (menerima variasi wajar kacamata &amp; hijab).</p>
+                                        <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                                            <div class="font-semibold text-slate-800" :class="thresholdWarna" x-text="thresholdJudul"></div>
+                                            <p class="mt-0.5 text-slate-600" x-text="thresholdDetail"></p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Aturan Kamera & Foto Profil -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                     <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
                                         <i class="bi bi-camera text-lg"></i>
@@ -910,9 +786,9 @@
                                             <span class="font-bold block text-sm text-slate-800">Wajib Foto Selfie (Face ID)</span>
                                             <span class="text-xs text-slate-500">Berlaku hanya untuk absen masuk &amp; pulang via Face ID. Absen QR tidak memerlukan foto atau verifikasi wajah.</span>
                                         </div>
-                                        <label class="custom-switch shrink-0 ml-3">
-                                            <input type="checkbox" name="foto_wajib" value="1" {{ ($absenSetting->foto_wajib ?? true) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                            <input type="checkbox" class="peer sr-only" name="foto_wajib" value="1" {{ ($absenSetting->foto_wajib ?? true) ? 'checked' : '' }}>
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
 
@@ -921,9 +797,9 @@
                                             <span class="font-bold block text-sm text-slate-800">Verifikasi Wajah Saat WFH</span>
                                             <span class="text-xs text-slate-500">Wajib memverifikasi kecocokan wajah jika melakukan presensi dari rumah (WFH).</span>
                                         </div>
-                                        <label class="custom-switch shrink-0 ml-3">
-                                            <input type="checkbox" name="wfh_wajib_wajah" value="1" {{ ($absenSetting->wfh_wajib_wajah ?? 1) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                            <input type="checkbox" class="peer sr-only" name="wfh_wajib_wajah" value="1" {{ ($absenSetting->wfh_wajib_wajah ?? 1) ? 'checked' : '' }}>
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
 
@@ -932,7 +808,7 @@
                                             <i class="bi bi-person-lines-fill text-indigo-600"></i> Pembaruan Foto Profil Guru
                                         </div>
                                         <p class="text-xs text-slate-500 mb-3">Pastikan guru memiliki foto profil jelas berlatar polos agar AI dapat mendeteksi landmark wajah secara akurat.</p>
-                                        <a href="{{ url('dataguru') }}" class="btn-tw btn-tw-sm btn-outline-primary">
+                                        <a href="{{ url('dataguru') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
                                             <i class="bi bi-people mr-1"></i> Buka Manajemen Data Guru
                                         </a>
                                     </div>
@@ -944,11 +820,11 @@
                     <!-- ==================================================== -->
                     <!-- TAB 4: POIN, REWARD & SANKSI DENDA                   -->
                     <!-- ==================================================== -->
-                    <div class="tab-pane tab-pane-tw" id="poin" role="tabpanel">
+                    <div class="space-y-6" x-show="tab === 'poin'" x-cloak id="poin" role="tabpanel">
                         <div class="space-y-6">
                             
                             <!-- 1. Poin Dasar Kehadiran (Flat) -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
@@ -963,33 +839,33 @@
                                 <div class="p-6">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Hadir Tepat Waktu</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Hadir Tepat Waktu</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold text-emerald-600" name="point_hadir" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-emerald-600" name="point_hadir" 
                                                     value="{{ $absenSetting->point_hadir ?? 10 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">Poin</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Izin Resmi</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin Resmi</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="point_izin" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_izin" 
                                                     value="{{ $absenSetting->point_izin ?? 0 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">Poin</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Sakit Sah</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit Sah</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="point_sakit" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_sakit" 
                                                     value="{{ $absenSetting->point_sakit ?? 0 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">Poin</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Cuti Disetujui</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti Disetujui</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="point_cuti" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_cuti" 
                                                     value="{{ $absenSetting->point_cuti ?? 0 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">Poin</span>
                                             </div>
@@ -999,7 +875,7 @@
                             </div>
 
                             <!-- 2. Reward Datang Lebih Awal (Early Bird) -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
@@ -1014,33 +890,33 @@
                                 <div class="p-6">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Tier 1 (1 - 15 Mnt Awal)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 1 (1 - 15 Mnt Awal)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="reward_point_tier_1" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_1" 
                                                     value="{{ $absenSetting->reward_point_tier_1 ?? 1 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Tier 2 (16 - 60 Mnt Awal)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 2 (16 - 60 Mnt Awal)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="reward_point_tier_2" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_2" 
                                                     value="{{ $absenSetting->reward_point_tier_2 ?? 1 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Tier 3 (&gt; 60 Mnt Awal)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 3 (&gt; 60 Mnt Awal)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="reward_point_tier_3" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_3" 
                                                     value="{{ $absenSetting->reward_point_tier_3 ?? 2 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Batas Maksimal Reward</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Maksimal Reward</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw" name="reward_cap_menit" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_cap_menit" 
                                                     value="{{ $absenSetting->reward_cap_menit ?? 30 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">Menit</span>
                                             </div>
@@ -1050,7 +926,7 @@
                             </div>
 
                             <!-- 3. Sanksi & Poin Pelanggaran -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-red-100/80 rounded-xl p-2.5 text-red-600">
@@ -1065,25 +941,25 @@
                                 <div class="p-6">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Terlambat Masuk (LATE)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Terlambat Masuk (LATE)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold text-amber-600" name="point_telat" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-amber-600" name="point_telat" 
                                                     value="{{ $absenSetting->point_telat ?? 1 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">pt / kejadian</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Alpha (Tanpa Keterangan)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alpha (Tanpa Keterangan)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold text-red-600" name="point_alpa" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_alpa" 
                                                     value="{{ $absenSetting->point_alpa ?? 5 }}" min="0">
                                                 <span class="text-xs font-semibold text-slate-500">pt / hari</span>
                                             </div>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Tidak Absen Pulang (Lupa Check-Out)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tidak Absen Pulang (Lupa Check-Out)</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold text-red-600" name="point_lupa_pulang" 
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_lupa_pulang" 
                                                     value="{{ $absenSetting->point_lupa_pulang ?? 5 }}" min="0" max="100">
                                                 <span class="text-xs font-semibold text-slate-500">pt / hari</span>
                                             </div>
@@ -1106,7 +982,7 @@
                             </div>
 
                             <!-- 4. Tarif Denda Bertingkat (Tiered Penalties) -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
@@ -1117,30 +993,30 @@
                                             <p class="text-xs text-slate-500 mb-0">Skema denda rupiah dan poin per menit berdasarkan durasi telat</p>
                                         </div>
                                     </div>
-                                    <span class="badge-tw badge-warning text-[10px]">Tiered System</span>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Tiered System</span>
                                 </div>
                                 <div class="p-6 space-y-6">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <!-- Tier 1 -->
-                                        <div class="tier-box p-4">
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
                                             <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                                                 <span class="font-bold text-sm text-slate-800">Tier 1 (1 - 30 Menit)</span>
-                                                <span class="badge-tw badge-secondary text-[10px]">Ringan</span>
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 text-[10px]">Ringan</span>
                                             </div>
                                             <div class="space-y-3">
                                                 <div>
-                                                    <label class="form-label-tw">Denda Rupiah / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
                                                     <div class="flex items-center gap-1.5">
                                                         <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_denda_t1" name="denda_tier_1" 
-                                                            value="{{ $absenSetting->denda_tier_1 ?? 100 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_1" x-model.number="tier[0].denda" 
+                                                            value="{{ $absenSetting->denda_tier_1 ?? 100 }}">
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label class="form-label-tw">Poin Pelanggaran / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
                                                     <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_point_t1" name="point_tier_1" 
-                                                            value="{{ $absenSetting->point_tier_1 ?? 1 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_1" x-model.number="tier[0].poin" 
+                                                            value="{{ $absenSetting->point_tier_1 ?? 1 }}">
                                                         <span class="text-xs text-slate-500">pt/mnt</span>
                                                     </div>
                                                 </div>
@@ -1148,25 +1024,25 @@
                                         </div>
 
                                         <!-- Tier 2 -->
-                                        <div class="tier-box p-4">
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
                                             <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                                                 <span class="font-bold text-sm text-slate-800">Tier 2 (31 - 60 Menit)</span>
-                                                <span class="badge-tw badge-warning text-[10px]">Sedang</span>
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Sedang</span>
                                             </div>
                                             <div class="space-y-3">
                                                 <div>
-                                                    <label class="form-label-tw">Denda Rupiah / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
                                                     <div class="flex items-center gap-1.5">
                                                         <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_denda_t2" name="denda_tier_2" 
-                                                            value="{{ $absenSetting->denda_tier_2 ?? 200 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_2" x-model.number="tier[1].denda" 
+                                                            value="{{ $absenSetting->denda_tier_2 ?? 200 }}">
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label class="form-label-tw">Poin Pelanggaran / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
                                                     <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_point_t2" name="point_tier_2" 
-                                                            value="{{ $absenSetting->point_tier_2 ?? 2 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_2" x-model.number="tier[1].poin" 
+                                                            value="{{ $absenSetting->point_tier_2 ?? 2 }}">
                                                         <span class="text-xs text-slate-500">pt/mnt</span>
                                                     </div>
                                                 </div>
@@ -1174,25 +1050,25 @@
                                         </div>
 
                                         <!-- Tier 3 -->
-                                        <div class="tier-box p-4">
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
                                             <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                                                 <span class="font-bold text-sm text-slate-800">Tier 3 (&gt; 60 Menit)</span>
-                                                <span class="badge-tw badge-danger text-[10px]">Berat</span>
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 text-[10px]">Berat</span>
                                             </div>
                                             <div class="space-y-3">
                                                 <div>
-                                                    <label class="form-label-tw">Denda Rupiah / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
                                                     <div class="flex items-center gap-1.5">
                                                         <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_denda_t3" name="denda_tier_3" 
-                                                            value="{{ $absenSetting->denda_tier_3 ?? 500 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_3" x-model.number="tier[2].denda" 
+                                                            value="{{ $absenSetting->denda_tier_3 ?? 500 }}">
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label class="form-label-tw">Poin Pelanggaran / Menit</label>
+                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
                                                     <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="form-control-tw font-semibold" id="cfg_point_t3" name="point_tier_3" 
-                                                            value="{{ $absenSetting->point_tier_3 ?? 5 }}" oninput="calculateSimulation()">
+                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_3" x-model.number="tier[2].poin" 
+                                                            value="{{ $absenSetting->point_tier_3 ?? 5 }}">
                                                         <span class="text-xs text-slate-500">pt/mnt</span>
                                                     </div>
                                                 </div>
@@ -1207,27 +1083,27 @@
                                          </div>
                                          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                               <div>
-                                                  <label class="form-label-tw">Denda Alpha / Hari (Flat)</label>
+                                                  <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari (Flat)</label>
                                                   <div class="flex items-center gap-1.5">
                                                       <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                      <input type="number" class="form-control-tw font-bold" id="input_denda_alpha" name="denda_alpha_per_hari"
+                                                      <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_per_hari"
                                                           value="{{ $absenSetting->denda_alpha_per_hari ?? 5000 }}" min="0" step="500">
                                                   </div>
                                                   <span class="text-[11px] text-slate-400 mt-1 block">Denda alpa flat per hari kerja, tanpa kelipatan.</span>
                                               </div>
                                              <div>
-                                                 <label class="form-label-tw">Batas Denda Maksimal / Bulan</label>
+                                                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Maksimal / Bulan</label>
                                                  <div class="flex items-center gap-1.5">
                                                      <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                     <input type="number" class="form-control-tw" name="max_denda_bulan" 
+                                                     <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_bulan" 
                                                          value="{{ $absenSetting->max_denda_bulan ?? 500000 }}" min="0" step="5000">
                                                  </div>
                                                  <span class="text-[11px] text-slate-400 mt-1 block">Batas maksimal total denda guru per bulan (0 = tanpa batas).</span>
                                              </div>
                                              <div>
-                                                 <label class="form-label-tw">Poin Lembur / Jam</label>
+                                                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Lembur / Jam</label>
                                                  <div class="flex items-center gap-1.5">
-                                                     <input type="number" class="form-control-tw" name="point_lembur_per_jam" 
+                                                     <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_lembur_per_jam" 
                                                          value="{{ $absenSetting->point_lembur_per_jam ?? 5 }}" min="0" max="100">
                                                      <span class="text-xs font-bold text-slate-500">Poin/Jam</span>
                                                  </div>
@@ -1244,23 +1120,23 @@
                                                 <i class="bi bi-lightning-charge-fill text-blue-600"></i>
                                                 <h6 class="font-bold text-slate-800 text-sm mb-0">Simulator Live Perhitungan Denda</h6>
                                             </div>
-                                            <span class="badge-tw badge-primary text-[10px]">Simulasi Interaktif</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Simulasi Interaktif</span>
                                         </div>
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                                             <div>
-                                                <label class="form-label-tw">Simulasi Keterlambatan (Menit)</label>
-                                                <input type="number" class="form-control-tw font-bold" id="sim_menit" value="45" min="1" max="300" oninput="calculateSimulation()">
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Simulasi Keterlambatan (Menit)</label>
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" x-model.number="simMenit" min="1" max="300">
                                             </div>
                                             <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
                                                 <div class="text-xs text-slate-500 font-medium">Estimasi Denda Rupiah</div>
-                                                <div class="text-lg font-bold text-red-600 mt-0.5" id="sim_res_denda">Rp 0</div>
+                                                <div class="text-lg font-bold text-red-600 mt-0.5" x-text="'Rp ' + formatAngka(sim.denda)">Rp 0</div>
                                             </div>
                                             <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
                                                 <div class="text-xs text-slate-500 font-medium">Estimasi Poin Pelanggaran</div>
-                                                <div class="text-lg font-bold text-amber-600 mt-0.5" id="sim_res_point">0 pt</div>
+                                                <div class="text-lg font-bold text-amber-600 mt-0.5" x-text="sim.poin + ' pt'">0 pt</div>
                                             </div>
                                         </div>
-                                        <div class="text-xs text-slate-500 mt-2.5" id="sim_breakdown">
+                                        <div class="text-xs text-slate-500 mt-2.5" x-text="simBreakdown">
                                             Breakdown perhitungan tier akan muncul otomatis sesuai perubahan angka di atas.
                                         </div>
                                     </div>
@@ -1268,7 +1144,7 @@
                             </div>
 
                             <!-- 7. Denda Siswa (Alpha & Bolos) -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
@@ -1279,33 +1155,33 @@
                                             <p class="text-xs text-slate-500 mb-0">Tagihan rupiah per hari untuk siswa yang tidak masuk tanpa keterangan atau masuk tanpa absen pulang</p>
                                         </div>
                                     </div>
-                                    <span class="badge-tw badge-danger text-[10px]">Presensi Siswa</span>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 text-[10px]">Presensi Siswa</span>
                                 </div>
                                 <div class="p-6">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Denda Alpha / Hari</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari</label>
                                             <div class="flex items-center gap-1.5">
                                                 <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="form-control-tw font-bold" name="denda_alpha_siswa_per_hari"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_siswa_per_hari"
                                                     value="{{ $absenSetting->denda_alpha_siswa_per_hari ?? 0 }}" min="0" step="500">
                                             </div>
                                             <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat status siswa ALPHA / TANPA KETERANGAN pada hari kerja. <b>0</b> = tidak ditagih.</span>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Denda Bolos / Hari</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Bolos / Hari</label>
                                             <div class="flex items-center gap-1.5">
                                                 <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="form-control-tw font-bold" name="denda_bolos_siswa_per_hari"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_bolos_siswa_per_hari"
                                                     value="{{ $absenSetting->denda_bolos_siswa_per_hari ?? 0 }}" min="0" step="500">
                                             </div>
                                             <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat siswa punya jam masuk tetapi tetap tanpa jam pulang setelah jam pulang lewat — orang yang sama dengan daftar "BOLOS — MASUK TANPA PULANG" di rekap piket.</span>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Batas Denda Siswa / Bulan</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Siswa / Bulan</label>
                                             <div class="flex items-center gap-1.5">
                                                 <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="form-control-tw" name="max_denda_siswa_bulan"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_siswa_bulan"
                                                     value="{{ $absenSetting->max_denda_siswa_bulan ?? 0 }}" min="0" step="5000">
                                             </div>
                                             <span class="text-[11px] text-slate-400 mt-1 block">Plafon total per siswa per bulan kalender (0 = tanpa batas). Terpisah dari batas denda guru di atas.</span>
@@ -1325,11 +1201,11 @@
                     <!-- ==================================================== -->
                     <!-- TAB 5: BATASAN & KEBIJAKAN WFH                       -->
                     <!-- ==================================================== -->
-                    <div class="tab-pane tab-pane-tw" id="aturan" role="tabpanel">
+                    <div class="space-y-6" x-show="tab === 'aturan'" x-cloak id="aturan" role="tabpanel">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- Batas Izin, Cuti & Standar Kehadiran -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                     <div class="bg-violet-100/80 rounded-xl p-2.5 text-violet-600">
                                         <i class="bi bi-shield-check text-lg"></i>
@@ -1348,27 +1224,27 @@
 
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Kuota Izin / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Izin / Tahun</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold" name="max_izin_hari"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_hari"
                                                     value="{{ $absenSetting->max_izin_hari ?? 3 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
                                             <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas. Akumulasi izin disetujui + masih menunggu.</p>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Kuota Cuti / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Cuti / Tahun</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold" name="max_cuti_hari"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_hari"
                                                     value="{{ $absenSetting->max_cuti_hari ?? 12 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
                                             <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas.</p>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="form-label-tw">Kuota Sakit / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Sakit / Tahun</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="form-control-tw font-bold" name="max_sakit_hari"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_hari"
                                                     value="{{ $absenSetting->max_sakit_hari ?? 12 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
@@ -1385,34 +1261,34 @@
                                         </p>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="form-label-tw">Izin per Pengajuan</label>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin per Pengajuan</label>
                                                 <div class="flex items-center gap-2">
-                                                    <input type="number" class="form-control-tw font-bold" name="max_izin_per_pengajuan"
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_per_pengajuan"
                                                         value="{{ $absenSetting->max_izin_per_pengajuan ?? 3 }}" min="0" max="365">
                                                     <span class="text-xs font-semibold text-slate-500">Hari</span>
                                                 </div>
                                             </div>
                                             <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="form-label-tw">Cuti per Pengajuan</label>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti per Pengajuan</label>
                                                 <div class="flex items-center gap-2">
-                                                    <input type="number" class="form-control-tw font-bold" name="max_cuti_per_pengajuan"
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_per_pengajuan"
                                                         value="{{ $absenSetting->max_cuti_per_pengajuan ?? 12 }}" min="0" max="365">
                                                     <span class="text-xs font-semibold text-slate-500">Hari</span>
                                                 </div>
                                             </div>
                                             <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="form-label-tw">Sakit per Pengajuan</label>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit per Pengajuan</label>
                                                 <div class="flex items-center gap-2">
-                                                    <input type="number" class="form-control-tw font-bold" name="max_sakit_per_pengajuan"
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_per_pengajuan"
                                                         value="{{ $absenSetting->max_sakit_per_pengajuan ?? 3 }}" min="0" max="365">
                                                     <span class="text-xs font-semibold text-slate-500">Hari</span>
                                                 </div>
                                                 <p class="text-[11px] text-slate-400 mt-1 mb-0">Di atas 3 hari tetap wajib surat dokter.</p>
                                             </div>
                                             <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="form-label-tw">Dinas per Pengajuan</label>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Dinas per Pengajuan</label>
                                                 <div class="flex items-center gap-2">
-                                                    <input type="number" class="form-control-tw font-bold" name="max_dinas_per_pengajuan"
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_dinas_per_pengajuan"
                                                         value="{{ $absenSetting->max_dinas_per_pengajuan ?? 30 }}" min="0" max="365">
                                                     <span class="text-xs font-semibold text-slate-500">Hari</span>
                                                 </div>
@@ -1434,11 +1310,11 @@
                                     </div>
 
                                     <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/50">
-                                        <label class="form-label-tw text-amber-900 flex items-center gap-1.5">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 text-amber-900 flex items-center gap-1.5">
                                             <i class="bi bi-percent text-amber-600"></i> Batas Minimum Kehadiran (Standar SMA/Disdik)
                                         </label>
                                         <div class="flex items-center gap-2 max-w-xs">
-                                            <input type="number" class="form-control-tw font-bold" name="min_kehadiran_persen"
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="min_kehadiran_persen"
                                                 value="{{ $absenSetting->min_kehadiran_persen ?? 90 }}"
                                                 min="50" max="100" step="0.5">
                                             <span class="text-sm font-bold text-amber-800">%</span>
@@ -1459,16 +1335,16 @@
                                             <span class="font-bold block text-sm text-slate-800">Alert Kehadiran Rendah</span>
                                             <span class="text-xs text-slate-500">Tampilkan indikator peringatan di monitoring jika kehadiran guru di bawah standar.</span>
                                         </div>
-                                        <label class="custom-switch shrink-0 ml-3">
-                                            <input type="checkbox" name="alert_kehadiran_enabled" value="1" {{ ($absenSetting->alert_kehadiran_enabled ?? 1) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                            <input type="checkbox" class="peer sr-only" name="alert_kehadiran_enabled" value="1" {{ ($absenSetting->alert_kehadiran_enabled ?? 1) ? 'checked' : '' }}>
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Kebijakan WFH (Work From Home) -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                     <div class="bg-teal-100/80 rounded-xl p-2.5 text-teal-600">
                                         <i class="bi bi-laptop text-lg"></i>
@@ -1484,29 +1360,29 @@
                                             <span class="font-bold block text-sm text-slate-800">Aktifkan Fitur WFH</span>
                                             <span class="text-xs text-slate-500">Izinkan guru memilih opsi presensi bekerja dari rumah.</span>
                                         </div>
-                                        <label class="custom-switch shrink-0 ml-3">
-                                            <input type="checkbox" id="wfhEnabled" name="wfh_enabled" value="1" {{ ($absenSetting->wfh_enabled ?? 0) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                            <input type="checkbox" class="peer sr-only" name="wfh_enabled" value="1" {{ ($absenSetting->wfh_enabled ?? 0) ? 'checked' : '' }} x-model="wfh">
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
 
-                                    <div id="wfhSettings" class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 {{ ($absenSetting->wfh_enabled ?? 0) ? '' : 'hidden' }}">
+                                        <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="wfh" x-cloak>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="form-label-tw">Jam Mulai WFH</label>
-                                                <input type="time" class="form-control-tw" name="wfh_mulai"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Mulai WFH</label>
+                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_mulai"
                                                     value="{{ $absenSetting->wfh_mulai ?? '08:00' }}">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Jam Selesai WFH</label>
-                                                <input type="time" class="form-control-tw" name="wfh_selesai"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Selesai WFH</label>
+                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_selesai"
                                                     value="{{ $absenSetting->wfh_selesai ?? '16:00' }}">
                                             </div>
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Batas Kuota WFH / Bulan</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Kuota WFH / Bulan</label>
                                             <div class="flex items-center gap-2 max-w-xs">
-                                                <input type="number" class="form-control-tw font-bold" name="wfh_max_per_bulan"
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="wfh_max_per_bulan"
                                                     value="{{ $absenSetting->wfh_max_per_bulan ?? 5 }}" min="0" max="31">
                                                 <span class="text-xs font-semibold text-slate-500">Hari / Guru</span>
                                             </div>
@@ -1516,7 +1392,7 @@
                             </div>
                         </div>
                             <!-- Kebijakan Jam Operasional Scanner QR Siswa -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                     <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
                                         <i class="bi bi-qr-code-scan text-lg"></i>
@@ -1532,28 +1408,28 @@
                                             <span class="font-bold block text-sm text-slate-800">Batasi Jam Scan Masuk</span>
                                             <span class="text-xs text-slate-500">Matikan untuk scan 24 jam (tidak disarankan).</span>
                                         </div>
-                                        <label class="custom-switch shrink-0 ml-3">
-                                            <input type="checkbox" id="qrScanAktif" name="qr_scan_aktif" value="1" {{ ($absenSetting->qr_scan_aktif ?? 1) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                            <input type="checkbox" class="peer sr-only" name="qr_scan_aktif" value="1" {{ ($absenSetting->qr_scan_aktif ?? 1) ? 'checked' : '' }} x-model="qr">
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
 
-                                    <div id="qrScanWindow" class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4 {{ ($absenSetting->qr_scan_aktif ?? 1) ? '' : 'hidden' }}">
+                                    <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="qr" x-cloak>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="form-label-tw">Scan Dibuka Pukul</label>
-                                                <input type="time" class="form-control-tw" name="qr_scan_mulai"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Dibuka Pukul</label>
+                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_mulai"
                                                     value="{{ substr((string)($absenSetting->qr_scan_mulai ?? '05:30:00'), 0, 5) }}">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Scan Ditutup Pukul</label>
-                                                <input type="time" class="form-control-tw" name="qr_scan_selesai"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Ditutup Pukul</label>
+                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_selesai"
                                                     value="{{ substr((string)($absenSetting->qr_scan_selesai ?? '18:00:00'), 0, 5) }}">
                                             </div>
                                         </div>
                                         <p class="text-[11px] text-slate-400">Contoh: 05:30–18:00 WITA. Berlaku untuk halaman <code>/scanner</code> &amp; <code>/guru/presensi-siswa</code>. Selain itu scan masuk mengikuti jadwal masuk hari ini (dibuka 1 jam sebelum, ditutup 3 jam setelah) dan scan pulang langsung dibuka setelah jendela masuk ditutup — sama seperti absen wajah. Jam selesai berlaku dua arah: lewat jam itu scan masuk <b>dan</b> pulang ditolak, dan cron <code>/cron/daily</code> menandai siswa yang masuk tanpa pulang sebagai &quot;pulang tidak tercatat&quot; (jam keluar tetap kosong, tidak diisi otomatis).</p>
                                         <div>
-                                            <label class="form-label-tw">Token Kiosk /scanner (wajib untuk kiosk publik)</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Token Kiosk /scanner (wajib untuk kiosk publik)</label>
                                             <?php $tokenKioskAktif = trim((string) ($absenSetting->qr_kiosk_token ?? '')) !== ''; ?>
                                             <div class="mb-2">
                                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold {{ $tokenKioskAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
@@ -1561,7 +1437,7 @@
                                                     {{ $tokenKioskAktif ? 'Token terpasang — /scanner terkunci' : 'Belum ada token — /scanner publik ditolak' }}
                                                 </span>
                                             </div>
-                                            <input type="password" class="form-control-tw font-mono" name="qr_kiosk_token" value=""
+                                            <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono" name="qr_kiosk_token" value=""
                                                 placeholder="{{ $tokenKioskAktif ? 'Tidak diubah — isi hanya untuk mengganti token' : 'Isi token untuk mengunci kiosk' }}"
                                                 maxlength="64" autocomplete="new-password">
                                             <?php if ($tokenKioskAktif) { ?>
@@ -1580,12 +1456,12 @@
                     <!-- ==================================================== -->
                     <!-- TAB 6: NOTIFIKASI GATEWAY & INTEGRASI OAUTH          -->
                     <!-- ==================================================== -->
-                    <div class="tab-pane tab-pane-tw" id="notifikasi" role="tabpanel">
+                    <div class="space-y-6" x-show="tab === 'notifikasi'" x-cloak id="notifikasi" role="tabpanel">
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 
                                 <!-- Bot Telegram Card -->
-                                <div class="setting-card overflow-hidden">
+                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                         <div class="flex items-center gap-3">
                                             <div class="bg-sky-100/80 rounded-xl p-2.5 text-sky-600">
@@ -1598,31 +1474,34 @@
                                         </div>
                                     </div>
                                     <div class="p-6 space-y-4">
-                                        <div class="alert-tw alert-info text-xs">
+                                        <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
                                             Kirim ringkasan harian dan alert keterlambatan otomatis. Dapatkan bot token gratis melalui <a href="https://t.me/BotFather" target="_blank" class="font-bold underline">@BotFather</a>.
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Bot Token</label>
-                                            <input type="text" class="form-control-tw" name="telegram_bot_token" 
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Bot Token</label>
+                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_bot_token" 
                                                 value="{{ $absenSetting->telegram_bot_token ?? '' }}" 
                                                 placeholder="Contoh: 1234567890:AAHdqTcv...">
                                         </div>
                                         <div>
-                                            <label class="form-label-tw">Chat ID Tujuan (Grup / Channel)</label>
-                                            <input type="text" class="form-control-tw" name="telegram_chat_id" 
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Chat ID Tujuan (Grup / Channel)</label>
+                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_chat_id" 
                                                 value="{{ $absenSetting->telegram_chat_id ?? '' }}" 
                                                 placeholder="Contoh: -1001234567890">
                                         </div>
                                         <div class="pt-2">
-                                            <button type="button" class="btn-tw btn-tw-sm btn-outline-primary" id="btnTestTelegram">
-                                                <i class="bi bi-send mr-1"></i> Test Kirim Telegram
+                                            <button type="button" @click="ujiNotifikasi('telegram')" :disabled="!!menguji"
+                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                                <span x-show="menguji === 'telegram'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></span>
+                                                <i x-show="menguji !== 'telegram'" class="bi bi-send"></i>
+                                                <span x-text="menguji === 'telegram' ? 'Mengirim…' : 'Test Kirim Telegram'"></span>
                                             </button>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- WhatsApp Gateway Card -->
-                                <div class="setting-card overflow-hidden">
+                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                         <div class="flex items-center gap-3">
                                             <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
@@ -1636,8 +1515,8 @@
                                     </div>
                                     <div class="p-6 space-y-4">
                                         <div>
-                                            <label class="form-label-tw">Kanal aktif</label>
-                                            <select class="form-control-tw" name="wa_gateway_mode" id="waGatewayMode">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kanal aktif</label>
+                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_mode" x-model="waMode">
                                                 <?php
                                                 $waMode = strtolower(trim((string) ($absenSetting->wa_gateway_mode ?? '')));
                     if ($waMode === '') {
@@ -1652,8 +1531,8 @@
                                         </div>
 
                                         <div>
-                                            <label class="form-label-tw">Nomor / Grup WhatsApp tujuan laporan</label>
-                                            <input type="text" class="form-control-tw" name="wa_target_number" 
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor / Grup WhatsApp tujuan laporan</label>
+                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_target_number" 
                                                 value="{{ $absenSetting->wa_target_number ?? '' }}" 
                                                 placeholder="081234567890 atau 120363...@g.us">
                                             <p class="text-xs text-slate-500 mt-1">
@@ -1662,16 +1541,16 @@
                                         </div>
 
                                         <!-- Panel OpenWA -->
-                                        <div id="panelOpenwa" class="space-y-4 hidden">
+                                        <div class="space-y-4" x-show="waMode === 'openwa'" x-cloak>
                                             <div>
-                                                <label class="form-label-tw">Base URL OpenWA</label>
-                                                <input type="url" class="form-control-tw" name="wa_base_url" 
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Base URL OpenWA</label>
+                                                <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_base_url" 
                                                     value="{{ $absenSetting->wa_base_url ?? '' }}" 
                                                     placeholder="http://localhost:2785">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">API Key OpenWA</label>
-                                                <input type="password" class="form-control-tw" name="wa_api_key" 
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key OpenWA</label>
+                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_api_key" 
                                                     value="{{ $absenSetting->wa_api_key ?? '' }}" 
                                                     placeholder="owa_k1_...">
                                                 <p class="text-xs text-slate-500 mt-1">
@@ -1679,8 +1558,8 @@
                                                 </p>
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Nama Sesi (opsional)</label>
-                                                <input type="text" class="form-control-tw" name="wa_session_name" 
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sesi (opsional)</label>
+                                                <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_session_name" 
                                                     value="{{ $absenSetting->wa_session_name ?? '' }}" 
                                                     placeholder="ika-notif">
                                                 <p class="text-xs text-slate-500 mt-1">Kosongkan untuk memakai sesi berstatus <code>ready</code> pertama.</p>
@@ -1688,31 +1567,34 @@
                                         </div>
 
                                         <!-- Panel Fonnte -->
-                                        <div id="panelFonnte" class="space-y-4 hidden">
-                                            <div class="alert-tw alert-info text-xs">
+                                        <div class="space-y-4" x-show="waMode === 'fonnte'" x-cloak>
+                                            <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
                                                 Integrasi via layanan gateway <a href="https://fonnte.com" target="_blank" class="font-bold underline text-emerald-600">Fonnte</a>.
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Gateway API URL</label>
-                                                <input type="url" class="form-control-tw" name="wa_gateway_url" 
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Gateway API URL</label>
+                                                <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_url" 
                                                     value="{{ $absenSetting->wa_gateway_url ?? 'https://api.fonnte.com/send' }}">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">API Token</label>
-                                                <input type="password" class="form-control-tw" name="wa_token" 
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Token</label>
+                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_token" 
                                                     value="{{ $absenSetting->wa_token ?? '' }}" 
                                                     placeholder="Masukkan token API Fonnte">
                                             </div>
                                         </div>
 
                                         <div class="pt-2 flex items-center gap-3">
-                                            <button type="button" class="btn-tw btn-tw-sm btn-outline-success" id="btnTestWa">
-                                                <i class="bi bi-send mr-1"></i> Test Kirim WhatsApp
+                                            <button type="button" @click="ujiNotifikasi('whatsapp')" :disabled="!!menguji"
+                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                                <span x-show="menguji === 'whatsapp'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600"></span>
+                                                <i x-show="menguji !== 'whatsapp'" class="bi bi-send"></i>
+                                                <span x-text="menguji === 'whatsapp' ? 'Mengirim…' : 'Test Kirim WhatsApp'"></span>
                                             </button>
-                                            <a href="{{ url('admin/presensi/whatsapp') }}" class="btn-tw btn-tw-sm btn-outline-primary">
+                                            <a href="{{ url('admin/presensi/whatsapp') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
                                                 <i class="bi bi-people mr-1"></i> Kelola Tautan Guru
                                             </a>
-                                            <a href="{{ url('admin/presensi/notifikasi-status') }}" class="btn-tw btn-tw-sm btn-outline-secondary">
+                                            <a href="{{ url('admin/presensi/notifikasi-status') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
                                                 <i class="bi bi-activity mr-1"></i> Status Notifikasi
                                             </a>
                                         </div>
@@ -1721,7 +1603,7 @@
                             </div>
 
                             <!-- Google OAuth Single Sign-On Integration Card -->
-                            <div class="setting-card overflow-hidden">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div class="flex items-center gap-3">
                                         <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="22" height="22" alt="Google">
@@ -1732,9 +1614,9 @@
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-semibold text-slate-600">Aktifkan SSO</span>
-                                        <label class="custom-switch">
-                                            <input type="checkbox" id="googleLoginEnabled" name="google_login_enabled" value="1" {{ ($absenSetting->google_login_enabled ?? 1) ? 'checked' : '' }}>
-                                            <span class="custom-switch-slider"></span>
+                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+                                            <input type="checkbox" class="peer sr-only" name="google_login_enabled" value="1" {{ ($absenSetting->google_login_enabled ?? 1) ? 'checked' : '' }}>
+                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
                                 </div>
@@ -1742,24 +1624,24 @@
                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                         <div class="lg:col-span-2 space-y-4">
                                             <div>
-                                                <label class="form-label-tw">Google Client ID</label>
-                                                <input type="text" class="form-control-tw" name="google_client_id"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client ID</label>
+                                                <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_id"
                                                     value="{{ $absenSetting->google_client_id ?? '' }}"
                                                     placeholder="Contoh: 1234567890-xxx.apps.googleusercontent.com">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Google Client Secret</label>
-                                                <input type="password" class="form-control-tw" name="google_client_secret"
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client Secret</label>
+                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_secret"
                                                     value="{{ $absenSetting->google_client_secret ?? '' }}"
                                                     placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx">
                                             </div>
                                             <div>
-                                                <label class="form-label-tw">Authorized Redirect URI (Wajib didaftarkan di Google Console)</label>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Authorized Redirect URI (Wajib didaftarkan di Google Console)</label>
                                                 <div class="flex items-center gap-2">
-                                                    <input type="text" class="form-control-tw bg-slate-50 text-slate-600 font-mono text-xs" id="googleRedirectUri"
+                                                    <input type="text" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 font-mono text-xs text-slate-600 shadow-xs outline-none"
                                                         value="{{ url('presensi/google-callback') }}" readonly>
-                                                    <button class="btn-tw btn-outline-primary shrink-0" type="button" onclick="copyRedirectUri()">
-                                                        <i class="bi bi-clipboard mr-1"></i> Salin
+                                                    <button class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50" type="button" @click="salinUri(@js(url('presensi/google-callback')))">
+                                                        <i class="bi bi-clipboard"></i> Salin
                                                     </button>
                                                 </div>
                                             </div>
@@ -1782,37 +1664,30 @@
                         </div>
                     </div>
 
-                    <!-- Fixed Bottom Action Bar for Attendance Settings -->
-                    <div class="fixed-bottom bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-4 shadow-xl fixed-bottom-bar" style="z-index: 1020; display: none;">
-                        <div class="w-full flex justify-end items-center gap-3 max-w-7xl mx-auto">
-                            <a href="{{ url('dashboard') }}" class="btn-tw btn-light">
-                                <i class="bi bi-arrow-left mr-1"></i> Dashboard
-                            </a>
-                            <button type="submit" id="btnSaveSetting" class="btn-tw btn-primary px-6 shadow-md shadow-blue-500/20">
-                                <i class="bi bi-check2-circle mr-1"></i> Simpan Pengaturan Presensi
-                            </button>
-                        </div>
+                    <!-- Aksi simpan pengaturan presensi -->
+                    <div x-show="tabAksi" x-cloak
+                        class="sticky bottom-0 z-30 mt-6 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-lg backdrop-blur">
+                        <a href="{{ url('dashboard') }}"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                            <i class="bi bi-arrow-left"></i> Dashboard
+                        </a>
+                        <button type="submit" :disabled="menyimpanSetting"
+                            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                            <span x-show="menyimpanSetting" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                            <i x-show="!menyimpanSetting" class="bi bi-check2-circle"></i>
+                            <span x-text="menyimpanSetting ? 'Menyimpan…' : 'Simpan Pengaturan Presensi'"></span>
+                        </button>
                     </div>
-                    
-                    <div style="height: 92px;"></div>
                 </form>
 
                 <!-- ==================================================== -->
                 <!-- TAB 7: TAMPILAN / THEME CUSTOMIZER                   -->
                 <!-- ==================================================== -->
-                <div class="tab-pane tab-pane-tw" id="tampilan" role="tabpanel">
-                    <?php
-                    $curPreset = $theme['preset'] ?? 'default';
-                    $curCustom = ! empty($theme['custom']) ? $theme['custom'] : '#2563eb';
-                    $customPalette = \App\Libraries\Theme::paletteFromHex($curCustom);
-                    $themeJson = json_encode(
-                        \App\Libraries\Theme::clientConfig(),
-                        JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
-                    );
-                    ?>
+                <div class="space-y-6" x-show="tab === 'tampilan'" x-cloak id="tampilan" role="tabpanel">
+
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div class="xl:col-span-2 space-y-6">
-                            <div class="setting-card p-6">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-6">
                                 <div class="flex items-start gap-4 mb-5">
                                     <div class="p-2.5 bg-primary-50 text-primary-600 rounded-xl">
                                         <i class="bi bi-palette text-xl"></i>
@@ -1826,48 +1701,64 @@
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="themePresetGrid">
-                                    <?php foreach ($themePresets as $key => $preset) { ?>
-                                        <button type="button" class="theme-card {{ $curPreset === $key ? 'selected' : '' }}" data-theme-preset="{{ $key }}">
-                                            <span class="theme-check"><i class="bi bi-check-lg"></i></span>
-                                            <span class="grid grid-cols-3 gap-1.5 mb-3">
-                                                <span class="theme-swatch" style="background: {{ $preset['colors']['brand'] }}"></span>
-                                                <span class="theme-swatch" style="background: {{ $preset['colors']['primary'] }}"></span>
-                                                <span class="theme-swatch" style="background: {{ $preset['colors']['accent'] }}"></span>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    @foreach ($themePresets as $key => $preset)
+                                        <button type="button" @click="pilihTemaPreset(@js($key))"
+                                            :class="themePreset === @js($key) ? 'border-blue-500 bg-blue-50/60 ring-4 ring-blue-500/15' : 'border-slate-200 hover:border-slate-300'"
+                                            class="relative rounded-2xl border-[1.5px] bg-white p-3.5 text-left transition-all">
+                                            <span x-show="themePreset === @js($key)" x-cloak
+                                                class="absolute right-2.5 top-2.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] text-white">
+                                                <i class="bi bi-check-lg"></i>
+                                            </span>
+                                            <span class="mb-3 grid grid-cols-3 gap-1.5">
+                                                <span class="block h-6 w-full rounded-lg border border-slate-900/5" style="background: {{ $preset['colors']['brand'] }}"></span>
+                                                <span class="block h-6 w-full rounded-lg border border-slate-900/5" style="background: {{ $preset['colors']['primary'] }}"></span>
+                                                <span class="block h-6 w-full rounded-lg border border-slate-900/5" style="background: {{ $preset['colors']['accent'] }}"></span>
                                             </span>
                                             <span class="block text-sm font-bold text-slate-800">{{ $preset['label'] }}</span>
-                                            <span class="block text-[11px] leading-snug text-slate-500 mt-0.5">{{ $preset['desc'] }}</span>
+                                            <span class="mt-0.5 block text-[11px] leading-snug text-slate-500">{{ $preset['desc'] }}</span>
                                         </button>
-                                    <?php } ?>
+                                    @endforeach
 
-                                    <button type="button" class="theme-card {{ $curPreset === 'custom' ? 'selected' : '' }}" data-theme-preset="custom">
-                                        <span class="theme-check"><i class="bi bi-check-lg"></i></span>
-                                        <span class="grid grid-cols-3 gap-1.5 mb-3">
-                                            <?php foreach ([50, 500, 700] as $shade) { ?>
-                                                <span class="theme-swatch" data-custom-swatch="{{ $shade }}" style="background: {{ $customPalette[$shade] }}"></span>
-                                            <?php } ?>
+                                    <button type="button" @click="pilihTemaPreset('custom')"
+                                        :class="themePreset === 'custom' ? 'border-blue-500 bg-blue-50/60 ring-4 ring-blue-500/15' : 'border-slate-200 hover:border-slate-300'"
+                                        class="relative rounded-2xl border-[1.5px] bg-white p-3.5 text-left transition-all">
+                                        <span x-show="themePreset === 'custom'" x-cloak
+                                            class="absolute right-2.5 top-2.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] text-white">
+                                            <i class="bi bi-check-lg"></i>
+                                        </span>
+                                        <span class="mb-3 grid grid-cols-3 gap-1.5">
+                                            <template x-for="shade in [50, 500, 700]" :key="shade">
+                                                <span class="block h-6 w-full rounded-lg border border-slate-900/5" :style="'background:' + paletCustom[shade]"></span>
+                                            </template>
                                         </span>
                                         <span class="block text-sm font-bold text-slate-800">Custom</span>
-                                        <span class="block text-[11px] leading-snug text-slate-500 mt-0.5">Pilih warna dasar sendiri; palet dan aksen gradien dibuat otomatis.</span>
+                                        <span class="mt-0.5 block text-[11px] leading-snug text-slate-500">Pilih warna dasar sendiri; palet dan aksen gradien dibuat otomatis.</span>
                                     </button>
                                 </div>
 
-                                <div id="themeCustomPanel" class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 {{ $curPreset === 'custom' ? '' : 'hidden' }}">
-                                    <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+                                <div x-show="themePreset === 'custom'" x-cloak
+                                    class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                                    <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
                                         <div>
-                                            <label for="themeCustomColor" class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Warna dasar</label>
-                                            <input type="color" id="themeCustomColor" value="{{ $curCustom }}"
+                                            <label for="themeCustomColor" class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Warna dasar</label>
+                                            <input type="color" id="themeCustomColor" x-model="customHex" @input="pakaiWarna()"
                                                 class="h-11 w-16 cursor-pointer rounded-xl border border-slate-300 bg-white p-1">
                                         </div>
-                                        <div class="flex-1 max-w-[180px]">
-                                            <label for="themeCustomHex" class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Kode HEX</label>
-                                            <input type="text" id="themeCustomHex" value="{{ $curCustom }}" maxlength="7" spellcheck="false"
-                                                class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-mono text-slate-700 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none">
+                                        <div class="max-w-[180px] flex-1">
+                                            <label for="themeCustomHex" class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Kode HEX</label>
+                                            <input type="text" id="themeCustomHex" x-model="customHex" @change="pakaiWarna()" maxlength="7" spellcheck="false"
+                                                class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
                                         </div>
                                     </div>
                                     <div class="mt-4">
-                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Palet otomatis</div>
-                                        <div class="grid grid-cols-10 gap-1" id="themeCustomSwatches"></div>
+                                        <div class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Palet otomatis</div>
+                                        <div class="grid grid-cols-10 gap-1">
+                                            <template x-for="shade in shades" :key="shade">
+                                                <span class="block h-6 w-full rounded-lg border border-slate-900/5" :title="String(shade)"
+                                                    :style="'background:' + paletCustom[shade]"></span>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1882,7 +1773,7 @@
                         </div>
 
                         <div class="space-y-4">
-                            <div class="setting-card p-5">
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-5">
                                 <div class="flex items-center justify-between mb-3">
                                     <h4 class="font-bold text-slate-800 text-sm">Pratinjau Langsung</h4>
                                     <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Live</span>
@@ -1918,28 +1809,30 @@
                                 </p>
                             </div>
 
-                            <div class="setting-card p-5">
-                                <button type="button" id="btnSaveTheme" class="btn-tw btn-primary w-full">
-                                    <i class="bi bi-check2-circle mr-1"></i> Simpan Tema
+                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-5">
+                                <button type="button" @click="simpanTema()" :disabled="menyimpanTema"
+                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span x-show="menyimpanTema" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                    <i x-show="!menyimpanTema" class="bi bi-check2-circle"></i>
+                                    <span x-text="menyimpanTema ? 'Menyimpan…' : 'Simpan Tema'"></span>
                                 </button>
-                                <button type="button" id="btnResetTheme" class="btn-tw btn-light w-full mt-2">
-                                    <i class="bi bi-arrow-counterclockwise mr-1"></i> Gunakan Default
+                                <button type="button" @click="pilihTemaPreset('default')"
+                                    class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Gunakan Default
                                 </button>
                             </div>
                         </div>
                     </div>
-
-                    <script type="application/json" id="themeClientConfig">{!! $themeJson !!}</script>
                 </div>
 
                 <!-- ==================================================== -->
                 <!-- TAB 8: BACKUP & DATABASE MANAGER                     -->
                 <!-- ==================================================== -->
-                <div class="tab-pane tab-pane-tw" id="maintenance" role="tabpanel">
+                <div class="space-y-6" x-show="tab === 'maintenance'" x-cloak id="maintenance" role="tabpanel">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         
                         <!-- Unduh Data Backup -->
-                        <div class="setting-card overflow-hidden">
+                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                 <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
                                     <i class="bi bi-cloud-arrow-down text-lg"></i>
@@ -1957,7 +1850,7 @@
                                         </div>
                                         <p class="text-xs text-slate-400 mb-0 mt-0.5">Skema tabel lengkap dan seluruh data presensi, master, serta pengaturan.</p>
                                     </div>
-                                    <a href="{{ url('admin/presensi/backup') }}" class="btn-tw btn-tw-sm btn-outline-primary shrink-0 ml-3" target="_blank">
+                                    <a href="{{ url('admin/presensi/backup') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 shrink-0 ml-3" target="_blank">
                                         <i class="bi bi-download mr-1"></i> Unduh SQL
                                     </a>
                                 </div>
@@ -1969,7 +1862,7 @@
                                         </div>
                                         <p class="text-xs text-slate-400 mb-0 mt-0.5">Format data portabel riwayat kehadiran GTK untuk migrasi data.</p>
                                     </div>
-                                    <a href="{{ url('admin/presensi/backup-json') }}" class="btn-tw btn-tw-sm btn-outline-success shrink-0 ml-3" target="_blank">
+                                    <a href="{{ url('admin/presensi/backup-json') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 shrink-0 ml-3" target="_blank">
                                         <i class="bi bi-download mr-1"></i> Unduh JSON
                                     </a>
                                 </div>
@@ -1981,7 +1874,7 @@
                                         </div>
                                         <p class="text-xs text-slate-500 mb-0 mt-0.5">Kelola berkas arsip backup lokal dan pulihkan tabel database.</p>
                                     </div>
-                                    <a href="{{ url('settings/dbManager') }}" class="btn-tw btn-tw-sm btn-primary shrink-0 ml-3">
+                                    <a href="{{ url('settings/dbManager') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 shrink-0 ml-3">
                                         <i class="bi bi-box-arrow-up-right mr-1"></i> Buka Manager
                                     </a>
                                 </div>
@@ -1989,7 +1882,7 @@
                         </div>
 
                         <!-- Pembersihan Kapasitas Server -->
-                        <div class="setting-card overflow-hidden">
+                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                                 <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
                                     <i class="bi bi-trash3 text-lg"></i>
@@ -2008,8 +1901,11 @@
                                         Menghapus berkas gambar foto selfie dari bulan-bulan sebelumnya agar kapasitas disk server hemat. 
                                         <b>Data log kehadiran teks, jam, dan titik koordinat GPS tetap tersimpan aman</b> di database.
                                     </p>
-                                    <button type="button" class="btn-tw btn-tw-sm btn-danger" id="btnCleanPhotos">
-                                        <i class="bi bi-trash3 mr-1"></i> Bersihkan Foto Lama Sekarang
+                                    <button type="button" @click="bersihkanFoto()" :disabled="membersihkan"
+                                        class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                        <span x-show="membersihkan" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                        <i x-show="!membersihkan" class="bi bi-trash3"></i>
+                                        <span x-text="membersihkan ? 'Menghapus…' : 'Bersihkan Foto Lama Sekarang'"></span>
                                     </button>
                                 </div>
                             </div>
@@ -2018,527 +1914,477 @@
                 </div>
 
             </div>
-        </div>
     </div>
 </div>
 
+@section('scripts')
 <script>
-    // Copy Monday Schedule to All Days
-    function copyMondaySchedule() {
-        const monIn = document.getElementById('masuk_1')?.value || '07:30';
-        const monOut = document.getElementById('pulang_1')?.value || '15:00';
+document.addEventListener('alpine:init', () => {
+    const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+    const ROMAWI = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII' };
+    const NAMA_BULAN = { 1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April', 5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus', 9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember' };
 
-        for (let i = 2; i <= 6; i++) {
-            const inEl = document.getElementById('masuk_' + i);
-            const outEl = document.getElementById('pulang_' + i);
-            if (inEl) inEl.value = monIn;
-            if (outEl) outEl.value = monOut;
-        }
+    const dua = (n) => String(n).padStart(2, '0');
+    const HEX_BAWAAN = '#2563eb';
 
-        if (typeof Swal !== 'undefined') {
+    Alpine.data('settingPage', (config = {}) => ({
+        csrf: config.csrf || '',
+        urls: config.urls || {},
+
+        tabOpsi: [
+            { key: 'profil', label: 'Profil Sekolah', icon: 'bi-building' },
+            { key: 'jadwal', label: 'Jadwal & Lokasi', icon: 'bi-calendar-week' },
+            { key: 'wajah', label: 'Wajah & Kamera', icon: 'bi-person-bounding-box' },
+            { key: 'poin', label: 'Poin & Denda', icon: 'bi-calculator' },
+            { key: 'aturan', label: 'Batasan & WFH', icon: 'bi-shield-check' },
+            { key: 'notifikasi', label: 'Notifikasi & OAuth', icon: 'bi-bell' },
+            { key: 'tampilan', label: 'Tampilan', icon: 'bi-palette' },
+            { key: 'maintenance', label: 'Backup & Database', icon: 'bi-database-gear' },
+        ],
+        tab: config.tabAwal || 'profil',
+
+        /* Profil sekolah */
+        jenjang: String(config.jenjang || '3'),
+        satuan: String(config.satuanAwal || '1'),
+        satuanMap: config.satuan || {},
+
+        /* Jadwal kerja & toleransi */
+        jadwal: config.jadwal || {},
+        grace: Number(config.grace) || 0,
+
+        /* Biometrik wajah */
+        threshold: Number(config.threshold) || 0.72,
+        faceMode: config.faceMode || 'ai_match',
+        thresholdPreset: [
+            { nilai: 0.65, label: 'Ketat (0.65)' },
+            { nilai: 0.72, label: '⭐ Rekomendasi (0.72)' },
+            { nilai: 0.78, label: 'Fleksibel (0.78)' },
+        ],
+
+        /* Poin & denda */
+        tier: (config.tiers || []).map((t) => ({ denda: Number(t.denda) || 0, poin: Number(t.poin) || 0 })),
+        simMenit: Number(config.simMenit) || 45,
+
+        /* Notifikasi, WFH, QR */
+        waMode: config.waMode || 'off',
+        wfh: !!config.wfh,
+        qr: !!config.qr,
+
+        /* Surat teguran */
+        teguran: Object.assign({ format: '', padding: 3, kode: '', defaultFormat: '', defaultPadding: 3, defaultKode: '', sekolah: '', npsn: '', nss: '', kepsek: '', nip: '' }, config.teguran || {}),
+
+        /* Media branding */
+        media: Object.assign({}, config.media || {}),
+        mediaLoading: {},
+
+        /* Status simpan */
+        menyimpanProfil: false,
+        menyimpanSetting: false,
+        menguji: '',
+        membersihkan: false,
+
+        /* Tema */
+        shades: SHADES,
+        themeCfg: (config.theme && config.theme.client) || {},
+        themePreset: (config.theme && config.theme.preset) || 'default',
+        customHex: (config.theme && config.theme.custom) || HEX_BAWAAN,
+        accentShift: Number(config.accentShift) || 0,
+        menyimpanTema: false,
+
+        init() {
+            const kandidat = String(
+                new URLSearchParams(window.location.search).get('tab')
+                    || window.location.hash
+                    || window.localStorage.getItem('activeSettingTab')
+                    || '',
+            ).replace('#', '').trim();
+
+            if (this.tabOpsi.some((t) => t.key === kandidat)) this.tab = kandidat;
+
+            this.terapkanTema();
+        },
+
+        /* ── Turunan ───────────────────────────── */
+
+        get tabAksi() {
+            return !['profil', 'tampilan', 'maintenance'].includes(this.tab);
+        },
+
+        get satuanOpsi() {
+            const daftar = this.satuanMap[this.jenjang] || [];
+
+            return daftar.map((label, i) => ({ value: String(i + 1), label }));
+        },
+
+        get batasOntime() {
+            const jam = (this.jadwal[1] && this.jadwal[1].masuk) || '07:15';
+
+            return this.tambahMenit(jam, this.grace);
+        },
+
+        get batasTelat() {
+            return this.tambahMenit(this.batasOntime, 1);
+        },
+
+        get thresholdJudul() {
+            if (this.threshold < 0.68) return 'Sangat Ketat (' + this.threshold.toFixed(2) + ')';
+            if (this.threshold <= 0.75) return 'Rekomendasi Seimbang (' + this.threshold.toFixed(2) + ')';
+
+            return 'Fleksibel / Longgar (' + this.threshold.toFixed(2) + ')';
+        },
+
+        get thresholdWarna() {
+            if (this.threshold < 0.68) return 'text-red-600';
+            if (this.threshold <= 0.75) return 'text-blue-600';
+
+            return 'text-amber-600';
+        },
+
+        get thresholdDetail() {
+            if (this.threshold < 0.68) {
+                return 'Hanya menerima wajah yang sangat identik. Berisiko false-reject jika guru memakai kacamata atau di ruangan redup.';
+            }
+            if (this.threshold <= 0.75) {
+                return 'Nilai seimbang terbaik untuk berbagai kondisi pencahayaan dan tipe kamera smartphone.';
+            }
+
+            return 'Sangat mudah lolos verifikasi. Cocok untuk lingkungan outdoor atau device berspesifikasi rendah.';
+        },
+
+        get sim() {
+            return this.hitungSimulasi();
+        },
+
+        get simBreakdown() {
+            const bagian = this.sim.breakdown;
+
+            return bagian.length ? bagian.join(' + ') : 'Tidak ada denda.';
+        },
+
+        get paletCustom() {
+            const hex = String(this.customHex || '');
+
+            return this.paletteFromHex(/^#[0-9a-f]{6}$/.test(hex) ? hex : HEX_BAWAAN);
+        },
+
+        get teguranPreview() {
+            const t = this.teguran;
+            const pad = t.padding >= 1 && t.padding <= 6 ? t.padding : t.defaultPadding;
+            const sekarang = new Date();
+            const bulan = sekarang.getMonth() + 1;
+            const tahun = sekarang.getFullYear();
+            const nomor = String(1).padStart(pad, '0');
+
+            const nilai = {
+                kode_sekolah: String(t.kode || '').trim() || t.defaultKode,
+                sekolah: t.sekolah || '',
+                npsn: t.npsn || '',
+                nss: t.nss || '',
+                kepsek: t.kepsek || '',
+                nip_kepsek: t.nip || '',
+                nomor,
+                nomor_urut: nomor,
+                bulan_romawi: ROMAWI[bulan] || '',
+                bulan_nama: NAMA_BULAN[bulan] || '',
+                bulan: dua(bulan),
+                tahun_2: dua(tahun % 100),
+                tahun: String(tahun),
+                level: '3',
+                tanggal: dua(sekarang.getDate()) + '-' + dua(bulan) + '-' + tahun,
+            };
+
+            const teks = Object.entries(nilai).reduce(
+                (hasil, [kunci, isi]) => hasil.split('{' + kunci + '}').join(isi),
+                String(t.format || '').trim() || t.defaultFormat,
+            );
+
+            return teks.replace(/\/{2,}/g, '/').trim();
+        },
+
+        hitungSimulasi() {
+            const menit = Number(this.simMenit) || 0;
+            const hasil = { denda: 0, poin: 0, breakdown: [] };
+
+            if (menit <= 0) return hasil;
+
+            const ambil = (i) => this.tier[i] || { denda: 0, poin: 0 };
+
+            const m1 = Math.min(menit, 30);
+            hasil.denda += m1 * ambil(0).denda;
+            hasil.poin += m1 * ambil(0).poin;
+            hasil.breakdown.push(`Tier 1 (${m1}m × Rp${ambil(0).denda} / ${ambil(0).poin}pt)`);
+
+            if (menit > 30) {
+                const m2 = Math.min(menit - 30, 30);
+                hasil.denda += m2 * ambil(1).denda;
+                hasil.poin += m2 * ambil(1).poin;
+                hasil.breakdown.push(`Tier 2 (${m2}m × Rp${ambil(1).denda} / ${ambil(1).poin}pt)`);
+            }
+
+            if (menit > 60) {
+                const m3 = menit - 60;
+                hasil.denda += m3 * ambil(2).denda;
+                hasil.poin += m3 * ambil(2).poin;
+                hasil.breakdown.push(`Tier 3 (${m3}m × Rp${ambil(2).denda} / ${ambil(2).poin}pt)`);
+            }
+
+            return hasil;
+        },
+
+        tambahMenit(jam, menit) {
+            const bagian = String(jam || '07:15').split(':');
+            const dasar = new Date();
+            dasar.setHours(parseInt(bagian[0], 10) || 7, parseInt(bagian[1], 10) || 15, 0, 0);
+
+            const hasil = new Date(dasar.getTime() + (Number(menit) || 0) * 60000);
+
+            return dua(hasil.getHours()) + ':' + dua(hasil.getMinutes());
+        },
+
+        formatAngka(nilai) {
+            return new Intl.NumberFormat('id-ID').format(Number(nilai) || 0);
+        },
+
+        /* ── Navigasi tab ──────────────────────── */
+
+        pilihTab(kunci) {
+            this.tab = kunci;
+            window.localStorage.setItem('activeSettingTab', kunci);
+
+            const konten = document.getElementById('main-content');
+            if (konten) konten.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
+        /* ── Jadwal ────────────────────────────── */
+
+        terapkanSenin() {
+            const senin = this.jadwal[1] || { masuk: '07:30', pulang: '15:00' };
+
+            for (let i = 2; i <= 6; i++) {
+                if (!this.jadwal[i]) continue;
+                this.jadwal[i].masuk = senin.masuk;
+                this.jadwal[i].pulang = senin.pulang;
+            }
+
             Swal.fire({
                 icon: 'success',
                 title: 'Tersalin!',
                 text: 'Jam kerja hari Senin berhasil disalin ke Selasa s.d. Sabtu.',
                 timer: 1500,
-                showConfirmButton: false
+                showConfirmButton: false,
             });
-        }
-    }
+        },
 
-    // Update Simulasi Toleransi Keterlambatan
-    function updateGraceSimulation() {
-        const jamMasukEl = document.getElementById('masuk_1');
-        const graceEl = document.getElementById('input_grace_period');
-        const jamMasuk = jamMasukEl?.value || '07:15';
-        const grace = parseInt(graceEl?.value, 10) || 0;
+        /* ── Transport ─────────────────────────── */
 
-        const simMasuk = document.getElementById('sim-jam-masuk');
-        const simTol = document.getElementById('sim-toleransi');
-        const badgeTol = document.getElementById('text-grace-preview');
-        const simOntime = document.getElementById('sim-batas-ontime');
-        const simLate = document.getElementById('sim-batas-late');
+        async kirimForm(url, isian) {
+            const body = isian instanceof FormData ? isian : new FormData();
 
-        if (simMasuk) simMasuk.textContent = jamMasuk;
-        if (simTol) simTol.textContent = grace + ' Menit';
-        if (badgeTol) badgeTol.textContent = grace + ' Menit';
-
-        const parts = jamMasuk.split(':');
-        const h = parseInt(parts[0], 10) || 7;
-        const m = parseInt(parts[1], 10) || 15;
-
-        const baseDate = new Date();
-        baseDate.setHours(h, m, 0, 0);
-
-        const ontimeDate = new Date(baseDate.getTime() + grace * 60000);
-        const lateDate = new Date(ontimeDate.getTime() + 60000);
-
-        const pad = (n) => n < 10 ? '0' + n : n;
-        const ontimeStr = pad(ontimeDate.getHours()) + ':' + pad(ontimeDate.getMinutes());
-        const lateStr = pad(lateDate.getHours()) + ':' + pad(lateDate.getMinutes());
-
-        if (simOntime) simOntime.textContent = ontimeStr;
-        if (simLate) simLate.textContent = lateStr;
-    }
-
-    // Toggle WFH Settings Visibility
-    document.getElementById('qrScanAktif')?.addEventListener('change', function() {
-        document.getElementById('qrScanWindow')?.classList.toggle('hidden', !this.checked);
-    });
-    document.getElementById('wfhEnabled')?.addEventListener('change', function() {
-        const box = document.getElementById('wfhSettings');
-        if (box) {
-            if (this.checked) box.classList.remove('hidden');
-            else box.classList.add('hidden');
-        }
-    });
-
-    // Face Threshold Range Slider & Presets
-    function updateThreshold(val) {
-        document.getElementById('thresholdBadge').innerText = parseFloat(val).toFixed(2);
-        document.getElementById('faceThresholdInput').value = val;
-
-        const title = document.getElementById('descTitle');
-        const detail = document.getElementById('descDetail');
-
-        if (val < 0.68) {
-            title.innerText = 'Sangat Ketat (' + parseFloat(val).toFixed(2) + ')';
-            title.className = 'font-semibold text-red-600 text-xs';
-            detail.innerText = 'Hanya menerima wajah yang sangat identik. Berisiko false-reject jika guru memakai kacamata atau di ruangan redup.';
-        } else if (val <= 0.75) {
-            title.innerText = 'Rekomendasi Seimbang (' + parseFloat(val).toFixed(2) + ')';
-            title.className = 'font-semibold text-blue-600 text-xs';
-            detail.innerText = 'Nilai seimbang terbaik untuk berbagai kondisi pencahayaan dan tipe kamera smartphone.';
-        } else {
-            title.innerText = 'Fleksibel / Longgar (' + parseFloat(val).toFixed(2) + ')';
-            title.className = 'font-semibold text-amber-600 text-xs';
-            detail.innerText = 'Sangat mudah lolos verifikasi. Cocok untuk lingkungan outdoor atau device berspesifikasi rendah.';
-        }
-    }
-
-    function setPreset(val) {
-        document.getElementById('thresholdRange').value = val;
-        updateThreshold(val);
-    }
-
-    // Interactive Simulator Calculator
-    function calculateSimulation() {
-        const lateMinutes = parseInt(document.getElementById('sim_menit')?.value) || 0;
-        
-        const d1 = parseInt(document.getElementById('cfg_denda_t1')?.value) || 0;
-        const p1 = parseInt(document.getElementById('cfg_point_t1')?.value) || 0;
-        
-        const d2 = parseInt(document.getElementById('cfg_denda_t2')?.value) || 0;
-        const p2 = parseInt(document.getElementById('cfg_point_t2')?.value) || 0;
-        
-        const d3 = parseInt(document.getElementById('cfg_denda_t3')?.value) || 0;
-        const p3 = parseInt(document.getElementById('cfg_point_t3')?.value) || 0;
-
-        let totalDenda = 0;
-        let totalPoint = 0;
-        let breakdown = [];
-
-        if (lateMinutes > 0) {
-            const m1 = Math.min(lateMinutes, 30);
-            totalDenda += m1 * d1;
-            totalPoint += m1 * p1;
-            breakdown.push(`Tier 1 (${m1}m × Rp${d1} / ${p1}pt)`);
-
-            if (lateMinutes > 30) {
-                const m2 = Math.min(lateMinutes - 30, 30);
-                totalDenda += m2 * d2;
-                totalPoint += m2 * p2;
-                breakdown.push(`Tier 2 (${m2}m × Rp${d2} / ${p2}pt)`);
+            if (!(isian instanceof FormData)) {
+                Object.entries(isian || {}).forEach(([kunci, nilai]) => body.append(kunci, nilai ?? ''));
             }
 
-            if (lateMinutes > 60) {
-                const m3 = lateMinutes - 60;
-                totalDenda += m3 * d3;
-                totalPoint += m3 * p3;
-                breakdown.push(`Tier 3 (${m3}m × Rp${d3} / ${p3}pt)`);
+            if (!body.has('_token')) body.append('_token', this.csrf);
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body,
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+
+                return { code: res.status, json: await res.json().catch(() => null) };
+            } catch (e) {
+                return { code: 0, json: null };
             }
-        }
+        },
 
-        const resDendaEl = document.getElementById('sim_res_denda');
-        const resPointEl = document.getElementById('sim_res_point');
-        const breakdownEl = document.getElementById('sim_breakdown');
+        pesanGagal(hasil, fallback) {
+            if (hasil.code === 403) return 'Sesi berakhir atau akses tidak diizinkan. Silakan login ulang.';
+            if (hasil.code === 413) return 'Ukuran file melebihi batas server.';
 
-        if (resDendaEl) resDendaEl.innerText = 'Rp ' + totalDenda.toLocaleString('id-ID');
-        if (resPointEl) resPointEl.innerText = totalPoint + ' Poin';
-        if (breakdownEl) breakdownEl.innerHTML = breakdown.length > 0 ? breakdown.join(' + ') : 'Tidak ada denda.';
-    }
+            return (hasil.json && hasil.json.message) || fallback;
+        },
 
-    // Google OAuth Copy URI
-    function copyRedirectUri() {
-        const copyText = document.getElementById("googleRedirectUri");
-        if (!copyText) return;
-        copyText.select();
-        copyText.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(copyText.value).then(() => {
-            Swal.fire({
-                icon: 'success',
-                title: 'Disalin!',
-                text: 'Authorized Redirect URI telah disalin ke clipboard.',
-                timer: 1500,
-                showConfirmButton: false
-            });
-        });
-    }
-</script>
+        /* ── Simpan profil ─────────────────────── */
 
-<script src="{{ asset('assets/plugins/dropify/js/dropify.min.js') }}"></script>
-<script>
-    $(document).ready(function() {
-        // Copy Monday Button
-        $('#btnCopyMon').on('click', function() {
-            copyMondaySchedule();
-            updateGraceSimulation();
-        });
+        async simpanProfil() {
+            if (this.menyimpanProfil) return;
 
-        $('#input_grace_period').on('input change', updateGraceSimulation);
-        $('#masuk_1').on('input change', updateGraceSimulation);
-        updateGraceSimulation();
+            this.menyimpanProfil = true;
 
-        // Dynamic Satuan Pendidikan based on Jenjang
-        const satuanMap = {
-            "1": ["SD", "MI"],
-            "2": ["SMP", "MTs"],
-            "3": ["SMA", "MA", "SMK"]
-        };
-        $('#jenjangSelect').on('change', function() {
-            const jVal = $(this).val();
-            const list = satuanMap[jVal] || [];
-            let optionsHtml = '';
-            list.forEach((label, idx) => {
-                optionsHtml += `<option value="${idx + 1}">${label}</option>`;
-            });
-            $('#satuanSelect').html(optionsHtml);
-        });
+            try {
+                const hasil = await this.kirimForm(this.urls.profil, new FormData(this.$refs.profilForm));
 
-        // Initialize Dropify for visual branding
-        if ($.fn.dropify) {
-            const drEvent = $('.dropify').dropify({
-                messages: {
-                    default: 'Seret file ke sini atau klik',
-                    replace: 'Klik untuk mengganti',
-                    remove: 'Hapus',
-                    error: 'Ukuran atau format tidak valid'
-                }
-            });
+                if (hasil.json && hasil.json.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Tersimpan!',
+                        text: hasil.json.message || 'Profil dan identitas sekolah berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
 
-            // Handle Dropify file upload
-            $('.dropify').on('change', function() {
-                const input = this;
-                const fieldKey = $(this).data('field');
-                if (!fieldKey || !input.files || !input.files[0]) return;
-
-                if (input.files[0].size > 5 * 1024 * 1024) {
-                    Swal.fire('File Terlalu Besar', 'Batas maksimal file adalah 5MB', 'warning');
-                    $(input).val('');
                     return;
                 }
 
-                const formData = new FormData();
-                formData.append('logo', input.files[0]);
-                formData.append('_token', '{{ csrf_token() }}');
+                Swal.fire('Gagal', this.pesanGagal(hasil, 'Terjadi kesalahan saat menyimpan'), 'error');
+            } finally {
+                this.menyimpanProfil = false;
+            }
+        },
 
-                $.ajax({
-                    url: '{{ url('settings/uploadFile') }}/' + fieldKey,
-                    type: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    dataType: 'json',
-                    success: function(res) {
-                        if (res && res.status) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Berhasil Diunggah!',
-                                text: 'Media ' + fieldKey + ' berhasil diperbarui.',
-                                timer: 1200,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('Gagal', (res && (res.message || res.src)) || 'Gagal mengunggah file', 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        const response = xhr?.responseJSON || {};
-                        const errors = response.errors
-                            ? Object.values(response.errors).flat().join('\n')
-                            : '';
-                        const message = errors || response.message || (
-                            xhr?.status === 403
-                                ? 'Sesi berakhir atau akses tidak diizinkan. Silakan login ulang.'
-                                : xhr?.status === 413
-                                    ? 'Ukuran file melebihi batas server.'
-                                    : `Upload gagal (HTTP ${xhr?.status || 'tidak diketahui'}).`
-                        );
+        /* ── Simpan pengaturan presensi ────────── */
 
-                        Swal.fire('Upload Gagal', message, 'error');
-                    }
-                });
-            });
+        async simpanPengaturan() {
+            if (this.menyimpanSetting) return;
 
-            // Tangkap URL file SEBELUM dropify membersihkan preview,
-            // agar server bisa menghapus file fisiknya (sebelumnya src tak dikirim
-            // sehingga file yatim menumpuk di disk dan DB/disk tak sinkron).
-            let pendingDeleteSrc = '';
-            drEvent.on('dropify.beforeClear', function(event, element) {
-                pendingDeleteSrc = '';
-                try {
-                    const $wrap = $(element.element).closest('.dropify-wrapper');
-                    const bg = $wrap.find('.dropify-preview .dropify-render img').attr('src') || '';
-                    if (bg) pendingDeleteSrc = bg;
-                } catch (e) {}
-                if (!pendingDeleteSrc) {
-                    pendingDeleteSrc = $(element.element).attr('data-default-file') || '';
-                }
-            });
+            this.menyimpanSetting = true;
 
-            // Handle Dropify file clear
-            drEvent.on('dropify.afterClear', function(event, element) {
-                const fieldKey = $(element.element).data('field');
-                if (fieldKey) {
-                    const payload = { field: fieldKey, '_token': '{{ csrf_token() }}' };
-                    if (pendingDeleteSrc) payload.src = pendingDeleteSrc;
-                    pendingDeleteSrc = '';
-                    $.ajax({
-                        url: '{{ url('settings/deleteFile') }}',
-                        type: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        data: payload,
-                        dataType: 'json',
-                        success: function (res) {
-                            if (res && res.status) {
-                                Swal.fire({
-                                    icon: 'success', title: 'Dihapus!',
-                                    text: (res.fileDeleted ? 'File dihapus dari server' : 'Data dikosongkan') + ' dan tampilan disegarkan.',
-                                    timer: 1400, showConfirmButton: false
-                                }).then(() => location.reload());
-                            } else {
-                                Swal.fire('Gagal', (res && res.message) || 'Gagal menghapus file', 'error');
-                            }
-                        },
-                        error: function (xhr) {
-                            if (xhr && xhr.status === 403) {
-                                Swal.fire('Akses Ditolak', 'Sesi berakhir atau akses tidak diizinkan. Silakan login ulang.', 'error');
-                            } else {
-                                Swal.fire('Error', 'Gagal menghubungi server', 'error');
-                            }
-                        }
+            try {
+                const hasil = await this.kirimForm(this.urls.setting, new FormData(this.$refs.settingForm));
+
+                if (hasil.json && hasil.json.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pengaturan Tersimpan!',
+                        text: hasil.json.message || 'Kebijakan jam kerja dan presensi berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false,
                     });
+
+                    return;
                 }
-            });
-        }
 
-        // Handle Profile Form Submit
-        $('#profileForm').on('submit', function(e) {
-            e.preventDefault();
-            const btn = $('#btnSaveProfile');
-            const origHtml = btn.html();
-            btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menyimpan...');
+                Swal.fire('Gagal', this.pesanGagal(hasil, 'Terjadi kesalahan saat menyimpan'), 'error');
+            } finally {
+                this.menyimpanSetting = false;
+            }
+        },
 
-            const formData = new FormData(this);
-            formData.append('_token', '{{ csrf_token() }}');
+        /* ── Media branding ────────────────────── */
 
-            $.ajax({
-                url: '{{ url('settings/saveSetting') }}',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                dataType: 'json',
-                success: function(res) {
-                    if (res.status) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Tersimpan!',
-                            text: res.message || 'Profil dan identitas sekolah berhasil diperbarui.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                    } else {
-                        Swal.fire('Gagal', res.message || 'Terjadi kesalahan saat menyimpan', 'error');
-                    }
-                },
-                error: function() {
-                    Swal.fire('Error', 'Terjadi kesalahan koneksi server saat menyimpan profil', 'error');
-                },
-                complete: function() {
-                    btn.prop('disabled', false).html(origHtml);
-                }
-            });
-        });
+        async unggahMedia(event, field) {
+            const input = event.target;
+            const file = input.files && input.files[0];
 
-        // Live preview + sisip placeholder format nomor surat teguran
-        (function() {
-            const $fmt = $('#teguranFormatInput');
-            const $pad = $('#teguranPaddingInput');
-            const $kode = $('#kodeSekolahInput');
-            const $out = $('#teguranPreview');
-            if (!$out.length) { return; }
+            if (!file) return;
 
-            const ROM = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI',7:'VII',8:'VIII',9:'IX',10:'X',11:'XI',12:'XII'};
-            const NAMA = {1:'Januari',2:'Februari',3:'Maret',4:'April',5:'Mei',6:'Juni',7:'Juli',8:'Agustus',9:'September',10:'Oktober',11:'November',12:'Desember'};
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('File Terlalu Besar', 'Batas maksimal file adalah 5MB', 'warning');
+                input.value = '';
 
-            function render() {
-                const tpl = (($fmt.val() || '').trim()) || @json(\App\Libraries\SuratNomor::DEFAULT_FORMAT);
-                const padRaw = parseInt($pad.val(), 10);
-                const pad = (padRaw >= 1 && padRaw <= 6) ? padRaw : {{ \App\Libraries\SuratNomor::DEFAULT_PADDING }};
-                const kode = (($kode.val() || '').trim()) || @json(\App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH);
-                const now = new Date();
-                const bln = now.getMonth() + 1;
-                const thn = now.getFullYear();
-                const nomor = ('1').padStart(pad, '0');
-
-                let teks = tpl
-                    .split('{kode_sekolah}').join(kode)
-                    .split('{sekolah}').join(@json((string)($setting->sekolah ?? '')))
-                    .split('{npsn}').join(@json((string)($setting->npsn ?? '')))
-                    .split('{nss}').join(@json((string)($setting->nss ?? '')))
-                    .split('{kepsek}').join(@json((string)($setting->kepsek ?? '')))
-                    .split('{nip_kepsek}').join(@json((string)($setting->nip ?? '')))
-                    .split('{nomor_urut}').join(nomor)
-                    .split('{nomor}').join(nomor)
-                    .split('{bulan_romawi}').join(ROM[bln] || '')
-                    .split('{bulan_nama}').join(NAMA[bln] || '')
-                    .split('{bulan}').join(('0' + bln).slice(-2))
-                    .split('{tahun_2}').join(('0' + (thn % 100)).slice(-2))
-                    .split('{tahun}').join(String(thn))
-                    .split('{level}').join('3')
-                    .split('{tanggal}').join(('0' + now.getDate()).slice(-2) + '-' + ('0' + bln).slice(-2) + '-' + thn);
-
-                teks = teks.replace(/\/{2,}/g, '/').trim();
-                $out.text(teks);
+                return;
             }
 
-            $fmt.on('input', render);
-            $pad.on('change', render);
-            $kode.on('input', render);
-            $('.teguran-ph-btn').on('click', function() {
-                const ph = $(this).data('ph');
-                const start = ($fmt.val() || '').length;
-                $fmt.val((($fmt.val() || '') + ph)).trigger('focus');
-                try { $fmt[0].setSelectionRange(start + ph.length, start + ph.length); } catch (e) {}
-                render();
-            });
+            this.mediaLoading[field] = true;
 
-            render();
-        })();
+            const body = new FormData();
+            body.append('logo', file);
 
-        // Handle Setting Form (Attendance) Submit
-        $('#settingForm').on('submit', function(e) {
-            e.preventDefault();
-            const btn = $('#btnSaveSetting');
-            const origHtml = btn.html();
-            btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menyimpan...');
+            try {
+                const hasil = await this.kirimForm(this.urls.upload + '/' + field, body);
 
-            const formData = new FormData(this);
-            formData.append('_token', '{{ csrf_token() }}');
+                if (hasil.json && hasil.json.status) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil Diunggah!',
+                        text: 'Media ' + field + ' berhasil diperbarui.',
+                        timer: 1200,
+                        showConfirmButton: false,
+                    });
+                    window.location.reload();
 
-            $.ajax({
-                url: '{{ url('admin/presensi/setting/save') }}',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                dataType: 'json',
-                success: function(res) {
-                    if (res.status) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Pengaturan Tersimpan!',
-                            text: res.message || 'Kebijakan jam kerja dan presensi berhasil diperbarui.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                    } else {
-                        Swal.fire('Gagal', res.message || 'Terjadi kesalahan saat menyimpan', 'error');
-                    }
-                },
-                error: function() {
-                    Swal.fire('Error', 'Terjadi kesalahan koneksi server saat menyimpan pengaturan presensi', 'error');
-                },
-                complete: function() {
-                    btn.prop('disabled', false).html(origHtml);
+                    return;
                 }
+
+                Swal.fire('Upload Gagal', this.pesanGagal(hasil, 'Gagal mengunggah file'), 'error');
+            } finally {
+                this.mediaLoading[field] = false;
+                input.value = '';
+            }
+        },
+
+        async hapusMedia(field) {
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus Media?',
+                text: 'File ' + field + ' akan dihapus dari server dan data dikosongkan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal',
             });
-        });
 
-        // Test Telegram Handler (uji nilai yang sedang diketik, tanpa harus Simpan dulu)
-        $('#btnTestTelegram').on('click', function() {
-            const btn = $(this);
-            btn.prop('disabled', true).html('<span class="spinner-tw spinner-tw-dark mr-1"></span> Mengirim...');
-            $.ajax({
-                url: '{{ url('admin/presensi/test-notification') }}',
-                type: 'POST',
-                data: {
-                    '_token': '{{ csrf_token() }}',
-                    channel: 'telegram',
-                    telegram_bot_token: $('input[name="telegram_bot_token"]').val() || '',
-                    telegram_chat_id: $('input[name="telegram_chat_id"]').val() || ''
-                },
-                dataType: 'json',
-                success: function(res) {
-                    Swal.fire(res.status ? 'Berhasil' : 'Gagal', res.message, res.status ? 'success' : 'error');
-                },
-                error: function() {
-                    Swal.fire('Error', 'Gagal mengirim notifikasi test.', 'error');
-                },
-                complete: function() {
-                    btn.prop('disabled', false).html('<i class="bi bi-send mr-1"></i> Test Kirim Telegram');
-                }
+            if (!konfirmasi.isConfirmed) return;
+
+            const hasil = await this.kirimForm(this.urls.hapusFile, {
+                field,
+                src: this.media[field] || '',
             });
-        });
 
-        // Test WhatsApp Handler
-        $('#btnTestWa').on('click', function() {
-            const btn = $(this);
-            btn.prop('disabled', true).html('<span class="spinner-tw spinner-tw-dark mr-1"></span> Mengirim...');
-            $.ajax({
-                url: '{{ url('admin/presensi/test-notification') }}',
-                type: 'POST',
-                data: {
-                    '_token': '{{ csrf_token() }}',
-                    channel: 'whatsapp',
-                    // Kirim nilai yang sedang diketik agar bisa diuji tanpa
-                    // Save dulu; panel tersembunyi tidak boleh membuat test
-                    // diam-diam memakai konfigurasi lama yang tersimpan.
-                    wa_gateway_mode: $('#waGatewayMode').val() || '',
-                    wa_base_url: $('input[name="wa_base_url"]').val() || '',
-                    wa_api_key: $('input[name="wa_api_key"]').val() || '',
-                    wa_session_name: $('input[name="wa_session_name"]').val() || '',
-                    wa_target_number: $('input[name="wa_target_number"]').val() || '',
-                    wa_gateway_url: $('input[name="wa_gateway_url"]').val() || '',
-                    wa_token: $('input[name="wa_token"]').val() || ''
-                },
-                dataType: 'json',
-                success: function(res) {
-                    Swal.fire(res.status ? 'Berhasil' : 'Gagal', res.message, res.status ? 'success' : 'error');
-                },
-                error: function() {
-                    Swal.fire('Error', 'Gagal mengirim notifikasi test.', 'error');
-                },
-                complete: function() {
-                    btn.prop('disabled', false).html('<i class="bi bi-send mr-1"></i> Test Kirim WhatsApp');
-                }
-            });
-        });
+            if (hasil.json && hasil.json.status) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Dihapus!',
+                    text: (hasil.json.fileDeleted ? 'File dihapus dari server' : 'Data dikosongkan') + ' dan tampilan disegarkan.',
+                    timer: 1400,
+                    showConfirmButton: false,
+                });
+                window.location.reload();
 
-        // Tampilkan hanya panel kanal yang dipilih.
-        function syncWaPanels() {
-            const mode = $('#waGatewayMode').val();
-            $('#panelOpenwa').toggleClass('hidden', mode !== 'openwa');
-            $('#panelFonnte').toggleClass('hidden', mode !== 'fonnte');
-        }
-        $('#waGatewayMode').on('change', syncWaPanels);
-        syncWaPanels();
+                return;
+            }
 
-        // Clean Photos Handler
-        $('#btnCleanPhotos').on('click', function() {
-            Swal.fire({
+            Swal.fire('Gagal', this.pesanGagal(hasil, 'Gagal menghapus file'), 'error');
+        },
+
+        async salinUri(uri) {
+            try {
+                await navigator.clipboard.writeText(uri);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Disalin!',
+                    text: 'Authorized Redirect URI telah disalin ke clipboard.',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            } catch (e) {
+                Swal.fire('Gagal Menyalin', 'Salin manual dari kolom Authorized Redirect URI.', 'warning');
+            }
+        },
+
+        sisipPlaceholder(placeholder) {
+            this.teguran.format = String(this.teguran.format || '') + placeholder;
+
+            this.$nextTick(() => this.$refs.teguranFormat?.focus());
+        },
+
+        /* ── Notifikasi & pembersihan ──────────── */
+
+        async ujiNotifikasi(channel) {
+            if (this.menguji) return;
+
+            this.menguji = channel;
+
+            try {
+                const body = new FormData(this.$refs.settingForm);
+                body.set('channel', channel);
+
+                const hasil = await this.kirimForm(this.urls.testNotif, body);
+                const json = hasil.json || {};
+
+                Swal.fire(json.status ? 'Berhasil' : 'Gagal', json.message || 'Gagal mengirim notifikasi test.', json.status ? 'success' : 'error');
+            } finally {
+                this.menguji = '';
+            }
+        },
+
+        async bersihkanFoto() {
+            if (this.membersihkan) return;
+
+            const konfirmasi = await Swal.fire({
                 title: 'Hapus Foto Absen Bulan Lalu?',
                 text: 'File gambar selfie bulan-bulan sebelumnya akan dihapus permanen dari server untuk menghemat kapasitas disk.',
                 icon: 'warning',
@@ -2546,449 +2392,279 @@
                 confirmButtonColor: '#d33',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Ya, Bersihkan!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const btn = $('#btnCleanPhotos');
-                    btn.prop('disabled', true).html('<span class="spinner-tw mr-1"></span> Menghapus...');
-                    
-                    $.ajax({
-                        url: '{{ url('admin/presensi/clean-photos') }}',
-                        type: 'POST',
-                        data: {
-                            '_token': '{{ csrf_token() }}'
-                        },
-                        dataType: 'json',
-                        success: function(res) {
-                            Swal.fire(res.status ? 'Berhasil' : 'Gagal', res.message, res.status ? 'success' : 'error');
-                        },
-                        error: function(xhr) {
-                            Swal.fire('Error', 'Terjadi kesalahan sistem saat menghapus foto', 'error');
-                            console.error(xhr);
-                        },
-                        complete: function() {
-                            btn.prop('disabled', false).html('<i class="bi bi-trash3 mr-1"></i> Bersihkan Foto Lama Sekarang');
-                        }
-                    });
-                }
+                cancelButtonText: 'Batal',
             });
-        });
 
-        // ── Theme Customizer ────────────────────────────────────
-        (function themeCustomizer() {
-            const cfgEl = document.getElementById('themeClientConfig');
-            if (!cfgEl) return;
+            if (!konfirmasi.isConfirmed) return;
 
-            const cfg = JSON.parse(cfgEl.textContent || '{}');
+            this.membersihkan = true;
+
+            try {
+                const hasil = await this.kirimForm(this.urls.cleanPhotos, {});
+                const json = hasil.json || {};
+
+                Swal.fire(json.status ? 'Berhasil' : 'Gagal', json.message || 'Terjadi kesalahan sistem saat menghapus foto', json.status ? 'success' : 'error');
+            } finally {
+                this.membersihkan = false;
+            }
+        },
+
+        /* ── Tema: matematika warna (port dari Theme::*) ── */
+
+        hexToRgb(hex) {
+            let teks = String(hex).replace('#', '');
+
+            if (teks.length === 3) {
+                teks = teks[0] + teks[0] + teks[1] + teks[1] + teks[2] + teks[2];
+            }
+
+            return [
+                parseInt(teks.substr(0, 2), 16),
+                parseInt(teks.substr(2, 2), 16),
+                parseInt(teks.substr(4, 2), 16),
+            ];
+        },
+
+        rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const l = (max + min) / 2;
+
+            if (max === min) return [0, 0, l];
+
+            const d = max - min;
+            const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            let h;
+
+            if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+
+            return [h / 6, s, l];
+        },
+
+        hueToRgb(p, q, t) {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+
+            return p;
+        },
+
+        hslToHex(h, s, l) {
+            const to = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
+
+            if (s === 0) return '#' + to(l) + to(l) + to(l);
+
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+
+            return '#' + to(this.hueToRgb(p, q, h + 1 / 3)) + to(this.hueToRgb(p, q, h)) + to(this.hueToRgb(p, q, h - 1 / 3));
+        },
+
+        paletteFromHex(hex) {
+            const rgb = this.hexToRgb(hex);
+            const [h, s, l] = this.rgbToHsl(rgb[0], rgb[1], rgb[2]);
+            const lightest = 0.97;
+            const darkest = 0.06;
+            const towardLight = { 50: 0.94, 100: 0.80, 200: 0.60, 300: 0.35, 400: 0.15 };
+            const towardDark = { 600: 0.14, 700: 0.26, 800: 0.42, 900: 0.55 };
+            const saturation = { 50: 0.98, 100: 1.0, 200: 1.0, 300: 1.0, 400: 1.0, 500: 1.0, 600: 0.97, 700: 0.90, 800: 0.82, 900: 0.74 };
+            const out = {};
+
+            Object.keys(towardLight).forEach((shade) => {
+                out[shade] = this.hslToHex(h, Math.min(1, s * saturation[shade]), l + (lightest - l) * towardLight[shade]);
+            });
+
+            out[500] = String(hex).toLowerCase();
+
+            Object.keys(towardDark).forEach((shade) => {
+                out[shade] = this.hslToHex(h, Math.min(1, s * saturation[shade]), l - (l - darkest) * towardDark[shade]);
+            });
+
+            return out;
+        },
+
+        shiftHue(hex, degrees) {
+            const rgb = this.hexToRgb(hex);
+            const [h, s, l] = this.rgbToHsl(rgb[0], rgb[1], rgb[2]);
+            let baru = h + degrees / 360;
+
+            baru = baru - Math.floor(baru);
+
+            return this.hslToHex(baru, s, l);
+        },
+
+        buildSemantic(primary, accent) {
+            const get = (palette, shade) => (palette && palette[shade] ? palette[shade] : '#000000');
+
+            return {
+                surface: '#ffffff',
+                'surface-hover': get(primary, '50'),
+                'surface-muted': '#f8fafc',
+                'surface-inverse': '#0f172a',
+                'surface-inverse-hover': '#1e293b',
+                border: '#e2e8f0',
+                'border-focus': get(primary, '500'),
+                'border-muted': '#cbd5e1',
+                'text-primary': '#0f1729',
+                'text-secondary': '#475569',
+                'text-muted': '#94a3b8',
+                'text-inverse': '#ffffff',
+                'text-success': get(primary, '700'),
+                'text-warning': get(accent, '700'),
+                'text-error': '#dc2626',
+                'text-info': get(primary, '700'),
+                primary: get(primary, '600'),
+                'primary-hover': get(primary, '700'),
+                'primary-active': get(primary, '800'),
+                'primary-subtle': get(primary, '50'),
+                accent: get(accent, '600'),
+                'accent-hover': get(accent, '700'),
+                'accent-active': get(accent, '800'),
+                'accent-subtle': get(accent, '50'),
+            };
+        },
+
+        resolveTheme(preset, hex) {
+            const fallback = (this.themeCfg.presets && this.themeCfg.presets.default) || {};
+
+            if (preset === 'custom') {
+                const primary = this.paletteFromHex(hex);
+                const accent = this.paletteFromHex(this.shiftHue(hex, this.accentShift));
+
+                return {
+                    brand: primary,
+                    primary,
+                    accent,
+                    indigo: fallback.indigo || primary,
+                    purple: fallback.purple || primary,
+                    secondary: primary[400],
+                    tertiary: primary[700],
+                    semantic: this.buildSemantic(primary, accent),
+                };
+            }
+
+            const p = (this.themeCfg.presets && this.themeCfg.presets[preset]) || fallback;
+            const sem = this.themeCfg.semantic || this.buildSemantic(p.primary || p.brand, p.accent || p.brand);
+
+            return Object.assign({}, p, { semantic: sem });
+        },
+
+        terapkanTema() {
+            const t = this.resolveTheme(this.themePreset, this.customHex);
+
+            if (!t || !t.brand) return;
+
             const root = document.documentElement;
-            const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
-            const savedPreset = @json($curPreset);
-            const savedCustom = @json($curCustom);
-            let selected = savedPreset;
-            let customHex = savedCustom;
+            const families = {
+                primary: t.primary || t.brand,
+                accent: t.accent || t.brand,
+                indigo: t.indigo || t.brand,
+                purple: t.purple || t.brand,
+            };
 
-            function hexToRgb(hex) {
-                hex = String(hex).replace('#', '');
-                if (hex.length === 3) {
-                    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-                }
-                return [
-                    parseInt(hex.substr(0, 2), 16),
-                    parseInt(hex.substr(2, 2), 16),
-                    parseInt(hex.substr(4, 2), 16)
-                ];
-            }
+            Object.keys(families).forEach((family) => {
+                SHADES.forEach((s) => {
+                    const value = families[family][s];
 
-            // Port 1:1 dari Theme::rgbToHsl() + Theme::hslToHex() (PHP) agar
-            // palet warna kustom yang dipratinjau sama persis dengan palet
-            // yang nanti dirender server setelah disimpan.
-            function rgbToHsl(r, g, b) {
-                r /= 255; g /= 255; b /= 255;
-                const max = Math.max(r, g, b);
-                const min = Math.min(r, g, b);
-                const l = (max + min) / 2;
-
-                if (max === min) return [0, 0, l];
-
-                const d = max - min;
-                const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                let h;
-                if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-                else if (max === g) h = (b - r) / d + 2;
-                else h = (r - g) / d + 4;
-                h /= 6;
-
-                return [h, s, l];
-            }
-
-            function hueToRgb(p, q, t) {
-                if (t < 0) t += 1;
-                if (t > 1) t -= 1;
-                if (t < 1 / 6) return p + (q - p) * 6 * t;
-                if (t < 1 / 2) return q;
-                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-                return p;
-            }
-
-            function hslToHex(h, s, l) {
-                const to = function (v) {
-                    return Math.round(v * 255).toString(16).padStart(2, '0');
-                };
-
-                if (s === 0) {
-                    return '#' + to(l) + to(l) + to(l);
-                }
-
-                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                const p = 2 * l - q;
-
-                return '#' + to(hueToRgb(p, q, h + 1 / 3)) + to(hueToRgb(p, q, h)) + to(hueToRgb(p, q, h - 1 / 3));
-            }
-
-            function paletteFromHex(hex) {
-                const rgb = hexToRgb(hex);
-                const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-                const h = hsl[0];
-                const s = hsl[1];
-                const l = hsl[2];
-                // Ramp relatif terhadap lightness warna asli, sama seperti
-                // Theme::paletteFromHex(): langkah antar-shade merata.
-                const lightest = 0.97;
-                const darkest = 0.06;
-                const towardLight = { 50: 0.94, 100: 0.80, 200: 0.60, 300: 0.35, 400: 0.15 };
-                const towardDark = { 600: 0.14, 700: 0.26, 800: 0.42, 900: 0.55 };
-                // Saturasi ditahan di shade terang, diredupkan bertahap di gelap.
-                const saturation = { 50: 0.98, 100: 1.0, 200: 1.0, 300: 1.0, 400: 1.0, 500: 1.0, 600: 0.97, 700: 0.90, 800: 0.82, 900: 0.74 };
-                const out = {};
-                Object.keys(towardLight).forEach(function (shade) {
-                    out[shade] = hslToHex(h, Math.min(1, s * saturation[shade]), l + (lightest - l) * towardLight[shade]);
-                });
-                // Shade 500 = warna asli, sama seperti Theme::paletteFromHex().
-                out[500] = String(hex).toLowerCase();
-                Object.keys(towardDark).forEach(function (shade) {
-                    out[shade] = hslToHex(h, Math.min(1, s * saturation[shade]), l - (l - darkest) * towardDark[shade]);
-                });
-                return out;
-            }
-
-            // Sama seperti Theme::shiftHue().
-            function shiftHue(hex, degrees) {
-                const rgb = hexToRgb(hex);
-                const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-                let h = hsl[0] + degrees / 360;
-                h = h - Math.floor(h);
-                return hslToHex(h, hsl[1], hsl[2]);
-            }
-
-            function resolveTheme(preset, hex) {
-                const fallback = (cfg.presets && cfg.presets.default) || {};
-
-                if (preset === 'custom') {
-                    const p = paletteFromHex(hex);
-                    // Sama seperti Theme::resolve(): aksen digeser hue-nya
-                    // (Theme::CUSTOM_ACCENT_HUE_SHIFT) agar gradien tidak monoton,
-                    // sedangkan indigo/purple tetap statis.
-                    const accent = paletteFromHex(shiftHue(hex, {{ \App\Libraries\Theme::CUSTOM_ACCENT_HUE_SHIFT }}));
-                    // Bangun semantic colors dari palet custom yang dihasilkan.
-                    const sem = buildSemantic(p, accent);
-                    return {
-                        brand: p,
-                        primary: p,
-                        accent: accent,
-                        indigo: fallback.indigo || p,
-                        purple: fallback.purple || p,
-                        secondary: p[400],
-                        tertiary: p[700],
-                        semantic: sem
-                    };
-                }
-
-                const p = cfg.presets && cfg.presets[preset] ? cfg.presets[preset] : fallback;
-                const sem = cfg.semantic || buildSemantic(p.primary || p.brand, p.accent || p.brand);
-                return {
-                    ...p,
-                    semantic: sem
-                };
-            }
-
-            // Bangun semantic colors (mirip Theme::semanticColors di PHP) agar
-            // preview klien konsisten dengan CSS yang dirender server.
-            function buildSemantic(primary, accent) {
-                const get = (palette, shade) => palette && palette[shade] ? palette[shade] : '#000000';
-                return {
-                    surface: '#ffffff',
-                    'surface-hover': get(primary, '50'),
-                    'surface-muted': '#f8fafc',
-                    'surface-inverse': '#0f172a',
-                    'surface-inverse-hover': '#1e293b',
-                    border: '#e2e8f0',
-                    'border-focus': get(primary, '500'),
-                    'border-muted': '#cbd5e1',
-                    'text-primary': '#0f1729',
-                    'text-secondary': '#475569',
-                    'text-muted': '#94a3b8',
-                    'text-inverse': '#ffffff',
-                    'text-success': get(primary, '700'),
-                    'text-warning': get(accent, '700'),
-                    'text-error': '#dc2626',
-                    'text-info': get(primary, '700'),
-                    primary: get(primary, '600'),
-                    'primary-hover': get(primary, '700'),
-                    'primary-active': get(primary, '800'),
-                    'primary-subtle': get(primary, '50'),
-                    accent: get(accent, '600'),
-                    'accent-hover': get(accent, '700'),
-                    'accent-active': get(accent, '800'),
-                    'accent-subtle': get(accent, '50'),
-                };
-            }
-
-            // Menulis variabel yang sama persis dengan Theme::cssVars() +
-            // Theme::brandVars(): keluarga --primary/--accent/--indigo/--purple,
-            // alias --theme-primary/--theme-accent, keluarga --brand-*,
-            // --brand-secondary/tertiary, dan --primary(-rgb).
-            function applyTheme(preset, hex) {
-                const t = resolveTheme(preset, hex);
-                if (!t) return;
-
-                const families = {
-                    primary: t.primary || t.brand,
-                    accent: t.accent || t.brand,
-                    indigo: t.indigo || t.brand,
-                    purple: t.purple || t.brand
-                };
-
-                Object.keys(families).forEach(function (family) {
-                    shades.forEach(function (s) {
-                        const value = families[family][s];
-                        if (!value) return;
-                        root.style.setProperty('--' + family + '-' + s, value);
-                        root.style.setProperty('--' + family + '-' + s + '-rgb', hexToRgb(value).join(' '));
-                    });
-                });
-
-                ['primary', 'accent'].forEach(function (family) {
-                    shades.forEach(function (s) {
-                        const value = families[family][s];
-                        if (value) root.style.setProperty('--theme-' + family + '-' + s, value);
-                    });
-                });
-
-                shades.forEach(function (s) {
-                    const value = t.brand[s];
                     if (!value) return;
-                    root.style.setProperty('--brand-' + s, value);
-                    root.style.setProperty('--brand-' + s + '-rgb', hexToRgb(value).join(' '));
+
+                    root.style.setProperty('--' + family + '-' + s, value);
+                    root.style.setProperty('--' + family + '-' + s + '-rgb', this.hexToRgb(value).join(' '));
                 });
+            });
 
-                ['secondary', 'tertiary'].forEach(function (key) {
-                    const value = t[key];
-                    if (!value) return;
-                    root.style.setProperty('--brand-' + key, value);
-                    root.style.setProperty('--brand-' + key + '-rgb', hexToRgb(value).join(' '));
-                });
+            SHADES.forEach((s) => {
+                const value = t.brand[s];
 
-                root.style.setProperty('--primary', t.brand[600]);
-                root.style.setProperty('--primary-rgb', hexToRgb(t.brand[600]).join(', '));
+                if (!value) return;
 
-                // ── Variabel semantik untuk UI layout ──
-                const sem = t.semantic || {};
-                Object.keys(sem).forEach(function (key) {
-                    const value = sem[key];
-                    if (!value) return;
-                    root.style.setProperty('--' + key, value);
-                    root.style.setProperty('--' + key + '-rgb', hexToRgb(value).join(' '));
-                });
+                root.style.setProperty('--brand-' + s, value);
+                root.style.setProperty('--brand-' + s + '-rgb', this.hexToRgb(value).join(' '));
+            });
 
-                const meta = document.querySelector('meta[name="theme-color"]');
-                if (meta) meta.setAttribute('content', t.brand[600]);
+            ['secondary', 'tertiary'].forEach((key) => {
+                const value = t[key];
+
+                if (!value) return;
+
+                root.style.setProperty('--brand-' + key, value);
+                root.style.setProperty('--brand-' + key + '-rgb', this.hexToRgb(value).join(' '));
+            });
+
+            root.style.setProperty('--primary', t.brand[600]);
+            root.style.setProperty('--primary-rgb', this.hexToRgb(t.brand[600]).join(', '));
+
+            const sem = t.semantic || {};
+
+            Object.keys(sem).forEach((key) => {
+                const value = sem[key];
+
+                if (!value) return;
+
+                root.style.setProperty('--' + key, value);
+                root.style.setProperty('--' + key + '-rgb', this.hexToRgb(value).join(' '));
+            });
+
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', t.brand[600]);
+        },
+
+        pilihTemaPreset(preset) {
+            this.themePreset = preset;
+            this.terapkanTema();
+        },
+
+        pakaiWarna() {
+            const hex = String(this.customHex || '').trim().toLowerCase();
+
+            if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+
+            this.customHex = hex;
+            this.themePreset = 'custom';
+            this.terapkanTema();
+        },
+
+        async simpanTema() {
+            if (this.menyimpanTema) return;
+
+            if (this.themePreset === 'custom' && !/^#[0-9a-f]{6}$/i.test(this.customHex)) {
+                Swal.fire('Warna belum valid', 'Masukkan kode HEX 6 digit, misalnya #2563eb.', 'warning');
+
+                return;
             }
 
-            function renderCustomSwatches() {
-                const palette = paletteFromHex(customHex);
-                const wrap = document.getElementById('themeCustomSwatches');
-                if (wrap) {
-                    wrap.innerHTML = '';
-                    shades.forEach(function (s) {
-                        const dot = document.createElement('div');
-                        dot.className = 'theme-custom-swatch';
-                        dot.style.background = palette[s];
-                        dot.title = String(s);
-                        wrap.appendChild(dot);
+            this.menyimpanTema = true;
+
+            try {
+                const hasil = await this.kirimForm(this.urls.saveTheme, {
+                    preset: this.themePreset,
+                    custom: this.customHex,
+                });
+
+                if (hasil.json && hasil.json.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Tema Disimpan!',
+                        text: 'Warna aplikasi berhasil diperbarui.',
+                        timer: 1600,
+                        showConfirmButton: false,
                     });
+
+                    return;
                 }
-                document.querySelectorAll('[data-custom-swatch]').forEach(function (el) {
-                    const shade = el.getAttribute('data-custom-swatch');
-                    if (palette[shade]) el.style.background = palette[shade];
-                });
+
+                Swal.fire('Gagal', this.pesanGagal(hasil, 'Terjadi kesalahan saat menyimpan tema'), 'error');
+            } finally {
+                this.menyimpanTema = false;
             }
-
-            function syncCards() {
-                document.querySelectorAll('#themePresetGrid .theme-card').forEach(function (card) {
-                    card.classList.toggle('selected', card.getAttribute('data-theme-preset') === selected);
-                });
-                const panel = document.getElementById('themeCustomPanel');
-                if (panel) panel.classList.toggle('hidden', selected !== 'custom');
-                renderCustomSwatches();
-            }
-
-            const colorInput = document.getElementById('themeCustomColor');
-            const hexInput = document.getElementById('themeCustomHex');
-            const saveBtn = document.getElementById('btnSaveTheme');
-            const resetBtn = document.getElementById('btnResetTheme');
-
-            document.querySelectorAll('#themePresetGrid .theme-card').forEach(function (card) {
-                card.addEventListener('click', function () {
-                    selected = this.getAttribute('data-theme-preset');
-                    syncCards();
-                    applyTheme(selected, customHex);
-                });
-            });
-
-            if (colorInput) {
-                colorInput.addEventListener('input', function () {
-                    customHex = String(this.value).toLowerCase();
-                    if (hexInput) hexInput.value = customHex;
-                    renderCustomSwatches();
-                    if (selected === 'custom') applyTheme('custom', customHex);
-                });
-            }
-
-            if (hexInput) {
-                hexInput.addEventListener('input', function () {
-                    let value = this.value.trim();
-                    if (value.charAt(0) !== '#') value = '#' + value;
-                    if (/^#[0-9a-f]{6}$/i.test(value)) {
-                        customHex = value.toLowerCase();
-                        if (colorInput) colorInput.value = customHex;
-                        renderCustomSwatches();
-                        if (selected === 'custom') applyTheme('custom', customHex);
-                    }
-                });
-            }
-
-            if (resetBtn) {
-                resetBtn.addEventListener('click', function () {
-                    selected = 'default';
-                    syncCards();
-                    applyTheme('default', customHex);
-                });
-            }
-
-            if (saveBtn) {
-                saveBtn.addEventListener('click', function () {
-                    if (selected === 'custom' && !/^#[0-9a-f]{6}$/i.test(customHex)) {
-                        Swal.fire('Warna belum valid', 'Masukkan kode HEX 6 digit, misalnya #2563eb.', 'warning');
-                        return;
-                    }
-
-                    const originalHtml = saveBtn.innerHTML;
-                    saveBtn.disabled = true;
-                    saveBtn.innerHTML = '<span class="spinner-tw mr-1"></span> Menyimpan...';
-
-                    const payload = { preset: selected, custom: customHex };
-                    payload['_token'] = '{{ csrf_token() }}';
-
-                    $.ajax({
-                        url: '{{ url('settings/saveTheme') }}',
-                        type: 'POST',
-                        data: payload,
-                        dataType: 'json',
-                        success: function (res) {
-                            if (res.status) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Tema Disimpan!',
-                                    text: 'Warna aplikasi berhasil diperbarui.',
-                                    timer: 1600,
-                                    showConfirmButton: false
-                                });
-                            } else {
-                                Swal.fire('Gagal', res.message || 'Terjadi kesalahan saat menyimpan tema', 'error');
-                            }
-                        },
-                        error: function (xhr) {
-                            const msg = xhr.responseJSON && xhr.responseJSON.message
-                                ? xhr.responseJSON.message
-                                : 'Gagal menghubungi server';
-                            Swal.fire('Error', msg, 'error');
-                        },
-                        complete: function () {
-                            saveBtn.disabled = false;
-                            saveBtn.innerHTML = originalHtml;
-                        }
-                    });
-                });
-            }
-
-            syncCards();
-            applyTheme(selected, customHex);
-        })();
-
-        // Tab Switch Handling & Fixed Bottom Bar Visibility
-        function updateActionBar(target) {
-            if (target === '#profil' || target === '#maintenance' || target === '#tampilan') {
-                $('.fixed-bottom-bar').fadeOut(120);
-            } else {
-                $('.fixed-bottom-bar').fadeIn(120);
-            }
-        }
-
-        function showSettingTab(target) {
-            if (!target) return;
-            const targetEl = document.querySelector(target);
-            if (!targetEl) return;
-
-            // Hide all tab panes in settingTabContent
-            document.querySelectorAll('#settingTabContent .tab-pane, #settingTabContent .tab-pane-tw').forEach(function(pane) {
-                pane.classList.remove('show', 'active');
-                pane.style.display = 'none';
-            });
-
-            // Show selected tab pane
-            targetEl.classList.add('show', 'active');
-            targetEl.style.display = 'block';
-
-            // Update tab buttons
-            document.querySelectorAll('#settingTabs button[data-ui-toggle="tab"]').forEach(function(b) {
-                const bTarget = b.getAttribute('data-ui-target');
-                if (bTarget === target) {
-                    b.classList.add('bg-white', 'text-blue-600', 'shadow-sm', 'active');
-                    b.classList.remove('text-slate-500');
-                    b.setAttribute('aria-selected', 'true');
-                } else {
-                    b.classList.remove('bg-white', 'text-blue-600', 'shadow-sm', 'active');
-                    b.classList.add('text-slate-500');
-                    b.setAttribute('aria-selected', 'false');
-                }
-            });
-
-            localStorage.setItem('activeSettingTab', target);
-            updateActionBar(target);
-        }
-
-        document.querySelectorAll('#settingTabs button[data-ui-toggle="tab"]').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = this.getAttribute('data-ui-target');
-                if (target) {
-                    showSettingTab(target);
-
-                    // Scroll back to top of the scrollable area
-                    const content = document.getElementById('main-content');
-                    if (content) content.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            });
-        });
-
-        // Restore saved tab or from query parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const reqTab = urlParams.get('tab') ? ('#' + urlParams.get('tab')) : (window.location.hash || localStorage.getItem('activeSettingTab') || '#profil');
-        showSettingTab(reqTab);
-
-        // Run calculation once
-        calculateSimulation();
-    });
+        },
+    }));
+});
 </script>
-
 @endsection

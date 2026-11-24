@@ -1,53 +1,5 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    .num-tabular { font-variant-numeric: tabular-nums; }
-    /* ── Icon box centering (pola lembur/izin) ── */
-    .ic-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .ic-box i,
-    .ic-box .bi {
-        vertical-align: 0;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    /* ── Filter chips (pola izin) ── */
-    .filter-chip {
-        display: inline-flex; align-items: center; gap: .35rem;
-        padding: .3rem .75rem; border-radius: 9999px; font-size: .75rem; font-weight: 700;
-        border: 1.5px solid #e2e8f0; background: #fff; color: #475569; cursor: pointer;
-        transition: all .15s ease; white-space: nowrap;
-    }
-    .filter-chip:hover { border-color: var(--primary-600); color: var(--primary-600); }
-    .filter-chip.active { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
-    .filter-chip.active .chip-count { background: rgba(255,255,255,0.25); color: #fff; }
-    .chip-count {
-        background: #f1f5f9; color: #475569;
-        font-size: 0.68rem; font-weight: 800;
-        padding: 0.05rem 0.4rem; border-radius: 9999px;
-        min-width: 18px; text-align: center;
-    }
-    .filter-chip .dot { width: 8px; height: 8px; border-radius: 9999px; display: inline-block; }
-    /* ── Row hover (pola izin) ── */
-    #koreksiTable tbody tr:hover td, #historyTable tbody tr:hover td { background: #f8fafc; }
-    .reason-text {
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-        overflow: hidden; max-width: 240px;
-    }
-    @media (max-width: 640px) {
-        .content-area { padding: 0.5rem 0.75rem 1.25rem; }
-        .card-tw-body { padding: 0.875rem; }
-    }
-</style>
-@endsection
-
 @section('content')
 
 <?php
@@ -62,12 +14,20 @@ $fmtWaktu = function ($v, $tgl = null) {
     return strlen($s) > 5 ? substr($s, 0, 5) : $s;
 };
 $toMin = function ($hm) {
-    if (!preg_match('/^(\d{1,2}):(\d{2})/', (string) $hm, $m)) return null;
+    if (! preg_match('/^(\d{1,2}):(\d{2})/', (string) $hm, $m)) return null;
     return ((int) $m[1]) * 60 + ((int) $m[2]);
 };
+$tone = [
+    'badge-success' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    'badge-danger' => 'border-rose-200 bg-rose-50 text-rose-700',
+    'badge-warning' => 'border-amber-200 bg-amber-50 text-amber-700',
+    'badge-info' => 'border-sky-200 bg-sky-50 text-sky-700',
+    'badge-primary' => 'border-blue-200 bg-blue-50 text-blue-700',
+    'badge-secondary' => 'border-slate-200 bg-slate-100 text-slate-600',
+];
 $fieldInfo = [
-    'jam_masuk'  => ['label' => 'Jam Masuk',  'icon' => 'bi-box-arrow-in-right', 'cls' => 'badge-info'],
-    'jam_pulang' => ['label' => 'Jam Pulang', 'icon' => 'bi-box-arrow-right',    'cls' => 'badge-warning'],
+    'jam_masuk' => ['label' => 'Jam Masuk', 'icon' => 'bi-box-arrow-in-right', 'cls' => 'badge-info'],
+    'jam_pulang' => ['label' => 'Jam Pulang', 'icon' => 'bi-box-arrow-right', 'cls' => 'badge-warning'],
 ];
 $statusMap = [
     'ONTIME' => ['Tepat', 'badge-success'], 'LATE' => ['Telat', 'badge-danger'],
@@ -80,7 +40,7 @@ $statusMap = [
 ];
 $history = $history ?? [];
 $summaryKoreksi = $summaryKoreksi ?? ['pending' => count($pending), 'oldest' => null, 'history' => count($history)];
-$oldestText = !empty($summaryKoreksi['oldest']) ? date('d/m/Y H:i', strtotime($summaryKoreksi['oldest'])) : '—';
+$oldestText = ! empty($summaryKoreksi['oldest']) ? date('d/m/Y H:i', strtotime($summaryKoreksi['oldest'])) : '—';
 $jumlahField = [];
 foreach ($pending as $pf) {
     $kunciField = (string) ($pf->field_name ?? '');
@@ -91,504 +51,496 @@ foreach ($history as $hh) {
     if (($hh->status ?? '') === 'approved') $jumlahStatus['approved']++;
     elseif (($hh->status ?? '') === 'rejected') $jumlahStatus['rejected']++;
 }
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'approve' => url('admin/presensi/approve-koreksi'),
+        'reject' => url('admin/presensi/reject-koreksi'),
+    ],
+];
 ?>
 
-<div class="fade-in-up p-4 md:p-6 space-y-6">
+<div x-data="pendingKoreksiPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}"
+    class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
 
-    <!-- Header (pola kartu/dapodik/izin) -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-pencil-square"></i> Verifikasi Koreksi
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Koreksi Absensi</h1>
-            <p class="text-xs text-slate-500 mt-1">Tinjau dan setujui permintaan koreksi kehadiran dari guru.</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/dinas') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+    <x-ui.page-header
+        title="Koreksi Absensi"
+        icon="bi-pencil-square"
+        tone="amber"
+        subtitle="Tinjau dan setujui permintaan koreksi kehadiran dari guru."
+        :crumbs="['Presensi', 'Koreksi Absensi']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/dinas') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 no-underline transition-colors hover:bg-slate-200">
                 <i class="bi bi-briefcase text-cyan-600"></i> Verifikasi Dinas
             </a>
-            <a href="{{ url('admin/presensi/izin') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi/izin') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 no-underline transition-colors hover:bg-slate-200">
                 <i class="bi bi-file-earmark-medical text-cyan-600"></i> Verifikasi Izin/Sakit
             </a>
-            <a href="{{ url('admin/presensi') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
                 <i class="bi bi-arrow-left"></i> Kembali
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <?php if (!empty($pending)): ?>
-    <div class="alert-tw alert-warning">
-        <i class="bi bi-info-circle-fill mt-0.5"></i>
-        <div>Menyetujui koreksi akan <strong>menghitung ulang status, poin, dan denda</strong> hari tersebut (termasuk cap denda bulanan). Pengajuan basi lain untuk absensi + field yang sama otomatis ditolak.</div>
-    </div>
-    <?php endif; ?>
+    <div class="mt-4 space-y-5">
 
-    <!-- Ringkasan -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) $summaryKoreksi['pending'] }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-calendar-event text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Pengajuan Tertua</div>
-                <div class="text-sm font-extrabold text-slate-900 num-tabular leading-tight">{{ $oldestText }}</div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Sudah Diproses</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) $summaryKoreksi['history'] }} <span class="text-xs font-normal text-slate-400">keputusan</span></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-blue-50 text-blue-600 shrink-0">
-                    <i class="bi bi-list-check text-sm"></i>
-                </span>
-                <div>
-                    <h2 class="text-sm font-extrabold text-slate-900">Daftar Permintaan Koreksi</h2>
-                    <p class="text-[11px] text-slate-400">Tinjau selisih waktu sebelum menyetujui</p>
+        @if (! empty($pending))
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex gap-2.5">
+                    <i class="bi bi-info-circle-fill mt-0.5 text-amber-500"></i>
+                    <div class="text-[11px] leading-relaxed text-amber-800">
+                        Menyetujui koreksi akan <strong>menghitung ulang status, poin, dan denda</strong> hari tersebut (termasuk cap denda bulanan). Pengajuan basi lain untuk absensi + field yang sama otomatis ditolak.
+                    </div>
                 </div>
             </div>
-            <?php if (!empty($pending)): ?>
-            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
-                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="searchKoreksiInput"
-                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                       placeholder="Cari nama / NIP / tanggal..." autocomplete="off">
-                <button type="button" id="clearKoreksiSearch"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">
-                    <i class="bi bi-x text-xs"></i>
-                </button>
+        @endif
+
+        <!-- Ringkasan -->
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+                    <i class="bi bi-hourglass-split text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Menunggu</div>
+                    <div class="text-lg font-extrabold tabular-nums text-slate-900">{{ (int) $summaryKoreksi['pending'] }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
+                </div>
             </div>
-            <?php endif; ?>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <i class="bi bi-calendar-event text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Pengajuan Tertua</div>
+                    <div class="text-sm font-extrabold leading-tight tabular-nums text-slate-900">{{ $oldestText }}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <i class="bi bi-check-circle text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Sudah Diproses</div>
+                    <div class="text-lg font-extrabold tabular-nums text-slate-900">{{ (int) $summaryKoreksi['history'] }} <span class="text-xs font-normal text-slate-400">keputusan</span></div>
+                </div>
+            </div>
         </div>
 
-        <?php if (!empty($pending)): ?>
-        <div class="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-1.5 items-center" id="koreksiChips">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">FIELD</span>
-            <button type="button" class="filter-chip active" data-field="">
-                Semua <span class="chip-count">{{ count($pending) }}</span>
-            </button>
-            <button type="button" class="filter-chip" data-field="jam_masuk">
-                <i class="bi bi-box-arrow-in-right"></i>Masuk <span class="chip-count">{{ $jumlahField['jam_masuk'] ?? 0 }}</span>
-            </button>
-            <button type="button" class="filter-chip" data-field="jam_pulang">
-                <i class="bi bi-box-arrow-right"></i>Pulang <span class="chip-count">{{ $jumlahField['jam_pulang'] ?? 0 }}</span>
-            </button>
-        </div>
-        <?php endif; ?>
+        <!-- Daftar permintaan -->
+        @if (empty($pending))
+            <x-ui.card bodyClass="p-5">
+                <x-ui.empty icon="bi-check2-circle" title="Tidak ada permintaan koreksi"
+                    description="Semua permintaan koreksi telah diproses." />
+            </x-ui.card>
+        @else
+            <div x-data="dataTable({ perPage: 100, filters: { field: '' } })">
+                <x-ui.card title="Daftar Permintaan Koreksi" icon="bi-list-check" tone="amber"
+                    subtitle="Tinjau selisih waktu sebelum menyetujui" bodyClass="p-0">
+                    <x-slot:actions>
+                        <div class="relative w-full sm:w-64">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                            <input type="text" x-ref="search" x-model="query" placeholder="Cari nama / NIP / tanggal..." autocomplete="off"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" x-show="query !== ''" x-cloak @click="query = ''; $refs.search.focus()" title="Bersihkan pencarian"
+                                class="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700">
+                                <i class="bi bi-x text-xs"></i>
+                            </button>
+                        </div>
+                    </x-slot:actions>
 
-        <div class="p-0">
-            <div id="emptyState" class="{{ empty($pending) ? '' : 'hidden' }} text-center py-16 text-slate-400">
-                <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
-                <p class="font-medium text-slate-600">Tidak ada permintaan koreksi</p>
-                <p class="text-xs mt-1">Semua permintaan koreksi telah diproses.</p>
-            </div>
+                    <x-slot:toolbar>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="mr-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Field</span>
+                            <button type="button" @click="filters.field = ''"
+                                :class="filters.field === '' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                Semua <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ count($pending) }}</span>
+                            </button>
+                            <button type="button" @click="filters.field = 'jam_masuk'"
+                                :class="filters.field === 'jam_masuk' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                <i class="bi bi-box-arrow-in-right"></i>Masuk <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ $jumlahField['jam_masuk'] ?? 0 }}</span>
+                            </button>
+                            <button type="button" @click="filters.field = 'jam_pulang'"
+                                :class="filters.field === 'jam_pulang' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                <i class="bi bi-box-arrow-right"></i>Pulang <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ $jumlahField['jam_pulang'] ?? 0 }}</span>
+                            </button>
+                        </div>
+                    </x-slot:toolbar>
 
-            <?php if (!empty($pending)): ?>
-            <div class="table-responsive-tw">
-                <table class="table-tw" id="koreksiTable" style="min-width:1060px;">
-                    <thead>
-                        <tr>
-                            <th class="pl-4 w-10">#</th>
-                            <th>Tanggal Absen</th>
-                            <th>Guru</th>
-                            <th>Field</th>
-                            <th>Nilai Lama</th>
-                            <th>Nilai Baru</th>
-                            <th class="text-center">Selisih</th>
-                            <th class="min-w-[220px]">Alasan</th>
-                            <th>Diajukan</th>
-                            <th class="text-right pr-4">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="koreksiBody">
-                        <?php
-                        $no = 1;
-                        foreach ($pending as $p):
-                            $fInfo  = $fieldInfo[$p->field_name] ?? ['label' => ucwords(str_replace('_', ' ', (string) $p->field_name)), 'icon' => 'bi-pencil-square', 'cls' => 'badge-info'];
-                            $oldHm  = $fmtWaktu($p->old_value ?? null, $p->tgl ?? null);
-                            $newHm  = $fmtWaktu($p->new_value ?? null, $p->tgl ?? null);
-                            $jamIn  = $fmtWaktu($p->jam_masuk ?? null, $p->tgl ?? null);
-                            $jamOut = $fmtWaktu($p->jam_pulang ?? null, $p->tgl ?? null);
-                            $stIn   = strtoupper((string) ($p->status_masuk ?? ''));
-                            [$stInLbl, $stInCls] = $statusMap[$stIn] ?? [($stIn !== '' ? ucwords(strtolower($stIn)) : '—'), 'badge-secondary'];
-                            $attMissing = empty($p->tgl);
-                            $dMin = null;
-                            $om = $toMin($oldHm ?? '');
-                            $nm = $toMin($newHm ?? '');
-                            if ($om !== null && $nm !== null) $dMin = $nm - $om;
-                            $searchTxt = implode(' ', array_filter([
-                                $p->nama_guru ?? '',
-                                $p->nip ?? '',
-                                !empty($p->tgl) ? date('d/m/Y', strtotime($p->tgl)) : '',
-                                $fInfo['label'],
-                                $oldHm ?? 'Kosong',
-                                $newHm ?? '',
-                                $p->reason ?? '',
-                            ]));
-                        ?>
-                        <tr id="row-{{ (int) $p->id }}" data-id="{{ (int) $p->id }}" data-field="{{ $p->field_name ?? '' }}" data-search="{{ $searchTxt }}">
-                            <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
-                            <td>
-                                <?php if ($attMissing): ?>
-                                    <span class="badge-tw badge-danger"><i class="bi bi-exclamation-triangle"></i>Data absen dihapus</span>
-                                <?php else: ?>
-                                    <div class="font-semibold text-slate-800 whitespace-nowrap">{{ date('d/m/Y', strtotime($p->tgl)) }}</div>
-                                    <div class="text-xs text-slate-400 mt-0.5">
-                                        Masuk {{ $jamIn ?: '-' }}<span class="badge-tw {{ $stInCls }} ml-1">{{ $stInLbl }}</span>
-                                        <span class="mx-1">·</span>Pulang {{ $jamOut ?: '-' }}
-                                    </div>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div class="font-semibold text-slate-800">{{ $p->nama_guru ?? 'Guru #' . ($p->user_id ?? '-') }}</div>
-                                <div class="text-sm text-slate-400">NIP: {{ $p->nip ?? '-' }}</div>
-                            </td>
-                            <td>
-                                <span class="badge-tw {{ $fInfo['cls'] }}">
-                                    <i class="bi {{ $fInfo['icon'] }} mr-1"></i>{{ $fInfo['label'] }}
-                                </span>
-                            </td>
-                            <td>
-                                <code class="px-2 py-1 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded" title="{{ $p->old_value ?? 'Kosong' }}">
-                                    {{ $oldHm ?? 'Kosong' }}
-                                </code>
-                            </td>
-                            <td>
-                                <code class="px-2 py-1 text-sm font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded" title="{{ $p->new_value ?? '-' }}">
-                                    {{ $newHm ?? '-' }}
-                                </code>
-                            </td>
-                            <td class="text-center">
-                                <?php if ($dMin === null): ?>
-                                    <span class="text-slate-300">–</span>
-                                <?php else: ?>
-                                    <span class="badge-tw {{ $dMin === 0 ? 'badge-secondary' : ($dMin > 0 ? 'badge-warning' : 'badge-info') }} rounded-full num-tabular" title="Baru − lama">
-                                        {{ $dMin === 0 ? 'sama' : (($dMin > 0 ? '+' : '−') . abs($dMin) . ' mnt') }}
+                    <x-ui.table class="min-w-[1060px]">
+                        <x-slot:head>
+                            <th class="w-10 px-4 py-3">#</th>
+                            <th class="px-3 py-3">Tanggal Absen</th>
+                            <th class="px-3 py-3">Guru</th>
+                            <th class="px-3 py-3">Field</th>
+                            <th class="px-3 py-3">Nilai Lama</th>
+                            <th class="px-3 py-3">Nilai Baru</th>
+                            <th class="px-3 py-3 text-center">Selisih</th>
+                            <th class="min-w-[220px] px-3 py-3">Alasan</th>
+                            <th class="px-3 py-3">Diajukan</th>
+                            <th class="px-4 py-3 text-right">Aksi</th>
+                        </x-slot:head>
+
+                        @foreach ($pending as $p)
+                            @php
+                                $fInfo = $fieldInfo[$p->field_name] ?? ['label' => ucwords(str_replace('_', ' ', (string) $p->field_name)), 'icon' => 'bi-pencil-square', 'cls' => 'badge-info'];
+                                $oldHm = $fmtWaktu($p->old_value ?? null, $p->tgl ?? null);
+                                $newHm = $fmtWaktu($p->new_value ?? null, $p->tgl ?? null);
+                                $jamIn = $fmtWaktu($p->jam_masuk ?? null, $p->tgl ?? null);
+                                $jamOut = $fmtWaktu($p->jam_pulang ?? null, $p->tgl ?? null);
+                                $stIn = strtoupper((string) ($p->status_masuk ?? ''));
+                                [$stInLbl, $stInCls] = $statusMap[$stIn] ?? [($stIn !== '' ? ucwords(strtolower($stIn)) : '—'), 'badge-secondary'];
+                                $attMissing = empty($p->tgl);
+                                $dMin = null;
+                                $om = $toMin($oldHm ?? '');
+                                $nm = $toMin($newHm ?? '');
+                                if ($om !== null && $nm !== null) $dMin = $nm - $om;
+                                $searchTxt = implode(' ', array_filter([
+                                    $p->nama_guru ?? '',
+                                    $p->nip ?? '',
+                                    ! empty($p->tgl) ? date('d/m/Y', strtotime($p->tgl)) : '',
+                                    $fInfo['label'],
+                                    $oldHm ?? 'Kosong',
+                                    $newHm ?? '',
+                                    $p->reason ?? '',
+                                ]));
+                            @endphp
+
+                            <tr data-field="{{ $p->field_name ?? '' }}" data-search="{{ $searchTxt }}" class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-4 py-3"><span data-rownum class="tabular-nums text-xs text-slate-400">{{ $loop->iteration }}</span></td>
+                                <td class="px-3 py-3">
+                                    @if ($attMissing)
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">
+                                            <i class="bi bi-exclamation-triangle"></i>Data absen dihapus
+                                        </span>
+                                    @else
+                                        <div class="whitespace-nowrap text-xs font-semibold text-slate-800">{{ date('d/m/Y', strtotime($p->tgl)) }}</div>
+                                        <div class="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-slate-400">
+                                            <span>Masuk {{ $jamIn ?: '-' }}</span>
+                                            <span class="inline-flex items-center rounded-full border px-1.5 py-px text-[10px] font-bold {{ $tone[$stInCls] ?? $tone['badge-secondary'] }}">{{ $stInLbl }}</span>
+                                            <span>·</span>
+                                            <span>Pulang {{ $jamOut ?: '-' }}</span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3">
+                                    <div class="text-xs font-semibold text-slate-800">{{ $p->nama_guru ?? 'Guru #' . ($p->user_id ?? '-') }}</div>
+                                    <div class="text-[11px] text-slate-400">NIP: {{ $p->nip ?? '-' }}</div>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold {{ $tone[$fInfo['cls']] ?? $tone['badge-info'] }}">
+                                        <i class="bi {{ $fInfo['icon'] }}"></i>{{ $fInfo['label'] }}
                                     </span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <span class="text-slate-500 text-sm italic reason-text" title="{{ $p->reason ?? '-' }}">"{{ $p->reason ?? '-' }}"</span>
-                            </td>
-                            <td class="text-slate-400 text-sm whitespace-nowrap">{{ !empty($p->created_at) ? date('d/m/Y H:i', strtotime($p->created_at)) : '-' }}</td>
-                            <td class="pr-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <?php if ($attMissing): ?>
-                                        <span class="text-xs text-slate-400" title="Data absensi sudah dihapus — hanya bisa ditolak">Hanya tolak</span>
-                                    <?php endif; ?>
-                                    <button type="button" class="btn-tw btn-tw-sm btn-success js-approve" data-id="{{ (int) $p->id }}"
-                                        data-url="{{ url('admin/presensi/approve-koreksi/' . $p->id) }}" title="Setujui" {{ $attMissing ? 'disabled' : '' }}>
-                                        <i class="bi bi-check-lg mr-1"></i>Setujui
-                                    </button>
-                                    <button type="button" class="btn-tw btn-tw-sm btn-danger js-reject" data-id="{{ (int) $p->id }}"
-                                        data-url="{{ url('admin/presensi/reject-koreksi/' . $p->id) }}" title="Tolak">
-                                        <i class="bi bi-x-lg mr-1"></i>Tolak
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span id="koreksiCount">Menampilkan {{ count($pending) }} data</span>
-                <span>Setujui untuk menghitung ulang status &amp; poin</span>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Riwayat -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-slate-100 text-slate-500 shrink-0">
-                    <i class="bi bi-clock-history text-sm"></i>
-                </span>
-                <div>
-                    <h2 class="text-sm font-extrabold text-slate-900">Riwayat Keputusan</h2>
-                    <p class="text-[11px] text-slate-400">100 koreksi terakhir yang disetujui / ditolak</p>
-                </div>
-            </div>
-            <?php if (!empty($history)): ?>
-            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
-                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="searchRiwayatInput"
-                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                       placeholder="Cari nama / NIP / tanggal..." autocomplete="off">
-                <button type="button" id="clearRiwayatSearch"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">
-                    <i class="bi bi-x text-xs"></i>
-                </button>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <?php if (!empty($history)): ?>
-        <div class="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-1.5 items-center" id="riwayatChips">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">STATUS</span>
-            <button type="button" class="filter-chip active" data-hstatus="">
-                Semua <span class="chip-count">{{ count($history) }}</span>
-            </button>
-            <button type="button" class="filter-chip" data-hstatus="approved">
-                <span class="dot" style="background:#16a34a"></span>Disetujui <span class="chip-count">{{ $jumlahStatus['approved'] }}</span>
-            </button>
-            <button type="button" class="filter-chip" data-hstatus="rejected">
-                <span class="dot" style="background:#dc2626"></span>Ditolak <span class="chip-count">{{ $jumlahStatus['rejected'] }}</span>
-            </button>
-        </div>
-        <?php endif; ?>
-
-        <div class="p-0">
-            <?php if (empty($history)): ?>
-                <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
-                    <p class="font-medium text-slate-600">Belum ada riwayat</p>
-                </div>
-            <?php else: ?>
-                <div class="table-responsive-tw">
-                    <table class="table-tw" id="historyTable" style="font-size:.8rem;min-width:900px;">
-                        <thead>
-                            <tr>
-                                <th class="pl-4">Tanggal Absen</th>
-                                <th>Guru</th>
-                                <th>Field</th>
-                                <th>Perubahan</th>
-                                <th class="text-center">Status</th>
-                                <th>Catatan Admin</th>
-                                <th>Diproses</th>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <code class="rounded border border-rose-200 bg-rose-50 px-2 py-1 font-mono text-xs font-medium text-rose-600" title="{{ $p->old_value ?? 'Kosong' }}">
+                                        {{ $oldHm ?? 'Kosong' }}
+                                    </code>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <code class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-xs font-medium text-emerald-600" title="{{ $p->new_value ?? '-' }}">
+                                        {{ $newHm ?? '-' }}
+                                    </code>
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    @if ($dMin === null)
+                                        <span class="text-slate-300">–</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold tabular-nums {{ $dMin === 0 ? 'border-slate-200 bg-slate-100 text-slate-600' : ($dMin > 0 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-sky-200 bg-sky-50 text-sky-700') }}" title="Baru − lama">
+                                            {{ $dMin === 0 ? 'sama' : (($dMin > 0 ? '+' : '−') . abs($dMin) . ' mnt') }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3">
+                                    <span class="line-clamp-2 max-w-[240px] text-xs italic text-slate-500" title="{{ $p->reason ?? '-' }}">"{{ $p->reason ?? '-' }}"</span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3 text-[11px] text-slate-400">{{ ! empty($p->created_at) ? date('d/m/Y H:i', strtotime($p->created_at)) : '-' }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        @if ($attMissing)
+                                            <span class="text-[11px] text-slate-400" title="Data absensi sudah dihapus — hanya bisa ditolak">Hanya tolak</span>
+                                        @endif
+                                        <button type="button" @click="approve({{ (int) $p->id }})"
+                                            :disabled="busy === {{ (int) $p->id }} || {{ $attMissing ? 'true' : 'false' }}"
+                                            title="Setujui"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-40">
+                                            <i class="bi bi-check-lg"></i>Setujui
+                                        </button>
+                                        <button type="button" @click="reject({{ (int) $p->id }})"
+                                            :disabled="busy === {{ (int) $p->id }}"
+                                            title="Tolak"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-40">
+                                            <i class="bi bi-x-lg"></i>Tolak
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($history as $h):
-                                $hb = ($h->status === 'approved') ? 'badge-success' : 'badge-danger';
-                                $hl = ($h->status === 'approved') ? 'Disetujui' : 'Ditolak';
+                        @endforeach
+                    </x-ui.table>
+
+                    <x-slot:footer>
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                            <span>Menampilkan <span class="font-semibold text-slate-600" x-text="from"></span>–<span class="font-semibold text-slate-600" x-text="to"></span> dari <span class="font-semibold text-slate-600" x-text="total"></span> data</span>
+                            <span>Setujui untuk menghitung ulang status &amp; poin</span>
+                        </div>
+                    </x-slot:footer>
+                </x-ui.card>
+
+                <div x-show="total === 0" x-cloak class="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                    <i class="bi bi-search mb-2 block text-3xl text-slate-300"></i>
+                    <p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>
+                    <p class="mt-1 text-xs text-slate-400">Coba ubah kata kunci atau filter field</p>
+                </div>
+            </div>
+        @endif
+
+        <!-- Riwayat -->
+        @if (empty($history))
+            <x-ui.card title="Riwayat Keputusan" icon="bi-clock-history" tone="slate" bodyClass="p-5">
+                <x-ui.empty icon="bi-inbox" title="Belum ada riwayat"
+                    description="100 koreksi terakhir yang disetujui / ditolak akan tampil di sini." />
+            </x-ui.card>
+        @else
+            <div x-data="dataTable({ perPage: 100, filters: { status: '' } })">
+                <x-ui.card title="Riwayat Keputusan" icon="bi-clock-history" tone="slate"
+                    subtitle="100 koreksi terakhir yang disetujui / ditolak" bodyClass="p-0">
+                    <x-slot:actions>
+                        <div class="relative w-full sm:w-64">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                            <input type="text" x-ref="search" x-model="query" placeholder="Cari nama / NIP / tanggal..." autocomplete="off"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" x-show="query !== ''" x-cloak @click="query = ''; $refs.search.focus()" title="Bersihkan pencarian"
+                                class="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700">
+                                <i class="bi bi-x text-xs"></i>
+                            </button>
+                        </div>
+                    </x-slot:actions>
+
+                    <x-slot:toolbar>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="mr-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</span>
+                            <button type="button" @click="filters.status = ''"
+                                :class="filters.status === '' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                Semua <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ count($history) }}</span>
+                            </button>
+                            <button type="button" @click="filters.status = 'approved'"
+                                :class="filters.status === 'approved' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                <span class="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>Disetujui <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ $jumlahStatus['approved'] }}</span>
+                            </button>
+                            <button type="button" @click="filters.status = 'rejected'"
+                                :class="filters.status === 'rejected' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600'"
+                                class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold transition-colors">
+                                <span class="inline-block h-2 w-2 rounded-full bg-rose-600"></span>Ditolak <span class="rounded-full bg-slate-100 px-1.5 text-[10px] font-extrabold text-slate-600">{{ $jumlahStatus['rejected'] }}</span>
+                            </button>
+                        </div>
+                    </x-slot:toolbar>
+
+                    <x-ui.table class="min-w-[900px] text-xs">
+                        <x-slot:head>
+                            <th class="px-4 py-3">Tanggal Absen</th>
+                            <th class="px-3 py-3">Guru</th>
+                            <th class="px-3 py-3">Field</th>
+                            <th class="px-3 py-3">Perubahan</th>
+                            <th class="px-3 py-3 text-center">Status</th>
+                            <th class="px-3 py-3">Catatan Admin</th>
+                            <th class="px-3 py-3">Diproses</th>
+                        </x-slot:head>
+
+                        @foreach ($history as $h)
+                            @php
+                                $approved = ($h->status ?? '') === 'approved';
                                 $fLbl = $fieldInfo[$h->field_name]['label'] ?? $h->field_name;
                                 $searchH = implode(' ', array_filter([
                                     $h->nama_guru ?? '',
-                                    !empty($h->tgl) ? date('d/m/Y', strtotime($h->tgl)) : '',
+                                    ! empty($h->tgl) ? date('d/m/Y', strtotime($h->tgl)) : '',
                                     $fLbl,
                                     $fmtWaktu($h->old_value ?? null, $h->tgl ?? null) ?? '',
                                     $fmtWaktu($h->new_value ?? null, $h->tgl ?? null) ?? '',
                                     $h->admin_note ?? '',
-                                    $hl,
+                                    $approved ? 'Disetujui' : 'Ditolak',
                                 ]));
-                            ?>
-                            <tr data-hstatus="{{ $h->status }}" data-search="{{ $searchH }}">
-                                <td class="pl-4 whitespace-nowrap">{{ !empty($h->tgl) ? date('d/m/Y', strtotime($h->tgl)) : '<span class="text-slate-300">absen dihapus</span>' }}</td>
-                                <td class="font-bold text-slate-800">{{ $h->nama_guru ?? '-' }}</td>
-                                <td>{{ $fLbl }}</td>
-                                <td class="num-tabular"><span class="text-red-500">{{ $fmtWaktu($h->old_value ?? null, $h->tgl ?? null) ?? '∅' }}</span> → <span class="text-emerald-600 font-bold">{{ $fmtWaktu($h->new_value ?? null, $h->tgl ?? null) ?? '–' }}</span></td>
-                                <td class="text-center"><span class="badge-tw {{ $hb }} rounded-full">{{ $hl }}</span></td>
-                                <td class="text-sm text-slate-500" style="max-width:240px" title="{{ $h->admin_note ?? '' }}">{{ $h->admin_note ? mb_strimwidth($h->admin_note, 0, 90, '…') : '–' }}</td>
-                                <td class="text-xs text-slate-400 whitespace-nowrap">
-                                    {{ !empty($h->processed_at) ? date('d/m/Y H:i', strtotime($h->processed_at)) : '-' }}
-                                    <?php if (!empty($h->diproses_oleh) && trim((string) $h->diproses_oleh) !== ''): ?><div>oleh {{ trim((string) $h->diproses_oleh) }}</div><?php endif; ?>
+                            @endphp
+                            <tr data-status="{{ $h->status }}" data-search="{{ $searchH }}" class="transition-colors hover:bg-slate-50/60">
+                                <td class="whitespace-nowrap px-4 py-3 text-xs">
+                                    @if (! empty($h->tgl))
+                                        {{ date('d/m/Y', strtotime($h->tgl)) }}
+                                    @else
+                                        <span class="text-slate-300">absen dihapus</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-3 text-xs font-bold text-slate-800">{{ $h->nama_guru ?? '-' }}</td>
+                                <td class="px-3 py-3 text-xs">{{ $fLbl }}</td>
+                                <td class="px-3 py-3 font-mono text-xs tabular-nums">
+                                    <span class="text-rose-500">{{ $fmtWaktu($h->old_value ?? null, $h->tgl ?? null) ?? '∅' }}</span>
+                                    →
+                                    <span class="font-bold text-emerald-600">{{ $fmtWaktu($h->new_value ?? null, $h->tgl ?? null) ?? '–' }}</span>
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold {{ $approved ? $tone['badge-success'] : $tone['badge-danger'] }}">
+                                        {{ $approved ? 'Disetujui' : 'Ditolak' }}
+                                    </span>
+                                </td>
+                                <td class="max-w-[240px] px-3 py-3 text-xs text-slate-500" title="{{ $h->admin_note ?? '' }}">
+                                    {{ $h->admin_note ? mb_strimwidth($h->admin_note, 0, 90, '…') : '–' }}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3 text-[11px] text-slate-400">
+                                    {{ ! empty($h->processed_at) ? date('d/m/Y H:i', strtotime($h->processed_at)) : '-' }}
+                                    @if (! empty($h->diproses_oleh) && trim((string) $h->diproses_oleh) !== '')
+                                        <div>oleh {{ trim((string) $h->diproses_oleh) }}</div>
+                                    @endif
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                        @endforeach
+                    </x-ui.table>
 
-                <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                    <span id="riwayatCount">Menampilkan {{ count($history) }} data</span>
-                    <span>100 keputusan terakhir</span>
+                    <x-slot:footer>
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                            <span>Menampilkan <span class="font-semibold text-slate-600" x-text="from"></span>–<span class="font-semibold text-slate-600" x-text="to"></span> dari <span class="font-semibold text-slate-600" x-text="total"></span> data</span>
+                            <span>100 keputusan terakhir</span>
+                        </div>
+                    </x-slot:footer>
+                </x-ui.card>
+
+                <div x-show="total === 0" x-cloak class="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                    <i class="bi bi-search mb-2 block text-3xl text-slate-300"></i>
+                    <p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>
+                    <p class="mt-1 text-xs text-slate-400">Coba ubah kata kunci atau filter status</p>
                 </div>
-            <?php endif; ?>
-        </div>
+            </div>
+        @endif
     </div>
-
 </div>
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
-$(document).ready(function () {
-    var CSRF = {};
-    CSRF['{{ $csrfName }}'] = '{{ $csrfHash }}';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('pendingKoreksiPage', () => ({
+        config: { csrf: '', urls: {} },
 
-    var activeField = '';
-    var activeStatus = '';
+        busy: null,
 
-    function applyKoreksiFilter() {
-        var kw = ($('#searchKoreksiInput').val() || '').toLowerCase().trim();
-        $('#clearKoreksiSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
-        var shown = 0;
-        $('#koreksiTable tbody tr[data-search]').each(function () {
-            var search = String($(this).data('search') || '').toLowerCase();
-            var field = $(this).data('field') || '';
-            var visible = (!activeField || field === activeField) && (!kw || search.indexOf(kw) !== -1);
-            $(this).toggle(visible);
-            if (visible) shown++;
-        });
-        var $empty = $('#koreksiEmptyFilter');
-        if (shown === 0 && $('#koreksiTable tbody tr[data-search]').length > 0) {
-            if ($empty.length === 0) {
-                $('#koreksiTable tbody').append(
-                    '<tr id="koreksiEmptyFilter"><td colspan="10" class="text-center py-12 text-slate-400">' +
-                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
-                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>' +
-                    '<p class="text-xs mt-1">Coba ubah kata kunci atau filter field</p></td></tr>'
-                );
-            } else {
-                $empty.show();
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+
+            this.config = {
+                csrf: cfg.csrf || '',
+                urls: cfg.urls || {},
+            };
+        },
+
+        async post(url, note) {
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+
+            if (note !== undefined) {
+                body.append('note', note || '');
             }
-        } else {
-            $empty.hide();
-        }
-        $('#koreksiCount').text('Menampilkan ' + shown + ' data');
-    }
 
-    function applyRiwayatFilter() {
-        var kw = ($('#searchRiwayatInput').val() || '').toLowerCase().trim();
-        $('#clearRiwayatSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
-        var shown = 0;
-        $('#historyTable tbody tr[data-search]').each(function () {
-            var search = String($(this).data('search') || '').toLowerCase();
-            var status = $(this).data('hstatus') || '';
-            var visible = (!activeStatus || status === activeStatus) && (!kw || search.indexOf(kw) !== -1);
-            $(this).toggle(visible);
-            if (visible) shown++;
-        });
-        var $empty = $('#riwayatEmptyFilter');
-        if (shown === 0 && $('#historyTable tbody tr[data-search]').length > 0) {
-            if ($empty.length === 0) {
-                $('#historyTable tbody').append(
-                    '<tr id="riwayatEmptyFilter"><td colspan="7" class="text-center py-12 text-slate-400">' +
-                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
-                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok dengan filter</p>' +
-                    '<p class="text-xs mt-1">Coba ubah kata kunci atau filter status</p></td></tr>'
-                );
-            } else {
-                $empty.show();
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+
+            let result = null;
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = null;
             }
-        } else {
-            $empty.hide();
-        }
-        $('#riwayatCount').text('Menampilkan ' + shown + ' data');
-    }
 
-    $('#koreksiChips').on('click', '.filter-chip', function () {
-        activeField = $(this).data('field') || '';
-        $('#koreksiChips .filter-chip').removeClass('active');
-        $(this).addClass('active');
-        applyKoreksiFilter();
-    });
+            if (!response.ok) {
+                throw new Error((result && (result.message || result.msg)) || 'Terjadi kesalahan komunikasi dengan server.');
+            }
 
-    $('#riwayatChips').on('click', '.filter-chip', function () {
-        activeStatus = $(this).data('hstatus') || '';
-        $('#riwayatChips .filter-chip').removeClass('active');
-        $(this).addClass('active');
-        applyRiwayatFilter();
-    });
+            return result;
+        },
 
-    $('#searchKoreksiInput').on('input', applyKoreksiFilter);
-    $('#clearKoreksiSearch').on('click', function () {
-        $('#searchKoreksiInput').val('').trigger('input').focus();
-    });
-    $('#searchRiwayatInput').on('input', applyRiwayatFilter);
-    $('#clearRiwayatSearch').on('click', function () {
-        $('#searchRiwayatInput').val('').trigger('input').focus();
-    });
-    applyKoreksiFilter();
-    applyRiwayatFilter();
+        async approve(id) {
+            if (this.busy === id) return;
 
-    var setLoading = function ($btn, busy) {
-        $btn.prop('disabled', busy);
-        var $icon = $btn.find('i');
-        if (busy) {
-            $btn.data('orig', $icon.attr('class'));
-            $icon.attr('class', 'spinner-tw mr-1');
-        } else if ($btn.data('orig')) {
-            $icon.attr('class', $btn.data('orig'));
-        }
-    };
-
-    // Approve
-    $(document).on('click', '.js-approve', function () {
-        var $btn = $(this);
-        if ($btn.is(':disabled')) return;
-        var url = $btn.data('url');
-        Swal.fire({
-            title: 'Setujui Koreksi?',
-            text: 'Data absensi akan diperbarui + status, poin, dan denda dihitung ulang.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Setujui',
-            cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            setLoading($btn, true);
-            $.post(url, CSRF, function (res) {
-                setLoading($btn, false);
-                if (res.status) {
-                    Swal.fire({ title: 'Berhasil!', text: res.message, icon: 'success', timer: 1400, showConfirmButton: false })
-                        .then(function () { location.reload(); });
-                } else {
-                    Swal.fire('Gagal', res.message, 'error');
-                }
-            }, 'json').fail(function () {
-                setLoading($btn, false);
-                Swal.fire('Gagal', 'Terjadi kesalahan komunikasi dengan server.', 'error');
+            const konfirmasi = await Swal.fire({
+                title: 'Setujui Koreksi?',
+                text: 'Data absensi akan diperbarui + status, poin, dan denda dihitung ulang.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Setujui',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
             });
-        });
-    });
 
-    // Reject (dengan catatan)
-    $(document).on('click', '.js-reject', function () {
-        var $btn = $(this);
-        if ($btn.is(':disabled')) return;
-        var url = $btn.data('url');
-        Swal.fire({
-            title: 'Tolak Koreksi?',
-            input: 'textarea',
-            inputLabel: 'Catatan Penolakan (Opsional)',
-            inputPlaceholder: 'Tulis alasan penolakan di sini...',
-            inputAttributes: { 'aria-label': 'Catatan Penolakan', 'maxlength': '500' },
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Tolak Permintaan',
-            cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            setLoading($btn, true);
-            var data = Object.assign({ note: (result.value || '').trim() }, CSRF);
-            $.post(url, data, function (res) {
-                setLoading($btn, false);
-                if (res.status) {
-                    Swal.fire({ title: 'Ditolak', text: res.message, icon: 'success', timer: 1400, showConfirmButton: false })
-                        .then(function () { location.reload(); });
-                } else {
-                    Swal.fire('Gagal', res.message, 'error');
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = id;
+
+            try {
+                const result = await this.post(this.config.urls.approve + '/' + id);
+
+                if (result && result.status) {
+                    await Swal.fire({ title: 'Berhasil!', text: result.message || '', icon: 'success', timer: 1400, showConfirmButton: false });
+                    window.location.reload();
+                    return;
                 }
-            }, 'json').fail(function () {
-                setLoading($btn, false);
-                Swal.fire('Gagal', 'Terjadi kesalahan komunikasi dengan server.', 'error');
+
+                Swal.fire('Gagal', (result && result.message) || '', 'error');
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan komunikasi dengan server.', 'error');
+            } finally {
+                this.busy = null;
+            }
+        },
+
+        async reject(id) {
+            if (this.busy === id) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Tolak Koreksi?',
+                input: 'textarea',
+                inputLabel: 'Catatan Penolakan (Opsional)',
+                inputPlaceholder: 'Tulis alasan penolakan di sini...',
+                inputAttributes: { 'aria-label': 'Catatan Penolakan', maxlength: '500' },
+                showCancelButton: true,
+                confirmButtonText: 'Tolak Permintaan',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
             });
-        });
-    });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = id;
+
+            try {
+                const result = await this.post(this.config.urls.reject + '/' + id, (konfirmasi.value || '').trim());
+
+                if (result && result.status) {
+                    await Swal.fire({ title: 'Ditolak', text: result.message || '', icon: 'success', timer: 1400, showConfirmButton: false });
+                    window.location.reload();
+                    return;
+                }
+
+                Swal.fire('Gagal', (result && result.message) || '', 'error');
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan komunikasi dengan server.', 'error');
+            } finally {
+                this.busy = null;
+            }
+        },
+    }));
 });
 </script>
 @endsection

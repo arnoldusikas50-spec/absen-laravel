@@ -3,92 +3,108 @@
 @section('content')
 <?php
 $skor = (int) ($skor ?? 100);
-$skorCls = $skor >= 90 ? 'badge-success' : ($skor >= 75 ? 'badge-warning' : 'badge-danger');
+$skorCls = $skor >= 90 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ($skor >= 75 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-rose-200 bg-rose-50 text-rose-700');
 $namaBulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-$typeBadge = ['PELANGGARAN' => 'badge-danger', 'PENGHARGAAN' => 'badge-success', 'KOREKSI' => 'badge-warning', 'PRESENSI' => 'badge-info'];
+$typeBadge = [
+    'PELANGGARAN' => 'border-rose-200 bg-rose-50 text-rose-700',
+    'PENGHARGAAN' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    'KOREKSI' => 'border-amber-200 bg-amber-50 text-amber-700',
+    'PRESENSI' => 'border-sky-200 bg-sky-50 text-sky-700',
+];
+$pageConfig = [
+    'labels' => array_values(array_slice($namaBulan, 1)),
+    'values' => array_map('intval', array_values($monthly ?? [])),
+];
 ?>
-<div class="fade-in-up p-4 md:p-6 space-y-4 w-full max-w-none">
-    <nav class="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold" aria-label="Breadcrumb">
-        <a href="{{ url('dashboard') }}" class="hover:text-blue-600 no-underline">Dashboard</a>
-        <span>/</span>
-        <a href="{{ url('admin/poin-siswa') }}" class="hover:text-blue-600 no-underline">Poin Disiplin Siswa</a>
-        <span>/</span>
-        <span class="text-slate-600">Detail</span>
-    </nav>
 
-    <!-- Profil + skor -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5">
-        <div class="flex items-center gap-4 min-w-0 flex-1">
-            <span class="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center text-2xl font-extrabold shrink-0">
-                {{ mb_substr($siswa->nama ?? '?', 0, 1) }}
-            </span>
-            <div class="min-w-0">
-                <h1 class="text-xl font-extrabold text-slate-900 truncate">{{ $siswa->nama ?? '-' }}</h1>
-                <p class="text-xs text-slate-500 font-mono mt-0.5">NIS {{ $siswa->nis ?? '-' }} · NISN {{ $siswa->nisn ?? '-' }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">Tahun {{ (int) $tahun }} · TP {{ $tp_active->tahun ?? '-' }}</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-3 shrink-0">
-            <div class="text-center">
-                <div class="text-[11px] font-bold uppercase text-slate-400">Skor Disiplin</div>
-                <span class="badge-tw {{ $skorCls }} !text-2xl !px-5 !py-2 font-extrabold">{{ $skor }}</span>
-                <div class="text-[11px] text-slate-400 mt-1">dari 100</div>
-            </div>
-            <div class="flex flex-col gap-2">
-                <a href="{{ url('admin/poin-siswa') }}" class="btn-tw btn-light btn-tw-sm"><i class="bi bi-arrow-left mr-1"></i> Kembali</a>
-                <form method="get" class="flex items-center gap-1">
-                    <input type="number" name="tahun" value="{{ (int) $tahun }}" min="2020" max="{{ date('Y') + 1 }}" class="form-control-tw !w-20 !py-1 text-xs text-center">
-                    <button class="btn-tw btn-tw-sm btn-light" title="Tampilkan tahun"><i class="bi bi-search"></i></button>
-                </form>
-            </div>
-        </div>
-    </div>
+<div x-data="poinSiswaDetail()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}"
+    class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
 
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-        <!-- Grafik + ringkasan -->
-        <div class="lg:col-span-3 space-y-4">
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
-                <h2 class="text-sm font-extrabold text-slate-900 mb-1">Pergerakan Poin {{ (int) $tahun }}</h2>
-                <p class="text-[11px] text-slate-400 mb-3">Total poin tercatat per bulan (negatif = pelanggaran dominan)</p>
-                <div style="height:260px"><canvas id="monthlyChart"></canvas></div>
-            </div>
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
-                <h2 class="text-sm font-extrabold text-slate-900 mb-3">Ringkasan per Jenis</h2>
-                <?php if (empty($type_summary)): ?>
+    <x-ui.page-header
+        :title="$siswa->nama ?? '-'"
+        icon="bi-person-badge"
+        tone="rose"
+        :subtitle="'NIS ' . ($siswa->nis ?? '-') . ' · NISN ' . ($siswa->nisn ?? '-') . ' · Tahun ' . (int) $tahun . ' · TP ' . ($tp_active->tahun ?? '-')"
+        :crumbs="['Poin Disiplin Siswa', 'Detail']">
+        <x-slot:actions>
+            <a href="{{ url('admin/poin-siswa') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+            <form method="get" class="flex items-center gap-1.5">
+                <input type="number" name="tahun" value="{{ (int) $tahun }}" min="2020" max="{{ date('Y') + 1 }}"
+                    aria-label="Tahun"
+                    class="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 shadow-xs focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" title="Tampilkan tahun"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+        <div class="space-y-4 lg:col-span-3">
+            <x-ui.card bodyClass="p-5">
+                <div class="flex items-center gap-4">
+                    <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-extrabold text-rose-600">
+                        {{ mb_substr($siswa->nama ?? '?', 0, 1) }}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Skor Disiplin</p>
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="inline-flex items-center rounded-full border px-4 py-1 text-2xl font-extrabold {{ $skorCls }}">{{ $skor }}</span>
+                            <span class="text-[11px] text-slate-400">dari 100</span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-slate-400">Total poin tercatat sepanjang tahun {{ (int) $tahun }}.</p>
+                    </div>
+                </div>
+            </x-ui.card>
+
+            <x-ui.card title="Pergerakan Poin {{ (int) $tahun }}" icon="bi-graph-up" tone="rose"
+                subtitle="Total poin tercatat per bulan (negatif = pelanggaran dominan)">
+                <div style="height:260px"><canvas x-ref="canvas"></canvas></div>
+            </x-ui.card>
+
+            <x-ui.card title="Ringkasan per Jenis" icon="bi-pie-chart" tone="rose">
+                @if (empty($type_summary))
                     <p class="text-xs text-slate-400">Belum ada catatan tahun ini.</p>
-                <?php else: ?>
+                @else
                     <div class="flex flex-wrap gap-2">
-                        <?php foreach ($type_summary as $tipe => $s): ?>
-                            <span class="badge-tw {{ $typeBadge[$tipe] ?? 'badge-secondary' }} !text-xs !px-3 !py-1.5">
+                        @foreach ($type_summary as $tipe => $s)
+                            <span class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold {{ $typeBadge[$tipe] ?? 'border-slate-200 bg-slate-100 text-slate-600' }}">
                                 {{ $tipe }}: {{ $s['poin'] > 0 ? '+' : '' }}{{ (int) $s['poin'] }} ({{ (int) $s['count'] }}×)
                             </span>
-                        <?php endforeach; ?>
+                        @endforeach
                     </div>
-                <?php endif; ?>
-            </div>
+                @endif
+            </x-ui.card>
         </div>
 
-        <!-- Riwayat -->
         <div class="lg:col-span-2">
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
-                <h2 class="text-sm font-extrabold text-slate-900 mb-3">Riwayat Transaksi</h2>
-                <?php if (empty($riwayat)): ?>
-                    <p class="text-xs text-slate-400 text-center py-8">Belum ada riwayat.</p>
-                <?php else: ?>
-                    <div class="space-y-2 max-h-[560px] overflow-y-auto">
-                        <?php foreach ($riwayat as $h): $p = (int) ($h->poin ?? 0); ?>
+            <x-ui.card title="Riwayat Transaksi" icon="bi-clock-history" tone="slate" bodyClass="p-5">
+                @if (empty($riwayat))
+                    <x-ui.empty icon="bi-journal-x" title="Belum ada riwayat"
+                        description="Poin pelanggaran, penghargaan, dan koreksi akan tampil di sini." />
+                @else
+                    <div class="max-h-[560px] space-y-2 overflow-y-auto pr-1">
+                        @foreach ($riwayat as $h)
+                            <?php $p = (int) ($h->poin ?? 0); ?>
                             <div class="flex items-center gap-2.5 rounded-xl border border-slate-100 px-3 py-2">
-                                <span class="badge-tw {{ $p >= 0 ? 'badge-success' : 'badge-danger' }} font-mono">{{ $p > 0 ? '+' : '' }}{{ $p }}</span>
+                                <span class="inline-flex min-w-11 items-center justify-center rounded-full border px-2 py-0.5 font-mono text-xs font-bold {{ $p >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
+                                    {{ $p > 0 ? '+' : '' }}{{ $p }}
+                                </span>
                                 <div class="min-w-0 flex-1">
-                                    <div class="text-xs font-bold text-slate-700 truncate">{{ $h->kategori_nama ?? $h->tipe }}</div>
-                                    <div class="text-[11px] text-slate-400 truncate">{{ $h->keterangan ?? '' }}</div>
-                                    <div class="text-[10px] text-slate-300 font-mono">{{ $h->created_at ?? '' }}</div>
+                                    <div class="truncate text-xs font-bold text-slate-700">{{ $h->kategori_nama ?? $h->tipe }}</div>
+                                    <div class="truncate text-[11px] text-slate-400">{{ $h->keterangan ?? '' }}</div>
+                                    <div class="font-mono text-[10px] text-slate-300">{{ $h->created_at ?? '' }}</div>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+                        @endforeach
                     </div>
-                <?php endif; ?>
-            </div>
+                @endif
+            </x-ui.card>
         </div>
     </div>
 </div>
@@ -96,23 +112,47 @@ $typeBadge = ['PELANGGARAN' => 'badge-danger', 'PENGHARGAAN' => 'badge-success',
 
 @section('scripts')
 <script>
-$(document).ready(function () {
-    const ctx = document.getElementById('monthlyChart');
-    if (ctx && window.Chart) {
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: {!! json_script(array_values(array_slice($namaBulan, 1))) !!},
-                datasets: [{
-                    label: 'Poin',
-                    data: {!! json_script(array_values($monthly ?? [])) !!},
-                    backgroundColor: ({!! json_script(array_values($monthly ?? [])) !!}).map(v => v >= 0 ? 'rgba(16,185,129,.6)' : 'rgba(239,68,68,.6)'),
-                    borderRadius: 6
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
-        });
-    }
+document.addEventListener('alpine:init', () => {
+    Alpine.data('poinSiswaDetail', () => ({
+        config: { labels: [], values: [] },
+        chart: null,
+
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+
+            this.config = {
+                labels: cfg.labels || [],
+                values: cfg.values || [],
+            };
+
+            this.render();
+        },
+
+        render() {
+            const canvas = this.$refs.canvas;
+
+            if (!canvas || !window.Chart) return;
+
+            this.chart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: this.config.labels,
+                    datasets: [{
+                        label: 'Poin',
+                        data: this.config.values,
+                        backgroundColor: this.config.values.map((v) => (v >= 0 ? 'rgba(16,185,129,.6)' : 'rgba(239,68,68,.6)')),
+                        borderRadius: 6,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false } },
+                },
+            });
+        },
+    }));
 });
 </script>
 @endsection

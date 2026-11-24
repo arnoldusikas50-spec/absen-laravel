@@ -1,275 +1,466 @@
 @extends('layouts.main')
 
 @section('content')
+
 <?php
 $users = $users ?? null;
 $user = $user ?? null;
 $guru = $guru ?? null;
 $is_admin = $is_admin ?? false;
+
+$akunAktif = ! is_null($users) && (int) ($users->active ?? 0) === 1;
+$punyaAkun = ! is_null($users);
+
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'activate' => url('userguru/activate'),
+        'editlogin' => url('userguru/editlogin'),
+    ],
+    'guru' => [
+        'id' => (int) ($guru->id ?? 0),
+        'id_guru' => (int) ($guru->id_guru ?? 0),
+        'nama' => (string) ($guru->nama_guru ?? ''),
+        'username' => (string) ($guru->username ?? ''),
+    ],
+    'account' => [
+        'has' => $punyaAkun,
+        'id' => (int) ($users->id ?? 0),
+        'active' => $akunAktif,
+    ],
+    'canManageStatus' => (bool) $is_admin,
+    'initial' => [
+        'first_name' => (string) ($users->first_name ?? ''),
+        'last_name' => (string) ($users->last_name ?? ''),
+        'email' => (string) ($users->email ?? ''),
+        'username' => (string) ($users->username ?? ''),
+    ],
+];
 ?>
-<!-- Content Header (pola kartu/dapodik/izin) -->
-<div class="fade-in-up p-4 md:p-6 space-y-6">
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-person-video3"></i> Akun Guru
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'User Guru' }} — {{ $guru->nama_guru ?? '-' }}</h1>
-            <p class="text-xs text-slate-500 mt-1">{{ $subjudul ?? 'Edit Data User' }} · username <span class="font-mono font-bold text-slate-700">{{ $guru->username ?? '-' }}</span></p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/users') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </a>
-        </div>
+
+<div x-data="guruAccountPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
+
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="($judul ?? 'User Management') . ' — ' . ($guru->nama_guru ?? '-')"
+            icon="bi-person-video3"
+            tone="emerald"
+            :subtitle="($subjudul ?? 'Edit Data User') . ' · username ' . ($guru->username ?? '-')"
+            :crumbs="['User Management', $subjudul ?? 'Edit Data User']">
+            <x-slot:actions>
+                <a href="{{ url('admin/users') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+            </x-slot:actions>
+        </x-ui.page-header>
     </div>
 
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-                <?php if ($user->username === $guru->username or $is_admin): ?>
-                    <?php $akunAktif = !is_null($users) && (int) ($users->active ?? 0) === 1; ?>
-                    <div class="">
-                        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                            <div class="flex flex-wrap items-center justify-between gap-2 p-5 border-b border-slate-100">
-                                <?php if (is_null($users)): ?>
-                                    <h2 class="text-sm font-extrabold text-slate-900">{{ $guru->nama_guru }} <span class="badge-tw badge-secondary rounded-full text-[10px]">belum aktif</span></h2>
-                                    <button type="button" id="btn-aktif" class="btn-tw btn-tw-sm btn-success">
-                                        <i class="bi bi-person-check-fill mr-1"></i> Aktifkan
-                                    </button>
-                                <?php else: ?>
-                                    <h2 class="text-sm font-extrabold text-slate-900">Edit Login {{ $guru->nama_guru }}</h2>
-                                    <span class="badge-tw {{ $akunAktif ? 'badge-success' : 'badge-danger' }} rounded-full text-[10px]">{{ $akunAktif ? 'Aktif' : 'Nonaktif' }}</span>
-                                    <?php if ($is_admin): ?>
-                                        <button type="button" id="btn-nonaktif" class="btn-tw btn-tw-sm {{ $akunAktif ? 'btn-outline-danger' : 'btn-outline-success' }}">
-                                            <i class="bi bi-power mr-1"></i> {{ $akunAktif ? 'Nonaktifkan' : 'Aktifkan' }}
-                                        </button>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </div>
-                            <form action="{{ url('userguru/editlogin') }}" method="post" id="change_password">
-@csrf
-<input type="hidden" name="id" value="{{ $guru->id }}">
-                            <div class="p-5 space-y-4">
-                                <div>
-                                    <label class="form-label-tw" for="first_name">Nama Depan <span class="text-red-500">*</span></label>
-                                    <input type="text" id="first_name" name="first_name" maxlength="50" class="form-control-tw"
-                                        value="{{ is_null($users) ? '' : ($users->first_name ?? '') }}" placeholder="Nama Depan"
-                                        {{ is_null($users) ? 'disabled' : '' }} required>
-                                </div>
-                                <div>
-                                    <label class="form-label-tw" for="last_name">Nama Belakang</label>
-                                    <input type="text" id="last_name" name="last_name" maxlength="50" class="form-control-tw"
-                                        value="{{ is_null($users) ? '' : ($users->last_name ?? '') }}" placeholder="Nama Belakang"
-                                        {{ is_null($users) ? 'disabled' : '' }}>
-                                </div>
-                                <div>
-                                    <label class="form-label-tw" for="email">Email <span class="text-red-500">*</span></label>
-                                    <input type="email" id="email" name="email" maxlength="100" class="form-control-tw"
-                                        value="{{ is_null($users) ? '' : ($users->email ?? '') }}"
-                                        placeholder="Email" required {{ is_null($users) ? 'disabled' : '' }}>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="form-label-tw">Username</label>
-                                        <input type="text" class="form-control-tw font-mono bg-slate-50" value="{{ $guru->username ?? '' }}"
-                                            placeholder="Username" disabled readonly>
-                                    </div>
-                                    <div>
-                                        <label class="form-label-tw">Password tersimpan</label>
-                                        <input type="password" class="form-control-tw bg-slate-50" value="••••••••"
-                                            placeholder="********" disabled readonly>
-                                    </div>
-                                </div>
-                                <p class="text-[11px] text-slate-400">Password tidak ditampilkan demi keamanan. Gunakan kartu Ubah Password untuk mengganti.</p>
-                                <div>
-                                    <button type="submit" id="btn-level" class="btn-tw btn-primary w-full justify-center"
-                                        {{ is_null($users) ? 'disabled' : '' }}>
-                                        <i class="bi bi-save mr-1"></i> Simpan
-                                    </button>
-                                </div>
-                            </div>
-                            </form>
+    <div class="mt-4 px-4 pb-6 md:px-6">
+        @if (($user->username ?? null) === ($guru->username ?? null) || $is_admin)
+            <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+
+                <!-- Kartu: data login dasar -->
+                <x-ui.card :title="'Edit Login ' . ($guru->nama_guru ?? '')" icon="bi-person-badge" tone="blue"
+                    subtitle="Nama dan email yang dipakai akun login guru">
+
+                    <x-slot:actions>
+                        @if (! $punyaAkun)
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                                Belum aktif
+                            </span>
+                            <button type="button" @click="toggleStatus(true)" :disabled="savingStatus"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700 disabled:opacity-60">
+                                <i class="bi bi-person-check-fill"></i> Aktifkan
+                            </button>
+                        @else
+                            <span :class="active
+                                    ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                                    : 'border-rose-100 bg-rose-50 text-rose-700'"
+                                class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                                x-text="active ? 'Aktif' : 'Nonaktif'"></span>
+                            @if ($is_admin)
+                                <button type="button" @click="toggleStatus(!active)" :disabled="savingStatus"
+                                    :class="active
+                                        ? 'border-rose-200 text-rose-600 hover:bg-rose-50'
+                                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border bg-white px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60">
+                                    <i class="bi bi-power"></i>
+                                    <span x-text="active ? 'Nonaktifkan' : 'Aktifkan'"></span>
+                                </button>
+                            @endif
+                        @endif
+                    </x-slot:actions>
+
+                    @if (! $punyaAkun)
+                        <div class="mb-4">
+                            <x-ui.empty icon="bi-person-dash" title="Akun login belum dibuat"
+                                description="Aktifkan akun untuk membuat login guru dengan password default, lalu nama dan email bisa diubah di sini." />
                         </div>
-                    </div>
-                    <div class="">
-                        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                            <div class="flex items-center gap-2 p-5 border-b border-slate-100">
-                                <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                                    <i class="bi bi-key text-sm"></i>
-                                </span>
-                                <h2 class="text-sm font-extrabold text-slate-900">Ubah Password & Username</h2>
+                    @endif
+
+                    <form @submit.prevent="submitInfo()" class="space-y-4">
+                        <div>
+                            <label for="first_name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                Nama Depan <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" id="first_name" x-model="form.first_name" maxlength="50" required
+                                :disabled="!hasAccount" placeholder="Nama Depan"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                            <p class="mt-1 text-xs text-rose-600" x-show="errors.first_name" x-cloak x-text="errors.first_name"></p>
+                        </div>
+
+                        <div>
+                            <label for="last_name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nama Belakang</label>
+                            <input type="text" id="last_name" x-model="form.last_name" maxlength="50"
+                                :disabled="!hasAccount" placeholder="Nama Belakang"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                            <p class="mt-1 text-xs text-rose-600" x-show="errors.last_name" x-cloak x-text="errors.last_name"></p>
+                        </div>
+
+                        <div>
+                            <label for="email" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                Email <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="email" id="email" x-model="form.email" maxlength="100" required
+                                :disabled="!hasAccount" placeholder="Email"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                            <p class="mt-1 text-xs text-rose-600" x-show="errors.email" x-cloak x-text="errors.email"></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="username_readonly" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Username</label>
+                                <input type="text" id="username_readonly" value="{{ $guru->username ?? '' }}" readonly disabled
+                                    class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 font-mono text-sm text-slate-500">
                             </div>
-                            <div class="p-5 space-y-4">
-                                <div>
-                                    <label class="form-label-tw" for="username">Username <span class="text-red-500">*</span></label>
-                                    <input type="text" id="username" class="form-control-tw font-mono" name="username"
-                                        value="{{ is_null($users) ? '' : ($users->username ?? '') }}" placeholder="Username"
-                                        {{ is_null($users) ? 'disabled' : '' }} required minlength="4" maxlength="30">
-                                </div>
-                                <div>
-                                    <label class="form-label-tw" for="old">Password Lama <span class="text-red-500">*</span></label>
-                                    <input type="password" id="old" name="old" class="form-control-tw" placeholder="Password Lama" required autocomplete="current-password"
-                                        {{ is_null($users) ? 'disabled' : '' }}>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="form-label-tw" for="new">Password Baru <span class="text-red-500">*</span></label>
-                                        <input type="password" id="new" name="new" minlength="6" maxlength="72" class="form-control-tw" placeholder="Min. 6 karakter" required autocomplete="new-password"
-                                            {{ is_null($users) ? 'disabled' : '' }}>
-                                    </div>
-                                    <div>
-                                        <label class="form-label-tw" for="new_confirm">Konfirmasi Password <span class="text-red-500">*</span></label>
-                                        <input type="password" id="new_confirm" name="new_confirm" class="form-control-tw"
-                                            placeholder="Ulangi password baru" required autocomplete="new-password" {{ is_null($users) ? 'disabled' : '' }}>
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <button type="submit" id="btn-pass" form="change_password" class="btn-tw btn-warning flex-1 justify-center"
-                                        {{ is_null($users) ? 'disabled' : '' }}><i class="bi bi-key mr-1"></i> Ganti Password
-                                    </button>
-                                    <button type="reset" class="btn-tw btn-light"
-                                        {{ is_null($users) ? 'disabled' : '' }}>
-                                        <i class="bi bi-arrow-counterclockwise mr-1"></i> Reset
-                                    </button>
-                                </div>
+                            <div>
+                                <label for="password_readonly" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Password tersimpan</label>
+                                <input type="password" id="password_readonly" value="********" readonly disabled
+                                    class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm text-slate-500">
                             </div>
                         </div>
-                    </div>
-                <?php endif; ?>
+
+                        <p class="text-[11px] text-slate-400">
+                            Password tidak ditampilkan demi keamanan. Gunakan kartu Ubah Password untuk mengganti.
+                        </p>
+
+                        <button type="submit" :disabled="!hasAccount || savingInfo"
+                            class="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                            <span x-show="savingInfo" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                            <i x-show="!savingInfo" class="bi bi-save"></i> Simpan
+                        </button>
+                    </form>
+                </x-ui.card>
+
+                <!-- Kartu: ubah password & username -->
+                <x-ui.card title="Ubah Password & Username" icon="bi-key" tone="amber"
+                    subtitle="Ganti username login atau password akun guru">
+                    <form @submit.prevent="submitPassword()" class="space-y-4">
+                        <div>
+                            <label for="username" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                Username <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" id="username" x-model="form.username" minlength="4" maxlength="30" required
+                                :disabled="!hasAccount" placeholder="Username" autocomplete="off"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 font-mono text-sm transition-all outline-hidden focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                            <p class="mt-1 text-xs text-rose-600" x-show="errors.username" x-cloak x-text="errors.username"></p>
+                        </div>
+
+                        <div>
+                            <label for="old" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                Password Lama <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input :type="showOld ? 'text' : 'password'" id="old" x-model="form.old" required
+                                    :disabled="!hasAccount" placeholder="Password Lama" autocomplete="current-password"
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 pr-10 text-sm transition-all outline-hidden focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                                <button type="button" @click="showOld = !showOld"
+                                    :aria-label="showOld ? 'Sembunyikan password lama' : 'Tampilkan password lama'"
+                                    class="absolute inset-y-0 right-0 px-3 text-slate-400 transition-colors hover:text-slate-600">
+                                    <i class="bi" :class="showOld ? 'bi-eye-slash' : 'bi-eye'"></i>
+                                </button>
+                            </div>
+                            <p class="mt-1 text-xs text-rose-600" x-show="errors.old" x-cloak x-text="errors.old"></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="new" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                    Password Baru <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input :type="showNew ? 'text' : 'password'" id="new" x-model="form.new"
+                                        minlength="6" maxlength="72" required :disabled="!hasAccount"
+                                        placeholder="Min. 6 karakter" autocomplete="new-password"
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 pr-10 text-sm transition-all outline-hidden focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                                    <button type="button" @click="showNew = !showNew"
+                                        :aria-label="showNew ? 'Sembunyikan password baru' : 'Tampilkan password baru'"
+                                        class="absolute inset-y-0 right-0 px-3 text-slate-400 transition-colors hover:text-slate-600">
+                                        <i class="bi" :class="showNew ? 'bi-eye-slash' : 'bi-eye'"></i>
+                                    </button>
+                                </div>
+                                <p class="mt-1 text-xs text-rose-600" x-show="errors.new" x-cloak x-text="errors.new"></p>
+                            </div>
+                            <div>
+                                <label for="new_confirm" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                    Konfirmasi Password <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="password" id="new_confirm" x-model="form.new_confirm" required
+                                    :disabled="!hasAccount" placeholder="Ulangi password baru" autocomplete="new-password"
+                                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:text-slate-400">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button type="submit" :disabled="!hasAccount || savingPassword"
+                                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+                                <span x-show="savingPassword" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                                <i x-show="!savingPassword" class="bi bi-key"></i> Ganti Password
+                            </button>
+                            <button type="button" @click="resetPasswordForm()" :disabled="!hasAccount || savingPassword"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </x-ui.card>
             </div>
+        @endif
+    </div>
 </div>
+
 @endsection
 
 @section('scripts')
-<script type="text/javascript">
-$(document).ready(function () {
-    // CSRF_NAME & CSRF_HASH sudah global dari layouts/main.php — jangan dideklarasikan ulang.
-    const guruId = '{{ (int) $guru->id_guru }}';
-    const userId = '{{ (int) ($users->id ?? 0) }}';
-    const namaGuru = {!! json_encode($guru->nama_guru ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('guruAccountPage', () => ({
+        config: { urls: {}, csrf: '', guru: {}, account: {}, initial: {} },
 
-    function spinBtn($btn, busy, orig) {
-        if (busy) {
-            $btn.prop('disabled', true).html('<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full"></span> Memproses...');
-        } else {
-            $btn.prop('disabled', false).html(orig);
-        }
-    }
-    function errHtml(errors) {
-        if (!errors || typeof errors !== 'object') return 'Periksa kembali inputan Anda.';
-        const out = Object.values(errors).filter(v => v != null && v !== '');
-        return out.length ? '<ul style="list-style:none;margin:0;padding:0"><li>' + out.join('</li><li>') + '</li></ul>' : 'Periksa kembali inputan Anda.';
-    }
-    function postCsrf(url, data) {
-        data[CSRF_NAME] = CSRF_HASH;
-        return $.post(url, data);
-    }
+        savingInfo: false,
+        savingPassword: false,
+        savingStatus: false,
+        errors: {},
 
-    // ── Aktif / nonaktif akun (tombol sebelumnya mati tanpa handler) ──
-    function setAktif(aktifkan) {
-        const payload = {
-            id: userId || '',
-            id_guru: guruId,
-            nama: namaGuru,
-            is_active: aktifkan ? 'aktifkan' : 'nonaktifkan'
-        };
-        Swal.fire({
-            title: aktifkan ? 'Aktifkan akun guru ini?' : 'Nonaktifkan akun guru ini?',
-            text: aktifkan ? 'Guru dapat login kembali.' : 'Guru tidak dapat login sampai diaktifkan lagi.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: aktifkan ? '#16a34a' : '#d97706',
-            confirmButtonText: aktifkan ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
-            cancelButtonText: 'Batal'
-        }).then((r) => {
-            if (!r.isConfirmed) return;
-            postCsrf('{{ url('userguru/activate') }}', payload)
-                .done((res) => {
-                    if (res && res.status) {
-                        Swal.fire('Berhasil', res.msg || 'Status diubah.', 'success').then(() => location.reload());
-                    } else {
-                        Swal.fire('Gagal', (res && res.msg) || 'Gagal mengubah status.', 'error');
-                    }
-                })
-                .fail(() => Swal.fire('Error', 'Gagal menghubungi server.', 'error'));
-        });
-    }
-    $('#btn-aktif').on('click', () => setAktif(true));
-    $('#btn-nonaktif').on('click', function () {
-        setAktif($(this).text().toLowerCase().includes('nonaktif') ? false : true);
-    });
+        showOld: false,
+        showNew: false,
 
-    // ── Simpan info dasar (nama/email) ──
-    $('form#change_password').on('submit', function (e) {
-        // Hanya tangani submit dari tombol Simpan info (btn-level); submit Ganti
-        // Password (btn-pass) memakai handler-nya sendiri di bawah.
-        if (document.activeElement && document.activeElement.id === 'btn-pass') return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
+        form: {
+            first_name: '',
+            last_name: '',
+            email: '',
+            username: '',
+            old: '',
+            new: '',
+            new_confirm: '',
+        },
 
-        const btn = $('#btn-level');
-        const orig = btn.html();
-        spinBtn(btn, true);
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.config = Object.assign({ urls: {}, csrf: '', guru: {}, account: {}, initial: {} }, cfg);
+            this.config.urls = cfg.urls || {};
+            this.config.guru = cfg.guru || {};
+            this.config.account = cfg.account || {};
+            this.config.initial = cfg.initial || {};
 
-        $.ajax({
-            url: $(this).attr('action'),
-            data: $(this).serialize(),
-            type: 'POST',
-            dataType: 'json',
-            success: function (res) {
-                spinBtn(btn, false, orig);
-                if (res && res.status) {
-                    Swal.fire('Berhasil', 'Data login berhasil diupdate.', 'success');
-                } else {
-                    Swal.fire('Gagal', (res && (res.msg || errHtml(res.errors))) || 'Gagal menyimpan.', 'error');
+            Object.keys(this.config.initial).forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(this.form, key)) {
+                    this.form[key] = this.config.initial[key] ?? '';
                 }
-            },
-            error: function () {
-                spinBtn(btn, false, orig);
-                Swal.fire('Error', 'Gagal menghubungi server.', 'error');
+            });
+        },
+
+        get csrf() {
+            return this.config.csrf;
+        },
+
+        get hasAccount() {
+            return Boolean(this.config.account && this.config.account.has);
+        },
+
+        get active() {
+            return Boolean(this.config.account && this.config.account.active);
+        },
+
+        async requestJson(url, params) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: params,
+            });
+
+            return response.json();
+        },
+
+        post(url, data = {}) {
+            const body = new URLSearchParams();
+            body.append('_token', this.csrf);
+
+            Object.keys(data).forEach((key) => body.append(key, data[key] ?? ''));
+
+            return this.requestJson(url, body);
+        },
+
+        errorText(result, fallback) {
+            if (result && result.msg) return result.msg;
+
+            if (result && result.errors && typeof result.errors === 'object') {
+                const pesan = Object.values(result.errors).filter((value) => value);
+
+                if (pesan.length > 0) return pesan.join('\n');
             }
-        });
-    });
 
-    // ── Ganti password + username ──
-    $('#btn-pass').on('click', function (e) {
-        e.preventDefault();
-        const pwd = $('#new').val() || '';
-        const pwd2 = $('#new_confirm').val() || '';
-        if (pwd.length < 6) {
-            Swal.fire('Perhatian', 'Password baru minimal 6 karakter.', 'warning');
-            return;
-        }
-        if (pwd !== pwd2) {
-            Swal.fire('Perhatian', 'Konfirmasi password tidak cocok.', 'warning');
-            return;
-        }
-        const btn = $(this);
-        const orig = btn.html();
-        spinBtn(btn, true);
+            return fallback;
+        },
 
-        const payload = {
-            id: userId,
-            id_guru: guruId,
-            old_username: {!! json_encode($guru->username ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)!!},
-            username: $('#username').val(),
-            old: $('#old').val(),
-            new: pwd,
-            new_confirm: pwd2
-        };
-        payload[CSRF_NAME] = CSRF_HASH;
+        resetPasswordForm() {
+            this.errors = {};
+            this.form.old = '';
+            this.form.new = '';
+            this.form.new_confirm = '';
+        },
 
-        $.post('{{ url('userguru/editlogin') }}', payload, function (res) {
-            spinBtn(btn, false, orig);
-            if (res && res.status) {
-                Swal.fire('Berhasil', res.msg || 'Login diperbarui.', 'success');
-            } else {
-                Swal.fire('Gagal', (res && (res.msg || errHtml(res.errors))) || 'Gagal memperbarui login.', 'error');
+        async submitInfo() {
+            if (!this.hasAccount || this.savingInfo) return;
+
+            this.savingInfo = true;
+            this.errors = {};
+
+            try {
+                const result = await this.post(this.config.urls.editlogin, {
+                    id: this.config.account.id,
+                    id_guru: this.config.guru.id_guru,
+                    old_username: this.config.guru.username,
+                    username: this.form.username || this.config.guru.username,
+                    first_name: this.form.first_name,
+                    last_name: this.form.last_name,
+                    email: this.form.email,
+                });
+
+                if (result && result.status) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Data login berhasil diupdate.' });
+                    return;
+                }
+
+                this.errors = (result && result.errors) || {};
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: this.errorText(result, 'Gagal menyimpan data login.'),
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal menghubungi server.' });
+            } finally {
+                this.savingInfo = false;
             }
-        }, 'json').fail(function () {
-            spinBtn(btn, false, orig);
-            Swal.fire('Error', 'Gagal menghubungi server.', 'error');
-        });
-    });
+        },
+
+        async submitPassword() {
+            if (!this.hasAccount || this.savingPassword) return;
+
+            if ((this.form.new || '').length < 6) {
+                Swal.fire({ icon: 'warning', title: 'Perhatian', text: 'Password baru minimal 6 karakter.' });
+                return;
+            }
+
+            if (this.form.new !== this.form.new_confirm) {
+                Swal.fire({ icon: 'warning', title: 'Perhatian', text: 'Konfirmasi password tidak cocok.' });
+                return;
+            }
+
+            this.savingPassword = true;
+            this.errors = {};
+
+            try {
+                const result = await this.post(this.config.urls.editlogin, {
+                    id: this.config.account.id,
+                    id_guru: this.config.guru.id_guru,
+                    old_username: this.config.guru.username,
+                    username: this.form.username,
+                    old: this.form.old,
+                    new: this.form.new,
+                    new_confirm: this.form.new_confirm,
+                });
+
+                if (result && result.status) {
+                    this.config.guru.username = this.form.username;
+                    this.config.guru.nama = (this.form.first_name || '') + ' ' + (this.form.last_name || '');
+                    this.resetPasswordForm();
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: result.msg || 'Login diperbarui.' });
+                    return;
+                }
+
+                this.errors = (result && result.errors) || {};
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: this.errorText(result, 'Gagal memperbarui login.'),
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal menghubungi server.' });
+            } finally {
+                this.savingPassword = false;
+            }
+        },
+
+        async toggleStatus(aktifkan) {
+            if (this.savingStatus) return;
+
+            const konfirmasi = await Swal.fire({
+                title: aktifkan ? 'Aktifkan akun guru ini?' : 'Nonaktifkan akun guru ini?',
+                text: aktifkan ? 'Guru dapat login kembali.' : 'Guru tidak dapat login sampai diaktifkan lagi.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: aktifkan ? '#16a34a' : '#d97706',
+                confirmButtonText: aktifkan ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.savingStatus = true;
+
+            try {
+                const result = await this.post(this.config.urls.activate, {
+                    id: this.config.account.id || '',
+                    id_guru: this.config.guru.id_guru,
+                    nama: this.config.guru.nama,
+                    is_active: aktifkan ? 'aktifkan' : 'nonaktifkan',
+                });
+
+                if (result && result.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: result.msg || 'Status diubah.',
+                    }).then(() => window.location.reload());
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: this.errorText(result, 'Gagal mengubah status akun.'),
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal menghubungi server.' });
+            } finally {
+                this.savingStatus = false;
+            }
+        },
+    }));
 });
 </script>
 @endsection

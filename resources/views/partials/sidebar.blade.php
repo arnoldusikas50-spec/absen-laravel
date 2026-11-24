@@ -395,10 +395,14 @@ if (! function_exists('sidebarBadge')) {
                         $subBadgeTotal += (int) ($badgeByLink[trim($s['link'], '/')] ?? 0);
                     }
                     ?>
-                    <li>
+                    <li x-data="{ open: {{ $anyActive ? 'true' : 'false' }} }">
                         <button type="button"
+                            @click="open = !open"
+                            :aria-expanded="open ? 'true' : 'false'"
+                            title="{{ $item['name'] }}"
                             class="sidebar-treeview-btn w-full group flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                                    font-medium transition-all duration-150 select-none
+                                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60
                                    {{ $anyActive
                                        ? 'bg-white/10 text-white'
                                        : 'text-slate-400 hover:text-white hover:bg-white/8' }}">
@@ -407,15 +411,17 @@ if (! function_exists('sidebarBadge')) {
                             <span class="sidebar-label flex-1 text-left truncate">{{ $item['name'] }}</span>
                             {!! sidebarBadge($subBadgeTotal) !!}
                             <i class="bi bi-chevron-right treeview-arrow sidebar-label text-[10px] shrink-0
-                                      text-slate-600 transition-transform duration-200
-                                      {{ $anyActive ? 'rotate-90 text-blue-400' : '' }}"></i>
+                                      text-slate-600 transition-transform duration-200"
+                               :class="open ? 'rotate-90 text-blue-400' : ''"
+                               aria-hidden="true"></i>
                         </button>
-                        <div class="sidebar-submenu overflow-hidden {{ $anyActive ? '' : 'hidden' }}">
+                        <div x-show="open" x-cloak class="sidebar-submenu overflow-hidden">
                             <ul class="mt-0.5 ml-3 pl-3.5 border-l border-white/10 space-y-0.5 py-1">
                                 <?php foreach ($item['sub'] as $s) {
                                     $active = trim(explode('?', $s['link'])[0], '/') === $activeLink; ?>
                                 <li>
                                     <a href="{{ url($s['link']) }}"
+                                       @if ($active) aria-current="page" @endif
                                        class="{{ $active ? 'active-link bg-blue-500/20 text-blue-300 font-semibold shadow-xs' : 'text-slate-400 hover:text-white hover:bg-white/8' }} group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-all duration-150">
                                         <?php if ($active) { ?>
                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] shrink-0"></span>
@@ -434,8 +440,11 @@ if (! function_exists('sidebarBadge')) {
                     $active = trim(explode('?', $item['link'])[0], '/') === $activeLink; ?>
                     <li>
                         <a href="{{ url($item['link']) }}"
+                           @if ($active) aria-current="page" @endif
+                           title="{{ $item['name'] }}"
                            class="group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
                                   transition-all duration-150 relative
+                                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60
                                   {{ $active
                                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
                                       : 'text-slate-400 hover:text-white hover:bg-white/8' }}">
@@ -466,10 +475,10 @@ if (! function_exists('sidebarBadge')) {
                 <p class="text-[13px] font-semibold text-white truncate leading-tight">{{ $userName }}</p>
                 <p class="text-[11px] text-slate-500 truncate">{{ $userRoleName }}</p>
             </div>
-            <button onclick="logout()" title="Logout"
+            <button type="button" @click="logout()" title="Logout" aria-label="Keluar dari aplikasi"
                     class="sidebar-label shrink-0 w-7 h-7 flex items-center justify-center rounded-lg
                            text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                <i class="bi bi-box-arrow-right text-sm"></i>
+                <i class="bi bi-box-arrow-right text-sm" aria-hidden="true"></i>
             </button>
         </div>
     </div>

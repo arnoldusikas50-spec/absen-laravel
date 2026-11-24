@@ -1,419 +1,608 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    .num-tabular { font-variant-numeric: tabular-nums; }
-    .filter-chip {
-        display: inline-flex; align-items: center; gap: .35rem;
-        padding: .3rem .75rem; border-radius: 9999px; font-size: .75rem; font-weight: 700;
-        border: 1.5px solid #e2e8f0; background: #fff; color: #475569; cursor: pointer;
-        transition: all .15s ease; white-space: nowrap;
-    }
-    .filter-chip:hover { border-color: var(--primary-600); color: var(--primary-600); }
-    .filter-chip.active { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
-    .filter-chip .dot { width: 8px; height: 8px; border-radius: 9999px; display: inline-block; }
-    .stat-card.clickable { cursor: pointer; }
-    .stat-card.clickable:hover { border-color: var(--primary-300); }
-    .stat-card.selected { border-color: var(--primary-600); box-shadow: 0 0 0 3px rgb(var(--primary-600-rgb) / .12); }
-    .empty-state { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; }
-    @media (max-width: 640px) {
-        .content-area { padding: 0.5rem 0.75rem 1.25rem; }
-        .card-tw-body { padding: 0.875rem; }
-    }
-    @media print {
-        .no-print { display: none !important; }
-        .card-tw { box-shadow: none; }
-    }
-</style>
-@endsection
-
 @section('content')
+@php
+    $fmtTrim = fn ($v) => rtrim(rtrim(number_format((float) $v, 1), '0'), '.');
+    $minFmt = $fmtTrim($minPersen);
+    $lowFmt = $fmtTrim($minPersen - 10);
+    $meta = $meta ?? [];
+    $periode = $meta['periode'] ?? (($semester == 1) ? "Juli {$tahun} – Desember {$tahun}" : "Januari {$tahun} – Juni {$tahun}");
+    $tpLabel = $meta['tahunAjaran'] ?? (($semester == 1) ? "{$tahun}/".($tahun + 1) : ($tahun - 1)."/{$tahun}");
+    $isPartial = ! empty($meta['isPartial']);
+    $isStale = ! empty($meta['isStale']);
+    $totalGuru = (int) ($meta['totalGuru'] ?? ($summary['guru'] ?? 0));
+    $curYear = (int) date('Y');
+    $totalDirekap = (int) ($summary['guru'] ?? 0);
+    $pembagi = max(1, $totalDirekap);
+    $pct = fn ($n) => number_format(((int) $n / $pembagi) * 100, 0);
 
-<?php
-$fmtTrim = fn($v) => rtrim(rtrim(number_format((float) $v, 1), '0'), '.');
-$minFmt  = $fmtTrim($minPersen);
-$lowFmt  = $fmtTrim($minPersen - 10);
-$meta    = $meta ?? [];
-$periode = $meta['periode'] ?? (($semester == 1) ? "Juli {$tahun} – Desember {$tahun}" : "Januari {$tahun} – Juni {$tahun}");
-$tpLabel = $meta['tahunAjaran'] ?? (($semester == 1) ? "{$tahun}/" . ($tahun + 1) : ($tahun - 1) . "/{$tahun}");
-$isPartial = !empty($meta['isPartial']);
-$isStale   = !empty($meta['isStale']);
-$totalGuru = (int) ($meta['totalGuru'] ?? ($summary['guru'] ?? 0));
-$curYear   = (int) date('Y');
-$total = max(1, (int) ($summary['guru'] ?? 0));
-$pct = fn($n) => number_format(((int) $n / $total) * 100, 0);
-?>
+    $gayaStatus = [
+        'tidak_layak' => [
+            'kode' => 'tidak_layak', 'label' => 'Tidak Layak', 'ikon' => 'bi-x-octagon-fill',
+            'kelas' => 'bg-rose-50 text-rose-700', 'baris' => 'bg-rose-50/60', 'bar' => '#ef4444',
+        ],
+        'perhatian' => [
+            'kode' => 'perhatian', 'label' => 'Perhatian', 'ikon' => 'bi-exclamation-triangle-fill',
+            'kelas' => 'bg-amber-50 text-amber-700', 'baris' => 'bg-amber-50/60', 'bar' => '#f59e0b',
+        ],
+        'layak' => [
+            'kode' => 'layak', 'label' => 'Layak', 'ikon' => 'bi-check-circle-fill',
+            'kelas' => 'bg-emerald-50 text-emerald-700', 'baris' => '', 'bar' => '#22c55e',
+        ],
+    ];
 
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <nav class="breadcrumb-tw" aria-label="breadcrumb">
-                <a href="{{ url('admin') }}" class="no-underline"><i class="bi bi-house-door mr-1"></i>Admin</a>
-                <span class="sep">/</span>
-                <a href="{{ url('admin/presensi') }}" class="no-underline">Presensi</a>
-                <span class="sep">/</span>
-                <span class="active">Rekap Semester</span>
-            </nav>
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
-                    <i class="bi bi-journal-check text-xl"></i>
-                </span>
-                <span>Rekap Kehadiran Per Semester</span>
-            </h3>
-            <p class="text-sm text-slate-400 mb-0">
-                Semester {{ $semester == 1 ? 'Ganjil' : 'Genap' }} &middot; TP {{ $tpLabel }} &middot; {{ $periode }}
-                <?php if ($isPartial): ?><span class="badge-tw badge-warning ml-1"><i class="bi bi-clock-history"></i>Parsial s/d hari ini</span><?php endif; ?>
-            </p>
-        </div>
-        <div class="flex gap-2 flex-wrap items-center no-print">
-            <button type="button" class="btn-tw btn-tw-sm btn-light" onclick="location.reload()" title="Muat ulang">
+    $barisRekap = [];
+    foreach ($rekap as $r) {
+        $persen = (float) $r->persentase_kehadiran;
+        $status = $gayaStatus[$r->status_kelayakan] ?? $gayaStatus['layak'];
+        $poin = (int) $r->total_poin;
+        $denda = (float) ($r->total_denda ?? 0);
+        $nama = trim((string) ($r->nama_guru ?? '')) ?: 'Guru';
+
+        $barisRekap[] = [
+            'id' => (int) $r->id,
+            'cari' => mb_strtolower(implode(' ', array_filter([
+                $nama, $r->nip ?? '', $status['label'],
+            ]))),
+            'nama' => $nama,
+            'nip' => (string) ($r->nip ?? ''),
+            'hari' => (int) $r->total_hari_efektif,
+            'hadir' => (int) $r->total_hadir,
+            'telat' => (int) $r->total_telat,
+            'izin' => (int) $r->total_izin,
+            'sakit' => (int) $r->total_sakit,
+            'dinas' => (int) $r->total_dinas,
+            'alpha' => (int) $r->total_alpha,
+            'persen' => round($persen, 1),
+            'persenTeks' => number_format($persen, 1),
+            'barWidth' => min(max($persen, 0), 100),
+            'status' => $status,
+            'statusLabel' => $status['label'],
+            'poin' => $poin,
+            'poinTeks' => ($poin >= 0 ? '+' : '').number_format($poin),
+            'denda' => $denda,
+            'dendaTeks' => $denda > 0 ? 'Rp '.number_format($denda, 0, ',', '.') : '—',
+        ];
+    }
+
+    // Kelas Tailwind ditulis utuh (bukan dirakit) agar ikut ter-scan saat build.
+    $kpi = [
+        [
+            'kode' => '', 'label' => 'Total Guru Direkap', 'nilai' => $totalDirekap, 'tambahan' => null,
+            'ket' => 'dari '.$totalGuru.' guru aktif', 'ikon' => 'bi-people-fill',
+            'ikonKelas' => 'bg-blue-50 text-blue-600', 'aksen' => 'border-l-blue-500',
+        ],
+        [
+            'kode' => 'layak', 'label' => 'Layak', 'nilai' => (int) ($summary['layak'] ?? 0), 'tambahan' => $pct($summary['layak'] ?? 0).'%',
+            'ket' => 'Kehadiran ≥ '.$minFmt.'%', 'ikon' => 'bi-check-circle-fill',
+            'ikonKelas' => 'bg-emerald-50 text-emerald-600', 'aksen' => 'border-l-emerald-500',
+        ],
+        [
+            'kode' => 'perhatian', 'label' => 'Perhatian', 'nilai' => (int) ($summary['perhatian'] ?? 0), 'tambahan' => $pct($summary['perhatian'] ?? 0).'%',
+            'ket' => 'Kehadiran '.$lowFmt.'–'.$minFmt.'%', 'ikon' => 'bi-exclamation-triangle-fill',
+            'ikonKelas' => 'bg-amber-50 text-amber-600', 'aksen' => 'border-l-amber-500',
+        ],
+        [
+            'kode' => 'tidak_layak', 'label' => 'Tidak Layak', 'nilai' => (int) ($summary['tidak_layak'] ?? 0), 'tambahan' => $pct($summary['tidak_layak'] ?? 0).'%',
+            'ket' => 'Kehadiran < '.$lowFmt.'%', 'ikon' => 'bi-x-octagon-fill',
+            'ikonKelas' => 'bg-rose-50 text-rose-600', 'aksen' => 'border-l-rose-500',
+        ],
+    ];
+
+    $config = [
+        'baris' => $barisRekap,
+        'periode' => $periode,
+    ];
+
+    $generateUrl = url('admin/presensi/rekap-semester/generate');
+    $generatedAt = ! empty($meta['generatedAt'])
+        ? date('d/m/Y H:i', strtotime($meta['generatedAt']))
+        : (! empty($rekap[0]->generated_at) ? date('d/m/Y H:i', strtotime($rekap[0]->generated_at)) : '—');
+    $maxAbsensi = ! empty($meta['maxAbsensi']) ? date('d/m/Y', strtotime($meta['maxAbsensi'])) : null;
+    $semLabel = $semester == 1 ? 'Ganjil' : 'Genap';
+    $judulRekap = 'Rekap Semester '.$semLabel.' '.$tahun;
+@endphp
+
+<div class="space-y-4" x-data="rekapSemester(@js($config))">
+
+    <x-ui.page-header title="{{ $judul ?? 'Rekap Kehadiran Per Semester' }}" icon="bi-journal-check" tone="emerald"
+        subtitle="Semester {{ $semLabel }} &middot; TP {{ $tpLabel }} &middot; {{ $periode }}{{ $isPartial ? ' · Parsial s/d hari ini' : '' }}"
+        :crumbs="['Presensi', 'Rekap Semester']">
+        <x-slot:actions>
+            <button type="button" x-on:click="location.reload()" title="Muat ulang"
+                class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 print:hidden">
                 <i class="bi bi-arrow-clockwise"></i>
             </button>
-            <button type="button" class="btn-tw btn-tw-sm btn-outline-secondary" onclick="window.print()" title="Cetak halaman">
+            <button type="button" x-on:click="window.print()" title="Cetak halaman"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 print:hidden">
                 <i class="bi bi-printer"></i> Cetak
             </button>
-        </div>
-    </div>
-</div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-<div class="content-area">
+    {{-- Filter periode + aksi generate/export --}}
+    <x-ui.card body-class="p-5 print:hidden">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label for="fTahun" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Tahun Periode</label>
+                <select name="tahun" id="fTahun"
+                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    @for ($y = $curYear + 1; $y >= attendance_tahun_tertua(); $y--)
+                        <option value="{{ $y }}" @selected((int) $tahun === $y)>{{ $y }}</option>
+                    @endfor
+                </select>
+            </div>
+            <div>
+                <label for="fSemester" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Semester</label>
+                <select name="semester" id="fSemester"
+                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    <option value="1" @selected((int) $semester === 1)>Ganjil (Jul–Des)</option>
+                    <option value="2" @selected((int) $semester === 2)>Genap (Jan–Jun)</option>
+                </select>
+            </div>
+            <button type="submit"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700">
+                <i class="bi bi-search"></i> Tampilkan
+            </button>
+            <a href="{{ url('admin/presensi/rekap-semester') }}" title="Kembali ke periode berjalan"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-x-circle"></i> Reset
+            </a>
+        </form>
 
-    <!-- Filter -->
-    <div class="card-tw mb-4">
-        <div class="card-tw-body">
-            <form method="get" class="flex flex-wrap items-end gap-3" id="filterForm">
-                <div>
-                    <label class="form-label-tw" for="fTahun">Tahun Periode</label>
-                    <select name="tahun" id="fTahun" class="form-select-tw" style="min-width:130px">
-                        <?php for ($y = $curYear + 1; $y >= attendance_tahun_tertua(); $y--): ?>
-                            <option value="{{ $y }}" {{ (int) $tahun === $y ? 'selected' : '' }}>{{ $y }}</option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label-tw" for="fSemester">Semester</label>
-                    <select name="semester" id="fSemester" class="form-select-tw" style="min-width:170px">
-                        <option value="1" {{ (int) $semester === 1 ? 'selected' : '' }}>Ganjil (Jul–Des)</option>
-                        <option value="2" {{ (int) $semester === 2 ? 'selected' : '' }}>Genap (Jan–Jun)</option>
-                    </select>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button type="submit" class="btn-tw btn-tw-sm btn-primary">
-                        <i class="bi bi-search mr-1"></i>Tampilkan
-                    </button>
-                    <a href="{{ url('admin/presensi/rekap-semester') }}" class="btn-tw btn-tw-sm btn-light" title="Kembali ke periode berjalan">
-                        <i class="bi bi-x-circle mr-1"></i>Reset
-                    </a>
-                    <button type="button" id="btnGenerate" data-url="{{ url('admin/presensi/rekap-semester/generate?tahun=' . $tahun . '&semester=' . $semester) }}"
-                        class="btn-tw btn-tw-sm btn-success" title="Hitung ulang dari data absensi_harian">
-                        <i class="bi bi-arrow-repeat mr-1"></i>Generate Rekap
-                    </button>
-                    <?php if (!empty($rekap)): ?>
-                    <a href="{{ url('admin/presensi/rekap-semester/export?tahun=' . $tahun . '&semester=' . $semester) }}"
-                        class="btn-tw btn-tw-sm btn-outline-success">
-                        <i class="bi bi-file-earmark-excel mr-1"></i>Export Excel
-                    </a>
-                    <a href="{{ url('admin/presensi/rekap-semester/pdf?tahun=' . $tahun . '&semester=' . $semester) }}"
-                        class="btn-tw btn-tw-sm btn-outline-danger" title="Download rekap semester sebagai PDF">
-                        <i class="bi bi-file-earmark-pdf mr-1"></i>Download PDF
-                    </a>
-                    <?php else: ?>
-                    <button type="button" class="btn-tw btn-tw-sm btn-outline-success" disabled title="Belum ada data untuk diekspor">
-                        <i class="bi bi-file-earmark-excel mr-1"></i>Export Excel
-                    </button>
-                    <button type="button" class="btn-tw btn-tw-sm btn-outline-danger" disabled title="Belum ada data untuk diekspor">
-                        <i class="bi bi-file-earmark-pdf mr-1"></i>Download PDF
-                    </button>
-                    <?php endif; ?>
-                </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            <form id="formGenerateRekap" method="post" action="{{ $generateUrl }}"
+                x-on:submit.prevent="konfirmasiGenerate($event)">
+                @csrf
+                <input type="hidden" name="tahun" value="{{ $tahun }}">
+                <input type="hidden" name="semester" value="{{ $semester }}">
+                <button type="submit" title="Hitung ulang dari data absensi_harian"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700">
+                    <i class="bi bi-arrow-repeat"></i> Generate Rekap
+                </button>
             </form>
-            <p class="text-xs text-slate-400 mb-0 mt-2">
-                <i class="bi bi-info-circle mr-1"></i>Rumus: <strong>Hadir</strong> = ONTIME + LATE + WFH + dinas disetujui &middot;
-                <strong>Alpha</strong> = hari efektif − hadir − izin/sakit/cuti/dinas-menunggu &middot;
-                <strong>%</strong> = hadir ÷ hari efektif × 100. Dinas resmi dihitung hadir.
+
+            @if (! empty($rekap))
+                <a href="{{ url('admin/presensi/rekap-semester/export?tahun='.$tahun.'&semester='.$semester) }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 no-underline transition-colors hover:bg-emerald-100">
+                    <i class="bi bi-file-earmark-excel"></i> Export Excel
+                </a>
+                <a href="{{ url('admin/presensi/rekap-semester/pdf?tahun='.$tahun.'&semester='.$semester) }}"
+                    title="Download rekap semester sebagai PDF"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 no-underline transition-colors hover:bg-rose-100">
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                </a>
+            @else
+                <span title="Belum ada data untuk diekspor"
+                    class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-400">
+                    <i class="bi bi-file-earmark-excel"></i> Export Excel
+                </span>
+                <span title="Belum ada data untuk diekspor"
+                    class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-400">
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                </span>
+            @endif
+        </div>
+
+        <p class="mb-0 mt-3 text-[11px] leading-relaxed text-slate-400">
+            <i class="bi bi-info-circle"></i> Rumus: <strong class="text-slate-600">Hadir</strong> = ONTIME + LATE + WFH + dinas disetujui &middot;
+            <strong class="text-slate-600">Alpha</strong> = hari efektif − hadir − izin/sakit/cuti/dinas-menunggu &middot;
+            <strong class="text-slate-600">%</strong> = hadir ÷ hari efektif × 100. Dinas resmi dihitung hadir.
+        </p>
+    </x-ui.card>
+
+    @if ($isStale)
+        <div class="flex gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+            <i class="bi bi-exclamation-triangle-fill mt-0.5 shrink-0 text-base"></i>
+            <p class="mb-0">
+                <strong>Data mungkin kedaluwarsa.</strong>
+                Ada absensi (s/d {{ $maxAbsensi ?? '-' }}) atau guru aktif ({{ $totalGuru }})
+                yang lebih baru dari waktu generate ({{ $generatedAt }}).
+                Klik <strong>Generate Rekap</strong> untuk menghitung ulang.
             </p>
         </div>
-    </div>
+    @endif
 
-    <?php if ($isStale): ?>
-    <div class="alert-tw alert-warning mb-4">
-        <i class="bi bi-exclamation-triangle-fill mt-0.5"></i>
-        <div>
-            <strong>Data mungkin kedaluwarsa.</strong>
-            Ada absensi (s/d {{ $meta['maxAbsensi'] ?? '-' }}) atau guru aktif ({{ $totalGuru }}) yang lebih baru dari waktu generate
-            ({{ !empty($meta['generatedAt']) ? date('d/m/Y H:i', strtotime($meta['generatedAt'])) : '-' }}).
-            Klik <strong>Generate Rekap</strong> untuk menghitung ulang.
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div class="stat-card clickable" data-status-filter="" title="Tampilkan semua">
-            <div class="stat-icon bg-blue-50 text-blue-600"><i class="bi bi-people-fill"></i></div>
-            <div class="min-w-0">
-                <div class="text-2xl font-bold text-slate-800 num-tabular">{{ (int) ($summary['guru'] ?? 0) }}</div>
-                <div class="text-slate-400 text-xs font-semibold uppercase">Total Guru Direkap</div>
-                <div class="text-xs text-slate-400">dari {{ $totalGuru }} guru aktif</div>
-            </div>
-        </div>
-        <div class="stat-card clickable" data-status-filter="layak" title="Filter: layak">
-            <div class="stat-icon bg-emerald-50 text-emerald-600"><i class="bi bi-check-circle-fill"></i></div>
-            <div class="min-w-0">
-                <div class="text-2xl font-bold text-emerald-600 num-tabular">{{ (int) ($summary['layak'] ?? 0) }} <span class="text-xs font-semibold text-slate-400">{{ $pct($summary['layak'] ?? 0) }}%</span></div>
-                <div class="text-slate-400 text-xs font-semibold uppercase">Layak (≥ {{ $minFmt }}%)</div>
-            </div>
-        </div>
-        <div class="stat-card clickable" data-status-filter="perhatian" title="Filter: perhatian">
-            <div class="stat-icon bg-amber-50 text-amber-500"><i class="bi bi-exclamation-triangle-fill"></i></div>
-            <div class="min-w-0">
-                <div class="text-2xl font-bold text-amber-500 num-tabular">{{ (int) ($summary['perhatian'] ?? 0) }} <span class="text-xs font-semibold text-slate-400">{{ $pct($summary['perhatian'] ?? 0) }}%</span></div>
-                <div class="text-slate-400 text-xs font-semibold uppercase">Perhatian ({{ $lowFmt }}–{{ $minFmt }}%)</div>
-            </div>
-        </div>
-        <div class="stat-card clickable" data-status-filter="tidak_layak" title="Filter: tidak layak">
-            <div class="stat-icon bg-red-50 text-red-500"><i class="bi bi-x-octagon-fill"></i></div>
-            <div class="min-w-0">
-                <div class="text-2xl font-bold text-red-500 num-tabular">{{ (int) ($summary['tidak_layak'] ?? 0) }} <span class="text-xs font-semibold text-slate-400">{{ $pct($summary['tidak_layak'] ?? 0) }}%</span></div>
-                <div class="text-slate-400 text-xs font-semibold uppercase">Tidak Layak (&lt; {{ $lowFmt }}%)</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Alert jika ada tidak layak -->
-    <?php if (($summary['tidak_layak'] ?? 0) > 0): ?>
-    <div class="alert-tw alert-danger mb-4">
-        <i class="bi bi-exclamation-octagon-fill text-2xl"></i>
-        <div>
-            <strong>{{ (int) $summary['tidak_layak'] }} guru</strong> memiliki kehadiran di bawah
-            {{ $lowFmt }}% dan perlu tindak lanjut segera.
-            <button type="button" class="underline font-bold" data-status-filter="tidak_layak">Lihat daftar</button>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Tabel Rekap -->
-    <div class="card-tw">
-        <div class="card-tw-header flex-wrap gap-2">
-            <h6 class="font-bold mb-0">
-                Rekap Semester {{ $semester == 1 ? 'Ganjil' : 'Genap' }} {{ $tahun }}
-                <span class="badge-tw badge-info num-tabular">{{ number_format((float) ($summary['rata_kehadiran'] ?? 0), 1) }}% rata-rata</span>
-            </h6>
-            <?php if (!empty($rekap)): ?>
-            <div class="flex gap-2 flex-wrap items-center ml-auto no-print" role="group" aria-label="Filter status">
-                <button type="button" class="filter-chip active" data-status-filter=""><span class="dot" style="background:#64748b"></span>Semua</button>
-                <button type="button" class="filter-chip" data-status-filter="layak"><span class="dot" style="background:#22c55e"></span>Layak</button>
-                <button type="button" class="filter-chip" data-status-filter="perhatian"><span class="dot" style="background:#f59e0b"></span>Perhatian</button>
-                <button type="button" class="filter-chip" data-status-filter="tidak_layak"><span class="dot" style="background:#ef4444"></span>Tidak Layak</button>
-            </div>
-            <?php endif; ?>
-        </div>
-        <div class="p-0">
-            <?php if (empty($rekap)): ?>
-                <div class="empty-state">
-                    <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                        <i class="bi bi-inbox text-3xl text-slate-400"></i>
+    {{-- Ringkasan per status (klik untuk memfilter tabel) --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        @foreach ($kpi as $item)
+            <x-ui.card body-class="p-4" role="button" tabindex="0"
+                class="cursor-pointer border-l-4 {{ $item['aksen'] }} transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                x-bind:class="status === '{{ $item['kode'] }}' ? 'ring-2 ring-blue-500/30' : ''"
+                x-bind:aria-pressed="status === '{{ $item['kode'] }}' ? 'true' : 'false'"
+                x-on:click="setFilter('{{ $item['kode'] }}')"
+                x-on:keydown.enter.prevent="setFilter('{{ $item['kode'] }}')">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl {{ $item['ikonKelas'] }}">
+                        <i class="bi {{ $item['ikon'] }}"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $item['label'] }}</p>
+                        <div class="mt-0.5 flex items-baseline gap-2">
+                            <p class="text-2xl font-extrabold tabular-nums text-slate-900">{{ number_format($item['nilai']) }}</p>
+                            @if ($item['tambahan'])
+                                <span class="text-[11px] font-bold tabular-nums text-slate-400">{{ $item['tambahan'] }}</span>
+                            @endif
+                        </div>
+                        <p class="mt-0.5 text-[11px] text-slate-400">{{ $item['ket'] }}</p>
                     </div>
-                    <p class="font-semibold text-slate-600">Belum ada data rekap untuk periode ini.</p>
-                    <p class="text-sm text-slate-400 mb-4">Klik <strong>Generate Rekap</strong> untuk menghitung dari data absensi harian ({{ $periode }}).</p>
-                    <button type="button" id="btnGenerateEmpty" data-url="{{ url('admin/presensi/rekap-semester/generate?tahun=' . $tahun . '&semester=' . $semester) }}"
-                        class="btn-tw btn-tw-sm btn-success">
-                        <i class="bi bi-arrow-repeat mr-1"></i>Generate Rekap Sekarang
-                    </button>
                 </div>
-            <?php else: ?>
-                <div class="table-responsive-tw">
-                    <table class="table-tw" id="rekapTable" style="min-width:980px;">
-                        <thead>
-                            <tr>
-                                <th class="pl-4">#</th>
-                                <th>Nama Guru</th>
-                                <th>NIP</th>
-                                <th class="text-center">Hari Efektif</th>
-                                <th class="text-center text-emerald-600">Hadir</th>
-                                <th class="text-center text-amber-500">Telat</th>
-                                <th class="text-center text-blue-600">Izin</th>
-                                <th class="text-center text-cyan-600">Sakit</th>
-                                <th class="text-center text-slate-500">Dinas</th>
-                                <th class="text-center text-red-500">Alpha</th>
-                                <th class="text-center">Persentase</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-center">Poin</th>
-                                <th class="text-center">Denda</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $no = 1;
-                            foreach ($rekap as $r):
-                                $rowClass = match ($r->status_kelayakan) {
-                                    'tidak_layak' => 'bg-red-50',
-                                    'perhatian'   => 'bg-amber-50',
-                                    default       => '',
-                                };
-                                $barColor = match ($r->status_kelayakan) {
-                                    'tidak_layak' => '#ef4444',
-                                    'perhatian'   => '#f59e0b',
-                                    default       => '#22c55e',
-                                };
-                                $badgeClass = match ($r->status_kelayakan) {
-                                    'tidak_layak' => 'badge-danger',
-                                    'perhatian'   => 'badge-warning',
-                                    default       => 'badge-success',
-                                };
-                                $badgeText = match ($r->status_kelayakan) {
-                                    'tidak_layak' => 'Tidak Layak',
-                                    'perhatian'   => 'Perhatian',
-                                    default       => 'Layak',
-                                };
-                                $barWidth = min(max((float) $r->persentase_kehadiran, 0), 100);
-                                $persen   = (float) $r->persentase_kehadiran;
-                            ?>
-                            <tr class="{{ $rowClass }}" data-status="{{ $r->status_kelayakan }}">
-                                <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
-                                <td class="font-semibold" title="{{ $r->nama_guru }}">{{ $r->nama_guru }}</td>
-                                <td class="text-slate-400 num-tabular">{{ $r->nip ?? '-' }}</td>
-                                <td class="text-center num-tabular">{{ (int) $r->total_hari_efektif }}</td>
-                                <td class="text-center font-bold text-emerald-600 num-tabular" title="Termasuk dinas disetujui">{{ (int) $r->total_hadir }}</td>
-                                <td class="text-center font-bold text-amber-500 num-tabular">{{ (int) $r->total_telat }}</td>
-                                <td class="text-center text-blue-600 num-tabular">{{ (int) $r->total_izin }}</td>
-                                <td class="text-center text-cyan-600 num-tabular">{{ (int) $r->total_sakit }}</td>
-                                <td class="text-center text-slate-500 num-tabular">{{ (int) $r->total_dinas }}</td>
-                                <td class="text-center font-bold text-red-500 num-tabular">{{ (int) $r->total_alpha }}</td>
-                                <td>
+            </x-ui.card>
+        @endforeach
+    </div>
+
+    @if ((int) ($summary['tidak_layak'] ?? 0) > 0)
+        <div class="flex items-center gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-relaxed text-rose-800 print:hidden">
+            <i class="bi bi-exclamation-octagon-fill shrink-0 text-base"></i>
+            <p class="mb-0">
+                <strong>{{ (int) $summary['tidak_layak'] }} guru</strong> memiliki kehadiran di bawah {{ $lowFmt }}% dan perlu tindak lanjut segera.
+                <button type="button" x-on:click="setFilter('tidak_layak')" class="font-bold underline underline-offset-2 hover:text-rose-900">Lihat daftar</button>
+            </p>
+        </div>
+    @endif
+
+    <x-ui.card body-class="p-0" title="{{ $judulRekap }}" icon="bi-table" subtitle="Klik judul kolom untuk mengurutkan data.">
+        <x-slot:meta>
+            <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-blue-700">
+                <i class="bi bi-graph-up-arrow"></i> {{ number_format((float) ($summary['rata_kehadiran'] ?? 0), 1) }}% rata-rata
+            </span>
+        </x-slot:meta>
+
+        <x-slot:toolbar>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                @if (! empty($rekap))
+                    <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter status">
+                        <button type="button" x-on:click="setFilter('')"
+                            x-bind:class="status === '' ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                            <span class="h-2 w-2 rounded-full bg-slate-400"></span> Semua
+                        </button>
+                        <button type="button" x-on:click="setFilter('layak')"
+                            x-bind:class="status === 'layak' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                            <span class="h-2 w-2 rounded-full bg-emerald-500"></span> Layak
+                        </button>
+                        <button type="button" x-on:click="setFilter('perhatian')"
+                            x-bind:class="status === 'perhatian' ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                            <span class="h-2 w-2 rounded-full bg-amber-500"></span> Perhatian
+                        </button>
+                        <button type="button" x-on:click="setFilter('tidak_layak')"
+                            x-bind:class="status === 'tidak_layak' ? 'border-rose-600 bg-rose-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                            <span class="h-2 w-2 rounded-full bg-rose-500"></span> Tidak Layak
+                        </button>
+                    </div>
+
+                    <div class="relative w-full sm:ml-auto sm:w-64 print:hidden">
+                        <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                        <input type="text" x-model="cari" x-ref="cari" autocomplete="off" x-on:input="halaman = 1"
+                            placeholder="Cari nama guru / NIP..."
+                            aria-label="Cari guru pada rekap semester"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button type="button" x-show="cari !== ''" x-cloak x-on:click="bersihkan()"
+                            class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700"
+                            title="Bersihkan pencarian">
+                            <i class="bi bi-x text-xs"></i>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </x-slot:toolbar>
+
+        @if (empty($rekap))
+            <div class="p-5">
+                <x-ui.empty icon="bi-inbox" title="Belum ada data rekap untuk periode ini."
+                    description="Klik Generate Rekap untuk menghitung dari data absensi harian ({{ $periode }}).">
+                    <button type="submit" form="formGenerateRekap"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700">
+                        <i class="bi bi-arrow-repeat"></i> Generate Rekap Sekarang
+                    </button>
+                </x-ui.empty>
+            </div>
+        @else
+            <div class="max-h-[68vh] overflow-auto" tabindex="0">
+                <table class="w-full min-w-[1080px] text-[13px]">
+                    <thead class="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                        <tr>
+                            <th class="w-10 px-3 py-3 text-center font-bold">#</th>
+                            <th class="min-w-[200px] px-3 py-3 text-left font-bold">
+                                <button type="button" x-on:click="urutkan('nama')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    Nama Guru <i class="bi text-[10px]" x-bind:class="ikonUrut('nama')"></i>
+                                </button>
+                            </th>
+                            <th class="min-w-[130px] px-3 py-3 text-left font-bold">
+                                <button type="button" x-on:click="urutkan('nip')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    NIP <i class="bi text-[10px]" x-bind:class="ikonUrut('nip')"></i>
+                                </button>
+                            </th>
+                            @foreach ([
+                                ['hari', 'Eff.', 'text-slate-500', 'Hari efektif'],
+                                ['hadir', 'Hadir', 'text-emerald-600', 'Termasuk dinas disetujui'],
+                                ['telat', 'Telat', 'text-amber-600', 'Total keterlambatan'],
+                                ['izin', 'Izin', 'text-blue-600', 'Izin disetujui'],
+                                ['sakit', 'Sakit', 'text-cyan-600', 'Sakit dengan surat'],
+                                ['dinas', 'Dinas', 'text-slate-500', 'Dinas luar disetujui'],
+                                ['alpha', 'Alpha', 'text-rose-600', 'Tanpa keterangan'],
+                            ] as [$kunci, $kolom, $warna, $tip])
+                                <th class="min-w-[74px] px-3 py-3 text-center font-bold" title="{{ $tip }}">
+                                    <button type="button" x-on:click="urutkan('{{ $kunci }}')"
+                                        class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800 {{ $warna }}">
+                                        {{ $kolom }} <i class="bi text-[10px]" x-bind:class="ikonUrut('{{ $kunci }}')"></i>
+                                    </button>
+                                </th>
+                            @endforeach
+                            <th class="min-w-[150px] px-3 py-3 text-left font-bold">
+                                <button type="button" x-on:click="urutkan('persen')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    Persentase <i class="bi text-[10px]" x-bind:class="ikonUrut('persen')"></i>
+                                </button>
+                            </th>
+                            <th class="w-[110px] px-3 py-3 text-center font-bold">
+                                <button type="button" x-on:click="urutkan('statusLabel')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    Status <i class="bi text-[10px]" x-bind:class="ikonUrut('statusLabel')"></i>
+                                </button>
+                            </th>
+                            <th class="w-[80px] px-3 py-3 text-center font-bold">
+                                <button type="button" x-on:click="urutkan('poin')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    Poin <i class="bi text-[10px]" x-bind:class="ikonUrut('poin')"></i>
+                                </button>
+                            </th>
+                            <th class="w-[110px] px-3 py-3 text-center font-bold">
+                                <button type="button" x-on:click="urutkan('denda')"
+                                    class="inline-flex items-center gap-1 font-bold uppercase tracking-wider transition-colors hover:text-slate-800">
+                                    Denda <i class="bi text-[10px]" x-bind:class="ikonUrut('denda')"></i>
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr x-show="barisTampil.length === 0">
+                            <td colspan="14" class="px-3 py-12 text-center">
+                                <span class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-400">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <p class="text-sm font-bold text-slate-700">Tidak ada guru yang cocok</p>
+                                <p class="mt-1 text-xs text-slate-400">Ubah kata kunci pencarian atau pilih status lain.</p>
+                                <button type="button" x-on:click="bersihkan()"
+                                    class="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reset filter
+                                </button>
+                            </td>
+                        </tr>
+
+                        <template x-for="(row, index) in barisHalaman" :key="row.id">
+                            <tr class="transition-colors hover:bg-slate-50/60" x-bind:class="row.status.baris">
+                                <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400"
+                                    x-text="(halamanAktif - 1) * perHalaman + index + 1"></td>
+
+                                <td class="px-3 py-2.5">
+                                    <p class="truncate text-sm font-semibold text-slate-800" x-bind:title="row.nama" x-text="row.nama"></p>
+                                </td>
+
+                                <td class="px-3 py-2.5 font-mono text-xs tabular-nums text-slate-500" x-text="row.nip || '—'"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-semibold tabular-nums text-slate-600" x-text="row.hari"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-bold tabular-nums text-emerald-600" title="Termasuk dinas disetujui" x-text="row.hadir"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-bold tabular-nums text-amber-600" x-text="row.telat"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs tabular-nums text-blue-600" x-text="row.izin"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs tabular-nums text-cyan-600" x-text="row.sakit"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs tabular-nums text-slate-500" x-text="row.dinas"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-bold tabular-nums text-rose-600" x-text="row.alpha"></td>
+
+                                <td class="px-3 py-2.5">
                                     <div class="flex items-center gap-2">
-                                        <div class="progress-tw flex-1" style="height:8px;" role="progressbar" aria-valuenow="{{ $barWidth }}" aria-valuemin="0" aria-valuemax="100" title="{{ number_format($persen, 1) }}%">
-                                            <div class="progress-bar-tw" style="width:{{ $barWidth }}%; background:{{ $barColor }};"></div>
+                                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar"
+                                            x-bind:aria-valuenow="row.barWidth" aria-valuemin="0" aria-valuemax="100"
+                                            x-bind:title="row.persenTeks + '%'">
+                                            <div class="h-full rounded-full transition-all"
+                                                x-bind:style="'width:' + row.barWidth + '%; background:' + row.status.bar"></div>
                                         </div>
-                                        <span class="font-bold num-tabular" style="min-width:52px; text-align:right;">
-                                            {{ number_format($persen, 1) }}%
-                                        </span>
+                                        <span class="min-w-[48px] text-right text-xs font-bold tabular-nums text-slate-700" x-text="row.persenTeks + '%'"></span>
                                     </div>
                                 </td>
-                                <td class="text-center">
-                                    <span class="badge-tw {{ $badgeClass }}">{{ $badgeText }}</span>
-                                </td>
-                                <td class="text-center font-bold num-tabular {{ (int) $r->total_poin >= 0 ? 'text-emerald-600' : 'text-red-500' }}">
-                                    {{ (int) $r->total_poin >= 0 ? '+' : '' }}{{ number_format((int) $r->total_poin) }}
-                                </td>
-                                <td class="text-center text-red-500 font-bold num-tabular">
-                                    {{ (float) $r->total_denda > 0 ? 'Rp ' . number_format((float) $r->total_denda, 0, ',', '.') : '-' }}
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </div>
-        <?php if (!empty($rekap)): ?>
-        <div class="px-4 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <span class="inline-flex items-center">
-                <i class="bi bi-clock mr-1"></i>
-                Terakhir di-generate:
-                <strong class="ml-1">{{ !empty($meta['generatedAt']) ? date('d/m/Y H:i', strtotime($meta['generatedAt'])) : (!empty($rekap[0]->generated_at) ? date('d/m/Y H:i', strtotime($rekap[0]->generated_at)) : '-') }}</strong>
-            </span>
-            <?php if (!empty($meta['maxAbsensi'])): ?>
-            <span class="inline-flex items-center" title="Absensi harian terbaru pada periode ini">
-                <i class="bi bi-calendar-check mr-1"></i>
-                Absensi terbaru: <strong class="ml-1">{{ date('d/m/Y', strtotime($meta['maxAbsensi'])) }}</strong>
-            </span>
-            <?php endif; ?>
-            <span class="inline-flex items-center">
-                Threshold: <strong class="ml-1">Layak ≥ {{ $minFmt }}% &middot; Perhatian {{ $lowFmt }}–{{ $minFmt }}% &middot; Tidak layak &lt; {{ $lowFmt }}%</strong>
-            </span>
-            <span class="inline-flex items-center">
-                Standar (min. {{ $minFmt }}% kehadiran per semester)
-            </span>
-        </div>
-        <?php endif; ?>
-    </div>
 
+                                <td class="px-3 py-2.5 text-center">
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold" x-bind:class="row.status.kelas">
+                                        <i class="bi text-[10px]" x-bind:class="row.status.ikon"></i>
+                                        <span x-text="row.status.label"></span>
+                                    </span>
+                                </td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-bold tabular-nums"
+                                    x-bind:class="row.poin >= 0 ? 'text-emerald-600' : 'text-rose-600'" x-text="row.poinTeks"></td>
+
+                                <td class="px-3 py-2.5 text-center text-xs font-bold tabular-nums text-rose-600" x-text="row.dendaTeks"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        <x-slot:footer>
+            <div class="flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-400">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="tabular-nums"
+                        x-text="barisTampil.length === 0
+                            ? 'Tidak ada baris ditampilkan'
+                            : 'Menampilkan ' + nomorAwal + '–' + nomorAkhir + ' dari ' + barisTampil.length + ' guru'"></span>
+                    <span title="Waktu generate terakhir">
+                        <i class="bi bi-clock"></i> Generate: <strong class="text-slate-600">{{ $generatedAt }}</strong>
+                    </span>
+                    @if ($maxAbsensi)
+                        <span title="Absensi harian terbaru pada periode ini">
+                            <i class="bi bi-calendar-check"></i> Absensi terbaru: <strong class="text-slate-600">{{ $maxAbsensi }}</strong>
+                        </span>
+                    @endif
+                    <span>
+                        <i class="bi bi-sliders"></i> Layak ≥ {{ $minFmt }}% &middot; Perhatian {{ $lowFmt }}–{{ $minFmt }}% &middot; Tidak layak &lt; {{ $lowFmt }}% (standar min. {{ $minFmt }}%)
+                    </span>
+                </div>
+
+                @if (! empty($rekap))
+                    <div class="flex items-center gap-1.5 print:hidden">
+                        <label for="fPerHalaman" class="sr-only">Baris per halaman</label>
+                        <select id="fPerHalaman" x-model.number="perHalaman" x-on:change="halaman = 1"
+                            class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <button type="button" x-on:click="halaman = halamanAktif - 1" x-bind:disabled="halamanAktif <= 1"
+                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            title="Halaman sebelumnya">
+                            <i class="bi bi-chevron-left text-[10px]"></i>
+                        </button>
+                        <span class="tabular-nums" x-text="halamanAktif + ' / ' + totalHalaman"></span>
+                        <button type="button" x-on:click="halaman = halamanAktif + 1" x-bind:disabled="halamanAktif >= totalHalaman"
+                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            title="Halaman berikutnya">
+                            <i class="bi bi-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </x-slot:footer>
+    </x-ui.card>
 </div>
 @endsection
 
 @section('scripts')
 <script>
-$(document).ready(function () {
-    // DataTables: cari + sortir + paging
-    var table = null;
-    if (window.jQuery && $.fn.DataTable && $('#rekapTable').length && !$.fn.DataTable.isDataTable('#rekapTable')) {
-        table = $('#rekapTable').DataTable({
-            pageLength: 25,
-            lengthMenu: [10, 25, 50, 100],
-            order: [],
-            language: window.dt_lang_id || {},
-            columnDefs: [
-                { orderable: false, targets: [10] },
-                { type: 'num', targets: [0, 3, 4, 5, 6, 7, 8, 9, 12] }
-            ]
-        });
-    } else if ($.fn.DataTable && $.fn.DataTable.isDataTable('#rekapTable')) {
-        table = $('#rekapTable').DataTable();
-    }
+document.addEventListener('alpine:init', () => {
+    Alpine.data('rekapSemester', (config) => ({
+        semuaBaris: config.baris || [],
+        periode: config.periode || '',
+        cari: '',
+        status: '',
+        urut: '',
+        arah: 'asc',
+        halaman: 1,
+        perHalaman: 25,
 
-    // Filter status via chips + kartu ringkasan (teks badge: Layak / Perhatian / Tidak Layak)
-    var statusLabels = { 'layak': 'Layak', 'perhatian': 'Perhatian', 'tidak_layak': 'Tidak Layak' };
-    function setStatusFilter(status) {
-        status = status || '';
-        $('[data-status-filter]').removeClass('active selected');
-        $('[data-status-filter="' + status + '"]').addClass(status ? 'selected' : 'active');
-        $('.filter-chip[data-status-filter="' + status + '"]').addClass('active');
-        if (table) {
-            if (status && statusLabels[status]) {
-                table.column(11).search('^' + statusLabels[status] + '$', true, false).draw();
-            } else {
-                table.column(11).search('').draw();
+        cocok(row) {
+            const kunci = this.cari.trim().toLowerCase();
+
+            return kunci === '' || (row.cari || '').includes(kunci);
+        },
+
+        get barisTampil() {
+            const rows = this.semuaBaris.filter((row) => this.cocok(row)
+                && (this.status === '' || row.status.kode === this.status));
+
+            if (this.urut === '') {
+                return rows;
             }
-        } else {
-            $('#rekapTable tbody tr').each(function () {
-                var show = !status || $(this).data('status') === status;
-                $(this).toggle(show);
-            });
-        }
-    }
-    window.setRekapStatusFilter = setStatusFilter;
-    $(document).on('click', '[data-status-filter]', function (e) {
-        e.preventDefault();
-        setStatusFilter($(this).data('status-filter') || '');
-    });
 
-    // Generate dengan konfirmasi
-    var runGenerate = function (url, $btn) {
-        Swal.fire({
-            title: 'Generate Rekap?',
-            html: 'Menghitung ulang kehadiran <strong>{{ $periode }}</strong> dari data absensi harian.<br><span class="text-sm text-slate-400">Data lama periode ini akan diperbarui.</span>',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#16a34a',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Generate',
-            cancelButtonText: 'Batal'
-        }).then(function (r) {
-            if (!r.isConfirmed) { if ($btn) $btn.prop('disabled', false).removeClass('opacity-60'); return; }
+            const arah = this.arah === 'asc' ? 1 : -1;
+            const kunci = this.urut;
+
+            return rows.slice().sort((a, b) => {
+                if (typeof a[kunci] === 'number' && typeof b[kunci] === 'number') {
+                    return (a[kunci] - b[kunci]) * arah;
+                }
+
+                return String(a[kunci]).localeCompare(String(b[kunci]), 'id', { numeric: true }) * arah;
+            });
+        },
+
+        get totalHalaman() {
+            return Math.max(1, Math.ceil(this.barisTampil.length / this.perHalaman));
+        },
+
+        get halamanAktif() {
+            return Math.min(this.halaman, this.totalHalaman);
+        },
+
+        get barisHalaman() {
+            const mulai = (this.halamanAktif - 1) * this.perHalaman;
+
+            return this.barisTampil.slice(mulai, mulai + this.perHalaman);
+        },
+
+        get nomorAwal() {
+            return this.barisTampil.length === 0 ? 0 : (this.halamanAktif - 1) * this.perHalaman + 1;
+        },
+
+        get nomorAkhir() {
+            return Math.min(this.halamanAktif * this.perHalaman, this.barisTampil.length);
+        },
+
+        setFilter(kode) {
+            this.status = kode;
+            this.halaman = 1;
+        },
+
+        urutkan(kunci) {
+            if (this.urut === kunci) {
+                this.arah = this.arah === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.urut = kunci;
+                this.arah = 'asc';
+            }
+
+            this.halaman = 1;
+        },
+
+        ikonUrut(kunci) {
+            if (this.urut !== kunci) {
+                return 'bi-arrow-down-up text-slate-300';
+            }
+
+            return this.arah === 'asc' ? 'bi-arrow-up text-blue-600' : 'bi-arrow-down text-blue-600';
+        },
+
+        bersihkan() {
+            this.cari = '';
+            this.status = '';
+            this.urut = '';
+            this.halaman = 1;
+            this.$nextTick(() => this.$refs.cari?.focus());
+        },
+
+        konfirmasiGenerate(event) {
+            const form = event.target;
+
             Swal.fire({
-                title: 'Menghitung...',
-                text: 'Mohon tunggu, sedang merekap kehadiran semester.',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: function () { Swal.showLoading(); }
-            });
-            // Generate = mutasi DB → POST agar CSRF global berlaku (bukan navigasi GET).
-            var $f = $('<form method="post" action="' + url + '">'
-                + '<input type="hidden" name="_token" value="{{ csrf_token() }}">'
-                + '</form>');
-            $('body').append($f);
-            $f.trigger('submit');
-        });
-    };
+                title: 'Generate Rekap?',
+                html: 'Menghitung ulang kehadiran <strong>' + this.periode + '</strong> dari data absensi harian.'
+                    + '<br><span class="text-sm text-slate-400">Data lama periode ini akan diperbarui.</span>',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Generate',
+                cancelButtonText: 'Batal',
+            }).then((hasil) => {
+                if (!hasil.isConfirmed) {
+                    return;
+                }
 
-    $('#btnGenerate, #btnGenerateEmpty').on('click', function () {
-        var $btn = $(this);
-        if ($btn.is(':disabled')) return;
-        $btn.prop('disabled', true).addClass('opacity-60');
-        runGenerate($btn.data('url'), $btn);
-    });
+                Swal.fire({
+                    title: 'Menghitung...',
+                    text: 'Mohon tunggu, sedang merekap kehadiran semester.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => Swal.showLoading(),
+                });
+
+                form.submit();
+            });
+        },
+    }));
 });
 </script>
 @endsection

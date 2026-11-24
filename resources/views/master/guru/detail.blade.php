@@ -100,30 +100,21 @@ $linkedLabels = [
 ];
 ?>
 
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
-                    <i class="bi bi-person-vcard text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Detail Guru' }}</span>
-            </h3>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                <i class="bi bi-house-door mr-1"></i> Dashboard
-            </a>
-            <span class="sep">/</span>
-            <a href="{{ url('dataguru') }}" class="no-underline text-slate-500 hover:text-blue-600">Data Guru</a>
-            <span class="sep">/</span>
-            <span class="active font-medium text-slate-800">{{ $namaGuru }}</span>
-        </nav>
-    </div>
-</div>
+<div class="fade-in-up space-y-4 px-4 pt-6 md:px-6"
+    x-data="guruDetail"
+    data-token="{{ csrf_token() }}"
+    data-id-guru="{{ (int) $id_guru }}"
+    data-nama="{{ $namaGuru }}"
+    data-url-delete="{{ url('dataguru/forcedelete') }}"
+    data-url-list="{{ url('dataguru') }}">
 
-<div class="content-area mt-4 space-y-5">
+    <x-ui.page-header
+        title="{{ $judul ?? 'Detail Guru' }}"
+        icon="bi-person-vcard"
+        :subtitle="$statusAkunText . ' · NIP ' . ($guru->nip ?? '-')"
+        :crumbs="['Data Guru', $namaGuru]" />
+
+<div class="space-y-5">
 
     <!-- Profil ringkas -->
     <div class="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
@@ -670,15 +661,20 @@ $linkedLabels = [
                             <label for="confirmNama" class="block text-xs font-semibold text-slate-700 mb-1.5">
                                 Ketik <span class="font-mono text-rose-700">{{ $namaGuru }}</span> untuk mengonfirmasi
                             </label>
-                            <input type="text" id="confirmNama" autocomplete="off" spellcheck="false"
-                                class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20 transition-all outline-hidden"
+                            <input type="text" id="confirmNama" x-model="confirmNama" autocomplete="off" spellcheck="false"
+                                class="w-full px-3 py-2 text-sm bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 transition-all outline-hidden"
+                                :class="confirmNama === '' ? 'border-slate-200 focus:border-rose-400 focus:ring-rose-500/20' : (canDelete ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-500/20' : 'border-rose-300 focus:border-rose-400 focus:ring-rose-500/20')"
                                 placeholder="Nama guru harus sama persis">
-                            <p id="confirmHint" class="text-[11px] text-slate-400 mt-1 mb-0">Tombol hapus aktif setelah nama diketik sama persis.</p>
+                            <p class="text-[11px] mt-1 mb-0"
+                                :class="confirmNama === '' ? 'text-slate-400' : (canDelete ? 'text-emerald-600' : 'text-rose-600')"
+                                x-text="confirmNama === '' ? 'Tombol hapus aktif setelah nama diketik sama persis.' : (canDelete ? 'Nama cocok. Tombol hapus sudah aktif.' : 'Nama belum sama persis.')"></p>
                         </div>
 
-                        <button type="button" id="btnForceDelete" disabled
+                        <button type="button" id="btnForceDelete" @click="destroy()" :disabled="!canDelete || deleting"
                             class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs shadow-rose-500/20">
-                            <i class="bi bi-trash3"></i> Hapus Guru Secara Permanen
+                            <span x-show="deleting" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                            <i class="bi bi-trash3" x-show="!deleting"></i>
+                            <span x-text="deleting ? 'Menghapus...' : 'Hapus Guru Secara Permanen'"></span>
                         </button>
                     </div>
                 </div>
@@ -686,110 +682,98 @@ $linkedLabels = [
         </div>
     </div>
 </div>
+</div>
 
 @endsection
 
 @section('scripts')
 <script>
-$(function () {
-    var $input = $('#confirmNama');
-    var $btn = $('#btnForceDelete');
-    var $hint = $('#confirmHint');
+document.addEventListener('alpine:init', () => {
+    Alpine.data('guruDetail', () => ({
+        confirmNama: '',
+        deleting: false,
+        expected: '',
+        token: '',
+        guruId: 0,
+        urls: {},
 
-    if (!$input.length || !$btn.length) return;
+        init() {
+            const data = this.$el.dataset;
+            this.token = data.token;
+            this.guruId = Number(data.idGuru) || 0;
+            this.expected = (data.nama || '').trim();
+            this.urls = { remove: data.urlDelete, list: data.urlList };
+        },
 
-    var expected = {!! json_encode($namaGuru, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)!!};
-    var originalHtml = $btn.html();
-    var submitting = false;
+        get canDelete() {
+            return this.expected !== '' && this.confirmNama.trim() === this.expected;
+        },
 
-    function isValid() {
-        return $.trim($input.val()) === expected;
-    }
+        escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+            }[char]));
+        },
 
-    function refreshState() {
-        var ok = isValid();
-        $btn.prop('disabled', !ok || submitting);
+        async destroy() {
+            if (!this.canDelete || this.deleting) {
+                return;
+            }
 
-        if (ok) {
-            $input.removeClass('border-rose-300 focus:border-rose-400').addClass('border-emerald-300 focus:border-emerald-400');
-            $hint.removeClass('text-slate-400 text-rose-600').addClass('text-emerald-600')
-                .html('<i class="bi bi-check-circle mr-1"></i>Nama cocok. Tombol hapus sudah aktif.');
-        } else if ($.trim($input.val()) === '') {
-            $input.removeClass('border-emerald-300 border-rose-300 focus:border-emerald-400').addClass('border-slate-200');
-            $hint.removeClass('text-emerald-600 text-rose-600').addClass('text-slate-400')
-                .text('Tombol hapus aktif setelah nama diketik sama persis.');
-        } else {
-            $input.removeClass('border-emerald-300 focus:border-emerald-400').addClass('border-rose-300 focus:border-rose-400');
-            $hint.removeClass('text-slate-400 text-emerald-600').addClass('text-rose-600')
-                .html('<i class="bi bi-x-circle mr-1"></i>Nama belum sama persis.');
-        }
-    }
-
-    $input.on('input', refreshState);
-    refreshState();
-
-    $btn.on('click', function () {
-        if (!isValid() || submitting) return;
-
-        Swal.fire({
-            title: 'Hapus permanen?',
-            html: 'Seluruh data terkait <b>' + $('<div>').text(expected).html() + '</b> akan dihapus dan tidak dapat dikembalikan.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e11d48',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, hapus permanen',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then(function (result) {
-            if (!(result.isConfirmed || result.value) || submitting) return;
-
-            submitting = true;
-            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm mr-1" role="status"></span> Menghapus...');
-
-            $.ajax({
-                url: '{{ url('dataguru/forcedelete') }}',
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    id_guru: {{ (int) $id_guru }},
-                    confirm_nama: expected,
-                    '_token': '{{ csrf_token() }}'
-                },
-                success: function (res) {
-                    if (res && res.status) {
-                        Swal.fire({
-                            title: 'Berhasil',
-                            text: res.message || 'Data guru berhasil dihapus permanen.',
-                            icon: 'success',
-                            confirmButtonColor: '#059669'
-                        }).then(function () {
-                            window.location.href = '{{ url('dataguru') }}';
-                        });
-                        return;
-                    }
-
-                    submitting = false;
-                    $btn.html(originalHtml);
-                    refreshState();
-                    Swal.fire('Gagal', (res && res.message) || 'Data guru gagal dihapus.', 'error');
-                },
-                error: function (xhr) {
-                    submitting = false;
-                    $btn.html(originalHtml);
-                    refreshState();
-
-                    var message = 'Terjadi kesalahan saat menghapus data guru.';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        message = xhr.responseJSON.message;
-                    } else if (xhr.status === 403) {
-                        message = 'Sesi atau akses Anda tidak valid. Muat ulang halaman lalu coba lagi.';
-                    }
-                    Swal.fire('Gagal', message, 'error');
-                }
+            const confirmation = await Swal.fire({
+                title: 'Hapus permanen?',
+                html: 'Seluruh data terkait <b>' + this.escapeHtml(this.expected) + '</b> akan dihapus dan tidak dapat dikembalikan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, hapus permanen',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
             });
-        });
-    });
+
+            if (!confirmation.isConfirmed) {
+                return;
+            }
+
+            this.deleting = true;
+
+            try {
+                const response = await fetch(this.urls.remove, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        _token: this.token,
+                        id_guru: this.guruId,
+                        confirm_nama: this.expected,
+                    }),
+                });
+
+                const json = await response.json().catch(() => null);
+
+                if (response.ok && json && json.status) {
+                    await Swal.fire({
+                        title: 'Berhasil',
+                        text: json.message || 'Data guru berhasil dihapus permanen.',
+                        icon: 'success',
+                        confirmButtonColor: '#059669',
+                    });
+                    window.location.href = this.urls.list;
+                    return;
+                }
+
+                Swal.fire('Gagal', (json && json.message) || 'Data guru gagal dihapus.', 'error');
+            } catch (e) {
+                Swal.fire('Gagal', 'Terjadi kesalahan saat menghapus data guru.', 'error');
+            } finally {
+                this.deleting = false;
+            }
+        },
+    }));
 });
 </script>
 @endsection

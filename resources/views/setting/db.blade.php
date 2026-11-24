@@ -6,497 +6,606 @@
     $stats = $stats ?? [];
 
     $badges = [
-        'database' => ['bg-indigo-50 text-indigo-600', 'bi-database', 'Database'],
-        'snapshot' => ['bg-amber-50 text-amber-600', 'bi-clock-history', 'Snapshot'],
-        'file'     => ['bg-emerald-50 text-emerald-600', 'bi-file-earmark-zip', 'File'],
-        'arsip'    => ['bg-slate-100 text-slate-500', 'bi-hdd-stack', 'Arsip Cron'],
+        'database' => ['bg-indigo-50 text-indigo-600 border-indigo-100', 'bi-database', 'Database'],
+        'snapshot' => ['bg-amber-50 text-amber-600 border-amber-100', 'bi-clock-history', 'Snapshot'],
+        'file'     => ['bg-emerald-50 text-emerald-600 border-emerald-100', 'bi-file-earmark-zip', 'File'],
+        'arsip'    => ['bg-slate-100 text-slate-600 border-slate-200', 'bi-hdd-stack', 'Arsip Cron'],
     ];
 
-    // Ikon yang dipakai halaman ini (cek lucide-icons.css sebelum menambah).
-    $icons = [
-        'database' => 'bi bi-database',
-        'snapshot' => 'bi bi-clock-history',
-        'file'     => 'bi bi-file-earmark-zip',
-        'arsip'    => 'bi bi-hdd-stack',
-        'total'    => 'bi bi-collection',
-        'size'     => 'bi bi-clipboard-data',
+    $rows = collect($list)->map(function ($value) use ($badges) {
+        $fname = $value['src'] ?? (($value['nama'] ?? '') . '.' . ($value['type'] ?? ''));
+        $badge = $badges[$value['kind'] ?? ''] ?? $badges['arsip'];
+
+        $status = null;
+
+        if (($value['lengkap'] ?? null) === true) {
+            $status = ['text' => 'Lengkap', 'class' => 'text-emerald-600', 'icon' => 'bi-check-circle-fill'];
+        } elseif (($value['lengkap'] ?? null) === false) {
+            $status = ['text' => 'Tidak Lengkap', 'class' => 'text-rose-600', 'icon' => 'bi-x-circle-fill'];
+        } elseif (($value['kind'] ?? '') === 'database' || ($value['kind'] ?? '') === 'snapshot') {
+            $status = ['text' => 'Dump Lama', 'class' => 'text-amber-600', 'icon' => 'bi-exclamation-triangle-fill'];
+        }
+
+        return [
+            'name' => $fname,
+            'search' => strtolower($fname),
+            'badge' => ['label' => $badge[2], 'class' => $badge[0], 'icon' => $badge[1]],
+            'size' => $value['size'] ?? '-',
+            'date' => date('d M Y H:i', (int) $value['tgl']),
+            'dateShort' => date('d M Y', (int) $value['tgl']),
+            'status' => $status,
+            'canRestore' => ! empty($value['is_sql']) && in_array($value['kind'] ?? '', ['database', 'snapshot'], true),
+            'download' => url('settings/dbManager/download') . '?src=' . rawurlencode((string) $value['src']),
+        ];
+    })->values()->all();
+
+    $pageConfig = [
+        'csrf' => csrf_token(),
+        'urls' => [
+            'db' => url('settings/dbManager/backupdb'),
+            'files' => url('settings/dbManager/backupdata'),
+            'delAll' => url('settings/dbManager/del_backup'),
+            'delOne' => url('settings/dbManager/hapusbackup'),
+            'restore' => url('settings/dbManager/restore'),
+        ],
+        'rows' => $rows,
     ];
 @endphp
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-sm shrink-0">
-                    <i class="bi bi-database text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Backup dan Restore' }}</span>
-            </h3>
-            <p class="text-sm text-slate-500 mt-1 mb-0">Kelola cadangan database &amp; file uploads aplikasi.</p>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline">
-                <i class="bi bi-house-door mr-1"></i>Dashboard
-            </a>
-            <span class="sep">/</span>
-            <a href="{{ url('settings') }}" class="no-underline">Pengaturan</a>
-            <span class="sep">/</span>
-            <span class="active">{{ $subjudul ?? 'Backup' }}</span>
-        </nav>
+
+<div x-data="dbBackupPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
+
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Backup dan Restore'"
+            icon="bi-database"
+            tone="blue"
+            subtitle="Kelola cadangan database & file uploads aplikasi."
+            :crumbs="['Pengaturan', $subjudul ?? 'Backup']" />
     </div>
-</div>
 
-<div class="content-area space-y-4">
+    <div class="mt-4 space-y-4 px-4 pb-6 md:px-6">
 
-    <!-- Ringkasan -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                <i class="{{ $icons['total'] }}"></i>
-            </span>
-            <div class="min-w-0">
-                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['total'] ?? count($list) }}</div>
-                <div class="text-xs text-slate-400 mt-1">Total Cadangan</div>
+        <!-- Ringkasan -->
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                    <i class="bi bi-collection"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-lg leading-none font-bold text-slate-800">{{ $stats['total'] ?? count($rows) }}</div>
+                    <div class="mt-1 text-xs text-slate-400">Total Cadangan</div>
+                </div>
             </div>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                <i class="{{ $icons['database'] }}"></i>
-            </span>
-            <div class="min-w-0">
-                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['db'] ?? 0 }}</div>
-                <div class="text-xs text-slate-400 mt-1">Backup Database <span class="text-slate-300">· {{ $stats['arsip'] ?? 0 }} arsip cron</span></div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <i class="bi bi-database"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-lg leading-none font-bold text-slate-800">{{ $stats['db'] ?? 0 }}</div>
+                    <div class="mt-1 text-xs text-slate-400">Backup Database <span class="text-slate-300">· {{ $stats['arsip'] ?? 0 }} arsip cron</span></div>
+                </div>
             </div>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <i class="{{ $icons['file'] }}"></i>
-            </span>
-            <div class="min-w-0">
-                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['file'] ?? 0 }}</div>
-                <div class="text-xs text-slate-400 mt-1">Backup File Uploads</div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <i class="bi bi-file-earmark-zip"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-lg leading-none font-bold text-slate-800">{{ $stats['file'] ?? 0 }}</div>
+                    <div class="mt-1 text-xs text-slate-400">Backup File Uploads</div>
+                </div>
             </div>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
-            <span class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-                <i class="{{ $icons['size'] }}"></i>
-            </span>
-            <div class="min-w-0">
-                <div class="text-lg font-bold text-slate-800 leading-none">{{ $stats['total_size'] ?? '0 KB' }}</div>
-                <div class="text-xs text-slate-400 mt-1 truncate">
-                    @if (! empty($stats['last']))
-                        Terakhir: {{ date('d M Y H:i', (int) $stats['last']) }}
-                    @else
-                        Belum ada backup
-                    @endif
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                    <i class="bi bi-clipboard-data"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-lg leading-none font-bold text-slate-800">{{ $stats['total_size'] ?? '0 KB' }}</div>
+                    <div class="mt-1 truncate text-xs text-slate-400">
+                        @if (! empty($stats['last']))
+                            Terakhir: {{ date('d M Y H:i', (int) $stats['last']) }}
+                        @else
+                            Belum ada backup
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Aksi backup -->
-    <div class="card-tw">
-        <div class="card-tw-body">
+        <!-- Aksi backup -->
+        <x-ui.card title="Aksi Backup" icon="bi-cloud-arrow-up" tone="blue"
+            subtitle="Jalankan backup database, file uploads, atau keduanya">
+            <x-slot:actions>
+                <span class="hidden items-center gap-1.5 text-xs text-slate-400 md:inline-flex">
+                    <i class="bi bi-calendar3"></i> {{ date('d M Y H:i') }}
+                </span>
+            </x-slot:actions>
+
             <div class="flex flex-wrap items-center gap-2">
-                <button type="button" class="btn-tw btn-primary js-backup-btn" onclick="processBackup(this)">
-                    <i class="bi bi-cloud-arrow-up"></i><span>Backup Semua</span>
+                <button type="button" @click="backupAll()" :disabled="busy"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span x-show="busy && activeAction === 'all'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                    <i x-show="!(busy && activeAction === 'all')" class="bi bi-cloud-arrow-up"></i>
+                    <span>Backup Semua</span>
                 </button>
-                <button type="button" class="btn-tw btn-light js-backup-btn" onclick="processBackupDb(this)">
-                    <i class="bi bi-database"></i><span>Backup Database</span>
+                <button type="button" @click="backupDb()" :disabled="busy"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span x-show="busy && activeAction === 'db'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-400/50 border-t-slate-600"></span>
+                    <i x-show="!(busy && activeAction === 'db')" class="bi bi-database"></i>
+                    <span>Backup Database</span>
                 </button>
-                <button type="button" class="btn-tw btn-light js-backup-btn" onclick="processBackupFile(this)">
-                    <i class="bi bi-file-earmark-zip"></i><span>Backup File</span>
+                <button type="button" @click="backupFiles()" :disabled="busy"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                    <span x-show="busy && activeAction === 'files'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-400/50 border-t-slate-600"></span>
+                    <i x-show="!(busy && activeAction === 'files')" class="bi bi-file-earmark-zip"></i>
+                    <span>Backup File</span>
                 </button>
-                <span class="text-xs text-slate-400 ml-auto hidden md:flex items-center gap-1.5">
-                    <i class="bi bi-calendar3"></i>{{ date('d M Y H:i') }}
+            </div>
+
+            <div class="mt-4">
+                <div class="mb-1.5 flex items-center justify-between gap-3">
+                    <span class="text-xs text-slate-500" x-text="message"></span>
+                    <span class="text-xs font-semibold text-slate-400" x-text="pct + '%'"></span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar"
+                    aria-valuemin="0" aria-valuemax="100" :aria-valuenow="pct">
+                    <div class="h-full rounded-full bg-blue-500 transition-all duration-300"
+                        :style="'width:' + pct + '%'"></div>
+                </div>
+            </div>
+        </x-ui.card>
+
+        <!-- Banner keamanan -->
+        <div class="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <i class="bi bi-shield-check mt-0.5 text-base text-blue-500"></i>
+            <div class="space-y-1 text-xs leading-relaxed text-blue-700">
+                <p><b>Cadangan disimpan di luar webroot</b> (storage/app/backups) dan hanya bisa diunduh lewat rute terautentikasi admin.</p>
+                <p>Restore selalu membuat <b>snapshot otomatis</b> keadaan sebelum data ditimpa, membutuhkan konfirmasi ketik <b>RESTORE</b>, dan arsip otomatis cron tidak ikut terhapus.</p>
+            </div>
+        </div>
+
+        <!-- Riwayat -->
+        <x-ui.card title="Riwayat" icon="bi-clock-history" tone="slate" bodyClass="p-0">
+            <x-slot:meta>
+                <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                    {{ count($rows) }} file
                 </span>
-            </div>
-            <div class="mt-3">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span id="progressMsg" class="text-xs text-slate-500">Siap. Pilih jenis backup.</span>
-                    <span id="progressPct" class="text-xs font-semibold text-slate-400">0%</span>
-                </div>
-                <div class="progress-tw" style="height:6px">
-                    <div id="backupProgressBar" class="progress-bar-tw" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+            </x-slot:meta>
 
-    <!-- Banner keamanan -->
-    <div class="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex gap-3">
-        <i class="bi bi-shield-check text-blue-500 text-base mt-0.5"></i>
-        <div class="text-xs text-blue-700 leading-tight space-y-1">
-            <p><b>Cadangan disimpan di luar webroot</b> (storage/app/backups) dan hanya bisa diunduh lewat rute terautentikasi admin.</p>
-            <p>Restore selalu membuat <b>snapshot otomatis</b> keadaan sebelum data ditimpa, membutuhkan konfirmasi ketik <b>RESTORE</b>, dan arsip otomatis cron tidak ikut terhapus.</p>
-        </div>
-    </div>
+            <x-slot:actions>
+                <div class="relative">
+                    <i class="bi bi-search pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-xs text-slate-400"></i>
+                    <input type="search" x-model.debounce.200ms="query" placeholder="Cari file…" autocomplete="off"
+                        class="w-56 rounded-xl border border-slate-200 bg-white py-2 pr-3 pl-8 text-xs transition-all outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                </div>
+            </x-slot:actions>
 
-    <!-- Riwayat -->
-    <div class="card-tw">
-        <div class="card-tw-header justify-between gap-3">
-            <h6><i class="bi bi-clock-history text-slate-400"></i>Riwayat <span class="font-normal text-slate-400">· {{ count($list) }}</span></h6>
-            <input type="search" id="searchBackup" class="form-control-tw !w-44 !py-1.5 !text-xs" placeholder="Cari file…" autocomplete="off">
-        </div>
-        <div class="card-tw-body !p-0">
-            @if (! empty($list))
-            <div class="table-responsive-tw">
-                <table id="database" class="table-tw">
-                    <thead>
-                        <tr>
-                            <th>File</th>
-                            <th class="text-right" style="width:90px">Ukuran</th>
-                            <th class="text-right" style="width:130px">Waktu</th>
-                            <th class="text-right" style="width:220px">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="backupTableBody">
-                        @foreach ($list as $value)
-                            @php
-                                $fname = $value['src'] ?? ($value['nama'].'.'.$value['type']);
-                                $b = $badges[$value['kind']] ?? $badges['arsip'];
-                                $bisaRestore = ! empty($value['is_sql']) && ($value['kind'] === 'database' || $value['kind'] === 'snapshot');
-                            @endphp
-                            <tr data-name="{{ strtolower($fname) }}">
-                                <td>
-                                    <div class="flex items-start gap-2 min-w-0">
-                                        <span class="{{ $b[0] }} rounded-md px-2 py-0.5 text-[11px] font-semibold inline-flex items-center gap-1 shrink-0 mt-0.5">
-                                            <i class="{{ $b[1] }}"></i>{{ $b[2] }}
-                                        </span>
-                                        <div class="min-w-0">
-                                            <div class="font-medium text-slate-700 text-[13px] truncate" title="{{ $fname }}">{{ $fname }}</div>
-                                            <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                                <span>{{ date('d M Y H:i', (int) $value['tgl']) }}</span>
-                                                @if ($value['lengkap'] === true)
-                                                    <span class="text-emerald-500 inline-flex items-center gap-0.5"><i class="bi bi-check-circle-fill"></i>Lengkap</span>
-                                                @elseif ($value['lengkap'] === false)
-                                                    <span class="text-red-500 inline-flex items-center gap-0.5"><i class="bi bi-x-circle-fill"></i>Tidak Lengkap</span>
-                                                @elseif ($value['kind'] === 'database' || $value['kind'] === 'snapshot')
-                                                    <span class="text-amber-500 inline-flex items-center gap-0.5"><i class="bi bi-exclamation-triangle-fill"></i>Dump Lama</span>
-                                                @endif
-                                            </div>
+            @if (count($rows) > 0)
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="px-5 py-3">File</th>
+                        <th class="px-5 py-3 text-right">Ukuran</th>
+                        <th class="px-5 py-3 text-right">Waktu</th>
+                        <th class="px-5 py-3 text-right">Aksi</th>
+                    </x-slot:head>
+
+                    <template x-for="row in filtered" :key="row.name">
+                        <tr class="transition-colors hover:bg-slate-50/70">
+                            <td class="px-5 py-3">
+                                <div class="flex min-w-0 items-start gap-2">
+                                    <span class="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold"
+                                        :class="row.badge.class">
+                                        <i class="bi" :class="row.badge.icon"></i>
+                                        <span x-text="row.badge.label"></span>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <div class="truncate text-[13px] font-medium text-slate-700" :title="row.name" x-text="row.name"></div>
+                                        <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                                            <span x-text="row.date"></span>
+                                            <span x-show="row.status" class="inline-flex items-center gap-0.5" :class="row.status ? row.status.class : ''">
+                                                <i class="bi" :class="row.status ? row.status.icon : ''"></i>
+                                                <span x-text="row.status ? row.status.text : ''"></span>
+                                            </span>
                                         </div>
                                     </div>
-                                </td>
-                                <td class="text-right text-slate-500 whitespace-nowrap">{{ $value['size'] ?? '-' }}</td>
-                                <td class="text-right text-slate-400 text-xs whitespace-nowrap">{{ date('d M Y', (int) $value['tgl']) }}</td>
-                                <td class="text-right whitespace-nowrap">
-                                    <div class="inline-flex items-center gap-1.5">
-                                        <a href="{{ url('settings/dbManager/download') }}?src={{ rawurlencode($value['src']) }}"
-                                            class="btn-tw btn-tw-sm btn-light" title="Download">
-                                            <i class="bi bi-download"></i>Download
-                                        </a>
-                                        @if ($bisaRestore)
-                                        <button type="button" data-src="{{ $fname }}" onclick="restore(this.dataset.src)"
-                                            class="btn-tw btn-tw-sm btn-light" title="Restore">
-                                            <i class="bi bi-arrow-counterclockwise"></i>Restore
-                                        </button>
-                                        @endif
-                                        <button type="button" data-src="{{ $fname }}" onclick="hapus(this.dataset.src)"
-                                            class="btn-tw btn-tw-sm btn-light !text-red-600" title="Hapus">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                        <tr id="backupEmptySearch" class="hidden">
-                            <td colspan="4" class="text-center !py-6 text-xs text-slate-400">Tidak ada file yang cocok.</td>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3 text-right whitespace-nowrap text-slate-500" x-text="row.size"></td>
+                            <td class="px-5 py-3 text-right text-xs whitespace-nowrap text-slate-400" x-text="row.dateShort"></td>
+                            <td class="px-5 py-3 text-right whitespace-nowrap">
+                                <div class="inline-flex items-center gap-1.5">
+                                    <a :href="row.download" title="Download"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 no-underline transition-colors hover:bg-slate-50">
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                    <button type="button" x-show="row.canRestore" @click="restore(row.name)" title="Restore"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                    </button>
+                                    <button type="button" @click="removeOne(row.name)" title="Hapus" :disabled="busy"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="flex items-center justify-between px-4 py-2.5 border-t border-slate-100">
-                <span class="text-xs text-slate-400">{{ count($list) }} file tersimpan di storage/app/backups — arsip cron (db_*.sql.gz) hanya bisa dihapus satu per satu</span>
-                <button type="button" class="btn-tw btn-tw-sm btn-light !text-red-600" onclick="hapusBackup()">
-                    <i class="bi bi-trash3"></i>Hapus Semua
-                </button>
-            </div>
+                    </template>
+
+                    <tr x-show="filtered.length === 0" x-cloak>
+                        <td colspan="4" class="px-5 py-8 text-center text-xs text-slate-400">Tidak ada file yang cocok.</td>
+                    </tr>
+                </x-ui.table>
+
+                <x-slot:footer>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs text-slate-400">{{ count($rows) }} file tersimpan di storage/app/backups — arsip cron (db_*.sql.gz) hanya bisa dihapus satu per satu</span>
+                        <button type="button" @click="removeAll()" :disabled="busy"
+                            class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i class="bi bi-trash3"></i> Hapus Semua
+                        </button>
+                    </div>
+                </x-slot:footer>
             @else
-            <div class="text-center px-6 py-10">
-                <p class="text-sm text-slate-500 mb-3">Belum ada backup. Klik <b>Backup Semua</b> untuk mulai.</p>
-                <button type="button" class="btn-tw btn-primary js-backup-btn" onclick="processBackup(this)">
-                    <i class="bi bi-cloud-arrow-up"></i><span>Backup Sekarang</span>
-                </button>
-            </div>
+                <div class="p-5">
+                    <x-ui.empty icon="bi-archive" title="Belum ada backup"
+                        description="Klik Backup Semua untuk membuat cadangan database dan file uploads pertama.">
+                        <button type="button" @click="backupAll()" :disabled="busy"
+                            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                            <i class="bi bi-cloud-arrow-up"></i> Backup Sekarang
+                        </button>
+                    </x-ui.empty>
+                </div>
             @endif
-        </div>
+        </x-ui.card>
+
     </div>
-
 </div>
+@endsection
 
+@section('scripts')
 <script>
-(function () {
-    const BASE = (typeof appUrl !== 'undefined' ? appUrl : '{{ rtrim(url('/').'/', '/') }}/');
-    const URL = {
-        db: BASE + 'settings/dbManager/backupdb',
-        files: BASE + 'settings/dbManager/backupdata',
-        delAll: BASE + 'settings/dbManager/del_backup',
-        delOne: BASE + 'settings/dbManager/hapusbackup',
-        restore: BASE + 'settings/dbManager/restore'
-    };
-    let busy = false;
+document.addEventListener('alpine:init', () => {
+    Alpine.data('dbBackupPage', () => ({
+        config: { csrf: '', urls: {}, rows: [] },
 
-    function csrfData(extra) {
-        const data = Object.assign({}, extra || {});
-        if (typeof CSRF_NAME !== 'undefined' && typeof CSRF_HASH !== 'undefined') {
-            data[CSRF_NAME] = CSRF_HASH;
-        }
-        return data;
-    }
+        rows: [],
+        query: '',
+        busy: false,
+        activeAction: null,
+        pct: 0,
+        message: 'Siap. Pilih jenis backup.',
 
-    function refreshCsrf(resp) {
-        if (!resp) return;
-        const newHash = resp.csrfHash || resp.csrf_hash;
-        const newName = resp.csrfName || resp.csrf_name;
-        if (typeof CSRF_HASH !== 'undefined' && newHash) CSRF_HASH = newHash;
-        if (typeof CSRF_NAME !== 'undefined' && newName) CSRF_NAME = newName;
-    }
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.config = Object.assign({ csrf: '', urls: {}, rows: [] }, cfg);
+            this.config.urls = cfg.urls || {};
+            this.rows = cfg.rows || [];
+        },
 
-    function errMsg(xhr, fallback) {
-        try {
-            const j = xhr.responseJSON;
-            if (j && j.message) return j.message;
-        } catch (e) {}
-        return (xhr && xhr.statusText ? xhr.statusText : fallback) || fallback;
-    }
+        get filtered() {
+            const q = (this.query || '').toLowerCase().trim();
+            if (!q) return this.rows;
 
-    window.updateProgress = function (pct, message) {
-        pct = Math.max(0, Math.min(100, Number(pct) || 0));
-        const bar = document.getElementById('backupProgressBar');
-        const label = document.getElementById('progressPct');
-        const msg = document.getElementById('progressMsg');
-        if (bar) {
-            bar.style.width = pct + '%';
-            bar.setAttribute('aria-valuenow', String(pct));
-        }
-        if (label) label.textContent = pct + '%';
-        if (msg && message !== undefined) msg.textContent = message;
-    };
+            return this.rows.filter((row) => (row.search || '').includes(q));
+        },
 
-    function setBusy(isBusy, activeBtn) {
-        busy = isBusy;
-        document.querySelectorAll('.js-backup-btn').forEach(function (btn) {
-            if (isBusy) {
-                if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
-                btn.setAttribute('disabled', 'disabled');
-                if (btn === activeBtn) {
-                    btn.innerHTML = '<span class="spinner-tw"></span><span>Memproses…</span>';
-                }
-            } else {
-                btn.removeAttribute('disabled');
-                if (btn.dataset.orig) btn.innerHTML = btn.dataset.orig;
+        setProgress(pct, message) {
+            this.pct = Math.max(0, Math.min(100, Number(pct) || 0));
+
+            if (message !== undefined) this.message = message;
+        },
+
+        errorMessage(result, fallback) {
+            if (result && result.message) return result.message;
+            if (result && result.msg) return result.msg;
+
+            return fallback;
+        },
+
+        escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+            })[char]);
+        },
+
+        async post(url, data = {}) {
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+
+            Object.keys(data).forEach((key) => body.append(key, data[key] ?? ''));
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+
+            let result = null;
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = null;
             }
-        });
-    }
 
-    function ajaxPost(url, data) {
-        return $.ajax({ type: 'POST', url: url, data: data, dataType: 'json' });
-    }
-
-    function tampilkanHasilBackup(respon, fallback) {
-        // HTTP 200 belum berarti backup lengkap: server menandai dump
-        // parsial/zip yang gagal ditutup dengan status false.
-        const ok = !!(respon && respon.status);
-        updateProgress(ok ? 100 : 0, (respon && respon.message) || fallback);
-        Swal.fire({
-            title: ok ? 'Berhasil' : 'Backup Tidak Lengkap',
-            text: (respon && respon.message) || fallback,
-            icon: ok ? 'success' : 'warning'
-        }).then(() => window.location.reload());
-    }
-
-    window.processBackupDb = function (btn) {
-        if (busy) return;
-        setBusy(true, btn || null);
-        updateProgress(10, 'Memulai backup database…');
-        Swal.fire({
-            title: 'Backup Database',
-            text: 'Silakan tunggu, jangan tutup halaman ini…',
-            allowEscapeKey: false, allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-        ajaxPost(URL.db, csrfData({})).done(function (response) {
-            refreshCsrf(response);
-            tampilkanHasilBackup(response, 'Backup database selesai.');
-        }).fail(function (xhr) {
-            updateProgress(0, 'Backup database gagal.');
-            Swal.fire('Gagal', 'Terjadi kesalahan: ' + errMsg(xhr, 'Backup gagal'), 'error');
-        }).always(function () { setBusy(false); });
-    };
-
-    window.processBackupFile = function (btn) {
-        if (busy) return;
-        setBusy(true, btn || null);
-        updateProgress(10, 'Memulai backup file uploads…');
-        Swal.fire({
-            title: 'Backup File Uploads',
-            text: 'Silakan tunggu, jangan tutup halaman ini…',
-            allowEscapeKey: false, allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-        ajaxPost(URL.files, csrfData({})).done(function (response) {
-            refreshCsrf(response);
-            tampilkanHasilBackup(response, 'Backup file selesai.');
-        }).fail(function (xhr) {
-            updateProgress(0, 'Backup file gagal.');
-            Swal.fire('Gagal', 'Terjadi kesalahan: ' + errMsg(xhr, 'Backup gagal'), 'error');
-        }).always(function () { setBusy(false); });
-    };
-
-    window.processBackup = function (btn) {
-        if (busy) return;
-        setBusy(true, btn || null);
-        updateProgress(5, 'Langkah 1/2: backup database…');
-        Swal.fire({
-            title: 'Backup Semua',
-            text: 'Langkah 1/2: database… jangan tutup halaman ini.',
-            allowEscapeKey: false, allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-        ajaxPost(URL.db, csrfData({})).done(function (response) {
-            refreshCsrf(response);
-            if (!response || !response.status) {
-                updateProgress(0, response && response.message ? response.message : 'Backup database tidak lengkap.');
-                Swal.fire({ title: 'Backup Tidak Lengkap', text: (response && response.message) || 'Backup database gagal.', icon: 'warning' })
-                    .then(() => window.location.reload());
-                setBusy(false);
-                return;
+            if (!response.ok) {
+                const err = new Error((result && (result.message || result.msg)) || 'Permintaan gagal (' + response.status + ').');
+                err.result = result;
+                throw err;
             }
-            updateProgress(50, (response.message || 'Database OK.') + ' Lanjut backup file…');
-            Swal.update({ text: 'Langkah 2/2: file uploads…' });
-            ajaxPost(URL.files, csrfData({})).done(function (resp2) {
-                refreshCsrf(resp2);
-                if (!resp2 || !resp2.status) {
-                    updateProgress(50, resp2 && resp2.message ? resp2.message : 'Backup file tidak lengkap.');
-                    Swal.fire({ title: 'Backup Tidak Lengkap', text: (resp2 && resp2.message) || 'Database berhasil, tetapi backup file gagal.', icon: 'warning' })
-                        .then(() => window.location.reload());
-                } else {
-                    updateProgress(100, resp2.message || 'Semua backup selesai.');
-                    Swal.fire({ title: 'Berhasil', text: 'Database & file berhasil dibackup.', icon: 'success' })
-                        .then(() => window.location.reload());
-                }
-            }).fail(function (xhr) {
-                updateProgress(50, 'Database OK, backup file gagal.');
-                Swal.fire('Sebagian Gagal', 'Database berhasil, tetapi file gagal: ' + errMsg(xhr, 'Backup file gagal'), 'warning')
-                    .then(() => window.location.reload());
-            }).always(function () { setBusy(false); });
-        }).fail(function (xhr) {
-            updateProgress(0, 'Backup gagal.');
-            Swal.fire('Gagal', 'Terjadi kesalahan: ' + errMsg(xhr, 'Backup gagal'), 'error');
-            setBusy(false);
-        });
-    };
 
-    window.hapusBackup = function () {
-        Swal.fire({
-            title: 'Hapus Semua Backup?',
-            html: "<span class='text-red-600'><b>Semua backup manual & snapshot (db_backup_ / files_backup_ / pre_restore_) dihapus permanen!</b></span><br><br>"
-                + "Arsip otomatis dari cron (<code>db_*.sql.gz</code>) <b>tidak disentuh</b> — hapus satu per satu lewat tombol di tabel bila memang perlu.",
-            icon: 'warning', showCancelButton: true,
-            confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Hapus Semua', cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.value) return;
+            return result;
+        },
+
+        hasilBackup(result, fallback) {
+            // HTTP 200 belum berarti backup lengkap: server menandai dump
+            // parsial / zip gagal ditutup dengan status false.
+            const ok = Boolean(result && result.status);
+            this.setProgress(ok ? 100 : 0, (result && result.message) || fallback);
+
+            Swal.fire({
+                icon: ok ? 'success' : 'warning',
+                title: ok ? 'Berhasil' : 'Backup Tidak Lengkap',
+                text: (result && result.message) || fallback,
+            }).then(() => window.location.reload());
+        },
+
+        async backupDb() {
+            if (this.busy) return;
+
+            this.busy = true;
+            this.activeAction = 'db';
+            this.setProgress(10, 'Memulai backup database…');
+            Swal.fire({
+                title: 'Backup Database',
+                text: 'Silakan tunggu, jangan tutup halaman ini…',
+                allowEscapeKey: false,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            try {
+                const result = await this.post(this.config.urls.db);
+                this.hasilBackup(result, 'Backup database selesai.');
+            } catch (error) {
+                this.setProgress(0, 'Backup database gagal.');
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan: ' + this.errorMessage(error.result, 'Backup gagal') });
+            } finally {
+                this.busy = false;
+                this.activeAction = null;
+            }
+        },
+
+        async backupFiles() {
+            if (this.busy) return;
+
+            this.busy = true;
+            this.activeAction = 'files';
+            this.setProgress(10, 'Memulai backup file uploads…');
+            Swal.fire({
+                title: 'Backup File Uploads',
+                text: 'Silakan tunggu, jangan tutup halaman ini…',
+                allowEscapeKey: false,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            try {
+                const result = await this.post(this.config.urls.files);
+                this.hasilBackup(result, 'Backup file selesai.');
+            } catch (error) {
+                this.setProgress(0, 'Backup file gagal.');
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan: ' + this.errorMessage(error.result, 'Backup gagal') });
+            } finally {
+                this.busy = false;
+                this.activeAction = null;
+            }
+        },
+
+        async backupAll() {
+            if (this.busy) return;
+
+            this.busy = true;
+            this.activeAction = 'all';
+            this.setProgress(5, 'Langkah 1/2: backup database…');
+            Swal.fire({
+                title: 'Backup Semua',
+                text: 'Langkah 1/2: database… jangan tutup halaman ini.',
+                allowEscapeKey: false,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            try {
+                const db = await this.post(this.config.urls.db);
+
+                if (!db || !db.status) {
+                    this.setProgress(0, (db && db.message) || 'Backup database tidak lengkap.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Backup Tidak Lengkap',
+                        text: (db && db.message) || 'Backup database gagal.',
+                    }).then(() => window.location.reload());
+                    return;
+                }
+
+                this.setProgress(50, ((db.message || 'Database OK.') + ' Lanjut backup file…'));
+                Swal.update({ text: 'Langkah 2/2: file uploads…' });
+
+                let files = null;
+
+                try {
+                    files = await this.post(this.config.urls.files);
+                } catch (error) {
+                    this.setProgress(50, 'Database OK, backup file gagal.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sebagian Gagal',
+                        text: 'Database berhasil, tetapi file gagal: ' + this.errorMessage(error.result, 'Backup file gagal'),
+                    }).then(() => window.location.reload());
+                    return;
+                }
+
+                if (!files || !files.status) {
+                    this.setProgress(50, (files && files.message) || 'Backup file tidak lengkap.');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Backup Tidak Lengkap',
+                        text: (files && files.message) || 'Database berhasil, tetapi backup file gagal.',
+                    }).then(() => window.location.reload());
+                    return;
+                }
+
+                this.setProgress(100, files.message || 'Semua backup selesai.');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Database & file berhasil dibackup.',
+                }).then(() => window.location.reload());
+            } catch (error) {
+                this.setProgress(0, 'Backup gagal.');
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan: ' + this.errorMessage(error.result, 'Backup gagal') });
+            } finally {
+                this.busy = false;
+                this.activeAction = null;
+            }
+        },
+
+        async removeAll() {
+            if (this.busy) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus Semua Backup?',
+                html: "<span class='text-red-600'><b>Semua backup manual & snapshot (db_backup_ / files_backup_ / pre_restore_) dihapus permanen!</b></span><br><br>"
+                    + 'Arsip otomatis dari cron (<code>db_*.sql.gz</code>) <b>tidak disentuh</b> — hapus satu per satu lewat tombol di tabel bila memang perlu.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Semua',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = true;
             Swal.fire({ title: 'Menghapus…', text: 'Silakan tunggu.', allowEscapeKey: false, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            ajaxPost(URL.delAll, csrfData({})).done(function (respon) {
-                refreshCsrf(respon);
-                if (respon.status) {
-                    Swal.fire({ title: 'Berhasil', text: respon.message || 'Semua backup dihapus.', icon: 'success' })
-                        .then(() => window.location.reload());
-                } else {
-                    Swal.fire({ title: 'Gagal', text: respon.message || 'Gagal menghapus.', icon: 'error' });
-                }
-            }).fail(function (xhr) {
-                Swal.fire({ title: 'Error', text: 'Terjadi kesalahan: ' + errMsg(xhr, 'Gagal menghapus'), icon: 'error' });
-            });
-        });
-    };
 
-    window.hapus = function (src) {
-        Swal.fire({
-            title: 'Hapus file ini?',
-            html: 'File <b>' + $('<div>').text(src).html() + '</b> akan dihapus permanen.',
-            icon: 'warning', showCancelButton: true,
-            confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
-            confirmButtonText: 'Hapus', cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.value) return;
+            try {
+                const result = await this.post(this.config.urls.delAll);
+
+                if (result && result.status) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: result.message || 'Semua backup dihapus.' })
+                        .then(() => window.location.reload());
+                    return;
+                }
+
+                Swal.fire({ icon: 'error', title: 'Gagal', text: (result && result.message) || 'Gagal menghapus.' });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan: ' + this.errorMessage(error.result, 'Gagal menghapus') });
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        async removeOne(src) {
+            if (this.busy) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus file ini?',
+                html: 'File <b>' + this.escapeHtml(src) + '</b> akan dihapus permanen.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Hapus',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = true;
             Swal.fire({ text: 'Menghapus…', allowEscapeKey: false, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            ajaxPost(URL.delOne, csrfData({ src: src })).done(function (respon) {
-                refreshCsrf(respon);
-                if (respon.status) {
-                    Swal.fire({ title: 'Berhasil', text: respon.message || 'File dihapus.', icon: 'success' })
-                        .then(() => window.location.reload());
-                } else {
-                    Swal.fire({ title: 'Gagal', text: respon.message || 'Gagal menghapus.', icon: 'error' });
-                }
-            }).fail(function (xhr) {
-                Swal.fire({ title: 'Error', text: 'Terjadi kesalahan: ' + errMsg(xhr, 'Gagal menghapus'), icon: 'error' });
-            });
-        });
-    };
 
-    window.restore = function (src) {
-        Swal.fire({
-            title: 'Restore Database',
-            html: 'File: <b>' + $('<div>').text(src).html() + '</b><br><br>'
-                + "<span class='text-red-600'><b>PERINGATAN:</b><br>"
-                + '1. Seluruh data saat ini akan DITIMPA.<br>'
-                + '2. Aplikasi membuat snapshot otomatis sebelum restore.<br>'
-                + '3. Proses tidak bisa dibatalkan di tengah jalan.</span><br><br>'
-                + 'Ketik <b>RESTORE</b> untuk melanjutkan:',
-            icon: 'warning',
-            input: 'text',
-            inputPlaceholder: 'RESTORE',
-            inputValidator: function (value) {
-                if (!value || value.trim().toUpperCase() !== 'RESTORE') {
-                    return 'Ketik RESTORE untuk melanjutkan';
+            try {
+                const result = await this.post(this.config.urls.delOne, { src });
+
+                if (result && result.status) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: result.message || 'File dihapus.' })
+                        .then(() => window.location.reload());
+                    return;
                 }
-                return null;
-            },
-            showCancelButton: true,
-            confirmButtonColor: '#d97706', cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Restore!', cancelButtonText: 'Batal',
-            allowEscapeKey: false, allowOutsideClick: false
-        }).then(function (result) {
-            if (!result.value) return;
+
+                Swal.fire({ icon: 'error', title: 'Gagal', text: (result && result.message) || 'Gagal menghapus.' });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan: ' + this.errorMessage(error.result, 'Gagal menghapus') });
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        async restore(src) {
+            const konfirmasi = await Swal.fire({
+                title: 'Restore Database',
+                html: 'File: <b>' + this.escapeHtml(src) + '</b><br><br>'
+                    + "<span class='text-red-600'><b>PERINGATAN:</b><br>"
+                    + '1. Seluruh data saat ini akan DITIMPA.<br>'
+                    + '2. Aplikasi membuat snapshot otomatis sebelum restore.<br>'
+                    + '3. Proses tidak bisa dibatalkan di tengah jalan.</span><br><br>'
+                    + 'Ketik <b>RESTORE</b> untuk melanjutkan:',
+                icon: 'warning',
+                input: 'text',
+                inputPlaceholder: 'RESTORE',
+                inputValidator: (value) => (!value || value.trim().toUpperCase() !== 'RESTORE') ? 'Ketik RESTORE untuk melanjutkan' : null,
+                showCancelButton: true,
+                confirmButtonColor: '#d97706',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Restore!',
+                cancelButtonText: 'Batal',
+                allowEscapeKey: false,
+                allowOutsideClick: false,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = true;
             Swal.fire({
                 title: 'Membuat snapshot & merestore…',
                 text: 'Jangan tutup halaman ini.',
-                allowEscapeKey: false, allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
+                allowEscapeKey: false,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
             });
-            ajaxPost(URL.restore, csrfData({ src: src, konfirmasi: 'RESTORE' })).done(function (respon) {
-                refreshCsrf(respon);
-                if (respon.status) {
-                    Swal.fire({ title: 'Berhasil', text: respon.message || 'Restore selesai.', icon: 'success' })
+
+            try {
+                const result = await this.post(this.config.urls.restore, { src, konfirmasi: 'RESTORE' });
+
+                if (result && result.status) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: result.message || 'Restore selesai.' })
                         .then(() => window.location.reload());
                 } else {
-                    Swal.fire({ title: 'Restore Tidak Lengkap', text: respon.message || 'Restore gagal.', icon: 'warning' })
+                    Swal.fire({ icon: 'warning', title: 'Restore Tidak Lengkap', text: (result && result.message) || 'Restore gagal.' })
                         .then(() => window.location.reload());
                 }
-            }).fail(function (xhr) {
-                Swal.fire({ title: 'Error', text: 'Terjadi kesalahan server: ' + errMsg(xhr, 'Restore gagal'), icon: 'error' });
-            });
-        });
-    };
-
-    // Pencarian client-side
-    function applyFilter() {
-        const q = (document.getElementById('searchBackup')?.value || '').toLowerCase().trim();
-        let visible = 0;
-        document.querySelectorAll('#backupTableBody tr[data-name]').forEach(function (row) {
-            const show = !q || (row.dataset.name || '').includes(q);
-            row.classList.toggle('hidden', !show);
-            if (show) visible++;
-        });
-        const emptyRow = document.getElementById('backupEmptySearch');
-        if (emptyRow) emptyRow.classList.toggle('hidden', visible !== 0);
-    }
-    document.getElementById('searchBackup')?.addEventListener('input', applyFilter);
-
-    updateProgress(0, 'Siap. Pilih jenis backup.');
-})();
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan server: ' + this.errorMessage(error.result, 'Restore gagal') });
+            } finally {
+                this.busy = false;
+            }
+        },
+    }));
+});
 </script>
 @endsection

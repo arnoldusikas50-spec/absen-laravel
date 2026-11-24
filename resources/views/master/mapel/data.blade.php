@@ -2,421 +2,607 @@
 
 @section('content')
 
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
-                    <i class="bi bi-book text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Mata Pelajaran' }}</span>
-            </h3>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                <i class="bi bi-house-door mr-1"></i> Dashboard
-            </a>
-            <span class="sep">/</span>
-            <span class="text-slate-400">Data Umum</span>
-            <span class="sep">/</span>
-            <span class="active font-medium text-slate-800">{{ $judul ?? 'Mata Pelajaran' }}</span>
-        </nav>
-    </div>
-</div>
+<?php
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'read'   => url('datamapel/read'),
+        'create' => url('datamapel/create'),
+        'update' => url('datamapel/update'),
+        'delete' => url('datamapel/delete'),
+    ],
+];
+?>
 
-<!-- Main Content Area -->
-<div class="content-area mt-4 space-y-6">
+<div x-data="mapelPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
 
-    <!-- Main Card: Daftar Mata Pelajaran -->
-    <div class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
-            <div>
-                <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-0.5">
-                    <i class="bi bi-journal-text text-blue-600"></i>
-                    Daftar Mata Pelajaran
-                </h4>
-                <p class="text-xs text-slate-500 mb-0">Kelola mata pelajaran, status keaktifan, dan nomor urut tampil di raport</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="reload_ajax()"
-                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-xs">
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Mata Pelajaran'"
+            icon="bi-book"
+            :subtitle="($subjudul ?? 'Daftar Mata Pelajaran') . ' · ' . (int) ($total_mapel ?? 0) . ' mapel terdaftar'"
+            :crumbs="['Data Umum', $judul ?? 'Mata Pelajaran']">
+            <x-slot:actions>
+                <button type="button" @click="reload()" :disabled="loading"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-xs disabled:opacity-50">
                     <i class="bi bi-arrow-repeat"></i> Reload
                 </button>
-                <button id="hapusterpilih" onclick="bulk_delete()" type="button"
-                    class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition-colors shadow-xs shadow-rose-500/20">
+                <button type="button" @click="deleteSelected()" x-show="selected.length > 0" x-cloak
+                    :disabled="saving"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition-colors shadow-xs shadow-rose-500/20 disabled:opacity-50">
                     <i class="bi bi-trash3"></i> Hapus Terpilih
+                    <span class="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-md bg-white/20 text-[10px] font-bold" x-text="selected.length"></span>
                 </button>
-                <button type="button" data-ui-toggle="modal" data-ui-target="#createMapelModal"
+                <button type="button" @click="openCreate()"
                     class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs shadow-blue-500/20">
                     <i class="bi bi-plus-lg"></i> Tambah Mapel
                 </button>
-            </div>
-        </div>
+            </x-slot:actions>
+        </x-ui.page-header>
+    </div>
 
-        <div class="p-6">
-            <form id="bulk">
-                @csrf
-                <div class="table-responsive">
-                    <table id="tableMapel" class="w-full text-sm text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider border-b border-slate-200/80">
-                                <th class="py-3 px-3 text-center w-10">
-                                    <input type="checkbox" class="select_all rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+    <!-- Main Content Area -->
+    <div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+        <x-ui.card title="Daftar Mata Pelajaran" icon="bi-journal-text" :body-class="'p-0'"
+            subtitle="Kelola mata pelajaran, status keaktifan, dan nomor urut tampil di raport">
+            <x-slot:actions>
+                <div class="relative w-full sm:w-64">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="search" x-model="query" placeholder="Cari nama atau kode mapel..." aria-label="Cari mata pelajaran"
+                        class="w-full pl-8 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden">
+                    <button type="button" x-show="query.length > 0" x-cloak @click="query = ''"
+                        class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        aria-label="Hapus pencarian">
+                        <i class="bi bi-x-circle-fill text-xs"></i>
+                    </button>
+                </div>
+            </x-slot:actions>
+
+            <x-slot:toolbar>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                        <label for="mapel-per-page">Tampilkan</label>
+                        <select id="mapel-per-page" x-model.number="perPage" @change="page = 1" aria-label="Jumlah data per halaman"
+                            class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>data</span>
+                    </div>
+                    <span class="text-[11px] font-semibold text-slate-400" x-text="summaryText()"></span>
+                </div>
+            </x-slot:toolbar>
+
+            <div class="relative">
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse text-left text-sm">
+                        <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <tr class="border-b-2 border-slate-200/80">
+                                <th class="w-10 px-3 py-3 text-center">
+                                    <input type="checkbox" aria-label="Pilih semua mapel di halaman ini"
+                                        :checked="allPageSelected"
+                                        @change="toggleAll($event.target.checked)"
+                                        class="cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500">
                                 </th>
-                                <th class="py-3 px-3 text-center font-bold w-16">Urut</th>
-                                <th class="py-3 px-4 font-bold">Mata Pelajaran</th>
-                                <th class="py-3 px-3 text-center font-bold w-24">Kode</th>
-                                <th class="py-3 px-3 text-center font-bold w-28">Status</th>
-                                <th class="py-3 px-3 text-center font-bold w-20">Aksi</th>
+                                <th class="w-16 px-3 py-3 text-center">Urut</th>
+                                <th class="px-4 py-3">Mata Pelajaran</th>
+                                <th class="w-24 px-3 py-3 text-center">Kode</th>
+                                <th class="w-28 px-3 py-3 text-center">Status</th>
+                                <th class="w-20 px-3 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-slate-700">
-                            <!-- Filled by DataTables -->
+                            <template x-for="row in pageRows" :key="row.id_mapel">
+                                <tr class="hover:bg-slate-50/60 transition-colors">
+                                    <td class="px-3 py-2.5 text-center">
+                                        <template x-if="row.deletable === '0'">
+                                            <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-400"
+                                                title="Mapel bawaan sistem — tidak dapat dihapus">
+                                                <i class="bi bi-lock-fill text-xs"></i>
+                                            </span>
+                                        </template>
+                                        <template x-if="row.deletable !== '0'">
+                                            <input type="checkbox" x-model="selected" :value="String(row.id_mapel)"
+                                                class="cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                :aria-label="'Pilih ' + row.nama_mapel">
+                                        </template>
+                                    </td>
+                                    <td class="px-3 py-2.5 text-center font-bold text-slate-400" x-text="row.urutan_tampil"></td>
+                                    <td class="px-4 py-2.5">
+                                        <div class="font-bold text-slate-800" x-text="row.nama_mapel"></div>
+                                    </td>
+                                    <td class="px-3 py-2.5 text-center">
+                                        <span x-show="row.kode"
+                                            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100"
+                                            x-text="row.kode"></span>
+                                        <span x-show="!row.kode" class="text-xs text-slate-300">-</span>
+                                    </td>
+                                    <td class="px-3 py-2.5 text-center">
+                                        <span x-show="String(row.status) === '0'"
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100">Nonaktif</span>
+                                        <span x-show="String(row.status) !== '0'"
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">Aktif</span>
+                                    </td>
+                                    <td class="px-3 py-2.5 text-center">
+                                        <button type="button" @click="openEdit(row)" title="Edit Mapel"
+                                            :aria-label="'Edit ' + row.nama_mapel"
+                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-xs">
+                                            <i class="bi bi-pencil-square text-sm"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+
+                            <tr x-show="!loading && pageRows.length === 0">
+                                <td colspan="6" class="px-4 py-14 text-center">
+                                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-2xl">
+                                        <i class="bi" :class="query !== '' ? 'bi-search' : 'bi-inbox'"></i>
+                                    </div>
+                                    <p class="text-sm font-bold text-slate-700 mb-1"
+                                        x-text="query !== '' ? 'Mapel tidak ditemukan' : 'Belum ada mata pelajaran'"></p>
+                                    <p class="text-xs text-slate-400 max-w-sm mx-auto mb-0"
+                                        x-text="query !== '' ? 'Coba kata kunci lain atau bersihkan pencarian.' : 'Tambahkan mata pelajaran untuk mulai menyusun raport.'"></p>
+                                </td>
+                            </tr>
+
+                            <tr x-show="loading && rows.length === 0">
+                                <td colspan="6" class="px-4 py-14 text-center">
+                                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 text-xs font-semibold">
+                                        <span class="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                                        <span>Memuat data mapel...</span>
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
-            </form>
-        </div>
+
+                <div class="px-5 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="text-xs font-medium text-slate-500" aria-live="polite" x-text="summaryText()"></div>
+                    <nav aria-label="Navigasi halaman mata pelajaran" class="min-w-0 overflow-x-auto">
+                        <ul class="flex items-center gap-1 mb-0" x-show="pages > 1" x-cloak>
+                            <li>
+                                <button type="button" @click="page = page - 1" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                            </li>
+                            <template x-for="p in pageList()" :key="p">
+                                <li>
+                                    <button type="button" @click="page = p"
+                                        :aria-current="p === page ? 'page' : null"
+                                        class="inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-lg border text-xs font-semibold transition-colors"
+                                        :class="p === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                        x-text="p"></button>
+                                </li>
+                            </template>
+                            <li>
+                                <button type="button" @click="page = page + 1" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </x-ui.card>
     </div>
-</div>
 
-<!-- Modal Tambah Mapel -->
-<div id="createMapelModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
-    <div class="modal-box-tw max-w-lg">
-        <div class="bg-white rounded-3xl overflow-hidden">
-            <form id="form-create-mapel">
-                @csrf
-                <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50/30 flex items-center justify-between">
-                    <h5 class="font-bold text-slate-800 text-base mb-0 flex items-center gap-2" id="createModalLabel">
-                        <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm">
-                            <i class="bi bi-plus-lg"></i>
-                        </span>
-                        <span>Tambah Mata Pelajaran</span>
-                    </h5>
-                    <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center transition-colors" data-ui-dismiss="modal" aria-label="Close">
-                        <i class="bi bi-x-lg text-sm"></i>
-                    </button>
+    <!-- Modal Tambah Mapel -->
+    <x-ui.modal id="createMapelModal" title="Tambah Mata Pelajaran" icon="bi-plus-lg" size="max-w-lg">
+        <form @submit.prevent="submitCreate()" class="flex min-h-0 flex-col">
+            <div class="space-y-4 overflow-y-auto p-5">
+                <div>
+                    <label for="createnama" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nama Mata Pelajaran <span class="text-rose-500">*</span></label>
+                    <input type="text" id="createnama" x-model="form.nama_mapel" maxlength="50" required
+                        placeholder="Contoh: Matematika"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                 </div>
-                <div class="p-6 space-y-4">
+
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nama Mata Pelajaran <span class="text-rose-500">*</span></label>
-                        <input type="text" id="createnama" name="nama_mapel" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required placeholder="Contoh: Matematika">
+                        <label for="createkode" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Kode Mapel</label>
+                        <input type="text" id="createkode" x-model="form.kode_mapel" maxlength="20"
+                            placeholder="Contoh: MTK"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Kode Mapel <span class="text-rose-500">*</span></label>
-                            <input type="text" id="createkode" name="kode_mapel" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required placeholder="Contoh: MTK">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">No. Urut Rapor</label>
-                            <input type="number" name="urutan_tampil" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" value="0">
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="kelompok" value="A">
-
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Status Keaktifan <span class="text-rose-500">*</span></label>
-                        <select name="status" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required>
-@foreach($status as $__k => $__v)
-    <option value="{{ $__k }}"{{ (is_array('1') ? in_array($__k, ('1')) : $__k == ('1')) ? ' selected' : '' }}>{{ $__v }}</option>
-@endforeach
-</select>
-                    </div>
-
-                    <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                        <button type="button" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors" data-ui-dismiss="modal">Batal</button>
-                        <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs shadow-blue-500/20">
-                            <i class="bi bi-save"></i> Simpan
-                        </button>
+                        <label for="createurutan" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">No. Urut Rapor</label>
+                        <input type="number" id="createurutan" x-model.number="form.urutan_tampil" min="0" max="9999"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
                 </div>
-            </form>
-        </div>
-    </div>
-</div>
 
-<!-- Modal Edit Mapel -->
-<div id="editMapelModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-    <div class="modal-box-tw max-w-lg">
-        <div class="bg-white rounded-3xl overflow-hidden">
-            <form id="form-update-mapel">
-                @csrf
-                <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50/30 flex items-center justify-between">
-                    <h5 class="font-bold text-slate-800 text-base mb-0 flex items-center gap-2" id="editModalLabel">
-                        <span class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-sm">
-                            <i class="bi bi-pencil-square"></i>
-                        </span>
-                        <span>Edit Mata Pelajaran</span>
-                    </h5>
-                    <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center transition-colors" data-ui-dismiss="modal" aria-label="Close">
-                        <i class="bi bi-x-lg text-sm"></i>
-                    </button>
+                <div>
+                    <label for="status-create" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Status Keaktifan <span class="text-rose-500">*</span></label>
+                    <select id="status-create" x-model="form.status" required
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        @foreach ($status as $nilaiStatus => $labelStatus)
+                            <option value="{{ $nilaiStatus }}">{{ $labelStatus }}</option>
+                        @endforeach
+                    </select>
                 </div>
-                <div class="p-6 space-y-4">
-                    <input type="hidden" id="editIdMapel" name="id_mapel">
+            </div>
 
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+                <button type="button" @click="$store.modals.close('#createMapelModal')"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                <button type="submit" :disabled="saving"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                    <span x-show="saving" x-cloak class="inline-block w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></span>
+                    <i x-show="!saving" class="bi bi-save"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
+
+    <!-- Modal Edit Mapel -->
+    <x-ui.modal id="editMapelModal" title="Edit Mata Pelajaran" icon="bi-pencil-square" tone="amber" size="max-w-lg">
+        <form @submit.prevent="submitEdit()" class="flex min-h-0 flex-col">
+            <div class="space-y-4 overflow-y-auto p-5">
+                <input type="hidden" x-model="editing.id_mapel">
+                <input type="hidden" x-model="editing.kelompok">
+
+                <div>
+                    <label for="namaEdit" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nama Mata Pelajaran <span class="text-rose-500">*</span></label>
+                    <input type="text" id="namaEdit" x-model="editing.nama_mapel" maxlength="50" required
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Nama Mata Pelajaran <span class="text-rose-500">*</span></label>
-                        <input type="text" id="namaEdit" name="nama_mapel" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required>
+                        <label for="kodeEdit" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Kode Mapel</label>
+                        <input type="text" id="kodeEdit" x-model="editing.kode_mapel" maxlength="20"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Kode Mapel <span class="text-rose-500">*</span></label>
-                            <input type="text" id="kodeEdit" name="kode_mapel" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">No. Urut Rapor</label>
-                            <input type="number" id="kodeUrut" name="urutan_tampil" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden">
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="kelompok" id="kelompokEdit" value="A">
-
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Status Keaktifan <span class="text-rose-500">*</span></label>
-                        <select name="status" id="statusEdit" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden" required>
-@foreach($status as $__k => $__v)
-    <option value="{{ $__k }}"{{ (is_array('1') ? in_array($__k, ('1')) : $__k == ('1')) ? ' selected' : '' }}>{{ $__v }}</option>
-@endforeach
-</select>
+                        <label for="kodeUrut" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">No. Urut Rapor</label>
+                        <input type="number" id="kodeUrut" x-model.number="editing.urutan_tampil" min="0" max="9999"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                     </div>
                 </div>
-                <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                    <button type="button" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors" data-ui-dismiss="modal">Batal</button>
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors shadow-xs shadow-amber-500/20">
-                        <i class="bi bi-save"></i> Perbarui
-                    </button>
+
+                <div>
+                    <label for="statusEdit" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Status Keaktifan <span class="text-rose-500">*</span></label>
+                    <select id="statusEdit" x-model="editing.status" required
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        @foreach ($status as $nilaiStatus => $labelStatus)
+                            <option value="{{ $nilaiStatus }}">{{ $labelStatus }}</option>
+                        @endforeach
+                    </select>
                 </div>
-            </form>
-        </div>
-    </div>
+            </div>
+
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+                <button type="button" @click="$store.modals.close('#editMapelModal')"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                <button type="submit" :disabled="saving"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-amber-500/20 transition-colors hover:bg-amber-600 disabled:opacity-60">
+                    <span x-show="saving" x-cloak class="inline-block w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></span>
+                    <i x-show="!saving" class="bi bi-save"></i> Perbarui
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
 </div>
 
 @endsection
 
 @section('scripts')
 <script>
-    var table;
+document.addEventListener('alpine:init', () => {
+    Alpine.data('mapelPage', () => ({
+        urls: {},
+        csrf: '',
 
-    $(document).ready(function () {
+        rows: [],
+        loading: false,
+        saving: false,
 
-        // Table Mapel
-        table = $("#tableMapel").DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "{{ url('datamapel/read') }}",
-                type: "POST",
-                data: { [CSRF_NAME]: CSRF_HASH }
-            },
-            columns: [
-                { data: "id_mapel", className: "text-center", orderable: false, searchable: false },
-                { data: "urutan_tampil", className: "text-center font-bold text-slate-400" },
-                {
-                    data: "nama_mapel",
-                    render: function (data, type, row) {
-                        return `<div class="font-bold text-slate-800">${data}</div>`;
-                    }
-                },
-                {
-                    data: "kode",
-                    className: "text-center",
-                    render: function (data) {
-                        return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">${data || '-'}</span>`;
-                    }
-                },
-                { data: "status", className: "text-center" },
-                { data: null, className: "text-center", orderable: false }
-            ],
-            columnDefs: [
-                {
-                    targets: 0,
-                    render: function (data, type, row) {
-                        // Mapel bawaan (deletable = 0) memang ditolak server saat
-                        // dihapus — jangan tawarkan checkbox yang selalu gagal.
-                        if (String(row.deletable) === '0') {
-                            return '<span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-400" title="Mapel bawaan sistem — tidak dapat dihapus"><i class="bi bi-lock-fill text-xs"></i></span>';
-                        }
-                        return `<input name="checked[]" class="check rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${data}" type="checkbox">`;
-                    }
-                },
-                {
-                    targets: 4,
-                    render: function (data) {
-                        return data === '0'
-                            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100">Nonaktif</span>'
-                            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">Aktif</span>';
-                    }
-                },
-                {
-                    targets: 5,
-                    render: function (data, type, row) {
-                        return `<button type="button" class="btn-edit-mapel inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-xs"
-                            data-id="${row.id_mapel}" data-nama="${row.nama_mapel}" data-kode="${row.kode}" data-kelompok="${row.kelompok}"
-                            data-urutan="${row.urutan_tampil}" data-status="${row.status}" title="Edit Mapel">
-                            <i class="bi bi-pencil-square text-sm"></i>
-                        </button>`;
-                    }
-                }
-            ],
-            language: typeof dt_lang_id !== 'undefined' ? dt_lang_id : {}
-        });
+        query: '',
+        perPage: 10,
+        page: 1,
+        selected: [],
 
-        // Checkbox Select All
-        $('.select_all').on('click', function () {
-            $('.check').prop('checked', this.checked);
-            toggleBulkButton();
-        });
+        form: { nama_mapel: '', kode_mapel: '', urutan_tampil: 0, kelompok: 'A', status: '1' },
+        editing: { id_mapel: null, nama_mapel: '', kode_mapel: '', urutan_tampil: 0, kelompok: 'A', status: '1' },
 
-        $('#tableMapel').on('change', '.check', function () {
-            toggleBulkButton();
-        });
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.urls = cfg.urls || {};
+            this.csrf = cfg.csrf || '';
 
-        function toggleBulkButton() {
-            var n = $('.check:checked').length;
-            if (n > 0) {
-                $('#hapusterpilih').removeClass('hidden');
+            this.$watch('query', () => { this.page = 1; });
+
+            this.load();
+        },
+
+        get filtered() {
+            const needle = this.query.trim().toLowerCase();
+            if (needle === '') return this.rows;
+
+            return this.rows.filter((row) => {
+                const nama = String(row.nama_mapel ?? '').toLowerCase();
+                const kode = String(row.kode ?? '').toLowerCase();
+                return nama.includes(needle) || kode.includes(needle);
+            });
+        },
+
+        get pages() {
+            return Math.max(1, Math.ceil(this.filtered.length / this.perPage));
+        },
+
+        get pageRows() {
+            const current = Math.min(this.page, this.pages);
+            const start = (current - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+
+        get selectablePage() {
+            return this.pageRows.filter((row) => row.deletable !== '0');
+        },
+
+        get allPageSelected() {
+            return this.selectablePage.length > 0
+                && this.selectablePage.every((row) => this.selected.includes(String(row.id_mapel)));
+        },
+
+        summaryText() {
+            const total = this.filtered.length;
+            if (total === 0) return 'Tidak ada data';
+            const current = Math.min(this.page, this.pages);
+            const start = (current - 1) * this.perPage;
+            const end = Math.min(start + this.perPage, total);
+            return 'Menampilkan ' + (start + 1) + '\u2013' + end + ' dari ' + total + ' mapel';
+        },
+
+        pageList() {
+            const total = this.pages;
+            const current = Math.min(this.page, total);
+            const span = 2;
+            let from = Math.max(1, current - span);
+            let to = Math.min(total, current + span);
+            if (to - from < span * 2) {
+                from = Math.max(1, Math.min(from, to - span * 2));
+                to = Math.min(total, from + span * 2);
+            }
+
+            const list = [];
+            for (let p = from; p <= to; p++) list.push(p);
+            return list;
+        },
+
+        toggleAll(checked) {
+            const ids = this.selectablePage.map((row) => String(row.id_mapel));
+            if (checked) {
+                this.selected = Array.from(new Set([...this.selected, ...ids]));
             } else {
-                $('#hapusterpilih').addClass('hidden');
+                this.selected = this.selected.filter((id) => !ids.includes(id));
             }
-        }
+        },
 
-        // Edit Mapel Click Handler (Fixed)
-        $(document).on('click', '.btn-edit-mapel', function () {
-            var btn = $(this);
-            $('#editIdMapel').val(btn.data('id'));
-            $('#namaEdit').val(btn.data('nama'));
-            $('#kodeEdit').val(btn.data('kode'));
-            $('#kelompokEdit').val(btn.data('kelompok'));
-            $('#statusEdit').val(btn.data('status'));
-            $('#kodeUrut').val(btn.data('urutan'));
+        async requestJson(url, payload) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: payload,
+            });
 
-            var modalEl = document.getElementById('editMapelModal');
-            AdminUI.modal.open(modalEl);
-        });
+            return response.json();
+        },
 
-        // Form Submissions: Create Mapel
-        $('#form-create-mapel').on('submit', function (e) {
-            e.preventDefault();
-            $.post("{{ url('datamapel/create') }}", $(this).serialize(), function (res) {
-                if (res && res.status) {
-                    AdminUI.modal.close('#createMapelModal');
-                    $('#form-create-mapel')[0].reset();
+        async load() {
+            this.loading = true;
+
+            const body = new URLSearchParams();
+            body.append('_token', this.csrf);
+            body.append('draw', '1');
+            body.append('start', '0');
+            body.append('length', '-1');
+            body.append('search[value]', '');
+
+            try {
+                const result = await this.requestJson(this.urls.read, body);
+
+                if (!result || !Array.isArray(result.data)) {
+                    throw new Error('Format respons tidak dikenal');
+                }
+
+                this.rows = result.data.map((row) => ({
+                    ...row,
+                    deletable: String(row.deletable ?? '1'),
+                    status: String(row.status ?? '0'),
+                }));
+
+                const valid = new Set(this.rows
+                    .filter((row) => row.deletable !== '0')
+                    .map((row) => String(row.id_mapel)));
+                this.selected = this.selected.filter((id) => valid.has(id));
+
+                if (this.page > this.pages) this.page = this.pages;
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal', 'Data mata pelajaran gagal dimuat.', 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async reload() {
+            await this.load();
+            if (this.rows.length === 0) return;
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Data berhasil dimuat ulang',
+                showConfirmButton: false,
+                timer: 1500,
+            });
+        },
+
+        openCreate() {
+            this.form = { nama_mapel: '', kode_mapel: '', urutan_tampil: 0, kelompok: 'A', status: '1' };
+            this.$store.modals.open('#createMapelModal');
+        },
+
+        openEdit(row) {
+            this.editing = {
+                id_mapel: row.id_mapel,
+                nama_mapel: row.nama_mapel ?? '',
+                kode_mapel: row.kode ?? '',
+                urutan_tampil: Number(row.urutan_tampil ?? 0),
+                kelompok: row.kelompok ?? 'A',
+                status: String(row.status ?? '1'),
+            };
+            this.$store.modals.open('#editMapelModal');
+        },
+
+        buildPayload(data) {
+            const body = new URLSearchParams();
+            body.append('_token', this.csrf);
+            Object.keys(data).forEach((key) => body.append(key, data[key] ?? ''));
+            return body;
+        },
+
+        async submitCreate() {
+            if (this.saving) return;
+
+            if (String(this.form.nama_mapel).trim() === '') {
+                Swal.fire('Gagal', 'Nama mapel wajib diisi.', 'warning');
+                return;
+            }
+
+            this.saving = true;
+            try {
+                const result = await this.requestJson(this.urls.create, this.buildPayload(this.form));
+
+                if (result && result.status) {
+                    this.$store.modals.close('#createMapelModal');
+                    this.form = { nama_mapel: '', kode_mapel: '', urutan_tampil: 0, kelompok: 'A', status: '1' };
+                    await this.load();
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil',
-                        text: res.message || 'Mata pelajaran berhasil ditambahkan',
+                        text: result.message || 'Mata pelajaran berhasil ditambahkan',
                         timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        table.ajax.reload();
+                        showConfirmButton: false,
                     });
                     return;
                 }
+
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal',
-                    text: (res && res.message) || 'Mapel tidak tersimpan — periksa isian lalu coba lagi.'
+                    text: (result && result.message) || 'Mapel tidak tersimpan — periksa isian lalu coba lagi.',
                 });
-            }, 'json').fail(function () {
+            } catch (error) {
+                console.error(error);
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
-            });
-        });
+            } finally {
+                this.saving = false;
+            }
+        },
 
-        // Form Submissions: Update Mapel
-        $('#form-update-mapel').on('submit', function (e) {
-            e.preventDefault();
-            $.post("{{ url('datamapel/update') }}", $(this).serialize(), function (res) {
-                if (res && res.status) {
-                    AdminUI.modal.close('#editMapelModal');
+        async submitEdit() {
+            if (this.saving) return;
+
+            this.saving = true;
+            try {
+                const result = await this.requestJson(this.urls.update, this.buildPayload(this.editing));
+
+                if (result && result.status) {
+                    this.$store.modals.close('#editMapelModal');
+                    await this.load();
                     Swal.fire({
                         icon: 'success',
                         title: 'Berhasil',
-                        text: res.message || 'Mata pelajaran berhasil diperbarui',
+                        text: result.message || 'Mata pelajaran berhasil diperbarui',
                         timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        table.ajax.reload();
+                        showConfirmButton: false,
                     });
                     return;
                 }
+
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal',
-                    text: (res && res.message) || 'Mapel tidak tersimpan — periksa isian lalu coba lagi.'
+                    text: (result && result.message) || 'Mapel tidak tersimpan — periksa isian lalu coba lagi.',
                 });
-            }, 'json').fail(function () {
+            } catch (error) {
+                console.error(error);
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
-            });
-        });
-    });
-
-    function reload_ajax() {
-        table.ajax.reload();
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'Data berhasil dimuat ulang',
-            showConfirmButton: false,
-            timer: 1500
-        });
-    }
-    function bulk_delete() {
-        Swal.fire({
-            title: 'Hapus Terpilih?',
-            text: "Data yang dihapus tidak dapat dikembalikan!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e11d48',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="bi bi-trash mr-1"></i> Hapus',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post("{{ url('datamapel/delete') }}", $('#bulk').serialize(), function (res) {
-                    if (res && res.status) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: res.message || ((res.total || 0) + ' data berhasil dihapus'),
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            table.ajax.reload();
-                            $('#hapusterpilih').addClass('hidden');
-                            $('.select_all').prop('checked', false);
-                        });
-                        return;
-                    }
-                    // Tidak ada yang terhapus — jangan reload, biarkan pilihan utuh.
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Tidak ada yang terhapus',
-                        text: (res && res.message) || 'Pilih mapel yang boleh dihapus, atau bersihkan data terkait dulu.'
-                    });
-                }, 'json').fail(function () {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
-                });
+            } finally {
+                this.saving = false;
             }
-        });
-    }
+        },
 
-    function initMapelSelect2() {
-        if (!$.fn.select2) return;
-        var $sel = $('#mapelSelect');
-        if ($sel.hasClass('select2-hidden-accessible')) return;
-        $sel.select2({
-            width: '100%',
-            placeholder: 'Pilih Mapel...',
-            dropdownParent: $('#createMapelModal .modal-box-tw'),
-            allowClear: true
-        });
-    }
+        async deleteSelected() {
+            if (this.selected.length === 0 || this.saving) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus Terpilih?',
+                text: 'Data yang dihapus tidak dapat dikembalikan!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Hapus',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.saving = true;
+            try {
+                const body = new URLSearchParams();
+                body.append('_token', this.csrf);
+                this.selected.forEach((id) => body.append('checked[]', id));
+
+                const result = await this.requestJson(this.urls.delete, body);
+
+                if (result && result.status) {
+                    this.selected = [];
+                    await this.load();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: result.message || ((result.total || 0) + ' data berhasil dihapus'),
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
+                    return;
+                }
+
+                // Tidak ada yang terhapus — pilihan dibiarkan utuh.
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Tidak ada yang terhapus',
+                    text: (result && result.message) || 'Pilih mapel yang boleh dihapus, atau bersihkan data terkait dulu.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.saving = false;
+            }
+        },
+    }));
+});
 </script>
 @endsection

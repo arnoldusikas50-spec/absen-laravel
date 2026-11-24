@@ -1,174 +1,154 @@
 @extends('layouts.main')
 
 @section('content')
-<div class="content-header bg-white">
-        <div class="flex flex-wrap gap-4">
-            <div class="flex-1">
-                <h1 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5 m-0">
-                    <span class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-xs shrink-0">
-                        <i class="bi bi-arrow-left-right text-xl"></i>
-                    </span>
-                    <span>{{ $judul }}</span>
-                </h1>
-            </div>
-            <div class="flex-1">
-                <a href="{{ url('datakelas') }}" class="btn-tw btn-tw-sm btn-outline-secondary self-start">
-                    <i class="bi bi-arrow-left mr-1"></i> Kembali
-                </a>
-            </div>
+<div class="fade-in-up space-y-4 p-4 md:p-6">
+    <x-ui.page-header :title="$judul" icon="bi-arrow-left-right" tone="blue"
+        subtitle="Salin kelas dan daftar siswa dari Semester 1 ke Semester 2"
+        :crumbs="['Data Kelas', 'Salin Semester']">
+        <x-slot:actions>
+            <a href="{{ url('datakelas') }}"
+                class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.card :title="$subjudul" icon="bi-info-circle" tone="blue" body-class="p-5">
+        <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3.5 text-xs text-blue-900">
+            <p class="mb-1.5 flex items-center gap-1.5 font-bold">
+                <i class="bi bi-info-circle"></i> Fitur Salin Semester
+            </p>
+            <p class="mb-2 leading-relaxed">
+                Fitur ini menyalin semua kelas dan siswa TP <b>{{ $tp_active->tahun }}</b> dari Semester 1 ke Semester 2.
+            </p>
+            <ul class="mb-0 list-disc space-y-1 pl-4 leading-relaxed">
+                <li>Hanya kelas yang <b>belum ada</b> di semester 2 yang ditampilkan untuk disalin.</li>
+                <li>Centang kotak di kolom <b>Copy</b> untuk memilih kelas.</li>
+                <li>Klik <b>Simpan</b> untuk memulai proses penyalinan.</li>
+            </ul>
         </div>
-    </div>
 
-<div class="content-area">
-<div class="card-tw"><div class="card-tw-header">
-                    <h6 class="mb-0 font-bold">
-                        {{ $subjudul }}
-                    </h6>
-                </div>
-                <div class="card-tw-body">
-                    <div class="alert-tw alert-info">
-                        <h6 class="font-bold"><i class="bi bi-info-circle mr-2"></i>Fitur Salin Semester</h6>
-                        <p class="mb-2">Fitur ini digunakan untuk menyalin semua kelas dan siswa TP: <b>
-                                {{ $tp_active->tahun }}
-                            </b> dari Semester 1 ke Semester 2.</p>
-                        <ul class="mb-0 text-sm">
-                            <li>Hanya kelas yang <b>BELUM ADA</b> di semester 2 yang akan ditampilkan untuk disalin.
-                            
-                            <li>Pilih kelas yang akan disalin dengan mencentang kotak di kolom Copy.
-                            <li>Klik tombol <b>Simpan</b> untuk mulai proses penyalinan data.
-                        </ul>
-                    </div>
-
-                    <?php if (count($kelas) == 0): ?>
-                        <div class="alert-tw alert-info">
-                            <i class="bi bi-exclamation-triangle display-4"></i>
-                            <p class="mt-2 mb-0">Tidak ada data kelas di Semester 1 yang dapat disalin.</p>
-                        </div>
-                    <?php else: ?>
-                        <form id="managekelas">
-                            @csrf
-                            <div class="flex justify-end mb-6">
-                                <button type="submit" class="btn-tw btn-primary" id="save-all" disabled>
-                                    <i class="bi bi-save mr-1"></i> Simpan
-                                </button>
-                            </div>
-
-                            <div class="table-responsive-tw"><table class="table-tw">
-                                    <thead class="bg-slate-50">
-                                        <tr>
-                                            <th class="text-center align-middle" style="width: 50px">No</th>
-                                            <th class="align-middle px-4">Kelas Semester 1</th>
-                                            <th class="align-middle px-4">Target Semester 2</th>
-                                            <th class="align-middle px-4">Status</th>
-                                            <th class="text-center align-middle" style="width: 80px">
-                                                Copy<br>
-                                                <input class="form-check-input mt-1" type="checkbox" id="check-all">
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-body">
-                                        <?php $no = 1;
-                                        foreach ($kelas as $key => $kls): ?>
-                                            <tr>
-                                                <td class="text-center align-middle">
-                                                    {{ $no++ }}
-                                                </td>
-                                                <td class="align-middle px-4 font-semibold">
-                                                    {{ $kls }}
-                                                </td>
-                                                <td class="align-middle px-4">
-                                                    {{ $kls }}
-                                                </td>
-                                                <td class="align-middle px-4">
-                                                    <?php if (in_array($kls, $kelas2)): ?>
-                                                        <span class="badge-tw badge-success"><i
-                                                                class="bi bi-check-circle mr-1"></i> Sudah Ada</span>
-                                                    <?php else: ?>
-                                                        <span class="badge-tw badge-danger"><i
-                                                                class="bi bi-x-circle mr-1"></i> Belum Ada</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-center align-middle">
-                                                    <?php if (!in_array($kls, $kelas2)): ?>
-                                                        <input type="checkbox" name="kelas_satu[]" value="{{ $key }}"
-                                                            class="form-check-input check-kelas">
-                                                    <?php else: ?>
-                                                        <i class="bi bi-check-lg text-emerald-600 text-xl"></i>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </form>
-                    <?php endif; ?>
-                </div>
+        @if (count($kelas) === 0)
+            <div class="mt-4">
+                <x-ui.empty icon="bi-exclamation-triangle" title="Tidak ada kelas untuk disalin"
+                    description="Belum ada data kelas di Semester 1 yang dapat disalin ke Semester 2." />
             </div>
-        </div>
-@endsection
+        @else
+            @php
+                $kelasTersedia = collect($kelas)->filter(fn ($nama) => ! in_array($nama, $kelas2));
+            @endphp
 
-@section('scripts')
-<script>
-    const appUrl = '{{ url('/') . '/' }}/';
-    $(document).ready(function () {
-        $("#check-all").on("click", function () {
-            $(".check-kelas").prop('checked', this.checked);
-            updateSaveButton();
-        });
+            <form id="managekelas" class="mt-4 overflow-hidden rounded-2xl border border-slate-200"
+                data-keys="{{ $kelasTersedia->keys()->values()->toJson() }}"
+                x-data="{
+                    selected: [],
+                    keys: JSON.parse($el.dataset.keys),
+                    get allChecked() {
+                        return this.keys.length > 0 && this.selected.length === this.keys.length;
+                    },
+                    toggleAll(event) {
+                        this.selected = event.target.checked ? [...this.keys] : [];
+                    },
+                    async save() {
+                        const confirmed = await Swal.fire({
+                            title: 'Salin Kelas?',
+                            text: 'Kelas yang dipilih beserta daftar siswanya akan disalin ke Semester 2.',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Ya, Salin!',
+                        });
 
-        $("#table-body").on("change", ".check-kelas", function () {
-            let allChecked = $(".check-kelas").length === $(".check-kelas:checked").length;
-            $("#check-all").prop('checked', allChecked);
-            $("#check-all").prop('indeterminate', $(".check-kelas:checked").length > 0 && !allChecked);
-            updateSaveButton();
-        });
-
-        function updateSaveButton() {
-            $("#save-all").prop('disabled', $(".check-kelas:checked").length === 0);
-        }
-
-        $('#managekelas').submit(function (e) {
-            e.preventDefault();
-
-            Swal.fire({
-                title: "Salin Kelas?",
-                text: "Kelas yang dipilih beserta daftar siswanya akan disalin ke Semester 2.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonColor: "#3085d6",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Ya, Salin!"
-            }).then(result => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Sedang menyalin...',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
+                        if (!confirmed.isConfirmed) {
+                            return;
                         }
-                    });
 
-                    $.ajax({
-                        url: appUrl + 'datakelas/copyallfromsmt1',
-                        type: "POST",
-                        data: $(this).serialize(),
-                        success: function (data) {
+                        Swal.fire({
+                            title: 'Sedang menyalin...',
+                            allowOutsideClick: false,
+                            didOpen: () => Swal.showLoading(),
+                        });
+
+                        try {
+                            const response = await fetch('{{ url('datakelas/copyallfromsmt1') }}', {
+                                method: 'POST',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                                body: new FormData(this.$root),
+                            });
+                            const data = await response.json();
+
                             if (data.success) {
-                                Swal.fire("Berhasil", data.insert + " Kelas berhasil disalin", "success").then(() => {
-                                    location.reload();
-                                });
+                                await Swal.fire('Berhasil', data.insert + ' kelas berhasil disalin', 'success');
+                                window.location.reload();
                             } else {
-                                Swal.fire("Gagal", "Gagal menyalin data", "error");
+                                Swal.fire('Gagal', 'Gagal menyalin data', 'error');
                             }
-                        },
-                        error: function (xhr) {
-                            Swal.fire("Error", "Gagal menghubungi server", "error");
+                        } catch (error) {
+                            console.error(error);
+                            Swal.fire('Error', 'Gagal menghubungi server', 'error');
                         }
-                    });
-                }
-            });
-        });
-    });
-</script>
+                    },
+                }" @submit.prevent="save">
+                @csrf
+
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <p class="mb-0 text-xs font-semibold text-slate-500">
+                        <span class="font-bold text-slate-700" x-text="selected.length">0</span>
+                        kelas dipilih
+                    </p>
+                    <button type="submit" :disabled="selected.length === 0"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+                        <i class="bi bi-save"></i> Simpan
+                    </button>
+                </div>
+
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="w-14 px-4 py-3 text-center">No</th>
+                        <th class="px-4 py-3">Kelas Semester 1</th>
+                        <th class="px-4 py-3">Target Semester 2</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="w-20 px-4 py-3 text-center">
+                            Copy
+                            <input type="checkbox" x-ref="all" @change="toggleAll($event)" :checked="allChecked"
+                                x-effect="$el.indeterminate = selected.length > 0 && !allChecked"
+                                aria-label="Pilih semua kelas"
+                                class="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                        </th>
+                    </x-slot:head>
+
+                    @foreach ($kelas as $key => $kls)
+                        @php $sudahAda = in_array($kls, $kelas2); @endphp
+                        <tr class="transition-colors hover:bg-slate-50/70">
+                            <td class="px-4 py-3 text-center text-xs font-semibold text-slate-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3 font-semibold text-slate-800">{{ $kls }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ $kls }}</td>
+                            <td class="px-4 py-3">
+                                @if ($sudahAda)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                        <i class="bi bi-check-circle"></i> Sudah Ada
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700">
+                                        <i class="bi bi-x-circle"></i> Belum Ada
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                @if ($sudahAda)
+                                    <i class="bi bi-check-lg text-xl text-emerald-600"></i>
+                                @else
+                                    <input type="checkbox" name="kelas_satu[]" value="{{ $key }}" x-model="selected"
+                                        aria-label="Salin kelas {{ $kls }}"
+                                        class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+            </form>
+        @endif
+    </x-ui.card>
+</div>
 @endsection

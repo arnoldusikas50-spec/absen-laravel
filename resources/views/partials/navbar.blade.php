@@ -31,10 +31,12 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
 <div class="flex items-center h-16 px-4 lg:px-5 gap-2">
 
     <!-- Hamburger toggle -->
-    <button id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle sidebar"
+    <button type="button" id="sidebar-toggle-btn" @click="$store.shell.toggle()"
+            aria-label="Buka atau tutup menu navigasi" aria-controls="main-sidebar"
+            :aria-expanded="$store.shell.collapsed || $store.shell.open ? 'true' : 'false'"
             class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200
                    text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0">
-        <i class="bi bi-list text-lg"></i>
+        <i class="bi bi-list text-lg" aria-hidden="true"></i>
     </button>
 
     <!-- Page breadcrumb / title area (hidden on small) -->
@@ -62,17 +64,19 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
         <span id="live-clock" class="font-mono text-xs font-bold min-w-[58px] text-center tabular-nums"></span>
     </div>
 
-    <!-- Notifications (placeholder) -->
-    <button class="relative inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200
-                   text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            title="Notifikasi">
-        <i class="bi bi-bell text-sm"></i>
-        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-    </button>
+    <!-- Notifikasi: menuju halaman persetujuan yang relevan -->
+    <a href="{{ url(auth()->user()?->role == '1' ? 'admin/presensi/izin' : 'dashboard') }}"
+       title="Notifikasi & persetujuan" aria-label="Notifikasi dan persetujuan"
+       class="relative inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200
+              text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+        <i class="bi bi-bell text-sm" aria-hidden="true"></i>
+    </a>
 
     <!-- User menu -->
-    <div class="relative" id="user-menu-wrap">
-        <button id="user-menu-btn" onclick="toggleUserMenu()" aria-haspopup="true" aria-expanded="false"
+    <div class="relative" id="user-menu-wrap" @keydown.escape.window="$store.userMenu.close()">
+        <button type="button" id="user-menu-btn" @click="$store.userMenu.toggle()"
+                aria-haspopup="menu" aria-controls="user-menu-dropdown"
+                :aria-expanded="$store.userMenu.open ? 'true' : 'false'"
                 class="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl border border-transparent
                        hover:border-slate-200 hover:bg-slate-50 transition-all">
             <!-- Avatar -->
@@ -89,12 +93,14 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
                 <p class="text-[11px] text-slate-400 leading-none">{{ $userRoleName }}</p>
             </div>
             <i class="bi bi-chevron-down text-[10px] text-slate-400 transition-transform duration-200"
-               id="user-chevron"></i>
+               :class="$store.userMenu.open ? 'rotate-180' : ''"
+               id="user-chevron" aria-hidden="true"></i>
         </button>
 
         <!-- Dropdown -->
-        <div id="user-menu-dropdown"
-             class="hidden absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-xl
+        <div id="user-menu-dropdown" x-show="$store.userMenu.open" x-cloak
+             @click.outside="$store.userMenu.close()" x-transition.origin.top.right
+             class="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-xl
                     border border-slate-100 z-50 overflow-hidden"
              role="menu">
 
@@ -127,7 +133,7 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
 
                 <div class="h-px bg-slate-100 my-1 mx-2"></div>
 
-                <button onclick="logout()" role="menuitem"
+                <button type="button" @click="$store.userMenu.close(); logout()" role="menuitem"
                         class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600
                                hover:bg-red-50 transition-colors group">
                     <span class="w-8 h-8 rounded-lg bg-red-50 group-hover:bg-red-100 flex items-center
@@ -145,34 +151,3 @@ $initials      = mb_strtoupper(mb_substr($userName, 0, 1)) . (strpos($userName, 
 
 </div>
 
-<script>
-(function () {
-    const wrap    = document.getElementById('user-menu-wrap');
-    const btn     = document.getElementById('user-menu-btn');
-    const menu    = document.getElementById('user-menu-dropdown');
-    const chevron = document.getElementById('user-chevron');
-
-    function open() {
-        menu.classList.remove('hidden');
-        btn.setAttribute('aria-expanded', 'true');
-        chevron.style.transform = 'rotate(180deg)';
-    }
-    function close() {
-        menu.classList.add('hidden');
-        btn.setAttribute('aria-expanded', 'false');
-        chevron.style.transform = '';
-    }
-
-    window.toggleUserMenu = function () {
-        menu.classList.contains('hidden') ? open() : close();
-    };
-
-    document.addEventListener('click', function (e) {
-        if (!wrap.contains(e.target)) close();
-    });
-
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') close();
-    });
-})();
-</script>

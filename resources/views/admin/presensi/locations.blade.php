@@ -4,1525 +4,1323 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <style>
-    /* Leaflet Map & Custom Markers */
-    #map {
-        height: 600px;
-        width: 100%;
-        border-radius: 0 0 0.875rem 0.875rem;
-        z-index: 1;
-        background-color: #f1f5f9;
-    }
-
-    @media (max-width: 768px) {
-        #map {
-            height: 420px;
-        }
-    }
-
     /* Custom Leaflet SVG Pins */
-    .custom-leaflet-pin {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-    }
+    .custom-leaflet-pin { display: flex; align-items: center; justify-content: center; position: relative; }
 
     .pin-pulse-ring {
-        position: absolute;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        animation: pin-pulse 2s infinite ease-out;
-        opacity: 0.7;
-        pointer-events: none;
+        position: absolute; width: 44px; height: 44px; border-radius: 50%;
+        animation: pin-pulse 2s infinite ease-out; opacity: 0.7; pointer-events: none;
     }
 
-    .pin-blue .pin-pulse-ring {
-        background: rgb(var(--primary-500-rgb) / 0.35);
-    }
-
-    .pin-red .pin-pulse-ring {
-        background: rgba(239, 68, 68, 0.45);
-    }
+    .pin-blue .pin-pulse-ring { background: rgb(var(--primary-500-rgb) / 0.35); }
+    .pin-red .pin-pulse-ring { background: rgba(239, 68, 68, 0.45); }
 
     .pin-body {
-        width: 34px;
-        height: 34px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28);
-        border: 2px solid #ffffff;
+        width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28); border: 2px solid #ffffff;
         transition: transform 0.2s ease;
     }
 
-    .custom-leaflet-pin:hover .pin-body {
-        transform: rotate(-45deg) scale(1.15);
-    }
-
-    .pin-body i {
-        transform: rotate(45deg);
-        color: #ffffff;
-        font-size: 15px;
-    }
-
-    .pin-blue .pin-body {
-        background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
-    }
-
-    .pin-red .pin-body {
-        background: linear-gradient(135deg, #ef4444, #b91c1c);
-    }
+    .custom-leaflet-pin:hover .pin-body { transform: rotate(-45deg) scale(1.15); }
+    .pin-body i { transform: rotate(45deg); color: #ffffff; font-size: 15px; }
+    .pin-blue .pin-body { background: linear-gradient(135deg, var(--primary-600), var(--primary-700)); }
+    .pin-red .pin-body { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
     @keyframes pin-pulse {
-        0% {
-            transform: scale(0.6);
-            opacity: 0.9;
-        }
-        100% {
-            transform: scale(1.8);
-            opacity: 0;
-        }
+        0% { transform: scale(0.6); opacity: 0.9; }
+        100% { transform: scale(1.8); opacity: 0; }
     }
 
-    /* Search Box & Floating Controls */
-    .search-map-overlay {
-        position: absolute;
-        top: 14px;
-        left: 56px;
-        z-index: 999;
-        width: calc(100% - 130px);
-        max-width: 380px;
-    }
-
-    .map-badge-counter {
-        background: rgba(15, 23, 42, 0.88);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        color: #ffffff;
-        padding: 7px 16px;
-        border-radius: 9999px;
-        font-size: 12px;
-        font-weight: 500;
-        position: absolute;
-        bottom: 16px;
-        left: 16px;
-        z-index: 999;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .map-topright-overlay {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        z-index: 999;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .map-control-btn {
-        width: 38px;
-        height: 38px;
-        background: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #334155;
-        border: 1px solid #e2e8f0;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .map-control-btn:hover {
-        background: #f8fafc;
-        color: var(--primary-600);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-    }
-
-    /* Location List Cards */
-    .location-scroll-container {
-        max-height: 575px;
-        overflow-y: auto;
-    }
-
-    .location-scroll-container::-webkit-scrollbar {
-        width: 5px;
-    }
-
-    .location-scroll-container::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-
-    .loc-item {
-        border-left: 4px solid transparent;
-        transition: all 0.2s ease;
-    }
-
-    .loc-item:hover {
-        border-color: var(--primary-300);
-        background-color: #f8fafc;
-        transform: translateX(2px);
-    }
-
-    .loc-card-active {
-        border-left: 4px solid var(--primary-600) !important;
-        background-color: var(--primary-50) !important;
-        box-shadow: 0 2px 8px rgb(var(--primary-600-rgb) / 0.08);
-    }
-
-    /* Realtime autosave toast */
-    #geoSaveToast {
-        position: absolute;
-        top: 14px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-12px);
-        z-index: 1000;
-        background: rgba(15, 23, 42, 0.92);
-        color: #fff;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 8px 16px;
-        border-radius: 9999px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        opacity: 0;
-        pointer-events: none;
-        transition: all 0.25s ease;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-        white-space: nowrap;
-    }
-    #geoSaveToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #geoSaveToast.success { background: rgba(5, 150, 105, 0.95); }
-    #geoSaveToast.error { background: rgba(220, 38, 38, 0.95); }
     .resize-handle-pin {
-        width: 16px; height: 16px;
-        background: #fff;
-        border: 3px solid var(--primary-600);
-        border-radius: 50%;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        cursor: ew-resize;
+        width: 16px; height: 16px; background: #fff; border: 3px solid var(--primary-600);
+        border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: ew-resize;
     }
+
     .leaflet-marker-dragging .pin-body { transform: rotate(-45deg) scale(1.2); }
 
-    /* Range Slider Styling */
+    /* Range slider */
     .radius-range-slider {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 100%;
-        height: 6px;
-        border-radius: 5px;
-        background: #e2e8f0;
-        outline: none;
+        -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+        border-radius: 5px; background: #e2e8f0; outline: none;
     }
 
     .radius-range-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--primary-600);
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgb(var(--primary-600-rgb) / 0.4);
-        transition: transform 0.15s ease;
+        -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+        border-radius: 50%; background: var(--primary-600); cursor: pointer;
+        box-shadow: 0 2px 6px rgb(var(--primary-600-rgb) / 0.4); transition: transform 0.15s ease;
     }
 
-    .radius-range-slider::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-    }
+    .radius-range-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
 </style>
 @endsection
 
 @section('content')
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="mb-0 font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="p-2.5 bg-blue-100 text-blue-600 rounded-xl shadow-sm">
-                    <i class="bi bi-geo-alt-fill text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Lokasi Kantor & Geofence' }}</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">Kelola koordinat GPS dan radius batas presensi kehadiran GTK.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <nav class="breadcrumb-tw hidden sm:flex">
-                <a href="{{ url('admin') }}" class="no-underline">
-                    <i class="bi bi-house-door mr-1"></i>Admin
-                </a>
-                <span class="sep">/</span>
-                <a href="{{ url('admin/presensi') }}" class="no-underline">Presensi</a>
-                <span class="sep">/</span>
-                <span class="active">Lokasi</span>
-            </nav>
-        </div>
-    </div>
-</div>
 
-<div class="content-area space-y-6">
+@php
+    $locationsData = collect($locations ?? [])->map(fn ($l) => [
+        'id' => (int) $l->id,
+        'nama_lokasi' => $l->nama_lokasi,
+        'lat' => (float) $l->lat,
+        'lng' => (float) $l->lng,
+        'radius_meter' => (int) ($l->radius_meter ?? 50),
+        'keterangan' => $l->keterangan ?? '',
+        'is_utama' => (int) ($l->is_utama ?? 0),
+    ])->values()->all();
 
-    <!-- Main Dual-Pane Section: Map & List -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        <!-- Left: Interactive Map (Col 7 / 8) -->
+    $pageConfig = [
+        'csrf' => csrf_token(),
+        'urls' => [
+            'save' => url('admin/presensi/lokasi/save'),
+            'utama' => url('admin/presensi/lokasi/utama'),
+            'delete' => url('admin/presensi/lokasi/delete'),
+        ],
+        'locations' => $locationsData,
+        'defaults' => [
+            'lat' => -6.175392,
+            'lng' => 106.827153,
+            'radius' => 50,
+        ],
+    ];
+@endphp
+
+<div x-data="lokasiPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}"
+    class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
+
+    <x-ui.page-header
+        :title="$judul ?? 'Lokasi Kantor & Geofence'"
+        icon="bi-geo-alt-fill"
+        tone="blue"
+        subtitle="Kelola koordinat GPS dan radius batas presensi kehadiran GTK."
+        :crumbs="['Presensi', 'Lokasi']">
+        <x-slot:actions>
+            <button type="button" @click="locateCurrentGPS()"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
+                title="Pusatkan ke posisi GPS browser Anda">
+                <i class="bi bi-crosshair text-blue-600"></i> Lokasi Saya
+            </button>
+            <button type="button" @click="fitAllMarkers()"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50"
+                title="Fokuskan ke seluruh titik lokasi">
+                <i class="bi bi-arrows-angle-contract"></i>
+            </button>
+            <button type="button" @click="addLocation()"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                <i class="bi bi-plus-lg"></i> Tambah Lokasi
+            </button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="mt-4 grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+
+        <!-- Peta -->
         <div class="lg:col-span-7 xl:col-span-8">
-            <div class="card-tw overflow-hidden shadow-sm">
-                <!-- Map Header -->
-                <div class="card-tw-header flex-wrap gap-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
-                            <i class="bi bi-map-fill"></i>
-                        </div>
-                        <div>
-                            <h6 class="font-bold text-slate-800 text-sm md:text-base leading-none">Peta Geofence Interaktif</h6>
-                            <span class="text-xs text-slate-500">Visualisasi lingkaran batas absensi GPS</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="btn-tw btn-tw-sm btn-outline-primary" onclick="locateCurrentGPS()" title="Pusatkan ke posisi GPS browser Anda">
-                            <i class="bi bi-crosshair mr-1 text-blue-600"></i> Lokasi Saya
-                        </button>
-                        <button type="button" class="btn-tw btn-tw-sm btn-light border" onclick="fitAllMarkers()" title="Fokuskan ke seluruh titik lokasi">
-                            <i class="bi bi-arrows-angle-contract"></i>
-                        </button>
-                        <button type="button" class="btn-tw btn-tw-sm btn-primary shadow-sm" onclick="addLocation()">
-                            <i class="bi bi-plus-lg mr-1"></i> Tambah Lokasi
-                        </button>
-                    </div>
-                </div>
+            <x-ui.card title="Peta Geofence Interaktif" icon="bi-map-fill" bodyClass="p-0"
+                subtitle="Visualisasi lingkaran batas absensi GPS">
 
-                <!-- Map Body & Floating Controls -->
                 <div class="relative">
-                    <!-- Nominatim OpenStreetMap Search Box -->
-                    <div class="search-map-overlay">
-                        <div class="relative shadow-md rounded-xl">
-                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <!-- Pencarian lokasi -->
+                    <div class="absolute left-3.5 top-3.5 z-[999] w-[calc(100%-130px)] max-w-[380px]">
+                        <div class="relative rounded-xl shadow-md">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                                 <i class="bi bi-search"></i>
                             </div>
-                            <input type="text" id="mapSearchInput" 
-                                class="w-full pl-10 pr-20 py-2.5 bg-white/95 backdrop-blur text-xs sm:text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder:text-slate-400 transition"
-                                placeholder="Cari gedung, jalan, kota..." 
-                                onkeypress="handleSearchKey(event)">
+                            <input type="text" x-model="searchQuery" @keydown.enter.prevent="searchLocation()"
+                                placeholder="Cari gedung, jalan, kota..." autocomplete="off"
+                                class="w-full rounded-xl border border-slate-200 bg-white/95 py-2.5 pl-10 pr-20 text-xs text-slate-800 backdrop-blur transition placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:text-sm">
                             <div class="absolute inset-y-0 right-1 flex items-center gap-1">
-                                <button type="button" id="btnClearSearch" class="hidden text-slate-400 hover:text-slate-600 p-1 text-xs" onclick="clearMapSearch()">
+                                <button type="button" x-show="searchQuery !== ''" x-cloak @click="clearMapSearch()"
+                                    class="p-1 text-xs text-slate-400 transition-colors hover:text-slate-600" title="Bersihkan pencarian">
                                     <i class="bi bi-x-circle-fill"></i>
                                 </button>
-                                <button type="button" class="btn-tw btn-tw-sm btn-primary h-7 px-2.5 text-xs mr-1 rounded-lg" onclick="searchLocation()" id="btnMapSearch">
-                                    Cari
+                                <button type="button" @click="searchLocation()" :disabled="searching"
+                                    class="mr-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                                    <span x-show="searching" x-cloak class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                                    <span x-show="!searching">Cari</span>
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Custom Floating Map Tool Buttons -->
-                    <div class="map-topright-overlay">
-                        <div class="relative">
-                            <button type="button" class="map-control-btn" onclick="toggleLayerMenu(event)" id="btnLayerToggle" title="Ganti Tipe Peta">
+                    <!-- Kontrol peta -->
+                    <div class="absolute right-3.5 top-3.5 z-[999] flex flex-col gap-2">
+                        <div class="relative" x-on:click.outside="layerOpen = false">
+                            <button type="button" @click="layerOpen = !layerOpen" title="Ganti Tipe Peta"
+                                :class="layerKey.includes('hybrid') ? 'border-emerald-300 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-white text-slate-700'"
+                                class="flex h-[38px] w-[38px] items-center justify-center rounded-lg border shadow-md transition hover:-translate-y-px">
                                 <i class="bi bi-layers text-base"></i>
                             </button>
 
-                            <!-- Dropdown Menu Layer Peta Modern -->
-                            <div id="mapLayerDropdown" class="hidden absolute right-0 top-11 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 w-64 z-[1000] text-xs">
-                                <div class="px-3 py-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                            <div x-show="layerOpen" x-cloak x-transition
+                                class="absolute right-0 top-11 z-[1000] w-64 rounded-2xl border border-slate-200/90 bg-white py-2 text-xs shadow-2xl">
+                                <div class="flex items-center justify-between border-b border-slate-100 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                                     <span>Pilihan Tipe Peta</span>
-                                    <span class="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">Bebas Blokir</span>
+                                    <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">Bebas Blokir</span>
                                 </div>
-                                <button type="button" class="w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-slate-50 text-slate-700 font-semibold transition" onclick="selectMapLayer('google_street')">
-                                    <span class="flex items-center gap-2.5">
-                                        <i class="bi bi-map-fill text-blue-600 text-sm"></i>
-                                        <span>Google Maps (Jalan)</span>
-                                    </span>
-                                    <i class="bi bi-check-circle-fill text-blue-600 check-layer text-sm" id="check-google_street"></i>
-                                </button>
-                                <button type="button" class="w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-slate-50 text-slate-700 font-semibold transition" onclick="selectMapLayer('google_hybrid')">
-                                    <span class="flex items-center gap-2.5">
-                                        <i class="bi bi-globe-americas text-emerald-600 text-sm"></i>
-                                        <span>Google Satelit (Hybrid)</span>
-                                    </span>
-                                    <i class="bi bi-check-circle-fill text-blue-600 check-layer hidden text-sm" id="check-google_hybrid"></i>
-                                </button>
-                                <button type="button" class="w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-slate-50 text-slate-700 font-semibold transition" onclick="selectMapLayer('esri_street')">
-                                    <span class="flex items-center gap-2.5">
-                                        <i class="bi bi-compass text-amber-600 text-sm"></i>
-                                        <span>Esri World Street</span>
-                                    </span>
-                                    <i class="bi bi-check-circle-fill text-blue-600 check-layer hidden text-sm" id="check-esri_street"></i>
-                                </button>
-                                <button type="button" class="w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-slate-50 text-slate-700 font-semibold transition" onclick="selectMapLayer('osm_hot')">
-                                    <span class="flex items-center gap-2.5">
-                                        <i class="bi bi-pin-map text-rose-600 text-sm"></i>
-                                        <span>OpenStreetMap (HOT)</span>
-                                    </span>
-                                    <i class="bi bi-check-circle-fill text-blue-600 check-layer hidden text-sm" id="check-osm_hot"></i>
-                                </button>
+                                <template x-for="layer in layers" :key="layer.key">
+                                    <button type="button" @click="selectMapLayer(layer.key)"
+                                        class="flex w-full items-center justify-between px-3.5 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50">
+                                        <span class="flex items-center gap-2.5">
+                                            <i class="bi text-sm" :class="layer.icon + ' ' + layer.tone"></i>
+                                            <span x-text="layer.label"></span>
+                                        </span>
+                                        <i class="bi bi-check-circle-fill text-sm text-blue-600" x-show="layerKey === layer.key"></i>
+                                    </button>
+                                </template>
                             </div>
                         </div>
 
-                        <button type="button" class="map-control-btn" onclick="openGeofenceGuide()" title="Panduan & Rekomendasi Radius Geofence">
+                        <button type="button" @click="$store.modals.open('#modalGeofenceGuide')" title="Panduan & Rekomendasi Radius Geofence"
+                            class="flex h-[38px] w-[38px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-md transition hover:-translate-y-px hover:bg-slate-50">
                             <i class="bi bi-question-circle text-base"></i>
                         </button>
                     </div>
 
-                    <!-- Leaflet Map Container -->
-                    <div id="map"></div>
-                    <div id="geoSaveToast"><span id="geoSaveToastIcon"><i class="bi bi-arrow-repeat"></i></span><span id="geoSaveToastText">Menyimpan...</span></div>
+                    <!-- Leaflet -->
+                    <div id="map" class="h-[420px] w-full bg-slate-100 md:h-[600px]"></div>
 
-                    <!-- Floating Helper Instructions -->
-                    <div class="map-badge-counter">
-                        <i class="bi bi-info-circle text-cyan-300 text-sm"></i>
+                    <!-- Toast autosave -->
+                    <div x-show="toast.show" x-cloak x-transition
+                        :class="toast.mode === 'success' ? 'bg-emerald-600/95' : (toast.mode === 'error' ? 'bg-red-600/95' : 'bg-slate-900/90')"
+                        class="absolute left-1/2 top-3.5 z-[1000] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold text-white shadow-xl">
+                        <i class="bi" :class="toast.mode === 'error' ? 'bi-exclamation-triangle' : (toast.mode === 'success' ? 'bi-check2-circle' : 'bi-arrow-repeat')"></i>
+                        <span x-text="toast.text"></span>
+                    </div>
+
+                    <!-- Petunjuk -->
+                    <div class="absolute bottom-4 left-4 z-[999] flex max-w-[calc(100%-2rem)] items-center gap-1.5 rounded-full bg-slate-900/90 px-4 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur">
+                        <i class="bi bi-info-circle shrink-0 text-sm text-cyan-300"></i>
                         <span><b>Seret pin biru</b> untuk pindah &amp; tersimpan otomatis | Seret <b>titik putih</b> di tepi lingkaran untuk ubah radius | Klik peta untuk titik baru</span>
                     </div>
                 </div>
 
-                <!-- Map Footer & Legend -->
-                <div class="px-4 py-3 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <span class="inline-flex items-center gap-1.5 font-medium text-slate-600">
-                            <span class="w-3 h-3 rounded-full bg-blue-600 shadow-sm inline-block"></span> Titik Terdaftar
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 font-medium text-slate-600">
-                            <span class="w-3 h-3 rounded-full bg-red-500 shadow-sm inline-block"></span> Titik Baru / Mode Edit
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 font-medium text-slate-600">
-                            <span class="w-3 h-3 rounded-full bg-blue-200 border border-blue-400 inline-block"></span> Radius Geofence
-                        </span>
+                <x-slot:footer>
+                    <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <span class="inline-flex items-center gap-1.5 font-medium"><span class="inline-block h-3 w-3 rounded-full bg-blue-600 shadow-xs"></span> Titik Terdaftar</span>
+                            <span class="inline-flex items-center gap-1.5 font-medium"><span class="inline-block h-3 w-3 rounded-full bg-red-500 shadow-xs"></span> Titik Baru / Mode Edit</span>
+                            <span class="inline-flex items-center gap-1.5 font-medium"><span class="inline-block h-3 w-3 rounded-full border border-blue-400 bg-blue-200"></span> Radius Geofence</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-slate-500">
+                            <i class="bi bi-shield-lock text-emerald-600"></i>
+                            <span>Guru hanya valid absen di dalam lingkaran radius.</span>
+                        </div>
                     </div>
-                    <div class="text-slate-500 flex items-center gap-1">
-                        <i class="bi bi-shield-lock text-emerald-600"></i>
-                        <span>Guru hanya valid absen di dalam lingkaran radius.</span>
-                    </div>
-                </div>
-            </div>
+                </x-slot:footer>
+            </x-ui.card>
         </div>
 
-        <!-- Right: Location List (Col 5 / 4) -->
+        <!-- Daftar lokasi -->
         <div class="lg:col-span-5 xl:col-span-4">
-            <div class="card-tw shadow-sm flex flex-col">
-                <!-- List Header -->
-                <div class="card-tw-header">
-                    <div>
-                        <h6 class="font-bold text-slate-800 text-sm md:text-base leading-tight">Daftar Titik Lokasi</h6>
-                        <span class="text-xs text-slate-500">Klik kartu untuk fokus ke peta</span>
-                    </div>
-                    <span class="badge-tw badge-primary font-bold" id="locCountBadge">
-                        {{ count($locations ?? []) }} Titik
-                    </span>
-                </div>
+            <x-ui.card title="Daftar Titik Lokasi" icon="bi-geo-alt" subtitle="Klik kartu untuk fokus ke peta"
+                bodyClass="p-3">
+                <x-slot:meta>
+                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700"
+                        x-text="filteredLocations.length + ' Titik'"></span>
+                </x-slot:meta>
 
-                <!-- List Search / Filter Box -->
-                <div class="p-3 bg-slate-50 border-b border-slate-100">
+                <x-slot:toolbar>
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                             <i class="bi bi-funnel text-xs"></i>
                         </div>
-                        <input type="text" id="locFilterInput" 
-                            class="form-control-tw pl-8 pr-8 text-xs py-2 w-full bg-white" 
-                            placeholder="Filter nama lokasi atau keterangan..." 
-                            oninput="filterLocationList(this.value)">
-                        <button type="button" id="btnClearListFilter" class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-xs" onclick="clearListFilter()">
+                        <input type="text" x-model="filterQuery" placeholder="Filter nama lokasi atau keterangan..." autocomplete="off"
+                            class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs text-slate-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="button" x-show="filterQuery !== ''" x-cloak @click="filterQuery = ''"
+                            class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-xs text-slate-400 hover:text-slate-600">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-                </div>
+                </x-slot:toolbar>
 
-                <!-- List Items Scroll Container -->
-                <div class="location-scroll-container p-3 space-y-2.5" id="locationListContainer">
-                    <?php if (empty($locations)): ?>
-                        <div class="p-8 text-center" id="emptyLocNotice">
-                            <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-500 mx-auto flex items-center justify-center text-2xl mb-3 shadow-inner">
+                <div class="max-h-[575px] space-y-2.5 overflow-y-auto">
+                    <template x-if="locations.length === 0">
+                        <div class="p-8 text-center">
+                            <div class="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-2xl text-blue-500 shadow-inner">
                                 <i class="bi bi-geo-alt"></i>
                             </div>
-                            <h6 class="font-bold text-slate-700 text-sm mb-1">Belum Ada Titik Lokasi</h6>
-                            <p class="text-xs text-slate-400 mb-4 max-w-xs mx-auto leading-relaxed">
+                            <h6 class="mb-1 text-sm font-bold text-slate-700">Belum Ada Titik Lokasi</h6>
+                            <p class="mx-auto mb-4 max-w-xs text-xs leading-relaxed text-slate-400">
                                 Tambahkan titik lokasi gedung sekolah agar sistem geofence presensi dapat bekerja.
                             </p>
-                            <button class="btn-tw btn-tw-sm btn-primary shadow-sm" onclick="addLocation()">
-                                <i class="bi bi-plus-lg mr-1"></i> Tambah Titik Pertama
+                            <button type="button" @click="addLocation()"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700">
+                                <i class="bi bi-plus-lg"></i> Tambah Titik Pertama
                             </button>
                         </div>
-                    <?php else: ?>
-                        <?php foreach ($locations as $loc): ?>
-                            <div class="loc-item card-tw p-3.5 cursor-pointer bg-white border border-slate-200/80 rounded-xl hover:shadow-md" 
-                                id="loc-card-{{ $loc->id }}"
-                                onclick="panTo({{ (float)$loc->lat }}, {{ (float)$loc->lng }}, {{ (int)$loc->radius_meter }}, {{ $loc->id }})">
-                                
-                                <div class="flex items-start justify-between gap-2.5">
-                                    <div class="min-w-0 flex-1">
-                                        <!-- Title -->
-                                        <div class="font-bold text-slate-800 text-sm leading-snug loc-title flex items-center gap-1.5">
-                                            <i class="bi bi-building text-blue-600 text-xs"></i>
-                                            <span class="truncate">{{ $loc->nama_lokasi }}</span>
-                                        </div>
+                    </template>
 
-                                        <!-- Badges: Utama, Radius & Coordinates -->
-                                        <div class="flex items-center gap-1.5 mt-2 flex-wrap">
-                                            <?php if ((int) ($loc->is_utama ?? 0) === 1): ?>
-                                                <span class="badge-tw text-[10px] py-0.5 px-2 font-semibold flex items-center gap-1 bg-amber-100 text-amber-800">
-                                                    <i class="bi bi-star-fill text-[9px]"></i> Lokasi Utama
-                                                </span>
-                                            <?php endif; ?>
-                                            <span class="badge-tw badge-primary text-[10px] py-0.5 px-2 font-semibold flex items-center gap-1">
-                                                <i class="bi bi-bullseye text-[9px]"></i> {{ $loc->radius_meter }}m
-                                            </span>
-                                            <span class="badge-tw badge-secondary text-[10px] py-0.5 px-2 font-mono text-slate-600">
-                                                {{ number_format((float)$loc->lat, 5) }}, {{ number_format((float)$loc->lng, 5) }}
-                                            </span>
-                                        </div>
-
-                                        <!-- Description -->
-                                        <?php if (!empty($loc->keterangan)): ?>
-                                            <p class="text-[11px] text-slate-500 mt-1.5 line-clamp-2 loc-desc leading-relaxed">
-                                                {{ $loc->keterangan }}
-                                            </p>
-                                        <?php endif; ?>
+                    <template x-for="loc in filteredLocations" :key="loc.id">
+                        <div @click="focusLocation(loc)"
+                            class="cursor-pointer rounded-xl border border-slate-200/80 border-l-4 bg-white p-3.5 transition-all hover:shadow-md"
+                            :class="activeId === loc.id ? 'border-l-blue-600 bg-blue-50 shadow-sm' : 'border-l-transparent'">
+                            <div class="flex items-start justify-between gap-2.5">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5 text-sm font-bold leading-snug text-slate-800">
+                                        <i class="bi bi-building text-xs text-blue-600"></i>
+                                        <span class="truncate" x-text="loc.nama_lokasi"></span>
                                     </div>
 
-                                    <!-- Action Dropdown / Buttons -->
-                                    <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                                        <button type="button"
-                                            class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition {{ (int) ($loc->is_utama ?? 0) === 1 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-600' }}"
-                                            title="{{ (int) ($loc->is_utama ?? 0) === 1 ? 'Lepas penandaan lokasi utama' : 'Jadikan lokasi utama' }}"
-                                            onclick="toggleUtama({{ (int) $loc->id }}, {{ (int) ($loc->is_utama ?? 0) === 1 ? 0 : 1 }})">
-                                            <i class="bi {{ (int) ($loc->is_utama ?? 0) === 1 ? 'bi-star-fill' : 'bi-star' }}"></i>
-                                        </button>
-                                        <a href="https://www.google.com/maps?q={{ $loc->lat }},{{ $loc->lng }}" 
-                                            target="_blank" rel="noopener noreferrer"
-                                            class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 flex items-center justify-center text-xs transition" 
-                                            title="Buka di Google Maps">
-                                            <i class="bi bi-box-arrow-up-right"></i>
-                                        </a>
-                                        <button type="button" 
-                                            class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 flex items-center justify-center text-xs transition" 
-                                            title="Edit Titik Lokasi"
-                                            onclick='editLocation({{ json_encode($loc) }})'>
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                        <button type="button" 
-                                            class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center text-xs transition" 
-                                            title="Hapus Titik Lokasi"
-                                            onclick="deleteLocation({{ $loc->id }}, '{{ $loc->nama_lokasi }}')">
-                                            <i class="bi bi-trash3"></i>
-                                        </button>
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span x-show="loc.is_utama === 1" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                            <i class="bi bi-star-fill text-[9px]"></i> Lokasi Utama
+                                        </span>
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                            <i class="bi bi-bullseye text-[9px]"></i> <span x-text="loc.radius_meter + 'm'"></span>
+                                        </span>
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600"
+                                            x-text="coordLabel(loc)"></span>
                                     </div>
+
+                                    <p x-show="loc.keterangan" x-cloak class="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-slate-500" x-text="loc.keterangan"></p>
+                                </div>
+
+                                <div class="flex shrink-0 items-center gap-1">
+                                    <button type="button" @click.stop="toggleUtama(loc)"
+                                        :class="loc.is_utama === 1 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-600'"
+                                        :title="loc.is_utama === 1 ? 'Lepas penandaan lokasi utama' : 'Jadikan lokasi utama'"
+                                        class="flex h-7 w-7 items-center justify-center rounded-lg text-xs transition">
+                                        <i class="bi" :class="loc.is_utama === 1 ? 'bi-star-fill' : 'bi-star'"></i>
+                                    </button>
+                                    <a :href="mapsUrl(loc)" target="_blank" rel="noopener noreferrer"
+                                        class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
+                                        title="Buka di Google Maps">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <button type="button" @click.stop="editLocation(loc)" title="Edit Titik Lokasi"
+                                        class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-500 transition hover:bg-blue-50 hover:text-blue-600">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button" @click.stop="deleteLocation(loc)" title="Hapus Titik Lokasi"
+                                        class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-500 transition hover:bg-red-50 hover:text-red-600">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        </div>
+                    </template>
+
+                    <div x-show="locations.length > 0 && filteredLocations.length === 0" x-cloak class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                        <i class="bi bi-search mb-2 block text-3xl text-slate-300"></i>
+                        <p class="text-sm font-semibold text-slate-500">Tidak ada lokasi yang cocok</p>
+                        <button type="button" @click="filterQuery = ''" class="mt-2 text-xs text-blue-500 hover:underline">Reset Filter</button>
+                    </div>
                 </div>
 
-                <!-- List Footer Info -->
-                <div class="p-3 bg-slate-50/80 border-t border-slate-100 text-center text-xs text-slate-400">
-                    Presensi otomatis mencocokkan ke titik terdekat dalam radius.
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-</div>
-
-<!-- Modal Form Lokasi (Tambah & Edit) -->
-<div id="modalLocation" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-lg">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <form id="formLocation">
-                @csrf
-                <input type="hidden" name="id" id="id">
-
-                <!-- Modal Header -->
-                <div class="modal-header-tw border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
-                            <i class="bi bi-geo-alt-fill"></i>
-                        </div>
-                        <div>
-                            <h5 class="font-bold text-slate-800 text-base leading-tight" id="modalTitle">Tambah Titik Lokasi Baru</h5>
-                            <span class="text-xs text-slate-400" id="modalSubtitle">Tentukan koordinat GPS dan batas radius presensi</span>
-                        </div>
+                <x-slot:footer>
+                    <div class="text-center text-xs text-slate-400">
+                        Presensi otomatis mencocokkan ke titik terdekat dalam radius.
                     </div>
-                    <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition" data-ui-dismiss="modal">
-                        <i class="bi bi-x-lg text-sm"></i>
-                    </button>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="modal-body-tw p-6 space-y-4">
-                    
-                    <!-- Nama Lokasi -->
-                    <div>
-                        <label class="form-label-tw block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                            Nama Gedung / Lokasi <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                <i class="bi bi-building"></i>
-                            </div>
-                            <input type="text" class="form-control-tw pl-10 w-full" name="nama_lokasi" id="nama_lokasi" required
-                                placeholder="Contoh: Gedung Utama SMAN 1 / Kampus A...">
-                        </div>
-                    </div>
-
-                    <!-- Coordinates Grid -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="form-label-tw text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                Koordinat GPS <span class="text-red-500">*</span>
-                            </label>
-                            <span class="text-[11px] text-slate-400">Geser pin merah di peta untuk mengubah</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-[11px] text-slate-500 block mb-1">Latitude (Garis Lintang)</label>
-                                <input type="text" class="form-control-tw font-mono text-xs bg-slate-50" name="lat" id="lat" required readonly>
-                            </div>
-                            <div>
-                                <label class="text-[11px] text-slate-500 block mb-1">Longitude (Garis Bujur)</label>
-                                <input type="text" class="form-control-tw font-mono text-xs bg-slate-50" name="lng" id="lng" required readonly>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 mt-2">
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-xs py-1 px-2 text-slate-600" onclick="useCurrentCenterMap()">
-                                <i class="bi bi-bullseye mr-1 text-blue-600"></i> Ambil Titik Tengah Peta
-                            </button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-xs py-1 px-2 text-slate-600" onclick="locateCurrentGPS()">
-                                <i class="bi bi-crosshair mr-1 text-emerald-600"></i> Deteksi GPS Saya
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Radius Geofence Section -->
-                    <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="form-label-tw text-xs font-bold text-slate-700 uppercase tracking-wider block leading-tight">
-                                    Radius Toleransi Presensi
-                                </label>
-                                <span class="text-[11px] text-slate-400">Jarak lingkaran di mana guru diperbolehkan absen</span>
-                            </div>
-                            <span class="badge-tw badge-primary font-bold text-xs px-2.5 py-1" id="radiusBadge">
-                                50 Meter
-                            </span>
-                        </div>
-
-                        <!-- Range Slider & Number Input -->
-                        <div class="flex items-center gap-3">
-                            <input type="range" class="radius-range-slider flex-1" id="radiusRange" 
-                                min="10" max="1000" step="5" value="50" oninput="handleRadiusRange(this.value)">
-                            <div class="w-24 shrink-0 relative">
-                                <input type="number" class="form-control-tw text-xs py-1.5 pr-7 text-center font-bold" 
-                                    name="radius_meter" id="radius_meter" value="50" min="10" max="5000" required 
-                                    oninput="handleRadiusInput(this.value)">
-                                <span class="absolute inset-y-0 right-2 flex items-center text-[11px] text-slate-400 pointer-events-none">m</span>
-                            </div>
-                        </div>
-
-                        <!-- Quick Presets -->
-                        <div class="flex items-center gap-1.5 flex-wrap pt-1">
-                            <span class="text-[11px] text-slate-400 font-medium mr-1">Preset:</span>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-[11px] py-0.5 px-2 rounded-lg" onclick="setRadiusPreset(25)">25m</button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-outline-primary text-[11px] py-0.5 px-2 rounded-lg font-semibold" onclick="setRadiusPreset(50)">50m (Standar)</button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-[11px] py-0.5 px-2 rounded-lg" onclick="setRadiusPreset(100)">100m (Kampus)</button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-[11px] py-0.5 px-2 rounded-lg" onclick="setRadiusPreset(200)">200m (Luas)</button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light border text-[11px] py-0.5 px-2 rounded-lg" onclick="setRadiusPreset(500)">500m (Kawasan)</button>
-                        </div>
-                    </div>
-
-                    <!-- Keterangan -->
-                    <div>
-                        <label class="form-label-tw block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                            Keterangan / Catatan Tambahan (Opsional)
-                        </label>
-                        <textarea class="form-control-tw w-full text-xs" name="keterangan" id="keterangan" rows="2"
-                            placeholder="Contoh: Gedung utama, lapangan upacara, dan area parkir guru"></textarea>
-                    </div>
-
-                    <!-- Lokasi Utama -->
-                    <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
-                        <label class="flex items-start gap-2.5 cursor-pointer">
-                            <input type="checkbox" name="is_utama" id="is_utama" value="1"
-                                class="mt-0.5 w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-400">
-                            <span>
-                                <span class="block text-xs font-bold text-amber-900">Jadikan sebagai Lokasi Utama</span>
-                                <span class="block text-[11px] text-amber-800/90 mt-0.5 leading-relaxed">
-                                    Hanya satu lokasi yang bisa menjadi utama. Lokasi ini dipakai otomatis sebagai
-                                    koordinat saat admin mengisi absen manual, karena input manual tidak membawa GPS.
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="modal-footer-tw border-t border-slate-100 px-6 py-4 bg-slate-50 flex items-center justify-end gap-2">
-                    <button type="button" class="btn-tw btn-light" data-ui-dismiss="modal">
-                        Batal
-                    </button>
-                    <button type="submit" class="btn-tw btn-primary shadow-sm" id="btnSave">
-                        <i class="bi bi-save mr-1.5"></i> Simpan Titik Lokasi
-                    </button>
-                </div>
-            </form>
+                </x-slot:footer>
+            </x-ui.card>
         </div>
     </div>
-</div>
 
-<!-- Modal Panduan Geofence Presensi -->
-<div id="modalGeofenceGuide" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-lg">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div class="modal-header-tw border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
-                        <i class="bi bi-question-circle-fill"></i>
-                    </div>
-                    <div>
-                        <h5 class="font-bold text-slate-800 text-base leading-tight">Panduan Geofence Presensi</h5>
-                        <span class="text-xs text-slate-400">Prinsip kerja dan rekomendasi batas radius</span>
+    <!-- Modal form lokasi -->
+    <x-ui.modal id="modalLocation" size="max-w-lg">
+        <x-slot:header>
+            <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4">
+                <div class="flex min-w-0 items-center gap-2.5">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-lg text-blue-600">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <h2 class="truncate text-sm font-bold text-slate-800" x-text="form.id ? 'Edit Lokasi Kantor' : 'Tambah Titik Lokasi Baru'"></h2>
+                        <p class="truncate text-xs text-slate-400" x-text="form.id ? 'Perbarui nama gedung, koordinat, atau radius geofence' : 'Tentukan koordinat GPS dan batas radius presensi'"></p>
                     </div>
                 </div>
-                <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition" data-ui-dismiss="modal">
+                <button type="button" @click="closeModal()" aria-label="Tutup"
+                    class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
                     <i class="bi bi-x-lg text-sm"></i>
                 </button>
             </div>
-            <div class="modal-body-tw p-6 space-y-4 text-xs text-slate-600 leading-relaxed">
-                <div class="p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl">
-                    <h6 class="font-bold text-blue-800 text-xs mb-1 flex items-center gap-1.5">
-                        <i class="bi bi-shield-check"></i> Apa itu Geofence Presensi?
-                    </h6>
-                    <p class="text-blue-900/80">
-                        Geofence adalah pembatas geografis virtual berbentuk lingkaran radius di sekitar titik koordinat kantor/sekolah. Saat GTK melakukan presensi, browser mengirimkan koordinat GPS perangkat mereka.
-                    </p>
+        </x-slot:header>
+
+        <form x-ref="locationForm" @submit.prevent="saveLocation()" class="flex min-h-0 flex-col">
+            @csrf
+            <div class="space-y-4 overflow-y-auto p-5">
+                <div>
+                    <label for="nama_lokasi" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Nama Gedung / Lokasi <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <input type="text" id="nama_lokasi" x-model="form.nama_lokasi" name="nama_lokasi" required
+                            placeholder="Contoh: Gedung Utama SMAN 1 / Kampus A..."
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3.5 text-sm outline-hidden transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
                 </div>
 
-                <div class="space-y-2">
-                    <h6 class="font-bold text-slate-800 text-xs">Rekomendasi Penentuan Radius:</h6>
-                    <ul class="list-disc pl-4 space-y-1.5 text-slate-600">
-                        <li><strong>50 – 100 Meter (Sangat Dianjurkan)</strong>: Mengakomodasi ketidakakuratan GPS smartphone saat berada di dalam ruangan/gedung beton bertingkat (GPS drift 10–25m).</li>
-                        <li><strong>25 Meter</strong>: Hanya cocok untuk titik kecil atau presensi di ruang terbuka (lapangan/pos satpam).</li>
-                        <li><strong>150 – 300 Meter</strong>: Cocok untuk kompleks sekolah atau kampus luas dengan banyak fakultas atau area parkir terpisah.</li>
-                    </ul>
+                <div>
+                    <div class="mb-1.5 flex items-center justify-between">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                            Koordinat GPS <span class="text-rose-500">*</span>
+                        </label>
+                        <span class="text-[11px] text-slate-400">Geser pin merah di peta untuk mengubah</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="lat" class="mb-1 block text-[11px] text-slate-500">Latitude (Garis Lintang)</label>
+                            <input type="text" id="lat" x-model="form.lat" name="lat" required readonly
+                                class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 font-mono text-xs text-slate-700">
+                        </div>
+                        <div>
+                            <label for="lng" class="mb-1 block text-[11px] text-slate-500">Longitude (Garis Bujur)</label>
+                            <input type="text" id="lng" x-model="form.lng" name="lng" required readonly
+                                class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 font-mono text-xs text-slate-700">
+                        </div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between gap-2">
+                        <button type="button" @click="useCurrentCenterMap()"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50">
+                            <i class="bi bi-bullseye text-blue-600"></i> Ambil Titik Tengah Peta
+                        </button>
+                        <button type="button" @click="locateCurrentGPS()"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-50">
+                            <i class="bi bi-crosshair text-emerald-600"></i> Deteksi GPS Saya
+                        </button>
+                    </div>
                 </div>
 
-                <div class="p-3.5 bg-amber-50/70 border border-amber-200/70 rounded-xl">
-                    <h6 class="font-bold text-amber-800 text-xs mb-1 flex items-center gap-1.5">
-                        <i class="bi bi-exclamation-triangle"></i> Pengecualian Validasi:
-                    </h6>
-                    <p class="text-amber-900/80">
-                        GTK yang ditugaskan <strong>Dinas Luar</strong> atau bekerja dalam mode <strong>WFH (Work From Home)</strong> otomatis dikecualikan dari pengecekan geofence radius ini.
-                    </p>
+                <div class="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold uppercase leading-tight tracking-wider text-slate-700">Radius Toleransi Presensi</label>
+                            <span class="text-[11px] text-slate-400">Jarak lingkaran di mana guru diperbolehkan absen</span>
+                        </div>
+                        <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700" x-text="radiusLabel"></span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <input type="range" min="10" max="1000" step="5" x-model.number="form.radius_meter"
+                            @input="onRadiusRange()"
+                            class="radius-range-slider flex-1">
+                        <div class="relative w-24 shrink-0">
+                            <input type="number" id="radius_meter" name="radius_meter" x-model.number="form.radius_meter"
+                                min="10" max="5000" required @input="onRadiusInput()"
+                                class="w-full rounded-xl border border-slate-200 bg-white py-1.5 pr-7 text-center text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <span class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-slate-400">m</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span class="mr-1 text-[11px] font-medium text-slate-400">Preset:</span>
+                        <button type="button" @click="setRadiusPreset(25)"
+                            class="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100">25m</button>
+                        <button type="button" @click="setRadiusPreset(50)"
+                            class="rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-100">50m (Standar)</button>
+                        <button type="button" @click="setRadiusPreset(100)"
+                            class="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100">100m (Kampus)</button>
+                        <button type="button" @click="setRadiusPreset(200)"
+                            class="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100">200m (Luas)</button>
+                        <button type="button" @click="setRadiusPreset(500)"
+                            class="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 transition-colors hover:bg-slate-100">500m (Kawasan)</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="keterangan" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Keterangan / Catatan Tambahan (Opsional)
+                    </label>
+                    <textarea id="keterangan" name="keterangan" x-model="form.keterangan" rows="2"
+                        placeholder="Contoh: Gedung utama, lapangan upacara, dan area parkir guru"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs outline-hidden transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"></textarea>
+                </div>
+
+                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                    <label class="flex cursor-pointer items-start gap-2.5">
+                        <input type="checkbox" id="is_utama" name="is_utama" value="1" x-model="form.is_utama"
+                            class="mt-0.5 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-400">
+                        <span>
+                            <span class="block text-xs font-bold text-amber-900">Jadikan sebagai Lokasi Utama</span>
+                            <span class="mt-0.5 block text-[11px] leading-relaxed text-amber-800/90">
+                                Hanya satu lokasi yang bisa menjadi utama. Lokasi ini dipakai otomatis sebagai
+                                koordinat saat admin mengisi absen manual, karena input manual tidak membawa GPS.
+                            </span>
+                        </span>
+                    </label>
                 </div>
             </div>
-            <div class="modal-footer-tw border-t border-slate-100 px-6 py-3 bg-slate-50 flex justify-end">
-                <button type="button" class="btn-tw btn-primary text-xs" data-ui-dismiss="modal">Mengerti</button>
+
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+                <button type="button" @click="closeModal()"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                <button type="submit" :disabled="saving"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                    <span x-show="saving" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                    <i x-show="!saving" class="bi bi-save"></i> Simpan Titik Lokasi
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
+
+    <!-- Modal panduan -->
+    <x-ui.modal id="modalGeofenceGuide" title="Panduan Geofence Presensi" icon="bi-question-circle-fill" tone="blue" size="max-w-lg">
+        <div class="space-y-4 overflow-y-auto p-5 text-xs leading-relaxed text-slate-600">
+            <div class="rounded-xl border border-blue-200/70 bg-blue-50/70 p-3.5">
+                <h6 class="mb-1 flex items-center gap-1.5 text-xs font-bold text-blue-800">
+                    <i class="bi bi-shield-check"></i> Apa itu Geofence Presensi?
+                </h6>
+                <p class="text-blue-900/80">
+                    Geofence adalah pembatas geografis virtual berbentuk lingkaran radius di sekitar titik koordinat kantor/sekolah. Saat GTK melakukan presensi, browser mengirimkan koordinat GPS perangkat mereka.
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <h6 class="text-xs font-bold text-slate-800">Rekomendasi Penentuan Radius:</h6>
+                <ul class="list-disc space-y-1.5 pl-4 text-slate-600">
+                    <li><strong>50 – 100 Meter (Sangat Dianjurkan)</strong>: Mengakomodasi ketidakakuratan GPS smartphone saat berada di dalam ruangan/gedung beton bertingkat (GPS drift 10–25m).</li>
+                    <li><strong>25 Meter</strong>: Hanya cocok untuk titik kecil atau presensi di ruang terbuka (lapangan/pos satpam).</li>
+                    <li><strong>150 – 300 Meter</strong>: Cocok untuk kompleks sekolah atau kampus luas dengan banyak fakultas atau area parkir terpisah.</li>
+                </ul>
+            </div>
+
+            <div class="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3.5">
+                <h6 class="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                    <i class="bi bi-exclamation-triangle"></i> Pengecualian Validasi:
+                </h6>
+                <p class="text-amber-900/80">
+                    GTK yang ditugaskan <strong>Dinas Luar</strong> atau bekerja dalam mode <strong>WFH (Work From Home)</strong> otomatis dikecualikan dari pengecekan geofence radius ini.
+                </p>
             </div>
         </div>
-    </div>
-</div>
 
+        <div class="flex justify-end border-t border-slate-100 bg-slate-50 px-5 py-3">
+            <button type="button" @click="$store.modals.close('#modalGeofenceGuide')"
+                class="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700">Mengerti</button>
+        </div>
+    </x-ui.modal>
+</div>
+@endsection
+
+@section('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-    let map, tempMarker, tempCircle;
-    let locationLayers = {};
-    let locations = {!! json_script($locations ?? []) !!};
-    let activeLayerKey = localStorage.getItem('presensi_admin_map_layer') || 'google_street';
-    let baseLayers = {};
-    let currentActiveLayer = null;
+document.addEventListener('alpine:init', () => {
+    const state = {
+        map: null,
+        locationLayers: {},
+        tempMarker: null,
+        tempCircle: null,
+        autoSaveTimers: {},
+        toastTimer: null,
+        bluePin: null,
+        redPin: null,
+        baseLayers: {},
+        currentLayer: null,
+    };
 
-    // Default coordinate (Monas Jakarta fallback)
-    const defaultLat = -6.175392;
-    const defaultLng = 106.827153;
+    Alpine.data('lokasiPage', () => ({
+        config: { csrf: '', urls: {}, locations: [], defaults: { lat: -6.175392, lng: 106.827153, radius: 50 } },
 
-    // Custom Leaflet SVG Pin Generator
-    function createPinIcon(colorClass) {
-        return L.divIcon({
-            className: 'custom-leaflet-pin ' + colorClass,
-            html: `
-                <div class="pin-pulse-ring"></div>
-                <div class="pin-body">
-                    <i class="bi bi-geo-alt-fill"></i>
-                </div>
-            `,
-            iconSize: [34, 34],
-            iconAnchor: [17, 34],
-            popupAnchor: [0, -32]
-        });
-    }
+        locations: [],
+        filterQuery: '',
+        activeId: null,
+        layerOpen: false,
+        layerKey: 'google_street',
+        searchQuery: '',
+        searching: false,
+        modalOpen: false,
+        saving: false,
 
-    const bluePinIcon = createPinIcon('pin-blue');
-    const redPinIcon  = createPinIcon('pin-red');
+        toast: { show: false, text: '', mode: '' },
 
-    $(document).ready(function () {
-        initMap();
+        layers: [
+            { key: 'google_street', label: 'Google Maps (Jalan)', icon: 'bi-map-fill', tone: 'text-blue-600' },
+            { key: 'google_hybrid', label: 'Google Satelit (Hybrid)', icon: 'bi-globe-americas', tone: 'text-emerald-600' },
+            { key: 'esri_street', label: 'Esri World Street', icon: 'bi-compass', tone: 'text-amber-600' },
+            { key: 'osm_hot', label: 'OpenStreetMap (HOT)', icon: 'bi-pin-map', tone: 'text-rose-600' },
+        ],
 
-        $('#formLocation').submit(function (e) {
-            e.preventDefault();
-            saveLocation();
-        });
+        form: { id: '', nama_lokasi: '', lat: '', lng: '', radius_meter: 50, keterangan: '', is_utama: false },
 
-        // Trigger map resize on window resize
-        window.addEventListener('resize', () => {
-            if (map) map.invalidateSize();
-        });
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
 
-        // Clean up temp markers when modal is hidden
-        $('#modalLocation').on('hidden.bs.modal', function () {
-            // If we're closing and not saving, remove temporary edit marker
-            if (tempMarker) map.removeLayer(tempMarker);
-            if (tempCircle) map.removeLayer(tempCircle);
-            tempMarker = null;
-            tempCircle = null;
-        });
+            this.config = Object.assign({}, this.config, cfg);
+            this.config.urls = cfg.urls || {};
+            this.config.defaults = Object.assign({}, this.config.defaults, cfg.defaults || {});
+            this.locations = cfg.locations || [];
 
-        // Tutup menu dropdown layer saat klik di luar
-        $(document).on('click', function (e) {
-            if (!$(e.target).closest('#mapLayerDropdown, #btnLayerToggle').length) {
-                $('#mapLayerDropdown').addClass('hidden');
+            try {
+                const saved = localStorage.getItem('presensi_admin_map_layer');
+
+                if (saved) this.layerKey = saved;
+            } catch (error) {
+                /* penyimpanan lokal opsional */
             }
-        });
-    });
 
-    function initMap() {
-        // Multi-Provider Base Layers (Bebas Blokir 403 OSM Policy):
-        // 1. Google Maps (Roadmap) - Peta jalan resmi, super cepat & akurat di Indonesia
-        // 2. Google Maps (Hybrid)  - Foto satelit dengan batas jalan & nama gedung
-        // 3. Esri World Street     - Peta topografi & jalan Esri ArcGIS
-        // 4. OpenStreetMap (HOT)   - Tile server kemanusiaan OSM France (bebas blokir OSM Foundation)
-        baseLayers = {
-            google_street: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                subdomains: ['0', '1', '2', '3'],
-                maxZoom: 20,
-                attribution: '&copy; Google Maps'
-            }),
-            google_hybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                subdomains: ['0', '1', '2', '3'],
-                maxZoom: 20,
-                attribution: '&copy; Google Maps Satelit'
-            }),
-            esri_street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: '&copy; Esri, Garmin, USGS'
-            }),
-            osm_hot: L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-                subdomains: 'abc',
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors, Humanitarian OpenStreetMap Team'
-            })
-        };
+            if (!this.layers.some((layer) => layer.key === this.layerKey)) {
+                this.layerKey = 'google_street';
+            }
 
-        // Otomatis fallback jika ada kendala tile pada provider tertentu
-        Object.keys(baseLayers).forEach(key => {
-            baseLayers[key].on('tileerror', function () {
-                if (activeLayerKey !== 'google_hybrid' && activeLayerKey !== 'google_street') {
-                    console.warn(`Tile error on ${activeLayerKey}, auto-fallback to Google Street`);
-                    selectMapLayer('google_street');
-                }
+            this.$nextTick(() => this.initMap());
+
+            window.addEventListener('resize', () => {
+                if (state.map) state.map.invalidateSize();
             });
-        });
+        },
 
-        // Validasi layer aktif tersimpan
-        if (!baseLayers[activeLayerKey]) {
-            activeLayerKey = 'google_street';
-        }
-        currentActiveLayer = baseLayers[activeLayerKey];
+        get filteredLocations() {
+            const query = this.filterQuery.trim().toLowerCase();
 
-        // Initial center
-        let center = [defaultLat, defaultLng];
-        let zoom = 15;
-        if (locations && locations.length > 0) {
-            center = [parseFloat(locations[0].lat), parseFloat(locations[0].lng)];
-        }
+            if (query === '') return this.locations;
 
-        map = L.map('map', {
-            center: center,
-            zoom: zoom,
-            layers: [currentActiveLayer],
-            zoomControl: false
-        });
+            return this.locations.filter((loc) => {
+                return (loc.nama_lokasi || '').toLowerCase().includes(query)
+                    || (loc.keterangan || '').toLowerCase().includes(query);
+            });
+        },
 
-        // Place zoom control at bottom-right
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        get radiusLabel() {
+            return this.form.radius_meter + ' Meter';
+        },
 
-        // Add Scale
-        L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+        /* ── Leaflet ──────────────────────────────── */
 
-        // Update indikator centang di UI dropdown
-        updateLayerCheckUI(activeLayerKey);
+        createPinIcon(colorClass) {
+            return L.divIcon({
+                className: 'custom-leaflet-pin ' + colorClass,
+                html: '<div class="pin-pulse-ring"></div><div class="pin-body"><i class="bi bi-geo-alt-fill"></i></div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 34],
+                popupAnchor: [0, -32],
+            });
+        },
 
-        // Render Existing Location Markers
-        renderAllLocations();
+        initMap() {
+            const el = document.getElementById('map');
 
-        // Map Click Event -> Drops draggable temp marker and opens modal
-        map.on('click', function (e) {
-            setTempMarker(e.latlng.lat, e.latlng.lng);
-            openModalAdd(e.latlng.lat, e.latlng.lng);
-        });
+            if (!el || typeof L === 'undefined') return;
 
-        // If multiple locations, fit bounds
-        if (locations && locations.length > 1) {
-            fitAllMarkers();
-        }
-    }
+            state.bluePin = this.createPinIcon('pin-blue');
+            state.redPin = this.createPinIcon('pin-red');
 
-    function toggleLayerMenu(e) {
-        if (e) e.stopPropagation();
-        $('#mapLayerDropdown').toggleClass('hidden');
-    }
+            state.baseLayers = {
+                google_street: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    subdomains: ['0', '1', '2', '3'],
+                    maxZoom: 20,
+                    attribution: '&copy; Google Maps',
+                }),
+                google_hybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    subdomains: ['0', '1', '2', '3'],
+                    maxZoom: 20,
+                    attribution: '&copy; Google Maps Satelit',
+                }),
+                esri_street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19,
+                    attribution: '&copy; Esri, Garmin, USGS',
+                }),
+                osm_hot: L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+                    subdomains: 'abc',
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors, Humanitarian OpenStreetMap Team',
+                }),
+            };
 
-    function selectMapLayer(layerKey) {
-        if (!baseLayers[layerKey] || layerKey === activeLayerKey && map.hasLayer(baseLayers[layerKey])) {
-            $('#mapLayerDropdown').addClass('hidden');
-            return;
-        }
+            Object.keys(state.baseLayers).forEach((key) => {
+                state.baseLayers[key].on('tileerror', () => {
+                    if (this.layerKey !== 'google_hybrid' && this.layerKey !== 'google_street') {
+                        console.warn('Tile error on ' + this.layerKey + ', auto-fallback to Google Street');
+                        this.selectMapLayer('google_street');
+                    }
+                });
+            });
 
-        if (currentActiveLayer) {
-            map.removeLayer(currentActiveLayer);
-        }
+            state.currentLayer = state.baseLayers[this.layerKey];
 
-        currentActiveLayer = baseLayers[layerKey];
-        map.addLayer(currentActiveLayer);
-        activeLayerKey = layerKey;
-        localStorage.setItem('presensi_admin_map_layer', layerKey);
+            let center = [this.config.defaults.lat, this.config.defaults.lng];
 
-        updateLayerCheckUI(layerKey);
-        $('#mapLayerDropdown').addClass('hidden');
-    }
+            if (this.locations.length > 0) {
+                center = [this.locations[0].lat, this.locations[0].lng];
+            }
 
-    function updateLayerCheckUI(layerKey) {
-        $('.check-layer').addClass('hidden');
-        $('#check-' + layerKey).removeClass('hidden');
+            state.map = L.map(el, {
+                center,
+                zoom: 15,
+                layers: [state.currentLayer],
+                zoomControl: false,
+            });
 
-        if (layerKey.includes('hybrid') || layerKey.includes('sat')) {
-            $('#btnLayerToggle').addClass('bg-emerald-50 text-emerald-600 border-emerald-300');
-        } else {
-            $('#btnLayerToggle').removeClass('bg-emerald-50 text-emerald-600 border-emerald-300');
-        }
-    }
+            L.control.zoom({ position: 'bottomright' }).addTo(state.map);
+            L.control.scale({ imperial: false, position: 'bottomright' }).addTo(state.map);
 
-    function fitAllMarkers() {
-        if (locations && locations.length > 0) {
-            const bounds = L.latLngBounds(locations.map(l => [parseFloat(l.lat), parseFloat(l.lng)]));
-            map.fitBounds(bounds, { padding: [60, 60] });
-        } else {
-            map.setView([defaultLat, defaultLng], 15);
-        }
-    }
+            this.renderAllLocations();
 
-    // ── Realtime direct-edit helpers (drag pin & resize radius → autosave) ──
-    let autoSaveTimer = {};
-    function showGeoToast(text, mode) {
-        const t = $('#geoSaveToast');
-        if (!t.length) return;
-        $('#geoSaveToastText').text(text);
-        t.removeClass('success error');
-        if (mode) t.addClass(mode);
-        t.addClass('show');
-        clearTimeout(window._geoToastTO);
-        window._geoToastTO = setTimeout(() => t.removeClass('show'), mode ? 2200 : 999999);
-    }
-    function hideGeoToast(successText) {
-        const t = $('#geoSaveToast');
-        if (!t.length) return;
-        if (successText) {
-            $('#geoSaveToastText').text(successText);
-            t.addClass('show success');
-            clearTimeout(window._geoToastTO);
-            window._geoToastTO = setTimeout(() => t.removeClass('show success'), 2000);
-        } else {
-            t.removeClass('show');
-        }
-    }
-    function refreshPopupLatLng(id) {
-        const L0 = locationLayers[id];
-        if (!L0) return;
-        const p = L0.marker.getLatLng();
-        const r = Math.round(L0.circle.getRadius());
-        const el = document.getElementById('pp-coord-' + id);
-        if (el) el.textContent = p.lat.toFixed(5) + ', ' + p.lng.toFixed(5);
-        const badge = document.getElementById('pp-radius-' + id);
-        if (badge) badge.innerHTML = '<i class="bi bi-bullseye"></i> Radius: ' + r + 'm';
-        const slider = document.getElementById('pp-range-' + id);
-        if (slider && document.activeElement !== slider) slider.value = Math.min(r, 1000);
-    }
-    function updateLocCard(id, lat, lng, radius) {
-        const card = document.getElementById('loc-card-' + id);
-        if (!card) return;
-        const badges = card.querySelectorAll('.badge-tw');
-        if (badges[0]) badges[0].innerHTML = '<i class="bi bi-bullseye text-[9px]"></i> ' + radius + 'm';
-        if (badges[1]) badges[1].textContent = Number(lat).toFixed(5) + ', ' + Number(lng).toFixed(5);
-    }
-    function scheduleAutoSave(id) {
-        clearTimeout(autoSaveTimer[id]);
-        autoSaveTimer[id] = setTimeout(() => autoSaveLocation(id), 800);
-    }
-    function autoSaveLocation(id) {
-        const L0 = locationLayers[id];
-        const loc = (locations || []).find(x => String(x.id) === String(id));
-        if (!L0 || !loc) return;
-        const p = L0.marker.getLatLng();
-        const r = Math.round(L0.circle.getRadius());
-        const lat = Number(p.lat.toFixed(8)), lng = Number(p.lng.toFixed(8));
-        showGeoToast('Menyimpan ' + (loc.nama_lokasi || '') + '...');
-        const payload = { id: id, nama_lokasi: loc.nama_lokasi, lat: lat, lng: lng, radius_meter: r, keterangan: loc.keterangan || '' };
-        payload[CSRF_NAME] = CSRF_HASH;
-        $.ajax({
-            url: '{{ url('admin/presensi/lokasi/save') }}',
-            type: 'POST', data: payload, dataType: 'json',
-            success: function (res) {
-                if (res && (res.status === true || res.status === 1 || res === true)) {
-                    loc.lat = lat; loc.lng = lng; loc.radius_meter = r;
-                    updateLocCard(id, lat, lng, r);
-                    refreshPopupLatLng(id);
-                    hideGeoToast('Tersimpan ✓ ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' • ' + r + 'm');
-                } else {
-                    showGeoToast(res.message || 'Gagal menyimpan', 'error');
-                }
-            },
-            error: function () { showGeoToast('Gagal terhubung ke server', 'error'); }
-        });
-    }
-    function onPopupRadius(id, val) {
-        const L0 = locationLayers[id];
-        if (!L0) return;
-        let r = parseInt(val) || 50;
-        r = Math.min(Math.max(r, 10), 5000);
-        L0.circle.setRadius(r);
-        positionResizeHandle(id);
-        refreshPopupLatLng(id);
-        scheduleAutoSave(id);
-    }
-    function positionResizeHandle(id) {
-        const L0 = locationLayers[id];
-        if (!L0 || !L0.resizeHandle) return;
-        const c = L0.circle.getLatLng();
-        const r = L0.circle.getRadius();
-        // titik tepi timur lingkaran (aproksimasi meter → derajat)
-        const dest = c.lng + (r / 111320) / Math.max(Math.cos(c.lat * Math.PI / 180), 0.2);
-        L0.resizeHandle.setLatLng([c.lat, dest]);
-    }
-    function renderAllLocations() {
-        // Clear previous layers
-        Object.values(locationLayers).forEach(item => {
-            if (item.marker) map.removeLayer(item.marker);
-            if (item.circle) map.removeLayer(item.circle);
-            if (item.resizeHandle) map.removeLayer(item.resizeHandle);
-        });
-        locationLayers = {};
+            state.map.on('click', (e) => {
+                this.setTempMarker(e.latlng.lat, e.latlng.lng);
+                this.openModalAdd(e.latlng.lat, e.latlng.lng);
+            });
 
-        if (!locations) return;
+            if (this.locations.length > 1) {
+                this.fitAllMarkers();
+            }
+        },
 
-        locations.forEach(loc => {
-            const lat = parseFloat(loc.lat);
-            const lng = parseFloat(loc.lng);
-            const rad = parseInt(loc.radius_meter) || 50;
+        selectMapLayer(key) {
+            this.layerOpen = false;
 
-            // Pin BIRU bisa langsung diseret → autosave realtime
-            const marker = L.marker([lat, lng], { icon: bluePinIcon, draggable: true, autoPan: true }).addTo(map);
-            const circle = L.circle([lat, lng], {
-                color: '#2563eb',
-                fillColor: '#3b82f6',
-                fillOpacity: 0.16,
-                weight: 2,
-                radius: rad
-            }).addTo(map);
-            // Handle resize: titik putih di tepi timur lingkaran, seret untuk ubah radius
-            const resizeHandle = L.marker([lat, lng], {
-                icon: L.divIcon({ className: '', html: '<div class="resize-handle-pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
-                draggable: true, autoPan: true
-            }).addTo(map);
+            if (!state.baseLayers[key] || key === this.layerKey) return;
 
-            const gmapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            if (state.currentLayer) {
+                state.map.removeLayer(state.currentLayer);
+            }
 
-            const popupContent = `
-                <div class="p-1 min-w-[230px] font-sans">
-                    <div class="flex items-center gap-1.5 mb-1 text-blue-600">
-                        <i class="bi bi-building font-bold"></i>
-                        <h6 class="font-bold text-slate-800 text-sm m-0 leading-tight">${escapeHtml(loc.nama_lokasi)}</h6>
-                    </div>
-                    <div class="flex items-center gap-1.5 my-1.5">
-                        <span id="pp-radius-${loc.id}" class="inline-block bg-blue-100 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                            <i class="bi bi-bullseye"></i> Radius: ${rad}m
-                        </span>
-                    </div>
-                    <div id="pp-coord-${loc.id}" class="text-[11px] text-slate-500 font-mono mb-2 bg-slate-50 p-1 rounded border border-slate-100">
-                        ${lat.toFixed(5)}, ${lng.toFixed(5)}
-                    </div>
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Geser untuk ubah radius (auto-save)</label>
-                    <input id="pp-range-${loc.id}" type="range" min="10" max="1000" step="5" value="${Math.min(rad, 1000)}"
-                        class="radius-range-slider w-full my-1" oninput="onPopupRadius(${loc.id}, this.value)">
-                    <div class="text-[10px] text-emerald-600 font-medium mb-1 flex items-center gap-1">
-                        <i class="bi bi-lightning-charge-fill"></i> Seret pin / titik putih → tersimpan otomatis
-                    </div>
-                    ${loc.keterangan ? `<p class="text-[11px] text-slate-600 mb-2 italic">${escapeHtml(loc.keterangan)}</p>` : ''}
-                    <div class="flex items-center gap-1 pt-1 border-t border-slate-100">
-                        <button type="button" class="btn-tw btn-tw-sm btn-primary text-xs py-1 px-2.5 flex-1 justify-center text-white" onclick='editLocation(${JSON.stringify(loc)})'>
-                            <i class="bi bi-pencil-square mr-1"></i> Edit
-                        </button>
-                        <a href="${gmapsUrl}" target="_blank" class="btn-tw btn-tw-sm btn-light border text-xs py-1 px-2 text-slate-600" title="Buka di Google Maps">
-                            <i class="bi bi-box-arrow-up-right"></i>
-                        </a>
-                        <button type="button" class="btn-tw btn-tw-sm btn-danger text-xs py-1 px-2 text-white" onclick="deleteLocation(${loc.id}, '${escapeHtml(loc.nama_lokasi)}')" title="Hapus Lokasi">
-                            <i class="bi bi-trash3"></i>
-                        </button>
-                    </div>
+            state.currentLayer = state.baseLayers[key];
+            state.map.addLayer(state.currentLayer);
+            this.layerKey = key;
+
+            try {
+                localStorage.setItem('presensi_admin_map_layer', key);
+            } catch (error) {
+                /* penyimpanan lokal opsional */
+            }
+        },
+
+        fitAllMarkers() {
+            if (!state.map) return;
+
+            if (this.locations.length > 0) {
+                const bounds = L.latLngBounds(this.locations.map((loc) => [Number(loc.lat), Number(loc.lng)]));
+                state.map.fitBounds(bounds, { padding: [60, 60] });
+            } else {
+                state.map.setView([this.config.defaults.lat, this.config.defaults.lng], 15);
+            }
+        },
+
+        renderAllLocations() {
+            Object.values(state.locationLayers).forEach((item) => {
+                if (item.marker) state.map.removeLayer(item.marker);
+                if (item.circle) state.map.removeLayer(item.circle);
+                if (item.resizeHandle) state.map.removeLayer(item.resizeHandle);
+            });
+
+            state.locationLayers = {};
+
+            this.locations.forEach((loc) => {
+                const lat = Number(loc.lat);
+                const lng = Number(loc.lng);
+                const radius = Number(loc.radius_meter) || 50;
+
+                const marker = L.marker([lat, lng], { icon: state.bluePin, draggable: true, autoPan: true }).addTo(state.map);
+                const circle = L.circle([lat, lng], {
+                    color: '#2563eb',
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.16,
+                    weight: 2,
+                    radius,
+                }).addTo(state.map);
+
+                const resizeHandle = L.marker([lat, lng], {
+                    icon: L.divIcon({ className: '', html: '<div class="resize-handle-pin"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
+                    draggable: true,
+                    autoPan: true,
+                }).addTo(state.map);
+
+                const popup = this.buildPopup(loc);
+
+                marker.bindPopup(popup.el, { maxWidth: 300 });
+                marker.bindTooltip('Seret untuk pindahkan • tersimpan otomatis', { direction: 'top', opacity: 0.9 });
+
+                state.locationLayers[loc.id] = { marker, circle, resizeHandle, popup };
+
+                this.positionResizeHandle(loc.id);
+
+                marker.on('drag', (e) => {
+                    const pos = e.target.getLatLng();
+                    circle.setLatLng(pos);
+                    this.positionResizeHandle(loc.id);
+                });
+
+                marker.on('dragend', (e) => {
+                    const pos = e.target.getLatLng();
+                    circle.setLatLng(pos);
+                    this.positionResizeHandle(loc.id);
+                    this.refreshPopup(loc.id);
+                    this.scheduleAutoSave(loc.id);
+                });
+
+                resizeHandle.on('drag', (e) => {
+                    const c = circle.getLatLng();
+                    const h = e.target.getLatLng();
+                    let r = Math.round(state.map.distance(c, h));
+                    r = Math.min(Math.max(r, 10), 5000);
+                    circle.setRadius(r);
+                    this.refreshPopup(loc.id);
+                });
+
+                resizeHandle.on('dragend', () => {
+                    this.positionResizeHandle(loc.id);
+                    this.refreshPopup(loc.id);
+                    this.scheduleAutoSave(loc.id);
+                });
+            });
+        },
+
+        buildPopup(loc) {
+            const el = document.createElement('div');
+            el.className = 'p-1 min-w-[230px] font-sans';
+
+            const coord = Number(loc.lat).toFixed(5) + ', ' + Number(loc.lng).toFixed(5);
+
+            el.innerHTML = `
+                <div class="flex items-center gap-1.5 mb-1 text-blue-600">
+                    <i class="bi bi-building font-bold"></i>
+                    <h6 class="font-bold text-slate-800 text-sm m-0 leading-tight">${this.escapeHtml(loc.nama_lokasi)}</h6>
+                </div>
+                <div class="flex items-center gap-1.5 my-1.5">
+                    <span data-role="radius" class="inline-block bg-blue-100 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                        <i class="bi bi-bullseye"></i> Radius: ${Number(loc.radius_meter) || 50}m
+                    </span>
+                </div>
+                <div data-role="coord" class="text-[11px] text-slate-500 font-mono mb-2 bg-slate-50 p-1 rounded border border-slate-100">
+                    ${coord}
+                </div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Geser untuk ubah radius (auto-save)</label>
+                <input data-role="range" type="range" min="10" max="1000" step="5" value="${Math.min(Number(loc.radius_meter) || 50, 1000)}"
+                    class="radius-range-slider w-full my-1">
+                <div class="text-[10px] text-emerald-600 font-medium mb-1 flex items-center gap-1">
+                    <i class="bi bi-lightning-charge-fill"></i> Seret pin / titik putih → tersimpan otomatis
+                </div>
+                ${loc.keterangan ? `<p class="text-[11px] text-slate-600 mb-2 italic">${this.escapeHtml(loc.keterangan)}</p>` : ''}
+                <div class="flex items-center gap-1 pt-1 border-t border-slate-100">
+                    <button type="button" data-act="edit" class="flex-1 inline-flex items-center justify-center rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700">
+                        <i class="bi bi-pencil-square mr-1"></i> Edit
+                    </button>
+                    <a href="${this.mapsUrl(loc)}" target="_blank" rel="noopener"
+                        class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" title="Buka di Google Maps">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                    <button type="button" data-act="delete" class="inline-flex items-center justify-center rounded-lg bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700" title="Hapus Lokasi">
+                        <i class="bi bi-trash3"></i>
+                    </button>
                 </div>
             `;
-            marker.bindPopup(popupContent, { maxWidth: 300 });
-            marker.bindTooltip('Seret untuk pindahkan • tersimpan otomatis', { direction: 'top', opacity: 0.9 });
 
-            locationLayers[loc.id] = { marker, circle, resizeHandle };
-            positionResizeHandle(loc.id);
+            const els = {
+                radius: el.querySelector('[data-role="radius"]'),
+                coord: el.querySelector('[data-role="coord"]'),
+                range: el.querySelector('[data-role="range"]'),
+            };
 
-            // — Drag pin: lingkaran + handle ngikutin live, lepas → autosave —
-            marker.on('drag', function (e) {
+            el.querySelector('[data-act="edit"]').addEventListener('click', () => this.editLocation(loc));
+            el.querySelector('[data-act="delete"]').addEventListener('click', () => this.deleteLocation(loc));
+            els.range.addEventListener('input', (e) => this.onPopupRadius(loc.id, e.target.value));
+
+            return { el, els };
+        },
+
+        refreshPopup(id) {
+            const layer = state.locationLayers[id];
+
+            if (!layer || !layer.popup) return;
+
+            const pos = layer.marker.getLatLng();
+            const radius = Math.round(layer.circle.getRadius());
+            const els = layer.popup.els;
+
+            if (els.coord) els.coord.textContent = pos.lat.toFixed(5) + ', ' + pos.lng.toFixed(5);
+            if (els.radius) els.radius.innerHTML = '<i class="bi bi-bullseye"></i> Radius: ' + radius + 'm';
+            if (els.range && document.activeElement !== els.range) els.range.value = Math.min(radius, 1000);
+        },
+
+        positionResizeHandle(id) {
+            const layer = state.locationLayers[id];
+
+            if (!layer || !layer.resizeHandle) return;
+
+            const c = layer.circle.getLatLng();
+            const r = layer.circle.getRadius();
+            const dest = c.lng + (r / 111320) / Math.max(Math.cos(c.lat * Math.PI / 180), 0.2);
+
+            layer.resizeHandle.setLatLng([c.lat, dest]);
+        },
+
+        scheduleAutoSave(id) {
+            clearTimeout(state.autoSaveTimers[id]);
+            state.autoSaveTimers[id] = setTimeout(() => this.autoSaveLocation(id), 800);
+        },
+
+        async autoSaveLocation(id) {
+            const layer = state.locationLayers[id];
+            const loc = this.locations.find((item) => String(item.id) === String(id));
+
+            if (!layer || !loc) return;
+
+            const pos = layer.marker.getLatLng();
+            const radius = Math.round(layer.circle.getRadius());
+            const lat = Number(pos.lat.toFixed(8));
+            const lng = Number(pos.lng.toFixed(8));
+
+            this.showToast('Menyimpan ' + (loc.nama_lokasi || '') + '...', '');
+
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+            body.append('id', id);
+            body.append('nama_lokasi', loc.nama_lokasi || '');
+            body.append('lat', lat);
+            body.append('lng', lng);
+            body.append('radius_meter', radius);
+            body.append('keterangan', loc.keterangan || '');
+
+            try {
+                const res = await this.postForm(this.config.urls.save, body);
+
+                if (res && (res.status === true || res.status === 1)) {
+                    loc.lat = lat;
+                    loc.lng = lng;
+                    loc.radius_meter = radius;
+                    this.refreshPopup(id);
+                    this.showToast('Tersimpan ✓ ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' • ' + radius + 'm', 'success');
+                } else {
+                    this.showToast((res && res.message) || 'Gagal menyimpan', 'error');
+                }
+            } catch (error) {
+                this.showToast('Gagal terhubung ke server', 'error');
+            }
+        },
+
+        onPopupRadius(id, value) {
+            const layer = state.locationLayers[id];
+
+            if (!layer) return;
+
+            let radius = parseInt(value, 10) || 50;
+            radius = Math.min(Math.max(radius, 10), 5000);
+            layer.circle.setRadius(radius);
+            this.positionResizeHandle(id);
+            this.refreshPopup(id);
+            this.scheduleAutoSave(id);
+        },
+
+        setTempMarker(lat, lng, radius) {
+            if (state.tempMarker) state.map.removeLayer(state.tempMarker);
+            if (state.tempCircle) state.map.removeLayer(state.tempCircle);
+
+            radius = radius || parseInt(this.form.radius_meter, 10) || 50;
+
+            state.tempMarker = L.marker([lat, lng], { icon: state.redPin, draggable: true }).addTo(state.map);
+            state.tempCircle = L.circle([lat, lng], {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.22,
+                weight: 2,
+                radius,
+            }).addTo(state.map);
+
+            state.tempMarker.bindTooltip('Geser pin ini ke titik gedung', { permanent: false, direction: 'top' });
+
+            const sync = (e) => {
                 const pos = e.target.getLatLng();
-                circle.setLatLng(pos);
-                positionResizeHandle(loc.id);
+                this.form.lat = pos.lat.toFixed(8);
+                this.form.lng = pos.lng.toFixed(8);
+                state.tempCircle.setLatLng(pos);
+            };
+
+            state.tempMarker.on('drag', sync);
+            state.tempMarker.on('dragend', sync);
+        },
+
+        clearTempMarker() {
+            if (state.tempMarker) {
+                state.map.removeLayer(state.tempMarker);
+                state.tempMarker = null;
+            }
+
+            if (state.tempCircle) {
+                state.map.removeLayer(state.tempCircle);
+                state.tempCircle = null;
+            }
+        },
+
+        /* ── Radius ───────────────────────────────── */
+
+        onRadiusRange() {
+            this.clampRadius();
+            if (state.tempCircle) state.tempCircle.setRadius(this.form.radius_meter);
+        },
+
+        onRadiusInput() {
+            this.clampRadius();
+            if (state.tempCircle) state.tempCircle.setRadius(this.form.radius_meter);
+        },
+
+        clampRadius() {
+            let radius = parseInt(this.form.radius_meter, 10);
+
+            if (Number.isNaN(radius)) radius = 50;
+
+            radius = Math.min(Math.max(radius, 10), 5000);
+            this.form.radius_meter = radius;
+        },
+
+        setRadiusPreset(value) {
+            this.form.radius_meter = value;
+            if (state.tempCircle) state.tempCircle.setRadius(value);
+        },
+
+        useCurrentCenterMap() {
+            if (!state.map) return;
+
+            const center = state.map.getCenter();
+            this.form.lat = center.lat.toFixed(8);
+            this.form.lng = center.lng.toFixed(8);
+            this.setTempMarker(center.lat, center.lng);
+        },
+
+        /* ── CRUD ─────────────────────────────────── */
+
+        focusLocation(loc) {
+            this.activeId = loc.id;
+
+            if (!state.map) return;
+
+            state.map.setView([Number(loc.lat), Number(loc.lng)], 18, { animate: true });
+
+            const layer = state.locationLayers[loc.id];
+
+            if (layer && layer.marker) layer.marker.openPopup();
+        },
+
+        openModalAdd(lat, lng) {
+            this.modalOpen = true;
+            this.form = {
+                id: '',
+                nama_lokasi: '',
+                lat: Number(lat).toFixed(8),
+                lng: Number(lng).toFixed(8),
+                radius_meter: this.config.defaults.radius || 50,
+                keterangan: '',
+                is_utama: false,
+            };
+
+            this.$store.modals.open('#modalLocation');
+            this.$nextTick(() => {
+                const input = document.getElementById('nama_lokasi');
+
+                if (input) input.focus();
             });
-            marker.on('dragend', function (e) {
-                const pos = e.target.getLatLng();
-                circle.setLatLng(pos);
-                positionResizeHandle(loc.id);
-                refreshPopupLatLng(loc.id);
-                scheduleAutoSave(loc.id);
-            });
-            // — Drag handle tepi: ubah radius live, lepas → autosave —
-            resizeHandle.on('drag', function (e) {
-                const c = circle.getLatLng();
-                const h = e.target.getLatLng();
-                let r = Math.round(map.distance(c, h));
-                r = Math.min(Math.max(r, 10), 5000);
-                circle.setRadius(r);
-                refreshPopupLatLng(loc.id);
-            });
-            resizeHandle.on('dragend', function () {
-                positionResizeHandle(loc.id);
-                refreshPopupLatLng(loc.id);
-                scheduleAutoSave(loc.id);
-            });
-        });
-    }
+        },
 
-    function setTempMarker(lat, lng, radius) {
-        if (tempMarker) map.removeLayer(tempMarker);
-        if (tempCircle) map.removeLayer(tempCircle);
+        addLocation() {
+            if (!state.map) return;
 
-        radius = radius || parseInt($('#radius_meter').val() || 50);
+            const center = state.map.getCenter();
+            this.setTempMarker(center.lat, center.lng);
+            this.openModalAdd(center.lat, center.lng);
+        },
 
-        // Draggable pulsating red pin
-        tempMarker = L.marker([lat, lng], { 
-            icon: redPinIcon, 
-            draggable: true 
-        }).addTo(map);
+        editLocation(loc) {
+            this.modalOpen = true;
+            this.form = {
+                id: String(loc.id),
+                nama_lokasi: loc.nama_lokasi || '',
+                lat: String(loc.lat),
+                lng: String(loc.lng),
+                radius_meter: parseInt(loc.radius_meter, 10) || 50,
+                keterangan: loc.keterangan || '',
+                is_utama: parseInt(loc.is_utama || 0, 10) === 1,
+            };
 
-        tempCircle = L.circle([lat, lng], {
-            color: '#ef4444',
-            fillColor: '#ef4444',
-            fillOpacity: 0.22,
-            weight: 2,
-            radius: radius
-        }).addTo(map);
+            this.setTempMarker(Number(loc.lat), Number(loc.lng), this.form.radius_meter);
+            state.map.setView([Number(loc.lat), Number(loc.lng)], 18);
+            this.$store.modals.open('#modalLocation');
+        },
 
-        tempMarker.bindTooltip('Geser pin ini ke titik gedung', { permanent: false, direction: 'top' });
+        closeModal() {
+            this.modalOpen = false;
+            this.clearTempMarker();
+            this.$store.modals.close('#modalLocation');
+        },
 
-        tempMarker.on('drag', function (e) {
-            const pos = e.target.getLatLng();
-            $('#lat').val(pos.lat.toFixed(8));
-            $('#lng').val(pos.lng.toFixed(8));
-            tempCircle.setLatLng(pos);
-        });
-        tempMarker.on('dragend', function (e) {
-            const pos = e.target.getLatLng();
-            $('#lat').val(pos.lat.toFixed(8));
-            $('#lng').val(pos.lng.toFixed(8));
-            tempCircle.setLatLng(pos);
-        });
-    }
+        async saveLocation() {
+            if (this.saving) return;
 
-    function handleRadiusRange(val) {
-        const rad = parseInt(val) || 50;
-        $('#radius_meter').val(rad);
-        updateRadiusUI(rad);
-    }
+            const nama = (this.form.nama_lokasi || '').trim();
 
-    function handleRadiusInput(val) {
-        const rad = parseInt(val) || 50;
-        $('#radiusRange').val(Math.min(rad, 1000));
-        updateRadiusUI(rad);
-    }
+            if (!nama) {
+                Swal.fire('Belum lengkap', 'Nama gedung / lokasi wajib diisi.', 'warning');
+                return;
+            }
 
-    function updateRadiusUI(rad) {
-        $('#radiusBadge').text(rad + ' Meter');
-        if (tempCircle) {
-            tempCircle.setRadius(rad);
-        }
-    }
+            this.saving = true;
 
-    function setRadiusPreset(val) {
-        $('#radius_meter').val(val);
-        $('#radiusRange').val(Math.min(val, 1000));
-        updateRadiusUI(val);
-    }
+            const body = new FormData(this.$refs.locationForm);
+            body.set('_token', this.config.csrf);
 
-    function useCurrentCenterMap() {
-        const center = map.getCenter();
-        $('#lat').val(center.lat.toFixed(8));
-        $('#lng').val(center.lng.toFixed(8));
-        setTempMarker(center.lat, center.lng);
-    }
+            try {
+                const res = await this.postForm(this.config.urls.save, body);
 
-    function panTo(lat, lng, radius, id) {
-        $('.loc-item').removeClass('loc-card-active');
-        if (id) {
-            $(`#loc-card-${id}`).addClass('loc-card-active');
-        }
+                if (res && (res.status === true || res.status === 1 || res.status)) {
+                    const editingId = this.form.id;
 
-        map.setView([lat, lng], 18, { animate: true });
+                    this.closeModal();
 
-        if (locationLayers[id] && locationLayers[id].marker) {
-            locationLayers[id].marker.openPopup();
-        }
-    }
-
-    function addLocation() {
-        const center = map.getCenter();
-        openModalAdd(center.lat, center.lng);
-        setTempMarker(center.lat, center.lng);
-    }
-
-    function openModalAdd(lat, lng) {
-        $('#formLocation')[0].reset();
-        $('#id').val('');
-        // Lokasi baru tidak otomatis jadi utama; biarkan operator yang menentukan.
-        $('#is_utama').prop('checked', false);
-        $('#modalTitle').text('Tambah Titik Lokasi Baru');
-        $('#modalSubtitle').text('Tentukan koordinat GPS dan batas radius presensi gedung');
-        $('#lat').val(lat.toFixed(8));
-        $('#lng').val(lng.toFixed(8));
-        setRadiusPreset(50);
-        $('#modalLocation').appModal('show');
-    }
-
-    function editLocation(loc) {
-        $('#id').val(loc.id);
-        $('#nama_lokasi').val(loc.nama_lokasi);
-        $('#lat').val(loc.lat);
-        $('#lng').val(loc.lng);
-        $('#keterangan').val(loc.keterangan || '');
-        $('#is_utama').prop('checked', parseInt(loc.is_utama || 0, 10) === 1);
-        $('#modalTitle').text('Edit Lokasi Kantor');
-        $('#modalSubtitle').text('Perbarui nama gedung, koordinat, atau radius geofence');
-
-        setRadiusPreset(parseInt(loc.radius_meter) || 50);
-        setTempMarker(parseFloat(loc.lat), parseFloat(loc.lng), parseInt(loc.radius_meter));
-        map.setView([loc.lat, loc.lng], 18);
-
-        $('#modalLocation').appModal('show');
-    }
-
-    // Save Location via AJAX (modal) — update peta & list tanpa reload bila edit
-    function saveLocation() {
-        const btn = $('#btnSave');
-        const originalText = btn.html();
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm mr-1.5"></span> Menyimpan...');
-        const editingId = $('#id').val();
-
-        $.ajax({
-            url: '{{ url('admin/presensi/lokasi/save') }}',
-            type: 'POST',
-            data: $('#formLocation').serialize(),
-            dataType: 'json',
-            success: function (res) {
-                if (res.status || res === true) {
-                    $('#modalLocation').appModal('hide');
-                    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
-                    if (tempCircle) { map.removeLayer(tempCircle); tempCircle = null; }
-                    // Jika edit existing → patch locations + layer langsung, tanpa reload
                     if (editingId) {
-                        const lat = parseFloat($('#lat').val()), lng = parseFloat($('#lng').val());
-                        const r = parseInt($('#radius_meter').val()) || 50;
-                        const nm = $('#nama_lokasi').val(), ket = $('#keterangan').val();
-                        const loc = (locations || []).find(x => String(x.id) === String(editingId));
-                        if (loc) { loc.lat = lat; loc.lng = lng; loc.radius_meter = r; loc.nama_lokasi = nm; loc.keterangan = ket; }
-                        const L0 = locationLayers[editingId];
-                        if (L0) {
-                            L0.marker.setLatLng([lat, lng]);
-                            L0.circle.setLatLng([lat, lng]);
-                            L0.circle.setRadius(r);
-                            positionResizeHandle(editingId);
-                            refreshPopupLatLng(editingId);
-                        } else {
-                            renderAllLocations();
-                        }
-                        updateLocCard(editingId, lat, lng, r);
-                        hideGeoToast('Tersimpan ✓ ' + nm);
+                        this.applyLocalUpdate(editingId);
+                        this.showToast('Tersimpan ✓ ' + nama, 'success');
                         Swal.fire({ icon: 'success', title: 'Berhasil Disimpan!', text: res.message || 'Data lokasi berhasil diperbarui.', timer: 1200, showConfirmButton: false });
                     } else {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil Disimpan!',
-                            text: res.message || 'Data lokasi berhasil diperbarui.',
-                            timer: 1300,
-                            showConfirmButton: false
-                        }).then(() => location.reload());
+                        await Swal.fire({ icon: 'success', title: 'Berhasil Disimpan!', text: res.message || 'Data lokasi berhasil diperbarui.', timer: 1300, showConfirmButton: false });
+                        window.location.reload();
                     }
                 } else {
-                    Swal.fire('Gagal Menyimpan', res.message || 'Gagal menyimpan data lokasi', 'error');
+                    Swal.fire('Gagal Menyimpan', (res && res.message) || 'Gagal menyimpan data lokasi', 'error');
                 }
-            },
-            error: function (xhr) {
-                console.error(xhr);
-                Swal.fire('Error Sistem', 'Terjadi kesalahan saat memproses data ke server.', 'error');
-            },
-            complete: function () {
-                btn.prop('disabled', false).html(originalText);
+            } catch (error) {
+                Swal.fire('Error Sistem', error.message || 'Terjadi kesalahan saat memproses data ke server.', 'error');
+            } finally {
+                this.saving = false;
             }
-        });
-    }
+        },
 
-    // Delete Location via AJAX
-    function toggleUtama(id, aktif) {
-        $.ajax({
-            url: '{{ url('admin/presensi/lokasi/utama') }}',
-            type: 'POST',
-            data: {
-                id: id,
-                aktif: aktif,
-                '_token': '{{ csrf_token() }}'
-            },
-            dataType: 'json',
-            success: function (res) {
-                if (res.status) {
-                    Swal.fire({
+        applyLocalUpdate(id) {
+            const loc = this.locations.find((item) => String(item.id) === String(id));
+
+            if (!loc) return;
+
+            loc.nama_lokasi = this.form.nama_lokasi;
+            loc.lat = Number(this.form.lat);
+            loc.lng = Number(this.form.lng);
+            loc.radius_meter = parseInt(this.form.radius_meter, 10) || 50;
+            loc.keterangan = this.form.keterangan;
+            loc.is_utama = this.form.is_utama ? 1 : 0;
+
+            const layer = state.locationLayers[id];
+
+            if (layer) {
+                layer.marker.setLatLng([loc.lat, loc.lng]);
+                layer.circle.setLatLng([loc.lat, loc.lng]);
+                layer.circle.setRadius(loc.radius_meter);
+                this.positionResizeHandle(id);
+                this.refreshPopup(id);
+            } else {
+                this.renderAllLocations();
+            }
+        },
+
+        async toggleUtama(loc) {
+            const aktif = parseInt(loc.is_utama || 0, 10) === 1 ? 0 : 1;
+
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+            body.append('id', loc.id);
+            body.append('aktif', aktif);
+
+            try {
+                const res = await this.postForm(this.config.urls.utama, body);
+
+                if (res && res.status) {
+                    await Swal.fire({
                         icon: 'success',
                         title: aktif ? 'Lokasi Utama' : 'Penandaan Dilepas',
                         text: res.message || (aktif ? 'Absen manual admin akan memakai lokasi ini.' : 'Lokasi utama sekarang kosong.'),
                         timer: 1200,
-                        showConfirmButton: false
-                    }).then(() => location.reload());
+                        showConfirmButton: false,
+                    });
+                    window.location.reload();
                 } else {
-                    Swal.fire('Gagal', res.message || 'Tidak bisa mengubah lokasi utama.', 'error');
+                    Swal.fire('Gagal', (res && res.message) || 'Tidak bisa mengubah lokasi utama.', 'error');
                 }
-            },
-            error: function () {
-                Swal.fire('Error', 'Terjadi kesalahan saat menghubungi server.', 'error');
+            } catch (error) {
+                Swal.fire('Error', error.message || 'Terjadi kesalahan saat menghubungi server.', 'error');
             }
-        });
-    }
+        },
 
-    function deleteLocation(id, name) {
-        Swal.fire({
-            title: 'Hapus Lokasi ' + (name ? `"${name}"?` : '?'),
-            text: "Guru tidak akan bisa absen menggunakan geofence lokasi ini lagi.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Hapus Lokasi!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '{{ url('admin/presensi/lokasi/delete') }}',
-                    type: 'POST',
-                    data: {
-                        id: id,
-                        '_token': '{{ csrf_token() }}'
-                    },
-                    dataType: 'json',
-                    success: function (res) {
-                        if (res.status || res === true) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Terhapus!',
-                                text: res.message || 'Lokasi berhasil dihapus.',
-                                timer: 1200,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('Gagal Menghapus', res.message, 'error');
-                        }
-                    },
-                    error: function () {
-                        Swal.fire('Error', 'Terjadi kesalahan saat menghubungi server.', 'error');
+        deleteLocation(loc) {
+            Swal.fire({
+                title: 'Hapus Lokasi ' + (loc.nama_lokasi ? '"' + loc.nama_lokasi + '"?' : '?'),
+                text: 'Guru tidak akan bisa absen menggunakan geofence lokasi ini lagi.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Lokasi!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                const body = new URLSearchParams();
+                body.append('_token', this.config.csrf);
+                body.append('id', loc.id);
+
+                this.postForm(this.config.urls.delete, body).then((res) => {
+                    if (res && (res.status || res.status === true)) {
+                        Swal.fire({ icon: 'success', title: 'Terhapus!', text: res.message || 'Lokasi berhasil dihapus.', timer: 1200, showConfirmButton: false })
+                            .then(() => window.location.reload());
+                    } else {
+                        Swal.fire('Gagal Menghapus', (res && res.message) || 'Gagal menghapus lokasi', 'error');
                     }
+                }).catch((error) => Swal.fire('Error', error.message || 'Terjadi kesalahan saat menghubungi server.', 'error'));
+            });
+        },
+
+        /* ── GPS & pencarian ──────────────────────── */
+
+        locateCurrentGPS() {
+            if (!navigator.geolocation) {
+                Swal.fire('Tidak Didukung', 'Browser Anda tidak mendukung deteksi lokasi GPS.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Mendeteksi Posisi GPS...',
+                text: 'Mohon izinkan browser mengakses lokasi perangkat Anda.',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    Swal.close();
+
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+
+                    if (state.map) state.map.setView([lat, lng], 18);
+                    this.setTempMarker(lat, lng);
+
+                    if (this.modalOpen) {
+                        this.form.lat = lat.toFixed(8);
+                        this.form.lng = lng.toFixed(8);
+                    } else {
+                        this.openModalAdd(lat, lng);
+                    }
+                },
+                (err) => {
+                    Swal.close();
+                    Swal.fire('Gagal Deteksi GPS', 'Pastikan izin lokasi telah diaktifkan di pengaturan perangkat Anda (' + err.message + ').', 'error');
+                },
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+            );
+        },
+
+        async searchLocation() {
+            const query = this.searchQuery.trim();
+
+            if (!query || this.searching) return;
+
+            this.searching = true;
+
+            const fallbackNominatim = () => fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&countrycodes=id&limit=1')
+                .then((r) => r.json())
+                .then((rows) => {
+                    if (rows && rows.length > 0) {
+                        this.applySearchResult(parseFloat(rows[0].lat), parseFloat(rows[0].lon), rows[0].display_name.split(',')[0]);
+                        return;
+                    }
+
+                    Swal.fire('Tidak Ditemukan', 'Lokasi tidak ditemukan. Coba ketikkan nama tempat, jalan, atau kota yang lebih spesifik.', 'info');
                 });
-            }
-        });
-    }
 
-    // Locate Current User GPS
-    function locateCurrentGPS() {
-        if (!navigator.geolocation) {
-            Swal.fire('Tidak Didukung', 'Browser Anda tidak mendukung deteksi lokasi GPS.', 'warning');
-            return;
-        }
+            try {
+                const response = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(query) + '&limit=1&lang=id');
+                const data = await response.json();
 
-        Swal.fire({
-            title: 'Mendeteksi Posisi GPS...',
-            text: 'Mohon izinkan browser mengakses lokasi perangkat Anda.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                Swal.close();
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                map.setView([lat, lng], 18);
-                setTempMarker(lat, lng);
-                
-                // If modal is open, fill the lat/lng
-                if ($('#modalLocation').is(':visible')) {
-                    $('#lat').val(lat.toFixed(8));
-                    $('#lng').val(lng.toFixed(8));
-                } else {
-                    openModalAdd(lat, lng);
-                }
-            },
-            (err) => {
-                Swal.close();
-                Swal.fire('Gagal Deteksi GPS', 'Pastikan izin lokasi telah diaktifkan di pengaturan perangkat Anda (' + err.message + ').', 'error');
-            },
-            { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-        );
-    }
-
-    // Search Location via Photon (OSM-based) & Nominatim Fallback
-    function handleSearchKey(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            searchLocation();
-        }
-    }
-
-    function searchLocation() {
-        const query = $('#mapSearchInput').val().trim();
-        if (!query) return;
-
-        const btn = $('#btnMapSearch');
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-
-        // 1. Coba via Photon API (Komoot - bebas rate-limit & dirancang untuk pencarian publik)
-        fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=id`)
-            .then(res => res.json())
-            .then(data => {
                 if (data && data.features && data.features.length > 0) {
                     const feat = data.features[0];
-                    const lng  = parseFloat(feat.geometry.coordinates[0]);
-                    const lat  = parseFloat(feat.geometry.coordinates[1]);
+                    const lng = parseFloat(feat.geometry.coordinates[0]);
+                    const lat = parseFloat(feat.geometry.coordinates[1]);
                     const label = feat.properties.name || feat.properties.city || query;
-                    applySearchResult(lat, lng, label);
+
+                    this.applySearchResult(lat, lng, label);
                 } else {
-                    // Fallback ke Nominatim OSM
-                    return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=1`)
-                        .then(r => r.json())
-                        .then(nomData => {
-                            if (nomData && nomData.length > 0) {
-                                applySearchResult(parseFloat(nomData[0].lat), parseFloat(nomData[0].lon), nomData[0].display_name.split(',')[0]);
-                            } else {
-                                Swal.fire('Tidak Ditemukan', 'Lokasi tidak ditemukan. Coba ketikkan nama tempat, jalan, atau kota yang lebih spesifik.', 'info');
-                            }
-                        });
+                    await fallbackNominatim();
                 }
-            })
-            .catch(err => {
-                console.warn('Primary geocoder failed, trying fallback:', err);
-                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=1`)
-                    .then(r => r.json())
-                    .then(nomData => {
-                        if (nomData && nomData.length > 0) {
-                            applySearchResult(parseFloat(nomData[0].lat), parseFloat(nomData[0].lon), nomData[0].display_name.split(',')[0]);
-                        } else {
-                            Swal.fire('Tidak Ditemukan', 'Lokasi tidak ditemukan. Coba ketikkan nama tempat atau kota yang lebih spesifik.', 'info');
-                        }
-                    })
-                    .catch(err2 => {
-                        console.error('All search geocoders failed:', err2);
-                        Swal.fire('Pencarian Gagal', 'Gagal mencari lokasi. Pastikan koneksi internet aktif.', 'error');
-                    });
-            })
-            .finally(() => {
-                btn.prop('disabled', false).html('Cari');
+            } catch (error) {
+                console.warn('Primary geocoder failed, trying fallback:', error);
+
+                try {
+                    await fallbackNominatim();
+                } catch (err2) {
+                    console.error('All search geocoders failed:', err2);
+                    Swal.fire('Pencarian Gagal', 'Gagal mencari lokasi. Pastikan koneksi internet aktif.', 'error');
+                }
+            } finally {
+                this.searching = false;
+            }
+        },
+
+        applySearchResult(lat, lng, label) {
+            if (state.map) state.map.setView([lat, lng], 17);
+
+            this.setTempMarker(lat, lng);
+
+            if (this.modalOpen) {
+                this.form.lat = lat.toFixed(8);
+                this.form.lng = lng.toFixed(8);
+
+                if (!this.form.nama_lokasi && label) {
+                    this.form.nama_lokasi = label;
+                }
+            }
+        },
+
+        clearMapSearch() {
+            this.searchQuery = '';
+        },
+
+        /* ── Utilitas ─────────────────────────────── */
+
+        async postForm(url, body) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': this.config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
             });
-    }
 
-    function applySearchResult(lat, lng, label) {
-        map.setView([lat, lng], 17);
-        setTempMarker(lat, lng);
-        $('#btnClearSearch').removeClass('hidden');
+            let result = null;
 
-        if ($('#modalLocation').is(':visible')) {
-            $('#lat').val(lat.toFixed(8));
-            $('#lng').val(lng.toFixed(8));
-            if (!$('#nama_lokasi').val() && label) {
-                $('#nama_lokasi').val(label);
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = null;
             }
-        }
-    }
 
-    function clearMapSearch() {
-        $('#mapSearchInput').val('');
-        $('#btnClearSearch').addClass('hidden');
-    }
-
-    // Filter location list on the right sidebar
-    function filterLocationList(keyword) {
-        keyword = (keyword || '').toLowerCase().trim();
-        let visibleCount = 0;
-
-        if (keyword.length > 0) {
-            $('#btnClearListFilter').removeClass('hidden');
-        } else {
-            $('#btnClearListFilter').addClass('hidden');
-        }
-
-        $('.loc-item').each(function () {
-            const title = $(this).find('.loc-title').text().toLowerCase();
-            const desc = $(this).find('.loc-desc').text().toLowerCase();
-            if (title.includes(keyword) || desc.includes(keyword)) {
-                $(this).show();
-                visibleCount++;
-            } else {
-                $(this).hide();
+            if (!response.ok) {
+                throw new Error((result && result.message) || 'Terjadi kesalahan komunikasi dengan server.');
             }
-        });
 
-        $('#locCountBadge').text(visibleCount + ' Titik');
-    }
+            return result;
+        },
 
-    function clearListFilter() {
-        $('#locFilterInput').val('');
-        filterLocationList('');
-    }
+        showToast(text, mode) {
+            this.toast = { show: true, text, mode: mode || '' };
 
-    function openGeofenceGuide() {
-        $('#modalGeofenceGuide').appModal('show');
-    }
+            clearTimeout(state.toastTimer);
+            state.toastTimer = setTimeout(() => {
+                this.toast.show = false;
+            }, mode ? 2200 : 6000);
+        },
 
-    function escapeHtml(text) {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+        coordLabel(loc) {
+            return Number(loc.lat).toFixed(5) + ', ' + Number(loc.lng).toFixed(5);
+        },
+
+        mapsUrl(loc) {
+            return 'https://www.google.com/maps?q=' + Number(loc.lat) + ',' + Number(loc.lng);
+        },
+
+        escapeHtml(text) {
+            if (!text) return '';
+
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },
+    }));
+});
 </script>
 @endsection

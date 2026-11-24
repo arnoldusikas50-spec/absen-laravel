@@ -1,1126 +1,1139 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    /* ── Tab pill ───────────────────────────────── */
-    .tab-pill { transition: background .15s, color .15s, box-shadow .15s; }
-    .tab-pill.active {
-        background: #fff;
-        color: var(--primary-600);
-        box-shadow: 0 1px 6px rgba(0,0,0,.08);
-    }
-
-    /* ── User avatar ────────────────────────────── */
-    .u-avatar {
-        width: 36px; height: 36px;
-        border-radius: 10px;
-        object-fit: cover;
-        flex-shrink: 0;
-    }
-
-    /* ── Status dot ─────────────────────────────── */
-    .status-dot {
-        width: 7px; height: 7px;
-        border-radius: 50%;
-        display: inline-block;
-        flex-shrink: 0;
-    }
-
-    /* ── Table row hover ────────────────────────── */
-    #tblAdmin tbody tr:hover,
-    #tblGuru  tbody tr:hover,
-    #tblSiswa tbody tr:hover { background: #f8fafc; }
-
-    /* ── Skeleton shimmer ───────────────────────── */
-    .skel {
-        background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);
-        background-size: 200% 100%;
-        animation: sk 1.3s infinite;
-        border-radius: 4px;
-    }
-    @keyframes sk { to { background-position: -200% 0; } }
-
-    /* ── Pagination btn ─────────────────────────── */
-    .pg-btn {
-        min-width: 32px; height: 32px;
-        display: inline-flex; align-items: center; justify-content: center;
-        border-radius: 8px; font-size: .78rem; font-weight: 700;
-        border: 1px solid #e2e8f0;
-        background: #fff; color: #475569;
-        cursor: pointer; transition: background .12s, color .12s;
-    }
-    .pg-btn:hover { background: var(--primary-50); color: var(--primary-600); border-color: var(--primary-200); }
-    .pg-btn.active { background: var(--primary-600); color: #fff; border-color: var(--primary-600); }
-    .pg-btn:disabled { opacity: .4; cursor: not-allowed; }
-</style>
-@endsection
-
 @section('content')
 
 <?php
-$currentUserId = $user->id ?? 0;
-$isSuperAdmin  = ($currentUserId == 1);
+$currentUserId = (int) ($user->id ?? 0);
+$isSuperAdmin = $currentUserId === 1;
+
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'avatarFallback' => asset('assets/img/siswa_sm.png'),
+    'urls' => [
+        'adminCreate' => url('useradmin/create'),
+        'adminDelete' => url('useradmin/delete'),
+        'adminEdit' => url('useradmin/edit'),
+        'guruData' => url('userguru/data'),
+        'guruEdit' => url('userguru/edit'),
+        'guruActivate' => url('userguru/activate'),
+        'guruResetLogin' => url('userguru/reset_login'),
+        'guruResetPassword' => url('userguru/reset_password'),
+        'guruBulk' => url('userguru/aktifkansemua'),
+        'siswaList' => url('usersiswa/list'),
+        'siswaActivate' => url('usersiswa/activate'),
+        'siswaResetLogin' => url('usersiswa/reset_login'),
+        'siswaResetPassword' => url('usersiswa/reset_password'),
+        'siswaBulk' => url('usersiswa/aktifkansemua'),
+    ],
+];
 ?>
 
-<!-- ── Header (pola kartu/dapodik/izin) ────────── -->
-<div class="fade-in-up p-4 md:p-6 space-y-6">
+<div x-data="userManagementPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
 
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-people-fill"></i> Kelola Akun Pengguna
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Manajemen Pengguna</h1>
-            <p class="text-xs text-slate-500 mt-1">Kelola akun Admin, Guru, dan Siswa dalam satu halaman.</p>
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Manajemen Pengguna'"
+            icon="bi-people-fill"
+            :subtitle="'Kelola akun Admin, Guru, dan Siswa dalam satu halaman · ' . ($totalAdmin + $totalGuru + $totalSiswa) . ' akun'"
+            :crumbs="['Manajemen Pengguna']" />
+    </div>
+
+    <div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+        <!-- Tab Navigation -->
+        <div class="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
+            <button type="button" role="tab" :aria-selected="tab === 'admin'" @click="setTab('admin')"
+                :class="tab === 'admin' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                class="flex items-center gap-2 whitespace-nowrap rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors">
+                <i class="bi bi-shield-lock-fill text-blue-500"></i> Admin
+                <span class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-extrabold text-blue-700">{{ $totalAdmin }}</span>
+            </button>
+            <button type="button" role="tab" :aria-selected="tab === 'guru'" @click="setTab('guru')"
+                :class="tab === 'guru' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                class="flex items-center gap-2 whitespace-nowrap rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors">
+                <i class="bi bi-person-video3 text-emerald-500"></i> Guru
+                <span class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-100 px-1 text-[10px] font-extrabold text-emerald-700">{{ $totalGuru }}</span>
+            </button>
+            <button type="button" role="tab" :aria-selected="tab === 'siswa'" @click="setTab('siswa')"
+                :class="tab === 'siswa' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                class="flex items-center gap-2 whitespace-nowrap rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors">
+                <i class="bi bi-mortarboard-fill text-violet-500"></i> Siswa
+                <span class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-violet-100 px-1 text-[10px] font-extrabold text-violet-700">{{ $totalSiswa }}</span>
+            </button>
         </div>
-        <nav class="flex items-center gap-1.5 text-xs text-slate-500">
-            <a href="{{ url('dashboard') }}" class="hover:text-blue-600 font-semibold no-underline"><i class="bi bi-house-door mr-1"></i>Dashboard</a>
-            <span class="text-slate-300">/</span>
-            <span class="font-bold text-blue-600">Manajemen Pengguna</span>
-        </nav>
-    </div>
 
-    <!-- ── Tab Navigation ────────────────────────── -->
-    <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto max-w-full" id="userTabs">
-        <button type="button" id="tabBtnAdmin" data-tab="admin"
-            class="tab-pill active flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap">
-            <i class="bi bi-shield-lock-fill text-blue-500"></i> Admin
-            <span class="ml-0.5 inline-flex items-center justify-center bg-blue-100 text-blue-700 text-[10px] font-extrabold rounded-full min-w-[18px] h-[18px] px-1">{{ $totalAdmin }}</span>
-        </button>
-        <button type="button" id="tabBtnGuru" data-tab="guru"
-            class="tab-pill flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700 whitespace-nowrap">
-            <i class="bi bi-person-video3 text-emerald-500"></i> Guru
-            <span class="ml-0.5 inline-flex items-center justify-center bg-emerald-100 text-emerald-700 text-[10px] font-extrabold rounded-full min-w-[18px] h-[18px] px-1">{{ $totalGuru }}</span>
-        </button>
-        <button type="button" id="tabBtnSiswa" data-tab="siswa"
-            class="tab-pill flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:text-slate-700 whitespace-nowrap">
-            <i class="bi bi-mortarboard-fill text-violet-500"></i> Siswa
-            <span class="ml-0.5 inline-flex items-center justify-center bg-violet-100 text-violet-700 text-[10px] font-extrabold rounded-full min-w-[18px] h-[18px] px-1">{{ $totalSiswa }}</span>
-        </button>
-    </div>
+        <!-- ══════════════════ TAB: ADMIN ══════════════════ -->
+        <div x-show="tab === 'admin'" x-cloak>
+            <x-ui.card title="Daftar Administrator" icon="bi-shield-lock" tone="blue"
+                subtitle="Akun dengan akses penuh sistem" :body-class="'p-0'"
+                x-data="dataTable({ perPage: 10 })">
 
-    <!-- ════════════════════════════════════════════
-         TAB: ADMIN
-    ════════════════════════════════════════════ -->
-    <div id="tabAdmin">
-        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <!-- Card header -->
-            <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                        <i class="bi bi-shield-lock-fill"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-800 leading-none">Daftar Administrator</h2>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Akun dengan akses penuh sistem</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="btnReloadAdmin"
-                        class="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 flex items-center justify-center transition-colors" title="Reload">
-                        <i class="bi bi-arrow-clockwise text-sm"></i>
+                <x-slot:actions>
+                    <button type="button" @click="reload()"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50">
+                        <i class="bi bi-arrow-clockwise"></i> Reload
                     </button>
-                    <button type="button" data-ui-toggle="modal" data-ui-target="#modalTambahAdmin"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm">
+                    <button type="button" @click="openCreate()"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700">
                         <i class="bi bi-plus-lg"></i> Tambah Admin
                     </button>
-                </div>
-            </div>
+                </x-slot:actions>
 
-            <!-- Search bar admin -->
-            <div class="px-5 py-3 bg-slate-50 border-b border-slate-100">
-                <div class="relative max-w-xs">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="adminSearch" placeholder="Cari nama / username..." autocomplete="off"
-                        class="w-full pl-8 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <button type="button" id="adminSearchClear"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">
-                        <i class="bi bi-x text-xs"></i>
-                    </button>
-                </div>
-            </div>
+                <x-slot:toolbar>
+                    <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                        <div class="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                            <label for="admin-per-page">Tampilkan</label>
+                            <select id="admin-per-page" x-model.number="perPage" @change="page = 1; refresh()"
+                                aria-label="Jumlah data per halaman"
+                                class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
 
-            <!-- Table -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left" style="font-size:.8125rem;" id="tblAdmin">
-                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                        <tr>
-                            <th class="px-5 py-3.5 w-10">#</th>
-                            <th class="px-5 py-3.5">Nama</th>
-                            <th class="px-4 py-3.5">Username</th>
-                            <th class="px-4 py-3.5 hidden md:table-cell">Email</th>
-                            <th class="px-4 py-3.5 text-center w-24 hidden sm:table-cell">Level</th>
-                            <th class="px-4 py-3.5 text-center w-24">Status</th>
-                            <th class="px-4 py-3.5 text-center w-28">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100" id="tblAdminBody">
-                        <?php foreach ($admins as $idx => $adm): ?>
-                        <tr class="admin-row hover:bg-blue-50/30 transition-colors"
-                            data-name="{!! strtolower(e($adm->first_name . ' ' . $adm->last_name)) !!}"
-                            data-username="{!! strtolower(e($adm->username)) !!}">
-                            <td class="px-5 py-3.5 text-slate-400 font-mono text-xs">{{ $idx + 1 }}</td>
-                            <td class="px-5 py-3.5">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-extrabold flex items-center justify-center shrink-0">
-                                        {{ strtoupper(substr($adm->first_name, 0, 1)) }}
+                        <div class="relative w-full sm:w-64">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="search" x-model="query" placeholder="Cari nama atau username..." aria-label="Cari admin"
+                                class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs outline-hidden transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            <button type="button" x-show="query.length > 0" x-cloak @click="query = ''"
+                                class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600"
+                                aria-label="Hapus pencarian">
+                                <i class="bi bi-x-circle-fill text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </x-slot:toolbar>
+
+                @if (count($admins) === 0)
+                    <div class="p-5">
+                        <x-ui.empty icon="bi-shield-x" title="Belum ada administrator"
+                            description="Tambahkan akun administrator untuk mulai mengelola sistem." />
+                    </div>
+                @else
+                    <x-ui.table>
+                        <x-slot:head>
+                            <th class="w-12 px-3 py-3 text-center">No.</th>
+                            <th class="px-4 py-3">Nama</th>
+                            <th class="px-4 py-3">Username</th>
+                            <th class="hidden px-4 py-3 md:table-cell">Email</th>
+                            <th class="hidden w-24 px-3 py-3 text-center sm:table-cell">Level</th>
+                            <th class="w-24 px-3 py-3 text-center">Status</th>
+                            <th class="w-28 px-3 py-3 text-center">Aksi</th>
+                        </x-slot:head>
+
+                        @foreach ($admins as $num => $admin)
+                            <tr class="transition-colors hover:bg-slate-50/60"
+                                data-search="{{ strtolower(trim(($admin->first_name ?? '') . ' ' . ($admin->last_name ?? '') . ' ' . $admin->username . ' ' . ($admin->level ?? ''))) }}">
+                                <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400" data-rownum>{{ $num + 1 }}</td>
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white">
+                                            {{ strtoupper(mb_substr((string) $admin->first_name, 0, 1)) }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="truncate font-semibold leading-tight text-slate-800">
+                                                {{ trim(($admin->first_name ?? '') . ' ' . ($admin->last_name ?? '')) }}
+                                            </p>
+                                            @if (! empty($admin->email))
+                                                <p class="mt-0.5 truncate text-[10px] text-slate-400 md:hidden">{{ $admin->email }}</p>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <div class="min-w-0">
-                                        <p class="font-semibold text-slate-800 truncate leading-none">{{ trim($adm->first_name . ' ' . $adm->last_name) }}</p>
-                                        <?php if (!empty($adm->email)): ?>
-                                        <p class="text-[10px] text-slate-400 mt-0.5 truncate md:hidden">{{ $adm->email }}</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3.5">
-                                <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{{ $adm->username }}</span>
-                            </td>
-                            <td class="px-4 py-3.5 hidden md:table-cell text-slate-500 text-xs">{{ $adm->email ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-center hidden sm:table-cell">
-                                <span class="inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">{{ $adm->level ?? 'Admin' }}</span>
-                            </td>
-                            <td class="px-4 py-3.5 text-center">
-                                <?php if ($adm->active == 1): ?>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                                    <span class="status-dot bg-emerald-500"></span> Aktif
-                                </span>
-                                <?php else: ?>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                                    <span class="status-dot bg-red-500"></span> Nonaktif
-                                </span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-4 py-3.5">
-                                <div class="flex items-center justify-center gap-1.5">
-                                    <?php if ((int)$adm->id === (int)$currentUserId): ?>
-                                    <a href="{{ url('useradmin/edit/' . $adm->id) }}"
-                                        class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 flex items-center justify-center transition-colors"
-                                        title="Edit Profil Saya">
-                                        <i class="bi bi-person-gear text-xs"></i>
-                                    </a>
-                                    <?php elseif ($isSuperAdmin): ?>
-                                    <a href="{{ url('useradmin/edit/' . $adm->id) }}"
-                                        class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 flex items-center justify-center transition-colors"
-                                        title="Edit">
-                                        <i class="bi bi-pencil text-xs"></i>
-                                    </a>
-                                    <button type="button" data-id="{{ (int) $adm->id }}" data-nama="{{ trim($adm->first_name . ' ' . $adm->last_name) }}"
-                                        class="btn-hapus-admin w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 flex items-center justify-center transition-colors"
-                                        title="Hapus">
-                                        <i class="bi bi-trash3 text-xs"></i>
-                                    </button>
-                                    <?php else: ?>
-                                    <span class="text-slate-300" title="Tidak ada akses">
-                                        <i class="bi bi-ban text-sm"></i>
+                                </td>
+                                <td class="px-4 py-2.5">
+                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
+                                        {{ $admin->username }}
                                     </span>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($admins)): ?>
-                        <tr>
-                            <td colspan="7" class="px-5 py-12 text-center text-slate-400">
-                                <i class="bi bi-shield-x block text-4xl mb-2 opacity-20"></i>
-                                <p class="text-sm font-semibold">Belum ada administrator</p>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                                </td>
+                                <td class="hidden px-4 py-2.5 text-xs text-slate-500 md:table-cell">{{ $admin->email ?: '-' }}</td>
+                                <td class="hidden px-3 py-2.5 text-center sm:table-cell">
+                                    <span class="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                        {{ $admin->level ?? 'Admin' }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2.5 text-center">
+                                    @if ($admin->active == 1)
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                                            <i class="bi bi-check-circle-fill text-[9px]"></i> Aktif
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                                            <i class="bi bi-x-circle-fill text-[9px]"></i> Nonaktif
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2.5">
+                                    <div class="flex justify-center gap-1">
+                                        @if ((int) $admin->id === $currentUserId)
+                                            <a href="{{ url('useradmin/edit/' . $admin->id) }}" title="Edit Profil Saya"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-100">
+                                                <i class="bi bi-person-gear text-sm"></i>
+                                            </a>
+                                        @elseif ($isSuperAdmin)
+                                            <a href="{{ url('useradmin/edit/' . $admin->id) }}" title="Edit"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 shadow-xs transition-colors hover:bg-indigo-100">
+                                                <i class="bi bi-pencil text-sm"></i>
+                                            </a>
+                                            <button type="button" title="Hapus"
+                                                @click="deleteAdmin({{ (int) $admin->id }}, @js(trim(($admin->first_name ?? '') . ' ' . ($admin->last_name ?? ''))))"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 shadow-xs transition-colors hover:bg-rose-100">
+                                                <i class="bi bi-trash3 text-sm"></i>
+                                            </button>
+                                        @else
+                                            <span class="text-slate-300" title="Tidak ada akses">
+                                                <i class="bi bi-ban"></i>
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </x-ui.table>
 
-            <!-- No result -->
-            <div id="adminNoResult" class="hidden px-5 py-10 text-center text-slate-400">
-                <i class="bi bi-search block text-3xl mb-2 opacity-20"></i>
-                <p class="text-sm font-semibold text-slate-600">Tidak ditemukan</p>
-                <button type="button" id="adminResetSearch"
-                    class="mt-2 text-xs text-blue-500 hover:underline border-none bg-transparent cursor-pointer">Reset pencarian</button>
-            </div>
+                    <div class="flex flex-col justify-between gap-3 border-t border-slate-100 px-5 py-3.5 sm:flex-row sm:items-center">
+                        <div class="text-xs font-medium text-slate-500" aria-live="polite"
+                            x-text="total === 0 ? 'Tidak ada data' : 'Menampilkan ' + from + '\u2013' + to + ' dari ' + total + ' admin'"></div>
+                        <div class="flex items-center gap-2" x-show="pages > 1" x-cloak>
+                            <button type="button" @click="prev()" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="text-xs font-semibold text-slate-500" x-text="'Halaman ' + page + ' / ' + pages"></span>
+                            <button type="button" @click="next()" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </x-ui.card>
         </div>
-    </div>
 
-    <!-- ════════════════════════════════════════════
-         TAB: GURU
-    ════════════════════════════════════════════ -->
-    <div id="tabGuru" class="hidden">
-        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <!-- Card header -->
-            <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <i class="bi bi-person-video3"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-800 leading-none">Daftar Guru</h2>
-                        <p class="text-[11px] text-slate-400 mt-0.5" id="guruSubtitle">Memuat data...</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" data-bulk-guru="aktifkan"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors">
+        <!-- ══════════════════ TAB: GURU ══════════════════ -->
+        <div x-show="tab === 'guru'" x-cloak>
+            <x-ui.card title="Daftar Guru" icon="bi-person-video3" tone="emerald" :body-class="'p-0'">
+                <x-slot:meta>
+                    <span class="text-xs text-slate-500"
+                        x-text="guruLoading ? 'Memuat data...' : guruFiltered.length + ' guru' + (guruQuery ? ' (filter: \u201c' + guruQuery + '\u201d)' : ' terdaftar')"></span>
+                </x-slot:meta>
+
+                <x-slot:actions>
+                    <button type="button" @click="bulkGuru('aktifkan')"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100">
                         <i class="bi bi-people-fill"></i> Aktifkan Semua
                     </button>
-                    <button type="button" data-bulk-guru="nonaktifkan"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors">
+                    <button type="button" @click="bulkGuru('nonaktifkan')"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-100">
                         <i class="bi bi-slash-circle"></i> Nonaktifkan Semua
                     </button>
-                    <button type="button" id="btnReloadGuru"
-                        class="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 flex items-center justify-center" title="Reload">
+                    <button type="button" @click="loadGuru()" title="Reload"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:bg-slate-100">
                         <i class="bi bi-arrow-clockwise text-sm"></i>
                     </button>
-                </div>
-            </div>
+                </x-slot:actions>
 
-            <!-- Search guru -->
-            <div class="px-5 py-3 bg-slate-50 border-b border-slate-100">
-                <div class="relative max-w-xs">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="guruSearch" placeholder="Cari nama guru..." autocomplete="off"
-                        class="w-full pl-8 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                    <button type="button" id="guruSearchClear"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">&times;</button>
-                </div>
-            </div>
+                <x-slot:toolbar>
+                    <div class="relative w-full sm:w-64">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="search" x-model="guruQuery" placeholder="Cari nama guru..." aria-label="Cari guru"
+                            class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs outline-hidden transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                        <button type="button" x-show="guruQuery.length > 0" x-cloak @click="guruQuery = ''"
+                            class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600"
+                            aria-label="Hapus pencarian">
+                            <i class="bi bi-x-circle-fill text-xs"></i>
+                        </button>
+                    </div>
+                </x-slot:toolbar>
 
-            <!-- Table guru (dibuild via JS) -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left" style="font-size:.8125rem;" id="tblGuru">
-                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                        <tr>
-                            <th class="px-5 py-3.5 w-10">#</th>
-                            <th class="px-5 py-3.5">Nama Guru</th>
-                            <th class="px-4 py-3.5 hidden sm:table-cell">Username</th>
-                            <th class="px-4 py-3.5 text-center hidden md:table-cell w-28">Jabatan</th>
-                            <th class="px-4 py-3.5 text-center w-28">Reset</th>
-                            <th class="px-4 py-3.5 text-center w-24">Status</th>
-                            <th class="px-4 py-3.5 text-center w-28">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblGuruBody" class="divide-y divide-slate-100">
-                        <!-- Skeleton rows -->
-                        <?php for ($s = 0; $s < 5; $s++): ?>
-                        <tr>
-                            <td class="px-5 py-3.5"><div class="skel h-3 w-6"></div></td>
-                            <td class="px-5 py-3.5">
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="w-12 px-3 py-3 text-center">No.</th>
+                        <th class="px-4 py-3">Nama Guru</th>
+                        <th class="hidden px-4 py-3 sm:table-cell">Username</th>
+                        <th class="hidden w-28 px-3 py-3 text-center md:table-cell">Jabatan</th>
+                        <th class="w-28 px-3 py-3 text-center">Reset</th>
+                        <th class="w-24 px-3 py-3 text-center">Status</th>
+                        <th class="w-24 px-3 py-3 text-center">Aksi</th>
+                    </x-slot:head>
+
+                    <tr x-show="guruLoading" x-cloak>
+                        <td colspan="7" class="px-5 py-10 text-center text-xs font-medium text-slate-400">
+                            <i class="bi bi-arrow-repeat mr-1 inline-block animate-spin"></i> Memuat data guru...
+                        </td>
+                    </tr>
+
+                    <tr x-show="!guruLoading && guruFiltered.length === 0" x-cloak>
+                        <td colspan="7" class="px-5 py-10 text-center text-xs font-medium text-slate-400">
+                            <i class="bi bi-person-x mr-1"></i> Tidak ada data guru
+                        </td>
+                    </tr>
+
+                    <template x-for="(guru, index) in guruFiltered" :key="guru.id ?? index">
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400" x-text="index + 1"></td>
+                            <td class="px-4 py-2.5">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="skel w-8 h-8 rounded-lg"></div>
-                                    <div class="skel h-3 w-32 rounded"></div>
+                                    <img :src="guru.foto || config.avatarFallback" x-on:error="$el.src = config.avatarFallback"
+                                        alt="" class="h-9 w-9 shrink-0 rounded-lg border border-slate-200 object-cover">
+                                    <span class="max-w-[180px] truncate font-semibold text-slate-800" x-text="guru.nama_guru || '-'"></span>
                                 </div>
                             </td>
-                            <td class="px-4 py-3.5 hidden sm:table-cell"><div class="skel h-3 w-24 rounded"></div></td>
-                            <td class="px-4 py-3.5 hidden md:table-cell"><div class="skel h-4 w-16 rounded-full mx-auto"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-7 w-7 rounded-lg mx-auto"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-4 w-14 rounded-full mx-auto"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-7 w-14 rounded-lg mx-auto"></div></td>
+                            <td class="hidden px-4 py-2.5 sm:table-cell">
+                                <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600" x-text="guru.username || '-'"></span>
+                            </td>
+                            <td class="hidden px-3 py-2.5 text-center md:table-cell">
+                                <span class="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700" x-text="guru.level || '-'"></span>
+                            </td>
+                            <td class="px-3 py-2.5 text-center">
+                                <button type="button" :disabled="!hasReset(guru.reset)"
+                                    @click="resetLoginGuru(guru)"
+                                    :title="hasReset(guru.reset) ? 'Reset ' + guru.reset + ' login gagal' : 'Tidak ada login gagal'"
+                                    :class="hasReset(guru.reset)
+                                        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                        : 'bg-slate-100 text-slate-300 cursor-not-allowed'"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg shadow-xs transition-colors">
+                                    <i class="bi bi-arrow-repeat text-sm"></i>
+                                </button>
+                                <button type="button" @click="resetPasswordGuru(guru)"
+                                    title="Reset password ke default (123456)"
+                                    class="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 shadow-xs transition-colors hover:bg-amber-100">
+                                    <i class="bi bi-key-fill text-sm"></i>
+                                </button>
+                            </td>
+                            <td class="px-3 py-2.5 text-center">
+                                <span x-show="isActive(guru.active)"
+                                    class="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                                    <i class="bi bi-check-circle-fill text-[9px]"></i> Aktif
+                                </span>
+                                <span x-show="!isActive(guru.active)" x-cloak
+                                    class="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                                    <i class="bi bi-x-circle-fill text-[9px]"></i> Nonaktif
+                                </span>
+                            </td>
+                            <td class="px-3 py-2.5">
+                                <div class="flex justify-center gap-1">
+                                    <button type="button" @click="toggleGuru(guru)"
+                                        :title="isActive(guru.active) ? 'Nonaktifkan' : 'Aktifkan'"
+                                        :class="isActive(guru.active)
+                                            ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg shadow-xs transition-colors">
+                                        <i class="bi text-sm" :class="isActive(guru.active) ? 'bi-slash-circle' : 'bi-person-check-fill'"></i>
+                                    </button>
+                                    <a :href="config.urls.guruEdit + '/' + encodeURIComponent(guru.id_guru)" title="Edit"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-100">
+                                        <i class="bi bi-pencil text-sm"></i>
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
-                        <?php endfor; ?>
-                    </tbody>
-                </table>
-            </div>
-            <div id="guruEmptyState" class="hidden px-5 py-12 text-center text-slate-400">
-                <i class="bi bi-person-x block text-4xl mb-2 opacity-20"></i>
-                <p class="text-sm font-semibold text-slate-600">Tidak ada data guru</p>
-            </div>
+                    </template>
+                </x-ui.table>
+            </x-ui.card>
         </div>
-    </div>
 
-    <!-- ════════════════════════════════════════════
-         TAB: SISWA
-    ════════════════════════════════════════════ -->
-    <div id="tabSiswa" class="hidden">
-        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <!-- Card header -->
-            <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
-                        <i class="bi bi-mortarboard-fill"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-800 leading-none">Daftar Siswa</h2>
-                        <p class="text-[11px] text-slate-400 mt-0.5" id="siswaSubtitle">Memuat data...</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" data-bulk-siswa="aktifkan"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-violet-50 text-violet-700 text-xs font-bold rounded-xl border border-violet-200 hover:bg-violet-100 transition-colors">
+        <!-- ══════════════════ TAB: SISWA ══════════════════ -->
+        <div x-show="tab === 'siswa'" x-cloak>
+            <x-ui.card title="Daftar Siswa" icon="bi-mortarboard-fill" tone="violet" :body-class="'p-0'">
+                <x-slot:meta>
+                    <span class="text-xs text-slate-500"
+                        x-text="siswaLoading ? 'Memuat data...' : siswaMeta.total + ' siswa' + (siswaAppliedQuery ? ' (filter: \u201c' + siswaAppliedQuery + '\u201d)' : '')"></span>
+                </x-slot:meta>
+
+                <x-slot:actions>
+                    <button type="button" @click="bulkSiswa('aktifkan')"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-100">
                         <i class="bi bi-people-fill"></i> Aktifkan Semua
                     </button>
-                    <button type="button" data-bulk-siswa="nonaktifkan"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors">
+                    <button type="button" @click="bulkSiswa('nonaktifkan')"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-100">
                         <i class="bi bi-slash-circle"></i> Nonaktifkan Semua
                     </button>
-                </div>
-            </div>
+                </x-slot:actions>
 
-            <!-- Filter siswa -->
-            <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-2">
-                <div class="relative flex-1 min-w-[180px]" style="max-width:280px;">
-                    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="siswaSearch" placeholder="Cari nama / NIS / NISN..." autocomplete="off"
-                        class="w-full pl-8 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent">
-                    <button type="button" id="siswaClear"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">&times;</button>
-                </div>
-                <label class="flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
-                    <input type="checkbox" id="siswaResetFilter" class="rounded border-slate-300 accent-violet-600"> Perlu reset login
-                </label>
-                <select id="siswaPerPage" class="form-select-tw text-xs" style="width:90px;">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
-                <button type="button" id="btnSiswaSearch"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-700 transition-colors shadow-sm">
-                    <i class="bi bi-search"></i> Cari
-                </button>
-            </div>
+                <x-slot:toolbar>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative min-w-[180px] flex-1 sm:max-w-xs">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-slate-400">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="search" x-model="siswaQuery" @keydown.enter="loadSiswa(1)"
+                                placeholder="Cari nama / NIS / NISN..." aria-label="Cari siswa"
+                                class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs outline-hidden transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20">
+                            <button type="button" x-show="siswaQuery.length > 0" x-cloak @click="siswaQuery = ''; loadSiswa(1)"
+                                class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600"
+                                aria-label="Hapus pencarian">
+                                <i class="bi bi-x-circle-fill text-xs"></i>
+                            </button>
+                        </div>
 
-            <!-- Table siswa (JS build) -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left" style="font-size:.8125rem;" id="tblSiswa">
-                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                        <tr>
-                            <th class="px-5 py-3.5 w-10">#</th>
-                            <th class="px-4 py-3.5 hidden sm:table-cell w-24">NIS</th>
-                            <th class="px-5 py-3.5">Nama Siswa</th>
-                            <th class="px-4 py-3.5 hidden md:table-cell w-28">Kelas</th>
-                            <th class="px-4 py-3.5 hidden lg:table-cell">Username</th>
-                            <th class="px-4 py-3.5 text-center w-28">Reset</th>
-                            <th class="px-4 py-3.5 text-center w-24">Status</th>
-                            <th class="px-4 py-3.5 text-center w-28">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblSiswaBody" class="divide-y divide-slate-100">
-                        <?php for ($s = 0; $s < 6; $s++): ?>
-                        <tr>
-                            <td class="px-5 py-3.5"><div class="skel h-3 w-6"></div></td>
-                            <td class="px-4 py-3.5 hidden sm:table-cell"><div class="skel h-3 w-16"></div></td>
-                            <td class="px-5 py-3.5">
+                        <label class="flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-slate-600">
+                            <input type="checkbox" x-model="siswaResetOnly" @change="loadSiswa(1)"
+                                class="h-3.5 w-3.5 rounded border-slate-300 accent-violet-600"> Perlu reset login
+                        </label>
+
+                        <select x-model.number="siswaPerPage" @change="loadSiswa(1)" aria-label="Jumlah data per halaman"
+                            class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-hidden focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+
+                        <button type="button" @click="loadSiswa(1)"
+                            class="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs shadow-violet-500/20 transition-colors hover:bg-violet-700">
+                            <i class="bi bi-search"></i> Cari
+                        </button>
+                    </div>
+                </x-slot:toolbar>
+
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="w-12 px-3 py-3 text-center">No.</th>
+                        <th class="hidden w-24 px-3 py-3 sm:table-cell">NIS</th>
+                        <th class="px-4 py-3">Nama Siswa</th>
+                        <th class="hidden w-28 px-3 py-3 md:table-cell">Kelas</th>
+                        <th class="hidden px-4 py-3 lg:table-cell">Username</th>
+                        <th class="w-28 px-3 py-3 text-center">Reset</th>
+                        <th class="w-24 px-3 py-3 text-center">Status</th>
+                        <th class="w-28 px-3 py-3 text-center">Aksi</th>
+                    </x-slot:head>
+
+                    <tr x-show="siswaLoading" x-cloak>
+                        <td colspan="8" class="px-5 py-10 text-center text-xs font-medium text-slate-400">
+                            <i class="bi bi-arrow-repeat mr-1 inline-block animate-spin"></i> Memuat data siswa...
+                        </td>
+                    </tr>
+
+                    <tr x-show="!siswaLoading && siswaRows.length === 0" x-cloak>
+                        <td colspan="8" class="px-5 py-10 text-center text-xs font-medium text-slate-400">
+                            <i class="bi bi-person-x mr-1"></i> Tidak ada data siswa
+                        </td>
+                    </tr>
+
+                    <template x-for="(siswa, index) in siswaRows" :key="siswa.id_siswa ?? index">
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400"
+                                x-text="(siswaPage - 1) * siswaPerPage + index + 1"></td>
+                            <td class="hidden px-3 py-2.5 font-mono text-xs text-slate-500 sm:table-cell" x-text="siswa.nis || '-'"></td>
+                            <td class="px-4 py-2.5">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="skel w-8 h-8 rounded-lg"></div>
-                                    <div class="skel h-3 w-32 rounded"></div>
+                                    <img :src="siswa.foto || config.avatarFallback" x-on:error="$el.src = config.avatarFallback"
+                                        alt="" class="h-9 w-9 shrink-0 rounded-lg border border-slate-200 object-cover">
+                                    <span class="max-w-[160px] truncate font-semibold text-slate-800" x-text="siswa.nama || '-'"></span>
                                 </div>
                             </td>
-                            <td class="px-4 py-3.5 hidden md:table-cell"><div class="skel h-4 w-14 rounded-full"></div></td>
-                            <td class="px-4 py-3.5 hidden lg:table-cell"><div class="skel h-3 w-20 rounded"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-7 w-7 rounded-lg mx-auto"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-4 w-14 rounded-full mx-auto"></div></td>
-                            <td class="px-4 py-3.5 text-center"><div class="skel h-7 w-20 rounded-lg mx-auto"></div></td>
+                            <td class="hidden px-3 py-2.5 md:table-cell">
+                                <span class="inline-flex items-center rounded-full border border-violet-100 bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700" x-text="siswa.nama_kelas || '-'"></span>
+                            </td>
+                            <td class="hidden px-4 py-2.5 lg:table-cell">
+                                <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600" x-text="siswa.username || '-'"></span>
+                            </td>
+                            <td class="px-3 py-2.5 text-center">
+                                <button type="button" :disabled="!hasReset(siswa.reset)"
+                                    @click="resetLoginSiswa(siswa)"
+                                    :title="hasReset(siswa.reset) ? 'Reset ' + siswa.reset + ' login gagal' : 'Tidak ada login gagal'"
+                                    :class="hasReset(siswa.reset)
+                                        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                        : 'bg-slate-100 text-slate-300 cursor-not-allowed'"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg shadow-xs transition-colors">
+                                    <i class="bi bi-arrow-repeat text-sm"></i>
+                                </button>
+                                <button type="button" @click="resetPasswordSiswa(siswa)"
+                                    title="Reset password ke default (NISN)"
+                                    class="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 shadow-xs transition-colors hover:bg-amber-100">
+                                    <i class="bi bi-key-fill text-sm"></i>
+                                </button>
+                            </td>
+                            <td class="px-3 py-2.5 text-center">
+                                <span x-show="isActive(siswa.active)"
+                                    class="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                                    <i class="bi bi-check-circle-fill text-[9px]"></i> Aktif
+                                </span>
+                                <span x-show="!isActive(siswa.active)" x-cloak
+                                    class="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                                    <i class="bi bi-x-circle-fill text-[9px]"></i> Nonaktif
+                                </span>
+                            </td>
+                            <td class="px-3 py-2.5">
+                                <div class="flex justify-center gap-1">
+                                    <button type="button" @click="toggleSiswa(siswa)"
+                                        :class="isActive(siswa.active)
+                                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'"
+                                        class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold shadow-xs transition-colors">
+                                        <i class="bi text-[10px]" :class="isActive(siswa.active) ? 'bi-slash-circle' : 'bi-person-check-fill'"></i>
+                                        <span x-text="isActive(siswa.active) ? 'Nonaktif' : 'Aktifkan'"></span>
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
-                        <?php endfor; ?>
-                    </tbody>
-                </table>
+                    </template>
+                </x-ui.table>
+
+                <div class="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 sm:flex-row">
+                    <p class="text-xs font-medium text-slate-500" aria-live="polite"
+                        x-text="siswaMeta.total === 0
+                            ? 'Tidak ada data'
+                            : 'Menampilkan ' + ((siswaPage - 1) * siswaPerPage + 1) + '\u2013' + Math.min(siswaPage * siswaPerPage, siswaMeta.total) + ' dari ' + siswaMeta.total + ' siswa'"></p>
+
+                    <div class="flex items-center gap-1" x-show="siswaMeta.pages > 1" x-cloak>
+                        <button type="button" @click="loadSiswa(siswaPage - 1)" :disabled="siswaPage <= 1"
+                            aria-label="Halaman sebelumnya"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+
+                        <template x-for="(pageNumber, index) in siswaPageNumbers" :key="index">
+                            <span class="inline-flex items-center">
+                                <button type="button" x-show="pageNumber !== '\u2026'"
+                                    @click="loadSiswa(pageNumber)"
+                                    :class="pageNumber === siswaPage
+                                        ? 'border-violet-600 bg-violet-600 text-white'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                    class="inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg border text-xs font-semibold transition-colors"
+                                    x-text="pageNumber"></button>
+                                <span x-show="pageNumber === '\u2026'" class="px-1 text-xs text-slate-400">&hellip;</span>
+                            </span>
+                        </template>
+
+                        <button type="button" @click="loadSiswa(siswaPage + 1)" :disabled="siswaPage >= siswaMeta.pages"
+                            aria-label="Halaman berikutnya"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </x-ui.card>
+        </div>
+
+    </div><!-- /page wrapper -->
+
+    <!-- Modal Tambah Admin -->
+    <x-ui.modal id="createAdminModal" title="Tambah Administrator Baru" icon="bi-person-plus-fill" size="max-w-lg">
+        <form @submit.prevent="submitCreate()" class="flex min-h-0 flex-col">
+            <div class="space-y-4 overflow-y-auto p-5">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="admFirstName" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nama Depan <span class="text-rose-500">*</span></label>
+                        <input type="text" id="admFirstName" x-model="form.first_name" maxlength="50" required
+                            placeholder="Budi" autocomplete="off"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <p class="mt-1 text-xs text-rose-600" x-show="errors.first_name" x-cloak x-text="errors.first_name"></p>
+                    </div>
+                    <div>
+                        <label for="admLastName" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Nama Belakang</label>
+                        <input type="text" id="admLastName" x-model="form.last_name" maxlength="50"
+                            placeholder="Santoso" autocomplete="off"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="admUsername" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Username <span class="text-rose-500">*</span></label>
+                    <input type="text" id="admUsername" x-model="form.username" maxlength="30" required
+                        placeholder="budi.admin" autocomplete="off"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-xs text-rose-600" x-show="errors.username" x-cloak x-text="errors.username"></p>
+                </div>
+
+                <div>
+                    <label for="admEmail" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Email</label>
+                    <input type="email" id="admEmail" x-model="form.email" maxlength="100"
+                        placeholder="budi@sekolah.sch.id" autocomplete="off"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-xs text-rose-600" x-show="errors.email" x-cloak x-text="errors.email"></p>
+                </div>
+
+                <div x-data="{ show: false }">
+                    <label for="admPassword" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Password <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <input :type="show ? 'text' : 'password'" id="admPassword" x-model="form.password"
+                            maxlength="72" required placeholder="Min. 6 karakter" autocomplete="new-password"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 pr-10 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button type="button" @click="show = !show"
+                            :aria-label="show ? 'Sembunyikan password' : 'Tampilkan password'"
+                            class="absolute inset-y-0 right-0 px-3 text-slate-400 transition-colors hover:text-slate-600">
+                            <i class="bi" :class="show ? 'bi-eye-slash' : 'bi-eye'"></i>
+                        </button>
+                    </div>
+                    <p class="mt-1 text-xs text-rose-600" x-show="errors.password" x-cloak x-text="errors.password"></p>
+                </div>
+
+                <div x-data="{ show: false }">
+                    <label for="admPasswordConfirm" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Konfirmasi Password <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <input :type="show ? 'text' : 'password'" id="admPasswordConfirm" x-model="form.confirm_password"
+                            maxlength="72" required placeholder="Ulangi password" autocomplete="new-password"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 pr-10 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button type="button" @click="show = !show"
+                            :aria-label="show ? 'Sembunyikan password' : 'Tampilkan password'"
+                            class="absolute inset-y-0 right-0 px-3 text-slate-400 transition-colors hover:text-slate-600">
+                            <i class="bi" :class="show ? 'bi-eye-slash' : 'bi-eye'"></i>
+                        </button>
+                    </div>
+                    <p class="mt-1 text-xs text-rose-600" x-show="errors.confirm_password" x-cloak x-text="errors.confirm_password"></p>
+                </div>
             </div>
 
-            <!-- Siswa footer: info + pagination -->
-            <div id="siswaFooter" class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p class="text-xs text-slate-500 font-medium" id="siswaInfo"></p>
-                <div class="flex items-center gap-1" id="siswaPagination"></div>
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+                <button type="button" @click="$store.modals.close('#createAdminModal')"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                <button type="button" @click="resetForm()"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">
+                    <i class="bi bi-arrow-repeat"></i> Reset
+                </button>
+                <button type="submit" :disabled="saving"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                    <span x-show="saving" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                    <i x-show="!saving" class="bi bi-check-lg"></i> Simpan
+                </button>
             </div>
-        </div>
-    </div>
-
-</div><!-- /page wrapper -->
-
-<!-- ══════════════════════════════════════════════
-     Modal: Tambah Admin (pola permits)
-══════════════════════════════════════════════ -->
-<div id="modalTambahAdmin" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1">
-    <div class="modal-box-tw w-full max-w-md">
-        <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
-            <form id="formTambahAdmin">
-                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <i class="bi bi-person-plus-fill text-sm"></i>
-                        </div>
-                        <h5 class="font-bold text-slate-800 text-sm m-0">Tambah Administrator Baru</h5>
-                    </div>
-                    <button type="button" data-ui-dismiss="modal" aria-label="Tutup"
-                        class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">
-                        &times;
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="form-label-tw">Nama Depan <span class="text-red-500">*</span></label>
-                            <input type="text" name="first_name" class="form-control-tw" placeholder="Budi" required>
-                        </div>
-                        <div>
-                            <label class="form-label-tw">Nama Belakang</label>
-                            <input type="text" name="last_name" class="form-control-tw" placeholder="Santoso">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label-tw">Username <span class="text-red-500">*</span></label>
-                        <input type="text" name="username" class="form-control-tw" placeholder="budi.admin" required autocomplete="off">
-                    </div>
-                    <div>
-                        <label class="form-label-tw">Email</label>
-                        <input type="email" name="email" class="form-control-tw" placeholder="budi@sekolah.sch.id">
-                    </div>
-                    <div>
-                        <label class="form-label-tw">Password <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <input type="password" name="password" id="admPwd" class="form-control-tw pr-10" placeholder="Min. 6 karakter" required autocomplete="new-password">
-                            <button type="button" data-toggle-pwd="admPwd"
-                                class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer" title="Tampilkan password">
-                                <i class="bi bi-eye text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label-tw">Konfirmasi Password <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <input type="password" name="confirm_password" id="admPwdConfirm" class="form-control-tw pr-10" placeholder="Ulangi password" required>
-                            <button type="button" data-toggle-pwd="admPwdConfirm"
-                                class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer" title="Tampilkan password">
-                                <i class="bi bi-eye text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
-                    <button type="button" data-ui-dismiss="modal" class="btn-tw btn-light">Batal</button>
-                    <button type="reset" class="btn-tw btn-light"><i class="bi bi-arrow-repeat mr-1"></i>Reset</button>
-                    <button type="submit" id="btnSimpanAdmin" class="btn-tw btn-primary">
-                        <i class="bi bi-check-lg mr-1"></i> Simpan
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+        </form>
+    </x-ui.modal>
 </div>
 
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/app/js/ajax_request.js') }}"></script>
 <script>
-/* ════════════════════════════════════════════
-   GLOBALS — reuse dari layout (let CSRF_NAME, CSRF_HASH, appUrl sudah ada)
-════════════════════════════════════════════ */
-// CSRF_NAME & CSRF_HASH sudah dideklarasikan di layouts/main.php sebagai `let`,
-// jadi kita hanya perlu fungsi helper di bawah ini tanpa redeklararsi.
+document.addEventListener('alpine:init', () => {
+    Alpine.data('userManagementPage', () => ({
+        config: { urls: {}, csrf: '', avatarFallback: '' },
 
-function csrfBody(extra = {}) {
-    return { ...extra, [CSRF_NAME]: CSRF_HASH };
-}
-function postJson(url, data) {
-    return fetch(appUrl + url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ ...data, [CSRF_NAME]: CSRF_HASH })
-    }).then(r => r.json()).then(res => {
-        if (res[CSRF_NAME]) CSRF_HASH = res[CSRF_NAME];
-        return res;
-    });
-}
-function postForm(url, formData) {
-    formData.set(CSRF_NAME, CSRF_HASH);
-    return fetch(appUrl + url, { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(res => { if (res[CSRF_NAME]) CSRF_HASH = res[CSRF_NAME]; return res; });
-}
+        tab: 'admin',
 
-/* ════════════════════════════════════════════
-   TAB SWITCHER
-════════════════════════════════════════════ */
-function switchTab(tab) {
-    ['admin','guru','siswa'].forEach(t => {
-        document.getElementById('tab' + cap(t)).classList.toggle('hidden', t !== tab);
-        const btn = document.getElementById('tabBtn' + cap(t));
-        btn.classList.toggle('active', t === tab);
-        btn.classList.toggle('text-slate-500', t !== tab);
-    });
-    if (tab === 'guru'  && !window._guruLoaded)  loadGuru();
-    if (tab === 'siswa' && !window._siswaLoaded) { siswaPageChange(1); }
-    localStorage.setItem('umTab', tab);
-}
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+        saving: false,
+        errors: {},
+        form: { first_name: '', last_name: '', username: '', email: '', password: '', confirm_password: '' },
 
-/* ════════════════════════════════════════════
-   ADMIN TAB
-════════════════════════════════════════════ */
-function reloadAdmin() { location.reload(); }
+        guruList: [],
+        guruLoading: false,
+        guruLoaded: false,
+        guruQuery: '',
 
-function filterAdminTable() {
-    const q = ($('#adminSearch').val() || '').toLowerCase().trim();
-    $('#adminSearchClear').toggleClass('hidden', !q).toggleClass('inline-flex', !!q);
-    let vis = 0;
-    document.querySelectorAll('.admin-row').forEach(row => {
-        const ok = !q || row.dataset.name.includes(q) || row.dataset.username.includes(q);
-        row.style.display = ok ? '' : 'none';
-        if (ok) vis++;
-    });
-    document.getElementById('adminNoResult').classList.toggle('hidden', vis > 0 || !q);
-}
-window.filterAdminTable = filterAdminTable;
+        siswaRows: [],
+        siswaMeta: { total: 0, pages: 1 },
+        siswaLoading: false,
+        siswaLoaded: false,
+        siswaPage: 1,
+        siswaPerPage: 10,
+        siswaQuery: '',
+        siswaAppliedQuery: '',
+        siswaResetOnly: false,
 
-function hapusAdmin(id, nama) {
-    Swal.fire({
-        title: 'Hapus Administrator?',
-        text: 'Akun "' + nama + '" akan dihapus permanen.',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        fetch(appUrl + 'useradmin/delete/' + encodeURIComponent(id), {
-            method: 'POST',
-            body: new URLSearchParams({ [CSRF_NAME]: CSRF_HASH })
-        }).then(r => r.json()).then(res => {
-            if (res.status) {
-                Swal.fire({ icon: 'success', title: 'Terhapus!', text: res.msg || '', timer: 1200, showConfirmButton: false })
-                    .then(() => location.reload());
-            } else {
-                Swal.fire('Gagal', res.msg || 'Gagal menghapus', 'error');
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.config = Object.assign({ urls: {}, csrf: '', avatarFallback: '' }, cfg);
+            this.config.urls = cfg.urls || {};
+
+            const savedTab = ['admin', 'guru', 'siswa'].includes(localStorage.getItem('umTab'))
+                ? localStorage.getItem('umTab')
+                : 'admin';
+
+            this.setTab(savedTab);
+        },
+
+        /* ── util ─────────────────────────────────────────── */
+        get csrf() {
+            return this.config.csrf;
+        },
+
+        async requestJson(url, { method = 'POST', params = null } = {}) {
+            const options = {
+                method,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': this.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            };
+
+            if (params) {
+                options.headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+                options.body = params;
             }
-        }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.hapusAdmin = hapusAdmin;
 
-document.getElementById('formTambahAdmin').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btnSimpanAdmin');
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>Menyimpan...';
+            const response = await fetch(url, options);
 
-    const fd = new FormData(this);
-    postForm('useradmin/create', fd).then(res => {
-        if (res.status) {
-            AdminUI.modal.close(document.getElementById('modalTambahAdmin'));
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: res.msg, timer: 1400, showConfirmButton: false })
-                .then(() => location.reload());
-        } else {
-            const errs = res.errors ? Object.values(res.errors).join('<br>') : (res.msg || 'Terjadi kesalahan');
-            Swal.fire({ icon: 'error', title: 'Gagal', html: errs });
-        }
-    }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'))
-      .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
-});
+            return response.json();
+        },
 
-/* ════════════════════════════════════════════
-   GURU TAB
-════════════════════════════════════════════ */
-window._guruLoaded = false;
-window._guruData   = [];
+        post(url, data = {}) {
+            const body = new URLSearchParams();
+            body.append('_token', this.csrf);
 
-function loadGuru() {
-    document.getElementById('guruSubtitle').textContent = 'Memuat data...';
-    fetch(appUrl + 'userguru/data')
-        .then(r => r.json())
-        .then(data => {
-            window._guruData   = data;
-            window._guruLoaded = true;
-            renderGuruTable(data);
-            document.getElementById('guruSubtitle').textContent = data.length + ' guru terdaftar';
-        })
-        .catch(() => {
-            document.getElementById('guruSubtitle').textContent = 'Gagal memuat data';
-        });
-}
+            Object.keys(data).forEach((key) => body.append(key, data[key] ?? ''));
 
-function renderGuruTable(data) {
-    const tbody = document.getElementById('tblGuruBody');
-    const empty = document.getElementById('guruEmptyState');
-    if (!data || data.length === 0) {
-        tbody.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-    }
-    empty.classList.add('hidden');
+            return this.requestJson(url, { params: body });
+        },
 
-    const fallbackFoto = appUrl + 'assets/img/siswa_sm.png';
-    let html = '';
-    data.forEach((g, idx) => {
-        const isActive = g.active == '1' || g.active === 1;
-        const hasReset = g.reset && g.reset !== '0';
-        const fotoSrc  = g.foto || fallbackFoto;
-        const jabatan  = g.level || '-';
+        isActive(value) {
+            return value === 1 || value === '1' || value === true;
+        },
 
-        html += `
-        <tr class="guru-row hover:bg-emerald-50/30 transition-colors" data-name="${escAttr((g.nama_guru || '').toLowerCase())}">
-            <td class="px-5 py-3 text-slate-400 font-mono text-xs">${idx + 1}</td>
-            <td class="px-5 py-3">
-                <div class="flex items-center gap-2.5">
-                    <img src="${escAttr(fotoSrc)}" class="u-avatar border border-slate-200"
-                        onerror="this.onerror=null;this.src='${fallbackFoto}'" alt="">
-                    <span class="font-semibold text-slate-800 truncate max-w-[180px]">${escHtml(g.nama_guru)}</span>
-                </div>
-            </td>
-            <td class="px-4 py-3 hidden sm:table-cell">
-                <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">${escHtml(g.username || '-')}</span>
-            </td>
-            <td class="px-4 py-3 text-center hidden md:table-cell">
-                <span class="inline-flex px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">${escHtml(jabatan)}</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <button type="button" data-reset-guru="${escAttr(g.username || '')}" data-nama="${escAttr(g.nama_guru || '')}"
-                    class="w-8 h-8 rounded-lg inline-flex items-center justify-center border transition-colors
-                        ${hasReset ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'}"
-                    ${hasReset ? '' : 'disabled'}
-                    title="${hasReset ? 'Reset ' + escAttr(g.reset) + ' login gagal' : 'Tidak ada login gagal'}">
-                    <i class="bi bi-arrow-repeat text-xs"></i>
-                </button>
-                <button type="button" data-pw-guru="${escAttr(g.username || '')}" data-nama="${escAttr(g.nama_guru || '')}"
-                    class="w-8 h-8 rounded-lg inline-flex items-center justify-center border transition-colors bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 ml-1"
-                    title="Reset password ke default (123456)">
-                    <i class="bi bi-key-fill text-xs"></i>
-                </button>
-            </td>
-            <td class="px-4 py-3 text-center">
-                ${isActive
-                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                           <span class="status-dot bg-emerald-500"></span>Aktif</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                           <span class="status-dot bg-red-500"></span>Nonaktif</span>`
+        hasReset(value) {
+            return Boolean(value) && String(value) !== '0';
+        },
+
+        reload() {
+            window.location.reload();
+        },
+
+        /* ── tabs ─────────────────────────────────────────── */
+        setTab(tab) {
+            this.tab = tab;
+            localStorage.setItem('umTab', tab);
+
+            if (tab === 'guru' && !this.guruLoaded) {
+                this.loadGuru();
+            }
+
+            if (tab === 'siswa' && !this.siswaLoaded) {
+                this.loadSiswa(1);
+            }
+        },
+
+        /* ── admin ────────────────────────────────────────── */
+        resetForm() {
+            this.errors = {};
+            this.form = { first_name: '', last_name: '', username: '', email: '', password: '', confirm_password: '' };
+        },
+
+        openCreate() {
+            this.resetForm();
+            this.$store.modals.open('#createAdminModal');
+        },
+
+        async submitCreate() {
+            if (this.saving) return;
+
+            this.saving = true;
+            this.errors = {};
+
+            try {
+                const result = await this.post(this.config.urls.adminCreate, this.form);
+
+                if (result && result.status) {
+                    this.$store.modals.close('#createAdminModal');
+                    this.resetForm();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: result.msg || 'Admin berhasil dibuat',
+                        timer: 1600,
+                        showConfirmButton: false,
+                    }).then(() => window.location.reload());
+                    return;
                 }
-            </td>
-            <td class="px-4 py-3">
-                <div class="flex items-center justify-center gap-1.5">
-                    <button type="button" data-toggle-guru="${escAttr(g.id ?? '')}" data-gid="${escAttr(g.id_guru ?? '')}" data-nama="${escAttr(g.nama_guru || '')}" data-action="${isActive ? 'nonaktifkan' : 'aktifkan'}"
-                        class="w-8 h-8 rounded-lg inline-flex items-center justify-center border transition-colors
-                            ${isActive ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'}"
-                        title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">
-                        <i class="bi bi-${isActive ? 'slash-circle' : 'person-check-fill'} text-xs"></i>
-                    </button>
-                    <a href="${appUrl}userguru/edit/${encodeURIComponent(g.id_guru)}"
-                        class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 inline-flex items-center justify-center transition-colors"
-                        title="Edit">
-                        <i class="bi bi-pencil text-xs"></i>
-                    </a>
-                </div>
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
-}
 
-function filterGuruTable() {
-    const q = ($('#guruSearch').val() || '').toLowerCase().trim();
-    $('#guruSearchClear').toggleClass('hidden', !q).toggleClass('inline-flex', !!q);
-    const filtered = !q ? window._guruData : window._guruData.filter(g => (g.nama_guru || '').toLowerCase().includes(q));
-    renderGuruTable(filtered);
-    document.getElementById('guruSubtitle').textContent = filtered.length + ' guru' + (q ? ' (filter: "' + q + '")' : ' terdaftar');
-}
-window.filterGuruTable = filterGuruTable;
-function clearGuruSearch() {
-    document.getElementById('guruSearch').value = '';
-    filterGuruTable();
-}
-window.clearGuruSearch = clearGuruSearch;
+                this.errors = (result && result.errors) || {};
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: (result && result.msg) || 'Admin gagal dibuat — periksa isian lalu coba lagi.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.saving = false;
+            }
+        },
 
-function toggleGuru(userId, guruId, nama, action) {
-    Swal.fire({
-        title: (action === 'aktifkan' ? 'Aktifkan' : 'Nonaktifkan') + ' "' + nama + '"?',
-        icon: 'question', showCancelButton: true,
-        confirmButtonColor: action === 'aktifkan' ? '#16a34a' : '#d97706',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: action === 'aktifkan' ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
-        cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('userguru/activate', { id: userId, id_guru: guruId, nama, is_active: action })
-            .then(r => {
-                if (r.status) {
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: r.msg, timer: 1300, showConfirmButton: false })
-                        .then(() => { window._guruLoaded = false; loadGuru(); });
-                } else {
-                    Swal.fire('Gagal', r.msg || 'Gagal mengubah status', 'error');
+        async deleteAdmin(id, nama) {
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus Administrator?',
+                text: 'Akun "' + (nama || 'ini') + '" akan dihapus permanen.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const result = await this.post(this.config.urls.adminDelete + '/' + encodeURIComponent(id));
+
+                if (result && result.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Terhapus',
+                        text: result.msg || 'Admin berhasil dihapus',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    }).then(() => window.location.reload());
+                    return;
                 }
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.toggleGuru = toggleGuru;
 
-function resetLoginGuru(username, nama) {
-    Swal.fire({
-        title: 'Reset Login?',
-        text: 'Hapus catatan login gagal untuk "' + nama + '"?',
-        icon: 'question', showCancelButton: true,
-        confirmButtonText: 'Ya, Reset', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('userguru/reset_login', { username, nama })
-            .then(r => {
-                Swal.fire({ icon: r.status ? 'success' : 'error', title: r.status ? 'Berhasil' : 'Gagal', text: r.msg, timer: 1400, showConfirmButton: false })
-                    .then(() => { window._guruLoaded = false; loadGuru(); });
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.resetLoginGuru = resetLoginGuru;
+                Swal.fire({ icon: 'error', title: 'Gagal', text: (result && result.msg) || 'Admin gagal dihapus.' });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            }
+        },
 
-function resetPasswordGuru(username, nama) {
-    if (!username) { Swal.fire('Perhatian', 'Username kosong.', 'warning'); return; }
-    Swal.fire({
-        title: 'Reset Password?',
-        html: 'Password <strong>"' + escHtml(nama) + '"</strong> akan direset ke default:<br><span class="font-mono font-bold text-lg">123456</span>',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: '#d97706', cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Reset', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('userguru/reset_password', { username })
-            .then(r => {
-                Swal.fire({ icon: r.status ? 'success' : 'error', title: r.status ? 'Berhasil' : 'Gagal', text: r.msg || '', timer: r.status ? 2500 : undefined, showConfirmButton: !r.status });
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.resetPasswordGuru = resetPasswordGuru;
+        /* ── guru ─────────────────────────────────────────── */
+        get guruFiltered() {
+            const query = this.guruQuery.trim().toLowerCase();
 
-function aktifkanSemuaGuru(action) {
-    Swal.fire({
-        title: action === 'aktifkan' ? 'Aktifkan Semua Guru?' : 'Nonaktifkan Semua Guru?',
-        text: 'Tindakan ini akan mempengaruhi semua akun guru.',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: action === 'aktifkan' ? '#16a34a' : '#dc2626',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'Lanjutkan', cancelButtonText: 'Batal',
-        showLoaderOnConfirm: true,
-        preConfirm: () => postJson('userguru/aktifkansemua', { is_active: action }),
-        allowOutsideClick: () => !Swal.isLoading()
-    }).then(res => {
-        if (res.isConfirmed && res.value) {
-            Swal.fire({ icon: res.value.status ? 'success' : 'error', title: res.value.status ? 'Berhasil!' : 'Gagal', text: res.value.msg })
-                .then(() => { window._guruLoaded = false; loadGuru(); });
-        }
-    });
-}
+            if (query === '') return this.guruList;
 
-/* ════════════════════════════════════════════
-   SISWA TAB
-════════════════════════════════════════════ */
-window._siswaLoaded = false;
-let siswaPage   = 1;
+            return this.guruList.filter((guru) => (guru.nama_guru || '').toLowerCase().includes(query));
+        },
 
-function siswaPageChange(page) {
-    siswaPage = Math.max(1, parseInt(page) || 1);
-    loadSiswa();
-}
-window.siswaPageChange = siswaPageChange;
-function clearSiswaSearch() {
-    document.getElementById('siswaSearch').value = '';
-    document.getElementById('siswaClear').classList.add('hidden');
-    siswaPageChange(1);
-}
-window.clearSiswaSearch = clearSiswaSearch;
+        async loadGuru() {
+            this.guruLoading = true;
 
-function loadSiswa() {
-    const q       = document.getElementById('siswaSearch').value.trim();
-    const perPage = parseInt(document.getElementById('siswaPerPage').value);
-    const reset   = document.getElementById('siswaResetFilter').checked ? '1' : '0';
+            try {
+                const data = await this.requestJson(this.config.urls.guruData, { method: 'GET' });
+                this.guruList = Array.isArray(data) ? data : [];
+                this.guruLoaded = true;
+            } catch (error) {
+                console.error(error);
+                this.guruList = [];
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal memuat data guru.' });
+            } finally {
+                this.guruLoading = false;
+            }
+        },
 
-    document.getElementById('siswaClear').classList.toggle('hidden', !q);
-    document.getElementById('siswaSubtitle').textContent = 'Memuat data...';
+        async toggleGuru(guru) {
+            const aktif = this.isActive(guru.active);
+            const action = aktif ? 'nonaktifkan' : 'aktifkan';
 
-    const fd = new FormData();
-    fd.append('page', siswaPage);
-    fd.append('limit', perPage);
-    fd.append('reset', reset);
-    if (q) fd.append('search', q);
+            const konfirmasi = await Swal.fire({
+                title: (aktif ? 'Nonaktifkan' : 'Aktifkan') + ' guru ini?',
+                text: guru.nama_guru || '',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: aktif ? '#d97706' : '#16a34a',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Lanjutkan',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
 
-    postForm('usersiswa/list', fd).then(data => {
-        window._siswaLoaded = true;
-        renderSiswaTable(data, perPage);
-        buildSiswaPagination(data.pages, perPage, data.total);
-        document.getElementById('siswaSubtitle').textContent =
-            data.total + ' siswa' + (q ? ` (filter: "${q}")` : '');
-    }).catch(() => {
-        document.getElementById('siswaSubtitle').textContent = 'Gagal memuat data';
-    });
-}
+            if (!konfirmasi.isConfirmed) return;
 
-function renderSiswaTable(data, perPage) {
-    const tbody = document.getElementById('tblSiswaBody');
-    const lists = data.lists || [];
+            try {
+                const result = await this.post(this.config.urls.guruActivate, {
+                    id: guru.id ?? '',
+                    id_guru: guru.id_guru ?? '',
+                    nama: guru.nama_guru ?? '',
+                    is_active: action,
+                });
 
-    if (!lists.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-12 text-center text-slate-400">
-            <i class="bi bi-person-x block text-4xl mb-2 opacity-20"></i>
-            <p class="text-sm font-semibold text-slate-600">Tidak ada data siswa</p></td></tr>`;
-        return;
-    }
-
-    const offset = (siswaPage - 1) * perPage;
-    const fallbackFoto = appUrl + 'assets/img/siswa_sm.png';
-    let html = '';
-    lists.forEach((s, i) => {
-        const isActive  = s.active == '1' || s.active === 1;
-        const hasReset  = s.reset && parseInt(s.reset) > 0;
-        const kls       = s.nama_kelas || '-';
-        const fotoSrc   = s.foto || fallbackFoto;
-
-        html += `
-        <tr class="hover:bg-violet-50/30 transition-colors">
-            <td class="px-5 py-3 text-slate-400 font-mono text-xs">${offset + i + 1}</td>
-            <td class="px-4 py-3 hidden sm:table-cell text-xs text-slate-500 font-mono">${escHtml(s.nis || '-')}</td>
-            <td class="px-5 py-3">
-                <div class="flex items-center gap-2.5">
-                    <img src="${escAttr(fotoSrc)}" class="u-avatar border border-slate-200"
-                        onerror="this.onerror=null;this.src='${fallbackFoto}'" alt="">
-                    <span class="font-semibold text-slate-800 truncate max-w-[160px]">${escHtml(s.nama)}</span>
-                </div>
-            </td>
-            <td class="px-4 py-3 hidden md:table-cell">
-                <span class="inline-flex px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">${escHtml(kls)}</span>
-            </td>
-            <td class="px-4 py-3 hidden lg:table-cell">
-                <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">${escHtml(s.username || '-')}</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <button type="button" data-reset-siswa="${escAttr(s.username || '')}" data-nama="${escAttr(s.nama || '')}"
-                    class="w-8 h-8 rounded-lg inline-flex items-center justify-center border transition-colors
-                        ${hasReset ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'}"
-                    ${hasReset ? '' : 'disabled'}
-                    title="${hasReset ? 'Reset ' + escAttr(s.reset) + ' login gagal' : 'Tidak ada login gagal'}">
-                    <i class="bi bi-arrow-repeat text-xs"></i>
-                </button>
-                <button type="button" data-pw-siswa="${escAttr(s.username || '')}" data-nama="${escAttr(s.nama || '')}"
-                    class="w-8 h-8 rounded-lg inline-flex items-center justify-center border transition-colors bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 ml-1"
-                    title="Reset password ke default (NISN)">
-                    <i class="bi bi-key-fill text-xs"></i>
-                </button>
-            </td>
-            <td class="px-4 py-3 text-center">
-                ${isActive
-                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                           <span class="status-dot bg-emerald-500"></span>Aktif</span>`
-                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                           <span class="status-dot bg-red-500"></span>Nonaktif</span>`
+                if (result && result.status) {
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: result.msg || '', timer: 1300, showConfirmButton: false });
+                    await this.loadGuru();
+                    return;
                 }
-            </td>
-            <td class="px-4 py-3">
-                <div class="flex items-center justify-center gap-1.5">
-                    ${isActive
-                        ? `<button type="button" data-toggle-siswa="${escAttr(s.id_siswa ?? '')}" data-nama="${escAttr(s.nama || '')}" data-action="nonaktifkan"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 text-[10px] font-bold transition-colors">
-                                <i class="bi bi-slash-circle text-[10px]"></i>Nonaktif</button>`
-                        : `<button type="button" data-toggle-siswa="${escAttr(s.id_siswa ?? '')}" data-nama="${escAttr(s.nama || '')}" data-action="aktifkan"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-[10px] font-bold transition-colors">
-                                <i class="bi bi-person-check-fill text-[10px]"></i>Aktifkan</button>`
-                    }
-                </div>
-            </td>
-        </tr>`;
-    });
-    tbody.innerHTML = html;
-}
 
-function buildSiswaPagination(totalPages, perPage, totalData) {
-    const el   = document.getElementById('siswaPagination');
-    const info = document.getElementById('siswaInfo');
-    const from = totalData > 0 ? (siswaPage - 1) * perPage + 1 : 0;
-    const to   = Math.min(siswaPage * perPage, totalData);
-    info.textContent = `Menampilkan ${from}–${to} dari ${totalData} siswa`;
+                Swal.fire('Gagal', (result && result.msg) || 'Gagal mengubah status', 'error');
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
 
-    if (totalPages <= 1) { el.innerHTML = ''; return; }
+        async resetLoginGuru(guru) {
+            const konfirmasi = await Swal.fire({
+                title: 'Reset Login?',
+                text: 'Hapus catatan login gagal untuk "' + (guru.nama_guru || '') + '"?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
 
-    let btns = '';
-    btns += `<button type="button" class="pg-btn" data-page="${siswaPage - 1}" ${siswaPage <= 1 ? 'disabled' : ''}>
-                <i class="bi bi-chevron-left text-xs"></i></button>`;
+            if (!konfirmasi.isConfirmed) return;
 
-    const range = 2;
-    for (let p = 1; p <= totalPages; p++) {
-        if (p === 1 || p === totalPages || (p >= siswaPage - range && p <= siswaPage + range)) {
-            btns += `<button type="button" class="pg-btn ${p === siswaPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-        } else if (p === siswaPage - range - 1 || p === siswaPage + range + 1) {
-            btns += `<span class="px-1 text-slate-400 text-xs">…</span>`;
-        }
-    }
+            try {
+                const result = await this.post(this.config.urls.guruResetLogin, {
+                    username: guru.username ?? '',
+                    nama: guru.nama_guru ?? '',
+                });
 
-    btns += `<button type="button" class="pg-btn" data-page="${siswaPage + 1}" ${siswaPage >= totalPages ? 'disabled' : ''}>
-                <i class="bi bi-chevron-right text-xs"></i></button>`;
-    el.innerHTML = btns;
-}
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                    timer: result && result.status ? 1400 : undefined,
+                    showConfirmButton: !(result && result.status),
+                });
 
-function toggleSiswa(idSiswa, nama, action) {
-    Swal.fire({
-        title: (action === 'aktifkan' ? 'Aktifkan' : 'Nonaktifkan') + ' "' + nama + '"?',
-        icon: 'question', showCancelButton: true,
-        confirmButtonColor: action === 'aktifkan' ? '#16a34a' : '#d97706',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('usersiswa/activate', { id_siswa: idSiswa, is_active: action, nama })
-            .then(r => {
-                if (r.status) {
-                    loadSiswa();
-                } else {
-                    Swal.fire('Gagal', r.msg || 'Gagal mengubah status', 'error');
+                await this.loadGuru();
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+
+        async resetPasswordGuru(guru) {
+            if (!guru.username) {
+                Swal.fire('Perhatian', 'Username kosong.', 'warning');
+                return;
+            }
+
+            const konfirmasi = await Swal.fire({
+                title: 'Reset Password?',
+                text: 'Password "' + (guru.nama_guru || '') + '" akan direset ke default: 123456',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d97706',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const result = await this.post(this.config.urls.guruResetPassword, { username: guru.username });
+
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                    timer: result && result.status ? 2500 : undefined,
+                    showConfirmButton: !(result && result.status),
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+
+        async bulkGuru(action) {
+            const konfirmasi = await Swal.fire({
+                title: (action === 'aktifkan' ? 'Aktifkan' : 'Nonaktifkan') + ' Semua Guru?',
+                text: 'Tindakan ini akan mempengaruhi semua akun guru.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: action === 'aktifkan' ? '#16a34a' : '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Lanjutkan',
+                cancelButtonText: 'Batal',
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            Swal.showLoading();
+
+            try {
+                const result = await this.post(this.config.urls.guruBulk, { is_active: action });
+
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                });
+
+                await this.loadGuru();
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+
+        /* ── siswa ────────────────────────────────────────── */
+        get siswaPageNumbers() {
+            const total = Math.max(1, this.siswaMeta.pages || 1);
+            const current = this.siswaPage;
+            const numbers = [];
+
+            for (let page = 1; page <= total; page += 1) {
+                if (page === 1 || page === total || Math.abs(page - current) <= 2) {
+                    numbers.push(page);
+                } else if (Math.abs(page - current) === 3) {
+                    numbers.push('\u2026');
                 }
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.toggleSiswa = toggleSiswa;
+            }
 
-function resetLoginSiswa(username, nama) {
-    Swal.fire({
-        title: 'Reset Login?',
-        text: 'Hapus catatan login gagal untuk "' + nama + '"?',
-        icon: 'question', showCancelButton: true,
-        confirmButtonText: 'Ya, Reset', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('usersiswa/reset_login', { username })
-            .then((r) => {
-                Swal.fire({ icon: r.status ? 'success' : 'error', title: r.status ? 'Berhasil' : 'Gagal', text: r.msg || '', timer: 1200, showConfirmButton: false });
-                loadSiswa();
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.resetLoginSiswa = resetLoginSiswa;
+            return numbers;
+        },
 
-function resetPasswordSiswa(username, nama) {
-    if (!username) { Swal.fire('Perhatian', 'Username kosong.', 'warning'); return; }
-    Swal.fire({
-        title: 'Reset Password?',
-        html: 'Password <strong>"' + escHtml(nama) + '"</strong> akan direset ke default:<br><span class="font-mono font-bold text-lg">NISN siswa</span>',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: '#d97706', cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Reset', cancelButtonText: 'Batal'
-    }).then(res => {
-        if (!res.isConfirmed) return;
-        postJson('usersiswa/reset_password', { username })
-            .then(r => {
-                Swal.fire({ icon: r.status ? 'success' : 'error', title: r.status ? 'Berhasil' : 'Gagal', text: r.msg || '', timer: r.status ? 2500 : undefined, showConfirmButton: !r.status });
-            }).catch(() => Swal.fire('Error', 'Koneksi server bermasalah', 'error'));
-    });
-}
-window.resetPasswordSiswa = resetPasswordSiswa;
+        async loadSiswa(page = 1) {
+            this.siswaPage = Math.max(1, Number(page) || 1);
+            this.siswaLoading = true;
+            this.siswaAppliedQuery = this.siswaQuery.trim();
 
-function aktifkanSemuaSiswa(action) {
-    Swal.fire({
-        title: action === 'aktifkan' ? 'Aktifkan Semua Siswa?' : 'Nonaktifkan Semua Siswa?',
-        text: 'Tindakan ini mempengaruhi seluruh akun siswa yang sudah terdaftar.',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: action === 'aktifkan' ? '#7c3aed' : '#dc2626',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'Lanjutkan', cancelButtonText: 'Batal',
-        showLoaderOnConfirm: true,
-        preConfirm: () => postJson('usersiswa/aktifkansemua', { is_active: action }),
-        allowOutsideClick: () => !Swal.isLoading()
-    }).then(res => {
-        if (res.isConfirmed && res.value) {
-            Swal.fire({ icon: res.value.status ? 'success' : 'error', title: res.value.status ? 'Berhasil!' : 'Gagal', text: res.value.msg })
-                .then(() => loadSiswa());
-        }
-    });
-}
+            try {
+                const result = await this.post(this.config.urls.siswaList, {
+                    page: this.siswaPage,
+                    limit: this.siswaPerPage,
+                    reset: this.siswaResetOnly ? '1' : '0',
+                    ...(this.siswaAppliedQuery ? { search: this.siswaAppliedQuery } : {}),
+                });
 
-/* ════════════════════════════════════════════
-   UTILITIES
-════════════════════════════════════════════ */
-function togglePwd(id, btn) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const ic = btn.querySelector('i');
-    el.type  = el.type === 'password' ? 'text' : 'password';
-    if (ic) ic.className = el.type === 'text' ? 'bi bi-eye-slash text-sm' : 'bi bi-eye text-sm';
-}
-window.togglePwd = togglePwd;
-function escHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s ?? '';
-    return d.innerHTML;
-}
-function escAttr(s) {
-    return String(s ?? '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+                this.siswaRows = (result && result.lists) || [];
+                this.siswaMeta = {
+                    total: Number((result && result.total) || 0),
+                    pages: Math.max(1, Number((result && result.pages) || 1)),
+                };
+                this.siswaLoaded = true;
+            } catch (error) {
+                console.error(error);
+                this.siswaRows = [];
+                this.siswaMeta = { total: 0, pages: 1 };
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            } finally {
+                this.siswaLoading = false;
+            }
+        },
 
-/* ════════════════════════════════════════════
-   INIT
-════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function () {
-    // Tab switching (delegated, pola dapodik)
-    $('#userTabs').on('click', '[data-tab]', function () {
-        switchTab(this.dataset.tab);
-    });
+        async toggleSiswa(siswa) {
+            const aktif = this.isActive(siswa.active);
+            const action = aktif ? 'nonaktifkan' : 'aktifkan';
 
-    // Restore last active tab
-    switchTab(localStorage.getItem('umTab') || 'admin');
+            const konfirmasi = await Swal.fire({
+                title: (aktif ? 'Nonaktifkan' : 'Aktifkan') + ' siswa ini?',
+                text: siswa.nama || '',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: aktif ? '#d97706' : '#16a34a',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Lanjutkan',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
 
-    // ── Admin tab bindings ──
-    $('#btnReloadAdmin').on('click', reloadAdmin);
-    $('#adminSearch').on('input', filterAdminTable);
-    $('#adminSearchClear').on('click', function () {
-        $('#adminSearch').val('');
-        filterAdminTable();
-        $('#adminSearch').focus();
-    });
-    $('#adminResetSearch').on('click', function () {
-        $('#adminSearch').val('');
-        filterAdminTable();
-    });
-    $(document).on('click', '.btn-hapus-admin', function () {
-        hapusAdmin($(this).data('id'), $(this).data('nama'));
-    });
+            if (!konfirmasi.isConfirmed) return;
 
-    // ── Guru tab bindings ──
-    $('#btnReloadGuru').on('click', function () { window._guruLoaded = false; loadGuru(); });
-    $('#guruSearch').on('input', filterGuruTable);
-    $('#guruSearchClear').on('click', clearGuruSearch);
-    $(document).on('click', '[data-bulk-guru]', function () {
-        aktifkanSemuaGuru($(this).data('bulk-guru'));
-    });
-    $(document).on('click', '[data-reset-guru]', function () {
-        if ($(this).prop('disabled')) return;
-        resetLoginGuru($(this).data('reset-guru'), $(this).data('nama'));
-    });
-    $(document).on('click', '[data-pw-guru]', function () {
-        resetPasswordGuru($(this).data('pw-guru'), $(this).data('nama'));
-    });
-    $(document).on('click', '[data-toggle-guru]', function () {
-        const $b = $(this);
-        toggleGuru($b.data('toggle-guru'), $b.data('gid'), $b.data('nama'), $b.data('action'));
-    });
+            try {
+                const result = await this.post(this.config.urls.siswaActivate, {
+                    id_siswa: siswa.id_siswa ?? '',
+                    nama: siswa.nama ?? '',
+                    is_active: action,
+                });
 
-    // ── Siswa tab bindings ──
-    $('#btnSiswaSearch').on('click', () => siswaPageChange(1));
-    $('#siswaPerPage').on('change', () => siswaPageChange(1));
-    $('#siswaClear').on('click', clearSiswaSearch);
-    $(document).on('click', '[data-bulk-siswa]', function () {
-        aktifkanSemuaSiswa($(this).data('bulk-siswa'));
-    });
-    $(document).on('click', '[data-reset-siswa]', function () {
-        if ($(this).prop('disabled')) return;
-        resetLoginSiswa($(this).data('reset-siswa'), $(this).data('nama'));
-    });
-    $(document).on('click', '[data-pw-siswa]', function () {
-        resetPasswordSiswa($(this).data('pw-siswa'), $(this).data('nama'));
-    });
-    $(document).on('click', '[data-toggle-siswa]', function () {
-        const $b = $(this);
-        toggleSiswa($b.data('toggle-siswa'), $b.data('nama'), $b.data('action'));
-    });
-    $('#siswaPagination').on('click', '.pg-btn[data-page]', function () {
-        if ($(this).prop('disabled')) return;
-        siswaPageChange($(this).data('page'));
-    });
+                if (result && result.status) {
+                    await this.loadSiswa(this.siswaPage);
+                    return;
+                }
 
-    // ── Modal helpers ──
-    $(document).on('click', '[data-toggle-pwd]', function () {
-        togglePwd($(this).data('toggle-pwd'), this);
-    });
+                Swal.fire('Gagal', (result && result.msg) || 'Gagal mengubah status', 'error');
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
 
-    // Siswa search — Enter key trigger
-    document.getElementById('siswaSearch').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') siswaPageChange(1);
-    });
-    document.getElementById('siswaSearch').addEventListener('input', function() {
-        document.getElementById('siswaClear').classList.toggle('hidden', !this.value);
-    });
-    document.getElementById('siswaResetFilter').addEventListener('change', () => siswaPageChange(1));
+        async resetLoginSiswa(siswa) {
+            const konfirmasi = await Swal.fire({
+                title: 'Reset Login?',
+                text: 'Hapus catatan login gagal untuk "' + (siswa.nama || '') + '"?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const result = await this.post(this.config.urls.siswaResetLogin, { username: siswa.username ?? '' });
+
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                    timer: 1200,
+                    showConfirmButton: false,
+                });
+
+                await this.loadSiswa(this.siswaPage);
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+
+        async resetPasswordSiswa(siswa) {
+            if (!siswa.username) {
+                Swal.fire('Perhatian', 'Username kosong.', 'warning');
+                return;
+            }
+
+            const konfirmasi = await Swal.fire({
+                title: 'Reset Password?',
+                text: 'Password "' + (siswa.nama || '') + '" akan direset ke default: NISN siswa',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d97706',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const result = await this.post(this.config.urls.siswaResetPassword, { username: siswa.username });
+
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                    timer: result && result.status ? 2500 : undefined,
+                    showConfirmButton: !(result && result.status),
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+
+        async bulkSiswa(action) {
+            const konfirmasi = await Swal.fire({
+                title: (action === 'aktifkan' ? 'Aktifkan' : 'Nonaktifkan') + ' Semua Siswa?',
+                text: 'Tindakan ini mempengaruhi seluruh akun siswa yang sudah terdaftar.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: action === 'aktifkan' ? '#7c3aed' : '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Lanjutkan',
+                cancelButtonText: 'Batal',
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            Swal.showLoading();
+
+            try {
+                const result = await this.post(this.config.urls.siswaBulk, { is_active: action });
+
+                Swal.fire({
+                    icon: result && result.status ? 'success' : 'error',
+                    title: result && result.status ? 'Berhasil' : 'Gagal',
+                    text: (result && result.msg) || '',
+                });
+
+                await this.loadSiswa(1);
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Koneksi server bermasalah', 'error');
+            }
+        },
+    }));
 });
 </script>
 @endsection

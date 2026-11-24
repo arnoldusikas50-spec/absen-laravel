@@ -3,7 +3,232 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* ════════════════════════════════════════════════════════════════════
+   SISTEM DESAIN — satu sumber token untuk seluruh halaman backend.
+
+   Token di bawah dipetakan ke CSS variable runtime yang dihasilkan
+   Theme::cssVars()/brandVars() lewat {!! Theme::styleTag() !!}. Dengan
+   begitu utility seperti bg-surface, text-text-primary, border-border,
+   bg-primary-600, atau bg-brand-50 benar-benar dibangkitkan Tailwind
+   (bukan lagi kelas tambal di tailwind-admin.css) sekaligus tetap
+   mengikuti preset tema yang dipilih di Pengaturan.
+   ════════════════════════════════════════════════════════════════════ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* ── Palet primary (mengikuti tema aktif) ── */
+    --color-primary-50: var(--primary-50, #fff1f2);
+    --color-primary-100: var(--primary-100, #ffe4e6);
+    --color-primary-200: var(--primary-200, #fecdd3);
+    --color-primary-300: var(--primary-300, #fda4af);
+    --color-primary-400: var(--primary-400, #fb7185);
+    --color-primary-500: var(--primary-500, #f43f5e);
+    --color-primary-600: var(--primary-600, #e11d48);
+    --color-primary-700: var(--primary-700, #be123c);
+    --color-primary-800: var(--primary-800, #9f1239);
+    --color-primary-900: var(--primary-900, #881337);
+
+    /* ── Palet accent (mengikuti tema aktif) ── */
+    --color-accent-50: var(--accent-50, #fdf4ff);
+    --color-accent-100: var(--accent-100, #fae8ff);
+    --color-accent-200: var(--accent-200, #f5d0fe);
+    --color-accent-300: var(--accent-300, #f0abfc);
+    --color-accent-400: var(--accent-400, #e879f9);
+    --color-accent-500: var(--accent-500, #d946ef);
+    --color-accent-600: var(--accent-600, #c026d3);
+    --color-accent-700: var(--accent-700, #a21caf);
+    --color-accent-800: var(--accent-800, #86198f);
+    --color-accent-900: var(--accent-900, #701a75);
+
+    /* ── Alias brand (= palet primary) ── */
+    --color-brand-50: var(--brand-50, #fff1f2);
+    --color-brand-100: var(--brand-100, #ffe4e6);
+    --color-brand-200: var(--brand-200, #fecdd3);
+    --color-brand-300: var(--brand-300, #fda4af);
+    --color-brand-400: var(--brand-400, #fb7185);
+    --color-brand-500: var(--brand-500, #f43f5e);
+    --color-brand-600: var(--brand-600, #e11d48);
+    --color-brand-700: var(--brand-700, #be123c);
+    --color-brand-800: var(--brand-800, #9f1239);
+    --color-brand-900: var(--brand-900, #881337);
+
+    /* ── Permukaan ── */
+    --color-surface: var(--surface, #ffffff);
+    --color-surface-hover: var(--surface-hover, #f8fafc);
+    --color-surface-muted: var(--surface-muted, #f8fafc);
+    --color-surface-inverse: var(--surface-inverse, #0f172a);
+    --color-surface-inverse-hover: var(--surface-inverse-hover, #1e293b);
+
+    /* ── Garis ── */
+    --color-border: var(--border, #e2e8f0);
+    --color-border-focus: var(--border-focus, #f43f5e);
+    --color-border-muted: var(--border-muted, #cbd5e1);
+
+    /* ── Teks ── */
+    --color-text-primary: var(--text-primary, #0f1729);
+    --color-text-secondary: var(--text-secondary, #475569);
+    --color-text-muted: var(--text-muted, #94a3b8);
+    --color-text-inverse: var(--text-inverse, #ffffff);
+    --color-text-success: var(--text-success, #047857);
+    --color-text-warning: var(--text-warning, #c2410c);
+    --color-text-error: var(--text-error, #dc2626);
+    --color-text-info: var(--text-info, #1d4ed8);
+
+    /* ── Interaktif ── */
+    --color-primary: var(--primary, #e11d48);
+    --color-primary-hover: var(--primary-hover, #be123c);
+    --color-primary-active: var(--primary-active, #9f1239);
+    --color-primary-subtle: var(--primary-subtle, #fff1f2);
+    --color-accent: var(--accent, #c026d3);
+    --color-accent-hover: var(--accent-hover, #a21caf);
+    --color-accent-active: var(--accent-active, #86198f);
+    --color-accent-subtle: var(--accent-subtle, #fdf4ff);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DASAR
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Alpine: sembunyikan elemen ber-x-cloak sampai state siap. */
+[x-cloak] {
+    display: none !important;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--surface-muted, #f8fafc);
+    color: var(--text-primary, #0f1729);
+}
+
+/* Drawer sidebar mobile sedang terbuka. */
+body.shell-drawer-open {
+    overflow: hidden;
+}
+
+/* Indikator fokus keyboard yang konsisten di seluruh shell. */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible {
+    outline: 2px solid var(--primary-500, #f43f5e);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+/* Scrollbar tipis — mengikuti token tema. */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-muted, #cbd5e1);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted, #94a3b8);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SHELL ADMIN — sidebar
+   Ditulis di luar @layer agar menang atas utility (w-64, dsb.),
+   sama seperti perilaku <style> inline sebelumnya.
+   ════════════════════════════════════════════════════════════════════ */
+#main-sidebar {
+    background: linear-gradient(160deg, #1e293b 0%, #0f172a 55%, #0c1322 100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar selalu gelap; token inverse tidak ikut preset tema terang. */
+#main-sidebar,
+#main-sidebar * {
+    --surface-inverse: #0f172a;
+    --surface-inverse-hover: #1e293b;
+}
+
+#main-sidebar.collapsed {
+    width: 4.5rem !important;
+}
+
+#main-sidebar.collapsed .sidebar-label {
+    display: none !important;
+}
+
+#main-sidebar.collapsed .treeview-arrow {
+    display: none !important;
+}
+
+#main-sidebar.collapsed nav {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+#main-sidebar.collapsed li > a,
+#main-sidebar.collapsed li > button {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#main-sidebar.collapsed .sidebar-submenu {
+    display: none !important;
+}
+
+#main-content {
+    transition: margin-left 0.3s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   UTILITAS ANIMASI
+   ════════════════════════════════════════════════════════════════════ */
+.fade-in-up {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hormati preferensi pengguna yang meminta animasi minimal. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CETAK
+   ════════════════════════════════════════════════════════════════════ */
+page {
+    background: white;
+    display: block;
+    margin: 0 auto;
+    margin-bottom: 0.5cm;
+}
+
+page[size='A4'][layout='potrait'] {
+    width: 21cm;
+    height: 29.7cm;
+}
+
+page[size='A4'] {
+    width: 29.7cm;
+    height: 21cm;
 }

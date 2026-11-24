@@ -1,540 +1,672 @@
-<?php
-
-/**
- * Halaman Surat Teguran Guru — /admin/presensi/surat-teguran
- *
- * Disesuaikan agar satu visual language dengan surat_panggilan.php:
- * header berikon dalam kotak, subjudul penjelas, filter + ringkasan dalam
- * satu kartu, tabel dengan badge status, daftar kandidat, lalu blok
- * penjelasan.
- *
- * @var callable $this->extend
- */
-
-$ambang  = \App\Libraries\SuratTeguranLevel::ambang();
-$ambangAwal = $ambang[0];
-
-$jumlahAktif = count(array_filter(
-    $letters,
-    static fn($l) => ($l->status ?? 'aktif') === 'aktif'
-));
-$jumlahBatal = count(array_filter(
-    $letters,
-    static fn($l) => ($l->status ?? 'aktif') === 'dibatalkan'
-));
-$jumlahDibaca = count(array_filter(
-    $letters,
-    static fn($l) => ($l->status ?? 'aktif') === 'aktif' && ! empty($l->ack_at)
-));
-?>
-
 @extends('layouts.main')
 
 @section('content')
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="mb-0 font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="p-2.5 bg-red-100 text-red-600 rounded-xl shadow-sm">
-                    <i class="bi bi-envelope-exclamation text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Surat Teguran Guru' }}</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">
-                Surat resmi untuk guru yang kehadirannya sudah melewati ambang.
-                Terbit otomatis setiap tanggal 7, 14, 21, dan akhir bulan.
-            </p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi') }}"
-               class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50"
-               title="Kembali ke daftar presensi">
-                <i class="bi bi-arrow-left mr-1"></i> Presensi
-            </a>
-            <a href="{{ url('admin/presensi/surat-panggilan') }}"
-               class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50"
-               title="Surat panggilan untuk orang tua/wali siswa">
-                <i class="bi bi-envelope-open mr-1"></i> Surat Panggilan Orang Tua
-            </a>
-        </div>
-    </div>
-</div>
-
-<div class="content-area space-y-6">
-
-    <?php if (!$adaTabel): ?>
-    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-        <div class="flex items-start gap-3">
-            <i class="bi bi-exclamation-triangle-fill text-amber-500 text-base mt-0.5"></i>
-            <div class="text-xs text-amber-800">
-                <p class="font-bold m-0">Tabel surat teguran belum dibuat</p>
-                <p class="m-0 mt-1">Jalankan <code class="bg-amber-100 px-1 rounded">php artisan migrate</code> untuk membuat tabel
-                    <code class="bg-amber-100 px-1 rounded">absensi_surat_teguran</code>. Sampai itu selesai, surat tidak bisa terbit.</p>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php
-    // Dipakai di filter dan di blok penjelasan. Scope view, jadi keduanya
-    // melihat array yang sama.
+@php
     $blnIdx = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
         5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
         9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
     ];
-    ?>
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div class="px-4 py-3 border-b border-slate-100">
-            <form action="" method="get" class="flex flex-wrap items-end gap-3">
-                <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">Bulan</label>
-                    <select name="bulan" class="form-select-tw text-xs py-1.5">
-                        <?php foreach ($blnIdx as $k => $v): ?>
-                            <option value="{{ $k }}" {{ $k == $bulan ? 'selected' : '' }}>{{ $v }}</option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">Tahun</label>
-                    <select name="tahun" class="form-select-tw text-xs py-1.5">
-                        <?php for ($y = (int) date('Y'); $y >= attendance_tahun_tertua(); $y--): ?>
-                            <option value="{{ $y }}" {{ $y == $tahun ? 'selected' : '' }}>{{ $y }}</option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <div>
-                    <button type="submit" class="btn-tw btn-tw-sm btn-primary">
-                        <i class="bi bi-search mr-1"></i> Tampilkan
-                    </button>
-                </div>
-            </form>
-        </div>
 
-        <!-- Ringkasan -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
-            <div class="bg-slate-50 rounded-xl border border-slate-200 p-3">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500 m-0">Surat Aktif</p>
-                <p class="text-2xl font-bold text-slate-800 m-0 mt-1">{{ $jumlahAktif }}</p>
-            </div>
-            <div class="bg-slate-50 rounded-xl border border-slate-200 p-3">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500 m-0">Dibatalkan</p>
-                <p class="text-2xl font-bold text-slate-400 m-0 mt-1">{{ $jumlahBatal }}</p>
-            </div>
-            <div class="bg-blue-50 rounded-xl border border-blue-200 p-3">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-blue-600 m-0">Sudah Dibaca Guru</p>
-                <p class="text-2xl font-bold text-blue-700 m-0 mt-1">{{ $jumlahDibaca }}</p>
-            </div>
-            <div class="bg-red-50 rounded-xl border border-red-200 p-3">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-red-600 m-0">Ambang</p>
-                <p class="text-2xl font-bold text-red-700 m-0 mt-1">{{ implode('/', $ambang) }}</p>
-                <p class="text-[10px] text-red-600 m-0">hari alpha</p>
+    $ambang = \App\Libraries\SuratTeguranLevel::ambang();
+    $ambangAwal = $ambang[0];
+
+    // Kelas Tailwind ditulis utuh (bukan dirakit) agar ikut ter-scan saat build.
+    $kelasTingkat = static fn (int $level): string => match ($level) {
+        10 => 'bg-rose-50 text-rose-700',
+        7 => 'bg-amber-50 text-amber-700',
+        default => 'bg-blue-50 text-blue-700',
+    };
+
+    $barisSurat = [];
+    foreach ($letters as $row) {
+        $batal = ($row->status ?? 'aktif') === 'dibatalkan';
+        $level = (int) ($row->level ?? 0);
+        $namaGuru = trim((string) ($row->nama_guru ?? '')) ?: '-';
+
+        $nomor = \App\Libraries\SuratNomor::build(
+            (int) ($row->nomor_urut ?? 0),
+            (int) ($row->bulan ?? 0),
+            (int) ($row->tahun ?? 0),
+            $setting,
+            $level,
+            !empty($row->created_at) ? date('d-m-Y', strtotime($row->created_at)) : null
+        );
+
+        $barisSurat[] = [
+            'id' => (int) $row->id,
+            'nomor' => $nomor,
+            'nama' => $namaGuru,
+            'nip' => trim((string) ($row->nip ?? '')),
+            'tingkat' => $batal ? 'Dibatalkan' : \App\Libraries\SuratTeguranLevel::label($level),
+            'tingkatKelas' => $batal ? 'bg-slate-100 text-slate-500' : $kelasTingkat($level),
+            'alpha' => (int) ($row->jumlah_alpha ?? 0),
+            'terbit' => !empty($row->created_at) ? date('d-m-Y H:i', strtotime($row->created_at)) : '-',
+            'batal' => $batal,
+            'keteranganBatal' => trim((string) ($row->keterangan_batal ?? '')),
+            'dibaca' => !empty($row->ack_at),
+            'dibacaText' => trim((string) ($row->ack_text ?? '')),
+        ];
+    }
+
+    $barisKandidat = [];
+    foreach ($kandidat as $k) {
+        $level = (int) ($k['level'] ?? 0);
+
+        $barisKandidat[] = [
+            'idGuru' => (int) ($k['id_guru'] ?? 0),
+            'nama' => trim((string) ($k['nama_guru'] ?? '')) ?: '-',
+            'nip' => trim((string) ($k['nip'] ?? '')),
+            'alpha' => (int) ($k['alpha'] ?? 0),
+            'tingkat' => \App\Libraries\SuratTeguranLevel::label($level),
+            'tingkatKelas' => $kelasTingkat($level),
+        ];
+    }
+
+    $jumlahAktif = count(array_filter($barisSurat, static fn ($row) => !$row['batal']));
+    $jumlahBatal = count($barisSurat) - $jumlahAktif;
+    $jumlahDibaca = count(array_filter($barisSurat, static fn ($row) => !$row['batal'] && $row['dibaca']));
+
+    $kpi = [
+        [
+            'label' => 'Surat Aktif', 'nilai' => $jumlahAktif, 'satuan' => 'surat',
+            'ikon' => 'bi-envelope-check', 'ket' => 'Berlaku pada periode ini',
+            'aksen' => 'border-l-blue-500', 'ikonKelas' => 'bg-blue-50 text-blue-600',
+        ],
+        [
+            'label' => 'Dibatalkan', 'nilai' => $jumlahBatal, 'satuan' => 'surat',
+            'ikon' => 'bi-envelope-slash', 'ket' => 'Arsip, tidak berlaku',
+            'aksen' => 'border-l-slate-400', 'ikonKelas' => 'bg-slate-100 text-slate-500',
+        ],
+        [
+            'label' => 'Sudah Dibaca Guru', 'nilai' => $jumlahDibaca, 'satuan' => 'surat',
+            'ikon' => 'bi-check2-circle', 'ket' => 'Dikonfirmasi oleh guru',
+            'aksen' => 'border-l-emerald-500', 'ikonKelas' => 'bg-emerald-50 text-emerald-600',
+        ],
+        [
+            'label' => 'Ambang', 'nilai' => implode('/', $ambang), 'satuan' => 'hari alpha',
+            'ikon' => 'bi-sliders', 'ket' => 'Tingkat surat yang tersedia',
+            'aksen' => 'border-l-amber-500', 'ikonKelas' => 'bg-amber-50 text-amber-600',
+        ],
+    ];
+
+    $config = [
+        'baris' => $barisSurat,
+        'kandidat' => $barisKandidat,
+        'bulan' => (int) $bulan,
+        'tahun' => (int) $tahun,
+        'periode' => ($blnIdx[(int) $bulan] ?? '-').' '.(int) $tahun,
+        'csrf' => csrf_token(),
+        'urls' => [
+            'buat' => url('admin/presensi/surat-teguran/buat'),
+            'batal' => url('admin/presensi/surat-teguran/batal'),
+            'kirim' => url('admin/presensi/surat-teguran/kirim'),
+        ],
+    ];
+@endphp
+
+<div class="space-y-4" x-data="suratTeguran(@js($config))">
+
+    <x-ui.page-header title="{{ $judul ?? 'Surat Teguran Guru' }}" icon="bi-envelope-exclamation" tone="rose"
+        subtitle="Surat resmi untuk guru yang kehadirannya sudah melewati ambang. Terbit otomatis setiap tanggal 7, 14, 21, dan akhir bulan."
+        :crumbs="['Presensi', 'Surat Teguran']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi') }}" title="Kembali ke daftar presensi"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-arrow-left"></i> Presensi
+            </a>
+            <a href="{{ url('admin/presensi/surat-panggilan') }}" title="Surat panggilan untuk orang tua/wali siswa"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-envelope-open"></i> Surat Panggilan Orang Tua
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    @if (! $adaTabel)
+        <div class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <i class="bi bi-exclamation-triangle-fill mt-0.5 text-base text-amber-500"></i>
+            <div class="text-xs leading-relaxed text-amber-800">
+                <p class="font-bold">Tabel surat teguran belum dibuat</p>
+                <p class="mt-1">
+                    Jalankan <code class="rounded bg-amber-100 px-1">php artisan migrate</code> untuk membuat tabel
+                    <code class="rounded bg-amber-100 px-1">absensi_surat_teguran</code>. Sampai itu selesai, surat tidak bisa terbit.
+                </p>
             </div>
         </div>
+    @endif
 
-        <!-- Tabel surat -->
-        <div class="p-0">
-            <div class="table-responsive-tw">
-                <table class="table-tw">
-                    <thead class="bg-slate-50">
+    {{-- Filter periode: tetap form GET agar URL bisa dibagikan & controller memakai nilai server. --}}
+    <x-ui.card title="Periode Surat" icon="bi-calendar3" tone="slate" body-class="p-4">
+        <form action="" method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label for="fBulan" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Bulan</label>
+                <select id="fBulan" name="bulan"
+                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    @foreach ($blnIdx as $k => $v)
+                        <option value="{{ $k }}" @selected($k === (int) $bulan)>{{ $v }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="fTahun" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Tahun</label>
+                <select id="fTahun" name="tahun"
+                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    @for ($y = (int) date('Y'); $y >= attendance_tahun_tertua(); $y--)
+                        <option value="{{ $y }}" @selected($y === (int) $tahun)>{{ $y }}</option>
+                    @endfor
+                </select>
+            </div>
+            <button type="submit"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700">
+                <i class="bi bi-search"></i> Tampilkan
+            </button>
+            <p class="ml-auto text-[11px] text-slate-400">
+                <i class="bi bi-info-circle"></i>
+                Filter baru dipakai setelah tombol Tampilkan ditekan.
+            </p>
+        </form>
+    </x-ui.card>
+
+    {{-- Ringkasan periode --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        @foreach ($kpi as $item)
+            <x-ui.card body-class="p-4" class="h-full border-l-4 {{ $item['aksen'] }}">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl {{ $item['ikonKelas'] }}">
+                        <i class="bi {{ $item['ikon'] }}"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $item['label'] }}</p>
+                        <div class="mt-0.5 flex items-baseline gap-2">
+                            <p class="truncate text-2xl font-extrabold tabular-nums text-slate-900">{{ $item['nilai'] }}</p>
+                            <span class="text-[10px] font-semibold text-slate-400">{{ $item['satuan'] }}</span>
+                        </div>
+                        <p class="mt-0.5 text-[11px] text-slate-400">{{ $item['ket'] }}</p>
+                    </div>
+                </div>
+            </x-ui.card>
+        @endforeach
+    </div>
+
+    <x-ui.card body-class="p-0" title="Surat Teguran {{ ($blnIdx[(int) $bulan] ?? '-').' '.(int) $tahun }}"
+        icon="bi-envelope-paper" subtitle="Surat dibatalkan tidak dihapus — arsip keberadaannya tetap tersimpan.">
+        <x-slot:meta>
+            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-600">
+                <i class="bi bi-collection"></i> {{ count($barisSurat) }} surat
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-700">
+                <i class="bi bi-exclamation-triangle"></i> Ambang {{ implode('/', $ambang) }} hari alpha
+            </span>
+        </x-slot:meta>
+
+        @if (empty($barisSurat))
+            <div class="p-5">
+                <x-ui.empty icon="bi-envelope-open" title="Belum ada surat teguran untuk periode ini"
+                    description="Surat terbit otomatis pada tanggal 7, 14, 21, dan akhir bulan, atau buat manual dari daftar kandidat di bawah." />
+            </div>
+        @else
+            <div class="max-h-[68vh] overflow-auto" tabindex="0">
+                <table class="w-full min-w-[1080px] text-[13px]">
+                    <caption class="sr-only">Daftar surat teguran guru periode {{ ($blnIdx[(int) $bulan] ?? '-').' '.(int) $tahun }}</caption>
+                    <thead class="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                         <tr>
-                            <th class="text-center" width="5%">No</th>
-                            <th>No. Surat</th>
-                            <th>Nama Guru</th>
-                            <th>NIP</th>
-                            <th class="text-center">Tingkat</th>
-                            <th class="text-center">Alpha</th>
-                            <th>Terbit</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Dibaca</th>
-                            <th class="text-center" width="12%">Aksi</th>
+                            <th class="w-10 px-3 py-3 text-center font-bold">#</th>
+                            <th class="min-w-[210px] px-3 py-3 text-left font-bold">No. Surat</th>
+                            <th class="min-w-[200px] px-3 py-3 text-left font-bold">Nama Guru</th>
+                            <th class="min-w-[130px] px-3 py-3 text-left font-bold">NIP</th>
+                            <th class="min-w-[190px] px-3 py-3 text-center font-bold">Tingkat</th>
+                            <th class="w-[90px] px-3 py-3 text-center font-bold text-rose-600">Alpha</th>
+                            <th class="min-w-[130px] px-3 py-3 text-left font-bold">Terbit</th>
+                            <th class="w-[110px] px-3 py-3 text-center font-bold">Status</th>
+                            <th class="w-[100px] px-3 py-3 text-center font-bold">Dibaca</th>
+                            <th class="w-[130px] px-3 py-3 text-center font-bold">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php if (empty($letters)): ?>
-                            <tr>
-                                <td colspan="10" class="text-center py-8 text-slate-400">
-                                    Belum ada surat teguran untuk periode ini.
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($barisSurat as $row)
+                            <tr @class(['transition-colors hover:bg-slate-50/60', 'bg-slate-50/40 opacity-70' => $row['batal']])>
+                                <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400">{{ $loop->iteration }}</td>
+
+                                <td class="px-3 py-2.5">
+                                    <span class="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+                                        {{ $row['nomor'] }}
+                                    </span>
+                                </td>
+
+                                <td class="px-3 py-2.5">
+                                    <p class="truncate text-sm font-semibold text-slate-800" title="{{ $row['nama'] }}">{{ $row['nama'] }}</p>
+                                </td>
+
+                                <td class="px-3 py-2.5 font-mono text-xs tabular-nums text-slate-600">{{ $row['nip'] !== '' ? $row['nip'] : '—' }}</td>
+
+                                <td class="px-3 py-2.5 text-center">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $row['tingkatKelas'] }}"
+                                        @if ($row['batal']) title="{{ $row['keteranganBatal'] !== '' ? $row['keteranganBatal'] : 'Dibatalkan' }}" @endif>
+                                        @if ($row['batal'])
+                                            <i class="bi bi-x-circle mr-1"></i>
+                                        @endif
+                                        {{ $row['tingkat'] }}
+                                    </span>
+                                </td>
+
+                                <td class="px-3 py-2.5 text-center text-sm font-bold tabular-nums text-rose-600">{{ $row['alpha'] }}</td>
+
+                                <td class="whitespace-nowrap px-3 py-2.5 text-xs tabular-nums text-slate-700">{{ $row['terbit'] }}</td>
+
+                                <td class="px-3 py-2.5 text-center">
+                                    @if ($row['batal'])
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                                            <i class="bi bi-x-circle"></i> Dibatalkan
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+                                            <i class="bi bi-check2-circle"></i> Aktif
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td class="px-3 py-2.5 text-center">
+                                    @if ($row['dibaca'])
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700"
+                                            title="Dikonfirmasi: {{ $row['dibacaText'] }}">
+                                            <i class="bi bi-check2-circle"></i> Sudah
+                                        </span>
+                                    @elseif ($row['batal'])
+                                        <span class="text-xs text-slate-300">—</span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                                            <i class="bi bi-hourglass-split"></i> Belum
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td class="px-3 py-2.5 text-center">
+                                    @if ($row['batal'])
+                                        <span class="text-xs text-slate-300">—</span>
+                                    @else
+                                        <div class="inline-flex items-center gap-1.5">
+                                            <a href="{{ url('admin/presensi/download-teguran/'.$row['id']) }}" target="_blank" rel="noopener"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white no-underline transition-colors hover:bg-emerald-700"
+                                                title="Cetak PDF surat teguran">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                            <button type="button" x-on:click="bukaKirim({{ $row['id'] }})" :disabled="memproses"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-600 text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                title="Kirim file PDF ke WA/Telegram personal guru">
+                                                <i class="bi bi-send"></i>
+                                            </button>
+                                            <button type="button" x-on:click="bukaBatal({{ $row['id'] }})" :disabled="memproses"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                title="Batalkan surat ini">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
-                        <?php else: ?>
-                            <?php $i = 1;
-                            foreach ($letters as $row):
-                                $batal = ($row->status ?? 'aktif') === 'dibatalkan';
-                                $level = (int) ($row->level ?? 0); ?>
-                                <tr class="{{ $batal ? 'opacity-60' : '' }}">
-                                    <td class="text-center">{{ $i++ }}</td>
-                                    <td>
-                                        <span class="badge-tw badge-secondary font-mono text-[10px]">
-                                            {{ \App\Libraries\SuratNomor::build(
-                                                (int) ($row->nomor_urut ?? 0),
-                                                (int) ($row->bulan ?? 0),
-                                                (int) ($row->tahun ?? 0),
-                                                $setting,
-                                                $level,
-                                                !empty($row->created_at) ? date('d-m-Y', strtotime($row->created_at)) : null
-                                            ) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="font-bold text-slate-800">{{ $row->nama_guru ?? '-' }}</div>
-                                    </td>
-                                    <td class="text-xs">{{ $row->nip ?: '—' }}</td>
-                                    <td class="text-center">
-                                        <?php if ($batal): ?>
-                                            <span class="badge-tw badge-secondary"
-                                                  title="{{ $row->keterangan_batal ?? 'Dibatalkan' }}">
-                                                <i class="bi bi-x-circle mr-1"></i>Dibatalkan
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge-tw badge-{{ match ($level) {
-                                                10 => 'danger',
-                                                7  => 'warning',
-                                                default => 'info',
-                                            } }}">
-                                                {{ \App\Libraries\SuratTeguranLevel::label($level) }}
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center font-bold text-red-600">{{ (int) ($row->jumlah_alpha ?? 0) }}</td>
-                                    <td class="text-xs">
-                                        {{ !empty($row->created_at) ? date('d-m-Y H:i', strtotime($row->created_at)) : '-' }}
-                                    </td>
-                                    <td class="text-center">
-                                        <?php if ($batal): ?>
-                                            <span class="badge-tw badge-secondary">
-                                                <i class="bi bi-x-circle mr-1"></i>Dibatalkan
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge-tw badge-success">
-                                                <i class="bi bi-check2-circle mr-1"></i>Aktif
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <?php if (! empty($row->ack_at)): ?>
-                                            <span class="badge-tw badge-success"
-                                                  title="Dikonfirmasi: {{ $row->ack_text ?? '' }}">
-                                                <i class="bi bi-check2-circle mr-1"></i>Sudah
-                                            </span>
-                                        <?php elseif ($batal): ?>
-                                            <span class="text-[10px] text-slate-400">—</span>
-                                        <?php else: ?>
-                                            <span class="badge-tw badge-warning">
-                                                <i class="bi bi-hourglass-split mr-1"></i>Belum
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="flex gap-1 justify-center">
-                                            <?php if (! $batal): ?>
-                                                <a href="{{ url('admin/presensi/download-teguran/' . (int) $row->id) }}"
-                                                   class="btn-tw btn-tw-sm btn-success"
-                                                   target="_blank"
-                                                   title="Cetak PDF surat teguran">
-                                                    <i class="bi bi-file-earmark-pdf"></i>
-                                                </a>
-                                                <button type="button"
-                                                        class="btn-tw btn-tw-sm btn-info"
-                                                        onclick="kirimTeguran({{ (int) $row->id }}, '{{ addslashes($row->nama_guru ?? '') }}')"
-                                                        title="Kirim file PDF ke WA/Telegram personal guru">
-                                                    <i class="bi bi-send"></i>
-                                                </button>
-                                                <button type="button"
-                                                        class="btn-tw btn-tw-sm btn-light border text-red-600"
-                                                        onclick="batalkanTeguran({{ (int) $row->id }})"
-                                                        title="Batalkan surat ini">
-                                                    <i class="bi bi-x-circle"></i>
-                                                </button>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
+        @endif
 
-    <!-- Kandidat: guru yang perlu surat tapi belum punya -->
-    <?php if (! empty($kandidat)): ?>
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-                <h6 class="font-bold text-slate-700 mb-0">
-                    <i class="bi bi-person-exclamation mr-2 text-red-500"></i>
-                    Guru yang Belum Dapat Surat
-                </h6>
-                <p class="text-[11px] text-slate-500 m-0 mt-0.5">
-                    Alpha bulan {{ $blnIdx[$bulan] }} {{ (int) $tahun }} sudah melewati ambang
-                    {{ $ambangAwal }} hari, tapi belum ada surat terbit.
-                </p>
+        <x-slot:footer>
+            <p class="text-[11px] text-slate-400">
+                <i class="bi bi-camera"></i>
+                Angka alpha di dalam surat adalah foto saat surat terbit, bukan dihitung ulang.
+            </p>
+        </x-slot:footer>
+    </x-ui.card>
+
+    {{-- Kandidat: guru yang perlu surat tapi belum punya --}}
+    <x-ui.card body-class="p-0" icon="bi-person-exclamation" tone="amber"
+        title="Guru yang Belum Dapat Surat"
+        subtitle="Alpha bulan {{ $blnIdx[(int) $bulan] ?? '-' }} {{ (int) $tahun }} sudah melewati ambang {{ $ambangAwal }} hari, tapi belum ada surat terbit.">
+        <x-slot:meta>
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-700">
+                <i class="bi bi-people"></i> {{ count($barisKandidat) }} guru
+            </span>
+        </x-slot:meta>
+
+        @if (empty($barisKandidat))
+            <div class="p-5">
+                <x-ui.empty icon="bi-check2-circle" title="Semua guru sudah punya surat"
+                    description="Tidak ada guru yang melewati ambang alpha tanpa surat pada periode ini." />
             </div>
-            <span class="badge-tw badge-warning">{{ count($kandidat) }} guru</span>
-        </div>
-
-        <div class="table-responsive-tw">
-            <table class="table-tw">
-                <thead class="bg-slate-50">
-                    <tr>
-                        <th class="text-center" width="5%">No</th>
-                        <th>Nama Guru</th>
-                        <th>NIP</th>
-                        <th class="text-center">Alpha</th>
-                        <th class="text-center">Tercapai</th>
-                        <th class="text-center" width="18%">Buat Surat</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php $j = 1;
-                    foreach ($kandidat as $k): ?>
+        @else
+            <div class="max-h-[52vh] overflow-auto" tabindex="0">
+                <table class="w-full min-w-[760px] text-[13px]">
+                    <caption class="sr-only">Guru yang alpha-nya melewati ambang tetapi belum menerima surat teguran</caption>
+                    <thead class="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                         <tr>
-                            <td class="text-center">{{ $j++ }}</td>
-                            <td class="font-bold text-slate-800">{{ $k['nama_guru'] }}</td>
-                            <td class="text-xs">{{ $k['nip'] ?: '—' }}</td>
-                            <td class="text-center font-bold text-red-600">{{ (int) $k['alpha'] }}</td>
-                            <td class="text-center">
-                                <span class="badge-tw badge-{{ match ((int) $k['level']) {
-                                    10 => 'danger',
-                                    7  => 'warning',
-                                    default => 'info',
-                                } }}">
-                                    {{ \App\Libraries\SuratTeguranLevel::label((int) $k['level']) }}
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <button type="button"
-                                        class="btn-tw btn-tw-sm btn-primary"
-                                        onclick="buatTeguran({{ (int) $k['id_guru'] }}, '{{ addslashes($k['nama_guru']) }}')"
-                                        title="Buat surat teguran untuk guru ini">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </td>
+                            <th class="w-10 px-3 py-3 text-center font-bold">#</th>
+                            <th class="min-w-[220px] px-3 py-3 text-left font-bold">Nama Guru</th>
+                            <th class="min-w-[130px] px-3 py-3 text-left font-bold">NIP</th>
+                            <th class="w-[100px] px-3 py-3 text-center font-bold text-rose-600">Alpha</th>
+                            <th class="min-w-[190px] px-3 py-3 text-center font-bold">Tercapai</th>
+                            <th class="w-[130px] px-3 py-3 text-center font-bold">Buat Surat</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($barisKandidat as $k)
+                            <tr class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400">{{ $loop->iteration }}</td>
+                                <td class="px-3 py-2.5 text-sm font-semibold text-slate-800">{{ $k['nama'] }}</td>
+                                <td class="px-3 py-2.5 font-mono text-xs tabular-nums text-slate-600">{{ $k['nip'] !== '' ? $k['nip'] : '—' }}</td>
+                                <td class="px-3 py-2.5 text-center text-sm font-bold tabular-nums text-rose-600">{{ $k['alpha'] }}</td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold {{ $k['tingkatKelas'] }}">
+                                        {{ $k['tingkat'] }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <button type="button" x-on:click="bukaBuat({{ $k['idGuru'] }})" :disabled="memproses"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        title="Buat surat teguran untuk guru ini">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        <x-slot:footer>
+            <p class="text-[11px] text-slate-400">
+                <i class="bi bi-info-circle"></i>
+                Tingkat surat ditentukan otomatis oleh server dari jumlah alpha terkini — tingkat terberat yang sudah dilampaui.
+            </p>
+        </x-slot:footer>
+    </x-ui.card>
+
+    {{-- Penjelasan aturan --}}
+    <div class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <i class="bi bi-info-circle-fill mt-0.5 text-base text-slate-400"></i>
+        <div class="space-y-1 text-xs leading-relaxed text-slate-600">
+            <p class="font-bold text-slate-700">Cara kerja surat teguran</p>
+            <p>
+                <b>Sumber angka</b> — dihitung dari tabel presensi guru, hanya hari kerja efektif (bukan hari libur minggu,
+                nasional, atau jadwal kerja libur). Hari yang belum datang tidak dihitung, jadi nomor ini tidak akan melompat
+                di awal bulan.
+            </p>
+            <p>
+                <b>Alpha</b> — hari kerja efektif tanpa baris absensi, atau berstatus ALPHA / ALPA. Izin, sakit, dan dinas
+                yang disetujui tidak dihitung.
+            </p>
+            <p>
+                <b>Terbit otomatis</b> — tanggal 7, 14, 21, dan akhir bulan. Satu guru mendapat satu surat per evaluasi, yaitu
+                tingkat terberat yang sudah dilampaui. Tingkat surat tidak pernah turun dalam satu bulan.
+            </p>
+            <p>
+                <b>Angka di dalam surat adalah foto saat surat terbit</b>, bukan dihitung ulang. Dicetak ulang tahun depan pun
+                angkanya sama seperti waktu guru membacanya.
+            </p>
+            <p>
+                <b>Pembatalan</b> — surat dibatalkan, bukan dihapus, supaya arsip keberadaannya tetap bisa dibuktikan.
+                Pembatalan otomatis karena hari alpha dilengkapi akan hidup kembali kalau alpha-nya naik lagi; pembatalan
+                manual operator tidak ditimpa perhitungan.
+            </p>
         </div>
     </div>
-    <?php endif; ?>
 
-    <!-- Penjelasan -->
-    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-        <div class="flex items-start gap-3">
-            <i class="bi bi-info-circle-fill text-slate-400 text-base mt-0.5"></i>
-            <div class="text-xs text-slate-600 space-y-1">
-                <p class="font-bold m-0 text-slate-700">Cara kerja surat teguran</p>
-                <p class="m-0">
-                    <b>Sumber angka</b> — dihitung dari tabel presensi guru, hanya hari kerja efektif
-                    (bukan hari libur minggu, nasional, atau jadwal kerja libur). Hari yang belum
-                    datang tidak dihitung, jadi nomor ini tidak akan melompat di awal bulan.
-                </p>
-                <p class="m-0">
-                    <b>Alpha</b> — hari kerja efektif tanpa baris absensi, atau berstatus ALPHA / ALPA.
-                    Izin, sakit, dan dinas yang disetujui tidak dihitung.
-                </p>
-                <p class="m-0">
-                    <b>Terbit otomatis</b> — tanggal 7, 14, 21, dan akhir bulan. Satu guru mendapat
-                    satu surat per evaluasi, yaitu tingkat terberat yang sudah dilampaui. Tingkat
-                    surat tidak pernah turun dalam satu bulan.
-                </p>
-                <p class="m-0">
-                    <b>Angka di dalam surat adalah foto saat surat terbit</b>, bukan dihitung ulang.
-                    Dicetak ulang tahun depan pun angkanya sama seperti waktu guru membacanya.
-                </p>
-                <p class="m-0">
-                    <b>Pembatalan</b> — surat dibatalkan, bukan dihapus, supaya arsip keberadaannya
-                    tetap bisa dibuktikan. Pembatalan otomatis karena hari alpha dilengkapi akan
-                    hidup kembali kalau alpha-nya naik lagi; pembatalan manual operator tidak
-                    ditimpa perhitungan.
+    {{-- ══════════ MODAL: BUAT SURAT TEGURAN MANUAL ══════════ --}}
+    <x-ui.modal id="buatTeguranModal" title="Buat Surat Teguran" icon="bi-envelope-plus" tone="amber" size="max-w-lg">
+        <form x-on:submit.prevent="kirimBuat()">
+            <div class="space-y-4 p-5">
+                <div class="flex gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+                    <i class="bi bi-exclamation-triangle-fill mt-0.5 shrink-0"></i>
+                    <p class="leading-relaxed">
+                        Surat akan diterbitkan untuk <strong x-text="buat.nama || '—'"></strong>
+                        pada periode <strong>{{ ($blnIdx[(int) $bulan] ?? '-').' '.(int) $tahun }}</strong>.
+                    </p>
+                </div>
+
+                <p class="text-xs leading-relaxed text-slate-500">
+                    Tingkat surat ditentukan otomatis dari jumlah alpha bulan ini — tingkat terberat yang sudah dilampaui.
+                    Surat tetap tidak terbit kalau guru sudah punya surat pada periode ini atau alpha-nya belum melewati ambang.
                 </p>
             </div>
-        </div>
-    </div>
 
-</div><!-- /content-area -->
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" data-ui-dismiss="modal"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100">
+                    Batal
+                </button>
+                <button type="submit" :disabled="memproses"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">
+                    <i class="bi" :class="memproses && proses === 'buat' ? 'bi-arrow-repeat animate-spin' : 'bi-plus-lg'"></i>
+                    Ya, Buat Surat
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
 
+    {{-- ══════════ MODAL: BATALKAN SURAT ══════════ --}}
+    <x-ui.modal id="batalTeguranModal" title="Batalkan Surat Teguran" icon="bi-x-circle" tone="rose" size="max-w-lg">
+        <form x-on:submit.prevent="batalkanTeguran()">
+            <div class="space-y-4 p-5">
+                <div class="flex gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+                    <i class="bi bi-exclamation-triangle-fill mt-0.5 shrink-0"></i>
+                    <p class="leading-relaxed">
+                        Surat <strong x-text="batal.nomor || '—'"></strong> milik <strong x-text="batal.nama || '—'"></strong>
+                        akan berstatus dibatalkan. Surat tidak dihapus, arsipnya tetap tersimpan.
+                    </p>
+                </div>
+
+                <div>
+                    <label for="batalAlasan" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                        Alasan Pembatalan <span class="font-normal normal-case text-slate-400">(opsional, maks 255 karakter)</span>
+                    </label>
+                    <textarea id="batalAlasan" x-model="batal.alasan" x-ref="alasan" rows="3" maxlength="255"
+                        placeholder="mis. Sudah ada izin resmi"
+                        class="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"></textarea>
+                    <p class="mt-1 text-right text-[11px] text-slate-400"><span x-text="batal.alasan.length"></span>/255 karakter</p>
+                    <p class="mt-1 text-[11px] leading-relaxed text-amber-700">
+                        Pembatalan manual tidak akan dibatalkan otomatis, bahkan kalau alpha guru naik lagi di bulan berikutnya.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" data-ui-dismiss="modal"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100">
+                    Kembali
+                </button>
+                <button type="submit" :disabled="memproses"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <i class="bi" :class="memproses && proses === 'batal' ? 'bi-arrow-repeat animate-spin' : 'bi-x-circle'"></i>
+                    Ya, Batalkan
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
+
+    {{-- ══════════ MODAL: KIRIM PDF PERSONAL ══════════ --}}
+    <x-ui.modal id="kirimTeguranModal" title="Kirim PDF ke Personal?" icon="bi-send" tone="blue" size="max-w-lg">
+        <form x-on:submit.prevent="kirimTeguran()">
+            <div class="space-y-4 p-5">
+                <div class="flex gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-xs text-blue-800">
+                    <i class="bi bi-info-circle-fill mt-0.5 shrink-0"></i>
+                    <p class="leading-relaxed">
+                        File PDF surat akan dikirim ke WA/Telegram pribadi
+                        <strong x-text="kirim.nama || '—'"></strong> saja — tidak diumumkan ke grup.
+                        Surat tidak diterbitkan ulang.
+                    </p>
+                </div>
+
+                <p class="text-xs leading-relaxed text-slate-500">
+                    Isi PDF identik dengan hasil unduhan. Kiriman yang gagal tidak mengubah status surat.
+                </p>
+            </div>
+
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" data-ui-dismiss="modal"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100">
+                    Batal
+                </button>
+                <button type="submit" :disabled="memproses"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <i class="bi" :class="memproses && proses === 'kirim' ? 'bi-arrow-repeat animate-spin' : 'bi-send'"></i>
+                    Ya, Kirim
+                </button>
+            </div>
+        </form>
+    </x-ui.modal>
+</div>
 @endsection
 
 @section('scripts')
 <script>
-(function () {
-    'use strict';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('suratTeguran', (config) => ({
+        semuaBaris: config.baris || [],
+        semuaKandidat: config.kandidat || [],
+        bulan: config.bulan,
+        tahun: config.tahun,
+        periode: config.periode || '',
+        csrf: config.csrf,
+        urls: config.urls,
+        memproses: false,
+        proses: '',
+        buat: { idGuru: null, nama: '' },
+        batal: { id: null, nomor: '', nama: '', alasan: '' },
+        kirim: { id: null, nama: '' },
 
-    const csrfName = '_token';
-    const csrfHash = '{{ csrf_token() }}';
-    const bulan    = '{{ (int) $bulan }}';
-    const tahun    = '{{ (int) $tahun }}';
+        cariBaris(id) {
+            return this.semuaBaris.find((row) => row.id === Number(id)) || {};
+        },
 
-    function toast(pesan, ok) {
-        if (typeof Swal === 'undefined') {
-            alert(pesan);
-            return;
-        }
-        Swal.fire({
-            icon: ok ? 'success' : 'error',
-            title: ok ? 'Berhasil' : 'Gagal',
-            text: pesan,
-            timer: ok ? 2500 : undefined,
-            showConfirmButton: !ok
-        });
-    }
+        bukaBuat(idGuru) {
+            const row = this.semuaKandidat.find((k) => k.idGuru === Number(idGuru)) || {};
+            this.buat = { idGuru: Number(idGuru), nama: row.nama || '' };
+            this.$store.modals.open('#buatTeguranModal');
+        },
 
-    // ── Buat surat manual ──────────────────────────────────────────
-    // Level tidak dikirim: server yang menentukan tingkat terberat dari
-    // alpha terkini. Kirim level dari klien berarti operator bisa membuat
-    // surat tingkat I untuk guru yang sudah punya tingkat III.
-    window.buatTeguran = function (idGuru, nama) {
-        const jalankan = function () {
-            $.ajax({
-                url: '{{ url('admin/presensi/surat-teguran/buat') }}',
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    csrf_test_name: csrfHash,
-                    id_guru: idGuru,
-                    bulan: bulan,
-                    tahun: tahun
-                },
-                headers: { 'X-CSRF-TOKEN': csrfHash, 'X-Requested-With': 'XMLHttpRequest' },
-                success: function (res) {
-                    if (res.status) {
-                        toast(res.message || 'Surat teguran dibuat.', true);
-                        setTimeout(function () { location.reload(); }, 1200);
-                    } else {
-                        toast(res.message || 'Gagal membuat surat.', false);
-                    }
-                },
-                error: function () {
-                    toast('Gagal menghubungi server.', false);
+        bukaBatal(id) {
+            const row = this.cariBaris(id);
+            this.batal = {
+                id: Number(id),
+                nomor: row.nomor || '',
+                nama: row.nama || '',
+                alasan: '',
+            };
+            this.$store.modals.open('#batalTeguranModal');
+            this.$nextTick(() => this.$refs.alasan?.focus());
+        },
+
+        bukaKirim(id) {
+            const row = this.cariBaris(id);
+            this.kirim = { id: Number(id), nama: row.nama || '' };
+            this.$store.modals.open('#kirimTeguranModal');
+        },
+
+        async kirimData(url, isi) {
+            try {
+                const respon = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(isi || {}),
+                });
+                const data = await respon.json().catch(() => ({}));
+
+                return {
+                    ok: respon.ok && data.status !== false,
+                    pesan: data.message || 'Terjadi kesalahan pada server',
+                };
+            } catch {
+                return { ok: false, pesan: 'Gagal menghubungi server' };
+            }
+        },
+
+        /** Satu penjaga "sedang memproses" untuk semua aksi. */
+        async jalankanAksi(nama, aksi) {
+            if (this.memproses) {
+                return;
+            }
+
+            this.memproses = true;
+            this.proses = nama;
+
+            try {
+                await aksi();
+            } finally {
+                this.memproses = false;
+                this.proses = '';
+            }
+        },
+
+        async selesai(judul, pesan, muatUlang = false) {
+            await Swal.fire({ icon: 'success', title: judul, text: pesan, timer: 1800, showConfirmButton: false });
+
+            if (muatUlang) {
+                location.reload();
+            }
+        },
+
+        async kirimBuat() {
+            const pengirim = this.buat;
+
+            await this.jalankanAksi('buat', async () => {
+                const hasil = await this.kirimData(this.urls.buat, {
+                    id_guru: pengirim.idGuru,
+                    bulan: this.bulan,
+                    tahun: this.tahun,
+                });
+
+                if (!hasil.ok) {
+                    Swal.fire('Gagal Membuat Surat', hasil.pesan, 'error');
+
+                    return;
                 }
+
+                this.$store.modals.close('#buatTeguranModal');
+                await this.selesai('Surat Dibuat', hasil.pesan, true);
             });
-        };
+        },
 
-        if (typeof Swal === 'undefined') {
-            if (confirm('Buat surat teguran untuk ' + nama + '?')) {
-                jalankan();
-            }
-            return;
-        }
+        async batalkanTeguran() {
+            const pengirim = this.batal;
 
-        Swal.fire({
-            title: 'Buat Surat Teguran?',
-            html: 'Untuk <strong>' + nama + '</strong><br><br>'
-                + '<span class="text-xs text-slate-500">Tingkat surat ditentukan otomatis dari '
-                + 'jumlah alpha bulan ini — tingkat terberat yang sudah dilampaui.</span>',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Buat',
-            cancelButtonText: 'Batal',
-            preConfirm: function () {
-                jalankan();
-                return true;
-            }
-        });
-    };
+            await this.jalankanAksi('batal', async () => {
+                const hasil = await this.kirimData(this.urls.batal + '/' + pengirim.id, {
+                    alasan: pengirim.alasan.trim(),
+                });
 
-    // ── Batalkan surat ─────────────────────────────────────────────
-    window.batalkanTeguran = function (id) {
-        const jalankan = function (alasan) {
-            $.ajax({
-                url: '{{ url('admin/presensi/surat-teguran/batal') }}/' + id,
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    csrf_test_name: csrfHash,
-                    alasan: alasan || ''
-                },
-                headers: { 'X-CSRF-TOKEN': csrfHash, 'X-Requested-With': 'XMLHttpRequest' },
-                success: function (res) {
-                    if (res.status) {
-                        toast(res.message || 'Surat dibatalkan.', true);
-                        setTimeout(function () { location.reload(); }, 1200);
-                    } else {
-                        toast(res.message || 'Gagal membatalkan.', false);
-                    }
-                },
-                error: function () {
-                    toast('Gagal menghubungi server.', false);
+                if (!hasil.ok) {
+                    Swal.fire('Gagal Membatalkan', hasil.pesan, 'error');
+
+                    return;
                 }
+
+                this.$store.modals.close('#batalTeguranModal');
+                await this.selesai('Surat Dibatalkan', hasil.pesan, true);
             });
-        };
+        },
 
-        if (typeof Swal === 'undefined') {
-            if (confirm('Batalkan surat teguran ini?')) {
-                jalankan('');
-            }
-            return;
-        }
+        async kirimTeguran() {
+            const pengirim = this.kirim;
 
-        Swal.fire({
-            title: 'Batalkan Surat Teguran?',
-            html: '<label class="block text-left text-xs text-slate-600 mb-1">Alasan pembatalan (opsional)</label>'
-                + '<input id="inputAlasan" class="swal2-input" style="width:100%" placeholder="mis. Sudah ada izin resmi">'
-                + '<div class="text-left text-[11px] text-amber-700 mt-2">'
-                + 'Pembatalan manual tidak akan dibatalkan otomatis, bahkan kalau alpha guru '
-                + 'naik lagi di bulan berikutnya.'
-                + '</div>',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Batalkan',
-            cancelButtonText: 'Kembali',
-            preConfirm: function () {
-                jalankan((document.getElementById('inputAlasan') || {}).value || '');
-                return true;
-            }
-        });
-    };
-    // ── Kirim ulang notifikasi personal ────────────────────────
-    window.kirimTeguran = function (id, nama) {
-        const jalankan = function () {
-            $.ajax({
-                url: '{{ url('admin/presensi/surat-teguran/kirim') }}/' + id,
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    csrf_test_name: csrfHash
-                },
-                headers: { 'X-CSRF-TOKEN': csrfHash, 'X-Requested-With': 'XMLHttpRequest' },
-                success: function (res) {
-                    toast(res.message || 'Notifikasi dikirim.', !!res.status);
-                },
-                error: function () {
-                    toast('Gagal menghubungi server.', false);
+            await this.jalankanAksi('kirim', async () => {
+                const hasil = await this.kirimData(this.urls.kirim + '/' + pengirim.id, {});
+
+                if (!hasil.ok) {
+                    Swal.fire('Gagal Mengirim', hasil.pesan, 'error');
+
+                    return;
                 }
+
+                this.$store.modals.close('#kirimTeguranModal');
+                await this.selesai('PDF Terkirim', hasil.pesan);
             });
-        };
-
-        if (typeof Swal === 'undefined') {
-            if (confirm('Kirim file PDF surat teguran ke WA/Telegram personal ' + nama + '?')) {
-                jalankan();
-            }
-            return;
-        }
-
-        Swal.fire({
-            title: 'Kirim PDF ke Personal?',
-            html: 'Untuk <strong>' + nama + '</strong><br><br>'
-                + '<span class="text-xs text-slate-500">File PDF surat dikirim ke WA/Telegram pribadi guru '
-                + 'saja — tidak diumumkan ke grup. Surat tidak diterbitkan ulang.</span>',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#0891b2',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Kirim',
-            cancelButtonText: 'Batal',
-            preConfirm: function () {
-                jalankan();
-                return true;
-            }
-        });
-    };
-})();
+        },
+    }));
+});
 </script>
 @endsection

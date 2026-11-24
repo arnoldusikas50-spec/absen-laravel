@@ -1,28 +1,5 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    .num-tabular { font-variant-numeric: tabular-nums; }
-    /* ── Icon box centering (pola lembur/izin) ── */
-    .ic-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .ic-box i,
-    .ic-box .bi {
-        vertical-align: 0;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    /* ── Row hover (pola izin) ── */
-    #verifikasiTable tbody tr:hover td { background: #f8fafc; }
-</style>
-@endsection
-
 @section('content')
 
 <?php
@@ -35,286 +12,309 @@ $fmtJam = function ($v) {
     if (preg_match('/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?$/', $s, $m)) return $m[2];
     return strlen($s) > 5 ? substr($s, 0, 5) : $s;
 };
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'terima' => url('admin/presensi/verifikasi-terima'),
+        'tolak' => url('admin/presensi/verifikasi-tolak'),
+    ],
+];
 ?>
 
-<div class="fade-in-up p-4 md:p-6 space-y-6">
+<div x-data="pendingVerifikasiPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}"
+    class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
 
-    <!-- Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-person-check-fill"></i> Verifikasi Kehadiran
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Verifikasi Kehadiran</h1>
-            <p class="text-xs text-slate-500 mt-1">Absensi guru dengan alpha ≥ 10 hari ditahan di sini. Terima untuk menghitung ulang status (ONTIME/LATE), tolak untuk menjadikannya ALPHA.</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/dinas') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+    <x-ui.page-header
+        title="Verifikasi Kehadiran"
+        icon="bi-person-check-fill"
+        tone="violet"
+        subtitle="Absensi guru dengan alpha ≥ 10 hari ditahan di sini. Terima untuk menghitung ulang status (ONTIME/LATE), tolak untuk menjadikannya ALPHA."
+        :crumbs="['Presensi', 'Verifikasi Kehadiran']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/dinas') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 no-underline transition-colors hover:bg-slate-200">
                 <i class="bi bi-briefcase text-cyan-600"></i> Verifikasi Dinas
             </a>
-            <a href="{{ url('admin/presensi/izin') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi/izin') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 no-underline transition-colors hover:bg-slate-200">
                 <i class="bi bi-file-earmark-medical text-cyan-600"></i> Verifikasi Izin/Sakit
             </a>
-            <a href="{{ url('admin/presensi') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
                 <i class="bi bi-arrow-left"></i> Kembali
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <?php if (count($pendingList) > 0): ?>
-    <div class="alert-tw alert-warning">
-        <i class="bi bi-info-circle-fill mt-0.5"></i>
-        <div>Baris <strong>PENDING_VERIFICATION</strong> dihitung <strong>belum tentu</strong>: tidak masuk alpha maupun hadir di rekap &amp; surat teguran selama <strong>{{ (int) $hariTinjau }} hari</strong> sejak tanggal kehadirannya. Setelah itu cron harian menutupnya menjadi <strong>ALPHA</strong> (denda + poin + surat disamakan dengan jalur tolak). Menerima akan <strong>menghitung ulang status, poin, dan denda</strong> dari jam tersimpan (termasuk cap bulanan); menolak menjadikannya ALPHA sekarang juga.</div>
-    </div>
-    <?php endif; ?>
+    <div class="mt-4 space-y-5">
 
-    <!-- Ringkasan -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-violet-50 text-violet-600 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ count($pendingList) }} <span class="text-xs font-normal text-slate-400">kehadiran</span></div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-calendar-event text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Kehadiran Tertua</div>
-                <div class="text-sm font-extrabold text-slate-900 num-tabular leading-tight">{{ $pendingTertua && !empty($pendingTertua->tgl) ? date('d/m/Y', strtotime($pendingTertua->tgl)) : '—' }}</div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-alarm text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Batas Tinjau</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ (int) $hariTinjau }} <span class="text-xs font-normal text-slate-400">hari</span></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-violet-50 text-violet-600 shrink-0">
-                    <i class="bi bi-list-check text-sm"></i>
-                </span>
-                <div>
-                    <h2 class="text-sm font-extrabold text-slate-900">Antrean Verifikasi ({{ count($pendingList) }})</h2>
-                    <p class="text-[11px] text-slate-400">Urut tanggal terdahulu</p>
+        @if (count($pendingList) > 0)
+            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex gap-2.5">
+                    <i class="bi bi-info-circle-fill mt-0.5 text-amber-500"></i>
+                    <div class="text-[11px] leading-relaxed text-amber-800">
+                        Baris <strong>PENDING_VERIFICATION</strong> dihitung <strong>belum tentu</strong>: tidak masuk alpha maupun hadir di rekap &amp; surat teguran selama <strong>{{ (int) $hariTinjau }} hari</strong> sejak tanggal kehadirannya. Setelah itu cron harian menutupnya menjadi <strong>ALPHA</strong> (denda + poin + surat disamakan dengan jalur tolak). Menerima akan <strong>menghitung ulang status, poin, dan denda</strong> dari jam tersimpan (termasuk cap bulanan); menolak menjadikannya ALPHA sekarang juga.
+                    </div>
                 </div>
             </div>
-            <?php if (count($pendingList) > 0): ?>
-            <div class="relative ml-0 md:ml-auto" style="min-width:220px;">
-                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" id="searchVerifikasiInput"
-                       class="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                       placeholder="Cari nama / NIP / tanggal..." autocomplete="off">
-                <button type="button" id="clearVerifikasiSearch"
-                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors"
-                        title="Bersihkan pencarian">
-                    <i class="bi bi-x text-xs"></i>
-                </button>
+        @endif
+
+        <!-- Ringkasan -->
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                    <i class="bi bi-hourglass-split text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Menunggu</div>
+                    <div class="text-lg font-extrabold tabular-nums text-slate-900">{{ count($pendingList) }} <span class="text-xs font-normal text-slate-400">kehadiran</span></div>
+                </div>
             </div>
-            <?php endif; ?>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <i class="bi bi-calendar-event text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Kehadiran Tertua</div>
+                    <div class="text-sm font-extrabold leading-tight tabular-nums text-slate-900">{{ $pendingTertua && ! empty($pendingTertua->tgl) ? date('d/m/Y', strtotime($pendingTertua->tgl)) : '—' }}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+                    <i class="bi bi-alarm text-lg"></i>
+                </span>
+                <div>
+                    <div class="text-xs font-semibold text-slate-500">Batas Tinjau</div>
+                    <div class="text-lg font-extrabold tabular-nums text-slate-900">{{ (int) $hariTinjau }} <span class="text-xs font-normal text-slate-400">hari</span></div>
+                </div>
+            </div>
         </div>
 
-        <div class="p-0">
-            <div id="emptyState" class="{{ count($pendingList) === 0 ? '' : 'hidden' }} text-center py-16 text-slate-400">
-                <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
-                <p class="font-medium text-slate-600">Tidak ada antrean verifikasi</p>
-                <p class="text-xs mt-1">Semua kehadiran yang ditahan telah diproses.</p>
-            </div>
+        @if (count($pendingList) === 0)
+            <x-ui.card bodyClass="p-5">
+                <x-ui.empty icon="bi-check2-circle" title="Tidak ada antrean verifikasi"
+                    description="Semua kehadiran yang ditahan telah diproses." />
+            </x-ui.card>
+        @else
+            <div x-data="dataTable({ perPage: 100 })">
+                <x-ui.card title="Antrean Verifikasi ({{ count($pendingList) }})" icon="bi-list-check" tone="violet"
+                    subtitle="Urut tanggal terdahulu" bodyClass="p-0">
+                    <x-slot:toolbar>
+                        <div class="relative w-full sm:w-72">
+                            <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                            <input type="text" x-ref="search" x-model="query" placeholder="Cari nama / NIP / tanggal..." autocomplete="off"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" x-show="query !== ''" x-cloak @click="query = ''; $refs.search.focus()" title="Bersihkan pencarian"
+                                class="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700">
+                                <i class="bi bi-x text-xs"></i>
+                            </button>
+                        </div>
+                    </x-slot:toolbar>
 
-            <?php if (count($pendingList) > 0): ?>
-            <div class="table-responsive-tw">
-                <table class="table-tw" id="verifikasiTable" style="min-width:900px;">
-                    <thead>
-                        <tr>
-                            <th class="pl-4 w-10">#</th>
-                            <th>Tanggal</th>
-                            <th>Guru</th>
-                            <th>Jam Masuk</th>
-                            <th>Jam Pulang</th>
-                            <th class="text-right pr-4">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $no = 1;
-                        foreach ($pendingList as $p):
+                    <x-ui.table class="min-w-[900px]">
+                        <x-slot:head>
+                            <th class="w-10 px-4 py-3">#</th>
+                            <th class="px-3 py-3">Tanggal</th>
+                            <th class="px-3 py-3">Guru</th>
+                            <th class="px-3 py-3">Jam Masuk</th>
+                            <th class="px-3 py-3">Jam Pulang</th>
+                            <th class="px-4 py-3 text-right">Aksi</th>
+                        </x-slot:head>
+
+                        @foreach ($pendingList as $p)
+                            <?php
                             $searchVerifikasi = implode(' ', array_filter([
                                 $p->nama_guru ?? '',
                                 $p->nip ?? '',
-                                !empty($p->tgl) ? date('d/m/Y', strtotime($p->tgl)) : '',
+                                ! empty($p->tgl) ? date('d/m/Y', strtotime($p->tgl)) : '',
                                 $fmtJam($p->jam_masuk ?? null) ?? '',
                                 $fmtJam($p->jam_pulang ?? null) ?? '',
                             ]));
-                        ?>
-                        <tr id="row-{{ (int) $p->id }}" data-search="{{ $searchVerifikasi }}">
-                            <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
-                            <td>
-                                <div class="font-semibold text-slate-800 whitespace-nowrap">{{ date('d/m/Y', strtotime($p->tgl)) }}</div>
-                                <div class="text-xs text-slate-400 mt-0.5">{{ date('l', strtotime($p->tgl)) }}</div>
-                            </td>
-                            <td>
-                                <div class="font-semibold text-slate-800">{{ $p->nama_guru ?? 'Guru #' . ($p->user_id ?? '-') }}</div>
-                                <div class="text-sm text-slate-400">NIP: {{ $p->nip ?? '-' }}</div>
-                            </td>
-                            <td class="num-tabular"><code class="px-2 py-1 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded">{{ $fmtJam($p->jam_masuk ?? null) ?? '-' }}</code></td>
-                            <td class="num-tabular"><code class="px-2 py-1 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded">{{ $fmtJam($p->jam_pulang ?? null) ?? '-' }}</code></td>
-                            <td class="pr-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button type="button" class="btn-tw btn-tw-sm btn-success js-terima" data-id="{{ (int) $p->id }}"
-                                        data-url="{{ url('admin/presensi/verifikasi-terima/' . $p->id) }}" title="Verifikasi & hitung ulang">
-                                        <i class="bi bi-check-lg mr-1"></i>Terima
-                                    </button>
-                                    <button type="button" class="btn-tw btn-tw-sm btn-danger js-tolak" data-id="{{ (int) $p->id }}"
-                                        data-url="{{ url('admin/presensi/verifikasi-tolak/' . $p->id) }}" title="Tolak menjadi ALPHA">
-                                        <i class="bi bi-x-lg mr-1"></i>Tolak
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                            ?>
+                            <tr data-search="{{ $searchVerifikasi }}" class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-4 py-3"><span data-rownum class="tabular-nums text-xs text-slate-400">{{ $loop->iteration }}</span></td>
+                                <td class="px-3 py-3">
+                                    <div class="whitespace-nowrap text-xs font-semibold text-slate-800">{{ date('d/m/Y', strtotime($p->tgl)) }}</div>
+                                    <div class="mt-0.5 text-[11px] text-slate-400">{{ date('l', strtotime($p->tgl)) }}</div>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <div class="text-xs font-semibold text-slate-800">{{ $p->nama_guru ?? 'Guru #' . ($p->user_id ?? '-') }}</div>
+                                    <div class="text-[11px] text-slate-400">NIP: {{ $p->nip ?? '-' }}</div>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <code class="rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-medium tabular-nums text-slate-700">{{ $fmtJam($p->jam_masuk ?? null) ?? '-' }}</code>
+                                </td>
+                                <td class="px-3 py-3">
+                                    <code class="rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-medium tabular-nums text-slate-700">{{ $fmtJam($p->jam_pulang ?? null) ?? '-' }}</code>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button type="button" @click="terima({{ (int) $p->id }})"
+                                            :disabled="busy === {{ (int) $p->id }}"
+                                            title="Verifikasi & hitung ulang"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50">
+                                            <i class="bi bi-check-lg"></i>Terima
+                                        </button>
+                                        <button type="button" @click="tolak({{ (int) $p->id }})"
+                                            :disabled="busy === {{ (int) $p->id }}"
+                                            title="Tolak menjadi ALPHA"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-50">
+                                            <i class="bi bi-x-lg"></i>Tolak
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </x-ui.table>
 
-            <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span id="verifikasiCount">Menampilkan {{ count($pendingList) }} data</span>
-                <span>Urut tanggal terdahulu</span>
+                    <x-slot:footer>
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                            <span>Menampilkan <span class="font-semibold text-slate-600" x-text="from"></span>–<span class="font-semibold text-slate-600" x-text="to"></span> dari <span class="font-semibold text-slate-600" x-text="total"></span> data</span>
+                            <div class="flex items-center gap-1.5" x-show="pages > 1" x-cloak>
+                                <button type="button" @click="prev()" :disabled="page === 1"
+                                    class="inline-flex h-7 items-center rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40">Sebelumnya</button>
+                                <span class="font-mono text-slate-500" x-text="page + ' / ' + pages"></span>
+                                <button type="button" @click="next()" :disabled="page === pages"
+                                    class="inline-flex h-7 items-center rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40">Berikutnya</button>
+                            </div>
+                        </div>
+                    </x-slot:footer>
+                </x-ui.card>
+
+                <div x-show="total === 0" x-cloak class="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+                    <i class="bi bi-search mb-2 block text-3xl text-slate-300"></i>
+                    <p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok</p>
+                    <p class="mt-1 text-xs text-slate-400">Coba ubah kata kunci pencarian</p>
+                </div>
             </div>
-            <?php endif; ?>
-        </div>
+        @endif
     </div>
-
 </div>
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
-$(document).ready(function () {
-    var CSRF = {};
-    CSRF['{{ $csrfName }}'] = '{{ $csrfHash }}';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('pendingVerifikasiPage', () => ({
+        config: { csrf: '', urls: {} },
 
-    // ── Pencarian antrean (pola izin) ───────────────────────
-    function applyVerifikasiFilter() {
-        const kw = ($('#searchVerifikasiInput').val() || '').toLowerCase().trim();
-        $('#clearVerifikasiSearch').toggleClass('hidden', kw === '').toggleClass('inline-flex', kw !== '');
-        let shown = 0;
-        $('#verifikasiTable tbody tr[data-search]').each(function () {
-            const search = String($(this).data('search') || '').toLowerCase();
-            const visible = !kw || search.indexOf(kw) !== -1;
-            $(this).toggle(visible);
-            if (visible) shown++;
-        });
-        const $empty = $('#verifikasiEmptyFilter');
-        if (shown === 0 && $('#verifikasiTable tbody tr[data-search]').length > 0) {
-            if ($empty.length === 0) {
-                $('#verifikasiTable tbody').append(
-                    '<tr id="verifikasiEmptyFilter"><td colspan="6" class="text-center py-12 text-slate-400">' +
-                    '<i class="bi bi-search text-3xl block mx-auto mb-2 opacity-30"></i>' +
-                    '<p class="text-sm font-semibold text-slate-500">Tidak ada data yang cocok</p>' +
-                    '<p class="text-xs mt-1">Coba ubah kata kunci pencarian</p></td></tr>'
-                );
-            } else {
-                $empty.show();
+        busy: null,
+
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+
+            this.config = {
+                csrf: cfg.csrf || '',
+                urls: cfg.urls || {},
+            };
+        },
+
+        async post(url, note) {
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+            body.append('note', note || '');
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+
+            let result = null;
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = null;
             }
-        } else {
-            $empty.hide();
-        }
-        $('#verifikasiCount').text('Menampilkan ' + shown + ' data');
-    }
 
-    $('#searchVerifikasiInput').on('input', applyVerifikasiFilter);
-    $('#clearVerifikasiSearch').on('click', function () {
-        $('#searchVerifikasiInput').val('').trigger('input').focus();
-    });
+            if (!response.ok) {
+                throw new Error((result && (result.message || result.msg)) || 'Terjadi kesalahan komunikasi dengan server.');
+            }
 
-    var setLoading = function ($btn, busy) {
-        $btn.prop('disabled', busy);
-        var $icon = $btn.find('i');
-        if (busy) {
-            $btn.data('orig', $icon.attr('class'));
-            $icon.attr('class', 'spinner-tw mr-1');
-        } else if ($btn.data('orig')) {
-            $icon.attr('class', $btn.data('orig'));
-        }
-    };
+            return result;
+        },
 
-    // Terima (dengan catatan opsional)
-    $(document).on('click', '.js-terima', function () {
-        var $btn = $(this);
-        if ($btn.is(':disabled')) return;
-        var url = $btn.data('url');
-        Swal.fire({
-            title: 'Terima Verifikasi?',
-            text: 'Status akan dihitung ulang dari jam tersimpan (ONTIME/LATE + denda + cap).',
-            icon: 'question',
-            input: 'textarea',
-            inputLabel: 'Catatan (Opsional)',
-            inputPlaceholder: 'Catatan verifikasi...',
-            inputAttributes: { 'aria-label': 'Catatan', 'maxlength': '500' },
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Terima',
-            cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            setLoading($btn, true);
-            var data = Object.assign({ note: (result.value || '').trim() }, CSRF);
-            $.post(url, data, function (res) {
-                setLoading($btn, false);
-                if (res.status) {
-                    Swal.fire({ title: 'Berhasil!', text: res.message, icon: 'success', timer: 1400, showConfirmButton: false })
-                        .then(function () { location.reload(); });
-                } else {
-                    Swal.fire('Gagal', res.message, 'error');
-                }
-            }, 'json').fail(function () {
-                setLoading($btn, false);
-                Swal.fire('Gagal', 'Terjadi kesalahan komunikasi dengan server.', 'error');
+        async terima(id) {
+            if (this.busy === id) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Terima Verifikasi?',
+                text: 'Status akan dihitung ulang dari jam tersimpan (ONTIME/LATE + denda + cap).',
+                icon: 'question',
+                input: 'textarea',
+                inputLabel: 'Catatan (Opsional)',
+                inputPlaceholder: 'Catatan verifikasi...',
+                inputAttributes: { 'aria-label': 'Catatan', maxlength: '500' },
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Terima',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
             });
-        });
-    });
 
-    // Tolak (dengan alasan)
-    $(document).on('click', '.js-tolak', function () {
-        var $btn = $(this);
-        if ($btn.is(':disabled')) return;
-        var url = $btn.data('url');
-        Swal.fire({
-            title: 'Tolak Menjadi ALPHA?',
-            input: 'textarea',
-            inputLabel: 'Alasan Penolakan',
-            inputPlaceholder: 'Tulis alasan penolakan di sini...',
-            inputAttributes: { 'aria-label': 'Alasan Penolakan', 'maxlength': '500' },
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Tolak Menjadi ALPHA',
-            cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            setLoading($btn, true);
-            var data = Object.assign({ note: (result.value || '').trim() }, CSRF);
-            $.post(url, data, function (res) {
-                setLoading($btn, false);
-                if (res.status) {
-                    Swal.fire({ title: 'Ditolak', text: res.message, icon: 'success', timer: 1400, showConfirmButton: false })
-                        .then(function () { location.reload(); });
-                } else {
-                    Swal.fire('Gagal', res.message, 'error');
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = id;
+
+            try {
+                const result = await this.post(this.config.urls.terima + '/' + id, (konfirmasi.value || '').trim());
+
+                if (result && result.status) {
+                    await Swal.fire({ title: 'Berhasil!', text: result.message || '', icon: 'success', timer: 1400, showConfirmButton: false });
+                    window.location.reload();
+                    return;
                 }
-            }, 'json').fail(function () {
-                setLoading($btn, false);
-                Swal.fire('Gagal', 'Terjadi kesalahan komunikasi dengan server.', 'error');
+
+                Swal.fire('Gagal', (result && result.message) || '', 'error');
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan komunikasi dengan server.', 'error');
+            } finally {
+                this.busy = null;
+            }
+        },
+
+        async tolak(id) {
+            if (this.busy === id) return;
+
+            const konfirmasi = await Swal.fire({
+                title: 'Tolak Menjadi ALPHA?',
+                input: 'textarea',
+                inputLabel: 'Alasan Penolakan',
+                inputPlaceholder: 'Tulis alasan penolakan di sini...',
+                inputAttributes: { 'aria-label': 'Alasan Penolakan', maxlength: '500' },
+                showCancelButton: true,
+                confirmButtonText: 'Tolak Menjadi ALPHA',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
             });
-        });
-    });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = id;
+
+            try {
+                const result = await this.post(this.config.urls.tolak + '/' + id, (konfirmasi.value || '').trim());
+
+                if (result && result.status) {
+                    await Swal.fire({ title: 'Ditolak', text: result.message || '', icon: 'success', timer: 1400, showConfirmButton: false });
+                    window.location.reload();
+                    return;
+                }
+
+                Swal.fire('Gagal', (result && result.message) || '', 'error');
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan komunikasi dengan server.', 'error');
+            } finally {
+                this.busy = null;
+            }
+        },
+    }));
 });
 </script>
 @endsection

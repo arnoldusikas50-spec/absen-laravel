@@ -1,205 +1,141 @@
-﻿@extends('layouts.main')
+@extends('layouts.main')
 
 @section('content')
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-        <div class="page-header">
-        <div class="min-w-0">
-                <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
-                        <i class="bi bi-door-open text-xl"></i>
-                    </span>
-                    <span>{{ $judul ?? 'Detail Data' }}</span>
-                </h3>
+<div class="fade-in-up space-y-4 p-4 md:p-6">
+    <x-ui.page-header :title="$judul ?? 'Detail Data'" icon="bi-door-open" tone="emerald"
+        subtitle="{{ $subjudul }} {{ $kelas->nama_kelas ?? '-' }}"
+        :crumbs="['Data Kelas', 'Detail']">
+        <x-slot:actions>
+            <a href="{{ url('datakelas') }}"
+                class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <x-ui.card :title="'Informasi ' . ($kelas->nama_kelas ?? '-')" icon="bi-info-circle" tone="emerald" class="lg:col-span-1">
+            <dl class="divide-y divide-slate-100 text-sm">
+                <div class="flex items-center justify-between gap-3 py-2.5 first:pt-0">
+                    <dt class="text-xs font-bold text-slate-500">Nama Kelas</dt>
+                    <dd class="mb-0 font-semibold text-slate-800">{{ $kelas->nama_kelas ?? '-' }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 py-2.5">
+                    <dt class="text-xs font-bold text-slate-500">Kode Kelas</dt>
+                    <dd class="mb-0 font-mono text-slate-700">{{ $kelas->kode_kelas ?? '-' }}</dd>
+                </div>
+                @if (($setting->jenjang ?? '') == '3')
+                    <div class="flex items-center justify-between gap-3 py-2.5">
+                        <dt class="text-xs font-bold text-slate-500">Jurusan</dt>
+                        <dd class="mb-0 text-slate-700">{{ $kelas->nama_jurusan ?? '-' }}</dd>
+                    </div>
+                @endif
+                <div class="flex items-center justify-between gap-3 py-2.5">
+                    <dt class="text-xs font-bold text-slate-500">Level Kelas</dt>
+                    <dd class="mb-0 text-slate-700">{{ $kelas->level ?? '-' }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 py-2.5">
+                    <dt class="text-xs font-bold text-slate-500">Wali Kelas</dt>
+                    <dd class="mb-0 text-right text-slate-700">{{ $kelas->nama_guru ?? '-' }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 pt-2.5 last:pb-0">
+                    <dt class="text-xs font-bold text-emerald-600">Jumlah Siswa</dt>
+                    <dd class="mb-0 text-lg font-extrabold text-emerald-600">{{ count($siswas) }}</dd>
+                </div>
+            </dl>
+        </x-ui.card>
+
+        <x-ui.card title="Daftar Siswa" icon="bi-people" tone="blue" class="lg:col-span-2" body-class="p-0">
+            <div class="max-h-[500px] overflow-y-auto">
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="w-14 px-4 py-3 text-center">No</th>
+                        <th class="w-40 px-4 py-3 text-center">NIS / NISN</th>
+                        <th class="px-4 py-3">Nama Siswa</th>
+                        <th class="w-20 px-4 py-3 text-center">L/P</th>
+                    </x-slot:head>
+
+                    @forelse ($siswas as $siswa)
+                        <tr class="transition-colors hover:bg-slate-50/70">
+                            <td class="px-4 py-3 text-center text-xs font-semibold text-slate-400">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600">{{ $siswa->nis }}</span>
+                                <span class="inline-flex rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-600">{{ $siswa->nisn }}</span>
+                            </td>
+                            <td class="px-4 py-3 font-semibold text-slate-800">{{ $siswa->nama }}</td>
+                            <td class="px-4 py-3 text-center text-slate-600">{{ $siswa->jenis_kelamin }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-4 py-10">
+                                <x-ui.empty icon="bi-emoji-frown" title="Belum ada siswa"
+                                    description="Belum ada siswa yang terdaftar di kelas ini." />
+                            </td>
+                        </tr>
+                    @endforelse
+                </x-ui.table>
             </div>
-            <nav class="breadcrumb-tw">
-                <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                    <i class="bi bi-house-door mr-1"></i> Dashboard
-                </a>
-                <span class="sep">/</span>
-                <a href="{{ url('datakelas') }}" class="no-underline text-slate-500 hover:text-blue-600">Data Kelas</a>
-                <span class="sep">/</span>
-                <span class="active font-medium text-slate-800">Detail</span>
-            </nav>
-        </div>
+        </x-ui.card>
+
+        <x-ui.card title="Struktur Organisasi" icon="bi-diagram-3" tone="violet" class="lg:col-span-3" body-class="p-0">
+            <x-slot:meta>
+                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                    <i class="bi bi-check-circle"></i> Wali Kelas
+                </span>
+            </x-slot:meta>
+
+            @php
+                $arrJabatan = [
+                    'wali_kelas' => 'Wali Kelas',
+                    'ketua' => 'Ketua Kelas',
+                    'wakil_ketua' => 'Wakil Ketua',
+                    'sekretaris_1' => 'Sekretaris I',
+                    'sekretaris_2' => 'Sekretaris II',
+                    'bendahara_1' => 'Bendahara I',
+                    'bendahara_2' => 'Bendahara II',
+                    'sie_upacara' => 'Sie Upacara',
+                    'sie_ekstrakurikuler' => 'Sie Ekstrakurikuler',
+                    'sie_olahraga' => 'Sie Olahraga',
+                    'sie_keagamaan' => 'Sie Keagamaan',
+                    'sie_keamanan' => 'Sie Keamanan',
+                    'sie_ketertiban' => 'Sie Ketertiban',
+                    'sie_kebersihan' => 'Sie Kebersihan',
+                    'sie_keindahan' => 'Sie Keindahan',
+                    'sie_kesehatan' => 'Sie Kesehatan',
+                    'sie_kekeluargaan' => 'Sie Kekeluargaan',
+                    'sie_humas' => 'Sie Humas',
+                ];
+            @endphp
+
+            <x-ui.table>
+                <x-slot:head>
+                    <th class="w-14 px-4 py-3 text-center">No</th>
+                    <th class="px-4 py-3">Jabatan</th>
+                    <th class="px-4 py-3">Nama / Petugas</th>
+                </x-slot:head>
+
+                @foreach ($arrJabatan as $key => $jabatan)
+                    <tr class="transition-colors hover:bg-slate-50/70">
+                        <td class="px-4 py-3 text-center text-xs font-semibold text-slate-400">{{ $loop->iteration }}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-500">{{ $jabatan }}</td>
+                        <td class="px-4 py-3">
+                            @if ($key === 'wali_kelas')
+                                <span class="font-bold text-emerald-600">{{ $kelas->nama_guru ?? '-' }}</span>
+                            @else
+                                @php
+                                    $petugas = collect($siswas)->firstWhere('id_siswa', $struktur->$key ?? null);
+                                @endphp
+                                @if ($petugas)
+                                    <span class="text-slate-700">{{ $petugas->nama }}</span>
+                                @else
+                                    <span class="text-sm italic text-slate-400">-</span>
+                                @endif
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </x-ui.table>
+        </x-ui.card>
     </div>
-
-<!-- Main Content -->
-<div class="content-area">
-<div class="card-tw">
-            <div class="card-tw-header">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-                        <i class="bi bi-info-circle text-emerald-600 text-sm"></i>
-                    </div>
-                    <h6>{{ $subjudul . ' ' . ($kelas->nama_kelas ?? '-') }}</h6>
-                </div>
-                <div class="ml-auto flex items-center gap-2">
-                    <a href="{{ url('datakelas') }}" class="btn-tw btn-tw-sm btn-warning">
-                        <i class="bi bi-arrow-left mr-1"></i>Kembali
-                    </a>
-                </div>
-            </div>
-            <div class="card-tw-body">
-                <div class="flex flex-wrap gap-4">
-                    <div class="w-full">
-                        <div class="table-responsive-tw"><table class="table-tw">
-                                <tr>
-                                    <td style="width: 200px" class="font-bold bg-body-tertiary">Nama Kelas</td>
-                                    <td>{{ $kelas->nama_kelas ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-bold bg-body-tertiary">Kode Kelas</td>
-                                    <td>{{ $kelas->kode_kelas ?? '-' }}</td>
-                                </tr>
-                                <?php if ($setting->jenjang == '3'): ?>
-                                    <tr>
-                                        <td class="font-bold bg-body-tertiary">Jurusan</td>
-                                        <td>{{ $kelas->nama_jurusan ?? '-' }}</td>
-                                    </tr>
-                                <?php endif; ?>
-                                <tr>
-                                    <td class="font-bold bg-body-tertiary">Level Kelas</td>
-                                    <td>{{ $kelas->level ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-bold bg-body-tertiary">Wali Kelas</td>
-                                    <td>{{ $kelas->nama_guru ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-bold bg-body-tertiary text-emerald-600">Jumlah Siswa</td>
-                                    <td class="font-bold text-emerald-600">{{ count($siswas) }}</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="flex-1">
-                        <div class="card-tw">
-                            <div class="card-tw-header">
-                                <h3 class="font-bold text-slate-700">
-                                    <i class="bi bi-people mr-2"></i>Daftar Siswa
-                                </h3>
-                            </div>
-                            <div class="p-0">
-                                <div class="table-tw" style="max-height: 500px; overflow-y: auto;">
-                                    <table class="table-tw">
-                                        <thead class="sticky top-0 bg-white">
-                                            <tr>
-                                                <th class="text-center" style="width: 50px">No</th>
-                                                <th class="text-center" style="width: 150px">NIS / NISN</th>
-                                                <th>Nama Siswa</th>
-                                                <th class="text-center" style="width: 80px">L/P</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php if (count($siswas) > 0): ?>
-                                                <?php $no = 1;
-                                                foreach ($siswas as $siswa): ?>
-                                                    <tr>
-                                                        <td class="text-center align-middle">{{ $no++ }}</td>
-                                                        <td class="text-center align-middle">
-                                                            <span class="badge-tw badge-secondary">{{ $siswa->nis }}</span>
-                                                            <span class="badge-tw badge-secondary">{{ $siswa->nisn }}</span>
-                                                        </td>
-                                                        <td class="align-middle font-medium">{{ $siswa->nama }}</td>
-                                                        <td class="text-center align-middle">{{ $siswa->jenis_kelamin }}</td>
-                                                    </tr>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <tr>
-                                                    <td colspan="4" class="text-center py-8 text-slate-400 fst-italic">
-                                                        <i class="bi bi-emoji-frown text-2xl block mb-2"></i>
-                                                        Belum ada siswa di kelas ini
-                                                    </td>
-                                                </tr>
-                                            <?php endif; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="w-full md:w-5/12">
-                        <div class="card-tw">
-                            <div class="card-tw-header">
-                                <h3 class="font-bold text-slate-700">
-                                    <i class="bi bi-diagram-3 mr-2"></i>Struktur Organisasi
-                                </h3>
-                                <div class="ml-auto flex items-center gap-2">
-                                    <span class="badge-tw badge-success">Wali Kelas</span>
-                                </div>
-                            </div>
-                            <div class="p-0">
-                                <div class="table-tw">
-                                    <?php
-                                    $arrJabatan = [
-                                        'wali_kelas' => 'Wali Kelas',
-                                        'ketua' => 'Ketua Kelas',
-                                        'wakil_ketua' => 'Wakil Ketua',
-                                        'sekretaris_1' => 'Sekretaris I',
-                                        'sekretaris_2' => 'Sekretaris II',
-                                        'bendahara_1' => 'Bendahara I',
-                                        'bendahara_2' => 'Bendahara II',
-                                        'sie_upacara' => 'Sie Upacara',
-                                        'sie_ekstrakurikuler' => 'Sie Ekstrakurikuler',
-                                        'sie_olahraga' => 'Sie Olahraga',
-                                        'sie_keagamaan' => 'Sie Keagamaan',
-                                        'sie_keamanan' => 'Sie Keamanan',
-                                        'sie_ketertiban' => 'Sie Ketertiban',
-                                        'sie_kebersihan' => 'Sie Kebersihan',
-                                        'sie_keindahan' => 'Sie Keindahan',
-                                        'sie_kesehatan' => 'Sie Kesehatan',
-                                        'sie_kekeluargaan' => 'Sie Kekeluargaan',
-                                        'sie_humas' => 'Sie Humas'
-                                    ];
-                                    ?>
-                                    <table class="table-tw">
-                                        <thead>
-                                            <tr>
-                                                <th class="text-center" style="width: 50px">No</th>
-                                                <th>Jabatan</th>
-                                                <th>Nama / Petugas</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php $no = 1;
-                                            foreach ($arrJabatan as $key => $j): ?>
-                                                <tr>
-                                                    <td class="text-center align-middle">{{ $no++ }}</td>
-                                                    <td class="align-middle font-semibold text-slate-500">{{ $j }}</td>
-                                                    <td class="align-middle">
-                                                        <?php
-                                                        if ($key === 'wali_kelas') {
-                                                            echo '<span class="font-bold text-emerald-600">' . ($kelas->nama_guru ?? '-') . '</span>';
-                                                        } else {
-                                                            $siswa_id = $struktur->$key ?? null;
-                                                            $found = false;
-                                                            if ($siswa_id) {
-                                                                foreach ($siswas as $s) {
-                                                                    if ($s->id_siswa == $siswa_id) {
-                                                                        echo $s->nama;
-                                                                        $found = true;
-                                                                        break;
-                                                                    }
-                                                                }
-                                                            }
-                                                            if (!$found)
-                                                                echo '<span class="text-slate-400 fst-italic text-sm">-</span>';
-                                                        }
-                                                        ?>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 @endsection

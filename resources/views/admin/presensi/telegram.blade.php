@@ -1,146 +1,284 @@
 @extends('layouts.main')
 
 @section('content')
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="mb-0 font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="p-2.5 bg-sky-100 text-sky-600 rounded-xl shadow-sm">
-                    <i class="bi bi-telegram text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Tautan Telegram Guru' }}</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">{{ count($linked ?? []) }} dari {{ (int) ($totalGuru ?? 0) }} guru menautkan Telegram untuk notifikasi personal.</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/notif-config') }}" class="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold no-underline hover:bg-violet-700">
-                <i class="bi bi-sliders2 mr-1"></i> Channel Notifikasi
-            </a>
-            <a href="{{ url('admin/presensi/whatsapp') }}" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50">
-                <i class="bi bi-whatsapp mr-1"></i> WhatsApp
-            </a>
-            <a href="{{ url('admin/presensi/notifikasi-status') }}" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50">
-                <i class="bi bi-activity mr-1"></i> Status
-            </a>
-            <a href="{{ url('admin/presensi') }}" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50">
-                <i class="bi bi-speedometer2 mr-1"></i> Monitoring
-            </a>
-        </div>
+
+<?php
+$linkedRows = $linked ?? [];
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'test' => url('admin/presensi/telegram/test'),
+        'unlink' => url('admin/presensi/telegram/unlink'),
+    ],
+];
+?>
+
+<div x-data="telegramLinkPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
+
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Tautan Telegram Guru'"
+            icon="bi-telegram"
+            tone="blue"
+            :subtitle="count($linkedRows) . ' dari ' . (int) ($totalGuru ?? 0) . ' guru menautkan Telegram untuk notifikasi personal.'"
+            :crumbs="['Presensi', 'Telegram']">
+            <x-slot:actions>
+                <a href="{{ url('admin/presensi/notif-config') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white no-underline shadow-xs shadow-violet-500/20 transition-colors hover:bg-violet-700">
+                    <i class="bi bi-sliders2"></i> Channel Notifikasi
+                </a>
+                <a href="{{ url('admin/presensi/whatsapp') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-whatsapp"></i> WhatsApp
+                </a>
+                <a href="{{ url('admin/presensi/notifikasi-status') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-activity"></i> Status
+                </a>
+                <a href="{{ url('admin/presensi') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-speedometer2"></i> Monitoring
+                </a>
+            </x-slot:actions>
+        </x-ui.page-header>
+    </div>
+
+    <div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+        <!-- Status webhook -->
+        <x-ui.card title="Status Webhook Bot" icon="bi-activity" tone="blue" bodyClass="p-4">
+            <x-slot:actions>
+                @if (! empty($wh['ok']))
+                    @if (! empty($wh['url']))
+                        <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">Terdaftar</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">Belum terdaftar</span>
+                    @endif
+                @else
+                    <span class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">Bermasalah</span>
+                @endif
+            </x-slot:actions>
+
+            @if (empty($wh['ok']))
+                <p class="text-xs text-rose-600">{{ $wh['error'] ?? 'Tidak diketahui' }}</p>
+            @else
+                <p class="text-[11px] text-slate-500">
+                    URL terdaftar:
+                    <code class="font-mono break-all">{{ ($wh['url'] ?? '') !== '' ? $wh['url'] : '(kosong — webhook belum dipasang)' }}</code>
+                </p>
+                <p class="mt-1 text-[11px] text-slate-500">
+                    Antrean tertunda: <b>{{ (int) ($wh['pending'] ?? 0) }}</b>
+                    @if (! empty($wh['last_error']))
+                        · Error terakhir Telegram: <b class="text-rose-600">{{ $wh['last_error'] }}</b>
+                    @endif
+                </p>
+            @endif
+
+            @if (! empty($whSetUrl))
+                <p class="mt-3 mb-1 text-[11px] text-slate-500">
+                    Belum terdaftar / URL tidak cocok? Buka tautan ini sekali (login sebagai admin tidak diperlukan — token bot di URL):
+                </p>
+                <a href="{{ $whSetUrl }}" target="_blank"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3.5 py-1.5 text-[11px] font-bold text-white no-underline transition-colors hover:bg-sky-700">
+                    <i class="bi bi-plug-fill"></i> Pasang Webhook Sekarang
+                </a>
+                <p class="mt-1.5 text-[10px] text-slate-400">Wajib HTTPS dan dapat diakses publik. Setelah dipasang, kirim /start ulang ke bot.</p>
+            @endif
+        </x-ui.card>
+
+        <!-- Daftar guru tertaut -->
+        <x-ui.card title="Guru Tertaut Telegram" icon="bi-person-check" tone="blue"
+            subtitle="Preferensi notifikasi personal per guru" bodyClass="p-0">
+
+            @if (count($linkedRows) === 0)
+                <div class="p-5">
+                    <x-ui.empty icon="bi-telegram" title="Belum ada guru yang menautkan Telegram"
+                        description="Guru dapat menautkan akun Telegram lewat bot agar menerima notifikasi personal." />
+                </div>
+            @else
+                <div class="max-h-[68vh] overflow-y-auto">
+                    <x-ui.table>
+                        <x-slot:head>
+                            <th class="w-12 px-3 py-3 text-center">No</th>
+                            <th class="px-3 py-3">Guru</th>
+                            <th class="px-3 py-3 text-center">Chat ID</th>
+                            <th class="px-3 py-3 text-center">Denda</th>
+                            <th class="px-3 py-3 text-center">Teguran</th>
+                            <th class="px-3 py-3 text-center">Alpha</th>
+                            <th class="px-3 py-3 text-center">Kehadiran</th>
+                            <th class="w-28 px-3 py-3 text-center">Aksi</th>
+                        </x-slot:head>
+
+                        @foreach ($linkedRows as $index => $row)
+                            @php
+                                $prefs = json_decode((string) ($row->prefs ?? ''), true);
+                                if (! is_array($prefs)) {
+                                    $prefs = [];
+                                }
+
+                                foreach (['denda', 'teguran', 'alpha', 'kehadiran'] as $prefKey) {
+                                    if (! array_key_exists($prefKey, $prefs)) {
+                                        $prefs[$prefKey] = true;
+                                    }
+                                }
+
+                                $nama = $row->nama_guru ?: trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
+
+                                if ($nama === '') {
+                                    $nama = $row->username ?? ('User ' . $row->user_id);
+                                }
+
+                                $userId = (int) $row->user_id;
+                            @endphp
+
+                            <tr x-show="!removed.includes({{ $userId }})" class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400">{{ $loop->iteration }}</td>
+                                <td class="px-3 py-2.5 font-semibold text-slate-800">{{ $nama }}</td>
+                                <td class="px-3 py-2.5 text-center font-mono text-xs">{{ $row->telegram_chat_id }}</td>
+
+                                @foreach (['denda', 'teguran', 'alpha', 'kehadiran'] as $prefKey)
+                                    <td class="px-3 py-2.5 text-center">
+                                        @if (! empty($prefs[$prefKey]))
+                                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">Aktif</span>
+                                        @else
+                                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">Mati</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+
+                                <td class="px-3 py-2.5">
+                                    <div class="flex justify-center gap-1">
+                                        <button type="button" @click="test({{ $userId }})" title="Kirim pesan tes"
+                                            :disabled="busy === {{ $userId }}"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-sky-600 transition-colors hover:bg-sky-50 disabled:opacity-50">
+                                            <i class="bi bi-send"></i>
+                                        </button>
+                                        <button type="button" @click="unlink({{ $userId }})" title="Lepas tautan"
+                                            :disabled="busy === {{ $userId }}"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </x-ui.table>
+                </div>
+            @endif
+        </x-ui.card>
     </div>
 </div>
+@endsection
 
-<div class="content-area space-y-6">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div class="flex items-center gap-2 mb-2">
-            <i class="bi bi-activity text-sky-600"></i>
-            <p class="font-bold text-slate-800 text-sm m-0">Status Webhook Bot</p>
-            <?php if (!empty($wh['ok'])): ?>
-                <?php if (!empty($wh['url'])): ?>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Terdaftar</span>
-                <?php else: ?>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Belum terdaftar</span>
-                <?php endif; ?>
-            <?php else: ?>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Bermasalah</span>
-            <?php endif; ?>
-        </div>
-        <?php if (empty($wh['ok'])): ?>
-        <p class="text-xs text-red-600 m-0">{{ $wh['error'] ?? 'Tidak diketahui' }}</p>
-        <?php else: ?>
-        <p class="text-[11px] text-slate-500 m-0">URL terdaftar: <code class="font-mono break-all">{{ $wh['url'] !== '' ? $wh['url'] : '(kosong — webhook belum dipasang)' }}</code></p>
-        <p class="text-[11px] text-slate-500 mt-1 mb-0">Antrean tertunda: <b>{{ (int) ($wh['pending'] ?? 0) }}</b>
-        <?php if (!empty($wh['last_error'])): ?> · Error terakhir Telegram: <b class="text-red-600">{{ $wh['last_error'] }}</b><?php endif; ?></p>
-        <?php endif; ?>
-        <?php if (!empty($whSetUrl)): ?>
-        <p class="text-[11px] text-slate-500 mt-2 mb-1">Belum terdaftar / URL tidak cocok? Buka tautan ini sekali (login sebagai admin tidak diperlukan — token bot di URL):</p>
-        <a href="{{ $whSetUrl }}" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-sky-600 text-white text-[11px] font-bold no-underline hover:bg-sky-700">
-            <i class="bi bi-plug-fill text-xs"></i>Pasang Webhook Sekarang
-        </a>
-        <p class="text-[10px] text-slate-400 mt-1.5 mb-0">Wajib HTTPS dan dapat diakses publik. Setelah dipasang, kirim /start ulang ke bot.</p>
-        <?php endif; ?>
-    </div>
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto" style="max-height:68vh;overflow-y:auto;">
-            <table class="w-full text-sm" id="tgTable" style="border-collapse:collapse;font-size:.825rem;">
-                <thead class="sticky top-0 z-10 shadow-sm" style="background:#f8fafc;">
-                    <tr>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">No</th>
-                        <th class="text-left px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;min-width:180px;">Guru</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Chat ID</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Denda</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Teguran</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Alpha</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Kehadiran</th>
-                        <th class="text-center px-3 py-3 text-slate-500 font-bold uppercase" style="font-size:.7rem;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($linked)): ?>
-                    <tr><td colspan="8" class="text-center text-slate-400 py-6 text-xs">Belum ada guru yang menautkan Telegram.</td></tr>
-                    <?php else: ?>
-                    <?php $no = 1; foreach ($linked as $row):
-                        $prefs = json_decode((string) ($row->prefs ?? ''), true);
-                        if (!is_array($prefs)) $prefs = [];
-                        // Default semua aktif bila belum pernah diatur
-                        foreach (['denda', 'teguran', 'alpha', 'kehadiran'] as $k) {
-                            if (!array_key_exists($k, $prefs)) $prefs[$k] = true;
-                        }
-                        $nama = $row->nama_guru ?: trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
-                        if ($nama === '') $nama = $row->username ?? ('User ' . $row->user_id);
-                        $badge = static fn($on) => $on
-                            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>'
-                            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Mati</span>';
-                    ?>
-                    <tr class="border-t border-slate-100 hover:bg-slate-50">
-                        <td class="text-center px-3 py-2.5">{{ $no++ }}</td>
-                        <td class="px-3 py-2.5 font-bold text-slate-800">{{ $nama }}</td>
-                        <td class="text-center px-3 py-2.5 font-mono text-xs">{{ $row->telegram_chat_id }}</td>
-                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['denda'])) !!}</td>
-                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['teguran'])) !!}</td>
-                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['alpha'])) !!}</td>
-                        <td class="text-center px-3 py-2.5">{!! $badge(!empty($prefs['kehadiran'])) !!}</td>
-                        <td class="text-center px-3 py-2.5 whitespace-nowrap">
-                            <button type="button" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-sky-600 text-xs hover:bg-sky-50" onclick="tgTest({{ (int) $row->user_id }}, this)" title="Kirim pesan tes">
-                                <i class="bi bi-send"></i>
-                            </button>
-                            <button type="button" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-red-600 text-xs hover:bg-red-50" onclick="tgUnlink({{ (int) $row->user_id }}, this)" title="Lepas tautan">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
+@section('scripts')
 <script>
-if (typeof ajaxcsrf === 'function') ajaxcsrf();
-function tgTest(userId, btn) {
-    btn.disabled = true;
-    $.post('{{ url('admin/presensi/telegram/test') }}', { user_id: userId }, function (res) {
-        btn.disabled = false;
-        Swal.fire({ icon: res && res.status ? 'success' : 'error', title: res && res.status ? 'Terkirim' : 'Gagal', text: (res && res.message) || '', timer: 2500, showConfirmButton: !(res && res.status) });
-    }, 'json').fail(function () {
-        btn.disabled = false;
-        Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal terhubung ke server.' });
-    });
-}
-function tgUnlink(userId, btn) {
-    Swal.fire({ title: 'Lepas tautan?', text: 'Guru tidak lagi menerima notifikasi personal.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, lepas', cancelButtonText: 'Batal' }).then(function (r) {
-        if (!r.isConfirmed) return;
-        $.post('{{ url('admin/presensi/telegram/unlink') }}', { user_id: userId }, function (res) {
-            if (res && res.status) {
-                btn.closest('tr').remove();
-                Swal.fire({ icon: 'success', title: 'Dilepas', timer: 1500, showConfirmButton: false });
-            } else {
-                Swal.fire({ icon: 'error', title: 'Gagal', text: (res && res.message) || '' });
+document.addEventListener('alpine:init', () => {
+    Alpine.data('telegramLinkPage', () => ({
+        config: { csrf: '', urls: {} },
+
+        busy: null,
+        removed: [],
+
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+
+            this.config = {
+                csrf: cfg.csrf || '',
+                urls: cfg.urls || {},
+            };
+        },
+
+        async post(url, entries) {
+            const body = new URLSearchParams();
+            body.append('_token', this.config.csrf);
+
+            entries.forEach(([key, value]) => body.append(key, value ?? ''));
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-CSRF-TOKEN': this.config.csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+
+            let result = null;
+
+            try {
+                result = await response.json();
+            } catch (error) {
+                result = null;
             }
-        }, 'json').fail(function () {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal terhubung ke server.' });
-        });
-    });
-}
+
+            if (!response.ok) {
+                const err = new Error((result && (result.message || result.msg)) || 'Gagal terhubung ke server.');
+                err.result = result;
+                throw err;
+            }
+
+            return result;
+        },
+
+        async test(userId) {
+            if (this.busy === userId) return;
+
+            this.busy = userId;
+
+            try {
+                const result = await this.post(this.config.urls.test, [['user_id', userId]]);
+                const berhasil = !!(result && result.status);
+
+                Swal.fire({
+                    icon: berhasil ? 'success' : 'error',
+                    title: berhasil ? 'Terkirim' : 'Gagal',
+                    text: (result && result.message) || '',
+                    timer: berhasil ? 2500 : undefined,
+                    showConfirmButton: !berhasil,
+                });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: error.message || 'Gagal terhubung ke server.' });
+            } finally {
+                this.busy = null;
+            }
+        },
+
+        async unlink(userId) {
+            const konfirmasi = await Swal.fire({
+                title: 'Lepas tautan?',
+                text: 'Guru tidak lagi menerima notifikasi personal.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, lepas',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = userId;
+
+            try {
+                const result = await this.post(this.config.urls.unlink, [['user_id', userId]]);
+
+                if (result && result.status) {
+                    this.removed.push(userId);
+                    Swal.fire({ icon: 'success', title: 'Dilepas', timer: 1500, showConfirmButton: false });
+                    return;
+                }
+
+                Swal.fire({ icon: 'error', title: 'Gagal', text: (result && result.message) || '' });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: error.message || 'Gagal terhubung ke server.' });
+            } finally {
+                this.busy = null;
+            }
+        },
+    }));
+});
 </script>
 @endsection

@@ -2,219 +2,221 @@
 
 @section('content')
 
-<div class="content-header fade-in-up">
-        <div class="page-header">
-        <div class="min-w-0">
-                <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs shrink-0">
-                        <i class="bi bi-file-earmark-medical text-xl"></i>
-                    </span>
-                    <span>Verifikasi Izin/Sakit</span>
-                </h3>
-            </div>
-            <nav class="breadcrumb-tw">
-                    
-                        <a href="{{ url('admin') }}" class="no-underline">
-                            <i class="bi bi-house-door mr-1"></i>Admin
-                        </a>
-                    <span class="sep">/</span>
-                    <a href="{{ url('admin/presensi') }}" class="no-underline">
-                            Presensi
-                        </a>
-                    
-                    <span class="sep">/</span>
-                    <span class="active">Izin & Sakit</span>
-                    </nav>
-        </div>
-    </div>
+<?php
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'approve' => url('admin/presensi/approve-permit'),
+        'reject' => url('admin/presensi/reject-permit'),
+    ],
+];
+$pendingRows = $pending ?? [];
+?>
 
-<div class="content-area">
-<div class="card-tw"><div class="card-tw-header"><div class="flex items-center">
-                            <div class="bg-blue-50 p-2 rounded-lg mr-3">
-                                <i class="bi bi-list-check text-blue-600"></i>
-                            </div>
-                            <h5 class="font-bold text-slate-700">Daftar Permintaan Izin/Sakit</h5>
-                        </div>
-                        <div class="ml-auto flex items-center gap-2">
-                            <a href="{{ url('admin/presensi') }}" class="btn-tw btn-tw-sm btn-light">
-                                <i class="bi bi-arrow-left mr-1"></i> Kembali
-                            </a>
-                        </div>
-                    </div>
-                    <div class="p-0">
-                        <?php if (empty($pending)): ?>
-                            <div class="text-center py-12">
-                                <div class="bg-slate-100 rounded-full inline-flex p-4 mb-6">
-                                    <i class="bi bi-check-lg text-emerald-600" style="font-size: 3rem"></i>
-                                </div>
-                                <h5 class="font-bold text-slate-400">Tidak ada permintaan pending</h5>
-                                <p class="text-slate-400 text-sm">Semua permintaan izin/sakit telah diverifikasi.</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="table-responsive-tw"><table class="table-tw">
-                                    <thead class="bg-slate-50">
-                                        <tr>
-                                            <th class="pl-6">Tanggal</th>
-                                            <th>Guru</th>
-                                            <th>Jenis & Keterangan</th>
-                                            <th>Bukti</th>
-                                            <th class="text-right pr-6">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($pending as $p):
-                                            $nama = $p->nama_guru;
-                                            $avatar = \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), (string) $nama);
-                                            ?>
-                                            <tr id="row-{{ $p->id }}">
-                                                <td class="pl-6">
-                                                    <div class="flex items-center">
-                                                        <div class="bg-blue-50 rounded p-2 mr-2">
-                                                            <i class="bi bi-calendar-range text-blue-600"></i>
-                                                        </div>
-                                                        <div>
-                                                            <div class="font-medium">
-                                                                {{ date('d-m-Y', strtotime($p->tgl_mulai)) }}
-                                                            </div>
-                                                            <div class="text-slate-400 text-sm">
-                                                                s/d {{ date('d-m-Y', strtotime($p->tgl_selesai)) }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <img src="{{ $avatar }}" class="w-10 h-10 rounded-full object-cover shadow-sm flex-shrink-0"
-                                                            alt="Avatar">
-                                                        <div>
-                                                            <div class="font-bold text-slate-800">
-                                                                {{ $nama }}
-                                                            </div>
-                                                            <span class="text-sm class="text-slate-400"">
-                                                                NIP: {{ $p->nip ?? '-' }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="badge {{ (strtoupper($p->jenis) == 'SAKIT') ? 'bg-danger' : 'bg-warning text-slate-800' }} mb-1">
-                                                        {{ strtoupper($p->jenis) }}
-                                                    </span>
-                                                    <p class="mb-0 text-slate-400 text-sm text-wrap" style="max-width: 250px;">
-                                                        {{ $p->keterangan }}
-                                                    </p>
-                                                </td>
-                                                <td>
-                                                    <?php if (!empty($p->bukti)): ?>
-                                                        <?php
-                                                            $pRaw = trim((string) $p->bukti);
-                                                            if (preg_match('#^https?://#i', $pRaw)) {
-                                                                $pUrl = $pRaw;
-                                                            } elseif (file_exists(public_path() . '/' . ltrim($pRaw, '/'))) {
-                                                                $pUrl = url(ltrim($pRaw, '/'));
-                                                            } else {
-                                                                $pUrl = url('uploads/izin/' . basename($pRaw));
-                                                            }
-                                                        ?>
-                                                        <a href="{{ $pUrl }}" target="_blank" class="btn-tw btn-tw-sm btn-outline-secondary">
-                                                            <i class="bi bi-image mr-1"></i> Lihat Bukti
-                                                        </a>
-                                                    <?php else: ?>
-                                                        <span class="text-slate-400 text-sm">-</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-right pr-6">
-                                                    <div class="btn-group btn-group-sm shadow-sm" role="group">
-                                                        <button type="button" class="btn-tw btn-success"
-                                                            data-ui-toggle="tooltip" title="Setujui"
-                                                            onclick="approvePermit({{ $p->id }})">
-                                                            <i class="bi bi-check-lg"></i>
-                                                        </button>
-                                                        <button type="button" class="btn-tw btn-danger"
-                                                            data-ui-toggle="tooltip" title="Tolak"
-                                                            onclick="rejectPermit({{ $p->id }})">
-                                                            <i class="bi bi-x-lg"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+<div x-data="pendingPermitsPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}"
+    class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
+
+    <x-ui.page-header
+        title="Verifikasi Izin/Sakit"
+        icon="bi-file-earmark-medical"
+        tone="blue"
+        :subtitle="count($pendingRows) . ' permintaan izin/sakit menunggu verifikasi.'"
+        :crumbs="['Presensi', 'Izin & Sakit']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="mt-4">
+        <x-ui.card title="Daftar Permintaan Izin/Sakit" icon="bi-list-check" tone="blue"
+            subtitle="Setujui untuk mengisi absensi pada rentang tanggal terkait" bodyClass="p-0">
+
+            @if (count($pendingRows) === 0)
+                <div class="p-5">
+                    <x-ui.empty icon="bi-check2-circle" title="Tidak ada permintaan pending"
+                        description="Semua permintaan izin/sakit telah diverifikasi." />
                 </div>
-            </div>
+            @else
+                <x-ui.table>
+                    <x-slot:head>
+                        <th class="px-5 py-3">Tanggal</th>
+                        <th class="px-3 py-3">Guru</th>
+                        <th class="px-3 py-3">Jenis & Keterangan</th>
+                        <th class="px-3 py-3">Bukti</th>
+                        <th class="px-5 py-3 text-right">Aksi</th>
+                    </x-slot:head>
 
+                    @foreach ($pendingRows as $p)
+                        @php
+                            $nama = $p->nama_guru;
+                            $avatar = \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), (string) $nama);
+                            $sakit = strtoupper((string) $p->jenis) === 'SAKIT';
+                            $pUrl = null;
+
+                            if (! empty($p->bukti)) {
+                                $pRaw = trim((string) $p->bukti);
+
+                                if (preg_match('#^https?://#i', $pRaw)) {
+                                    $pUrl = $pRaw;
+                                } elseif (file_exists(public_path() . '/' . ltrim($pRaw, '/'))) {
+                                    $pUrl = url(ltrim($pRaw, '/'));
+                                } else {
+                                    $pUrl = url('uploads/izin/' . basename($pRaw));
+                                }
+                            }
+                        @endphp
+
+                        <tr x-show="!removed.includes({{ (int) $p->id }})" class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                        <i class="bi bi-calendar-range text-xs"></i>
+                                    </span>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-700">{{ date('d-m-Y', strtotime($p->tgl_mulai)) }}</div>
+                                        <div class="text-[11px] text-slate-400">s/d {{ date('d-m-Y', strtotime($p->tgl_selesai)) }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-3 py-3">
+                                <div class="flex items-center gap-2">
+                                    <img src="{{ $avatar }}" alt="Avatar {{ $nama }}"
+                                        class="h-10 w-10 shrink-0 rounded-full object-cover shadow-sm">
+                                    <div class="min-w-0">
+                                        <div class="truncate text-xs font-bold text-slate-800">{{ $nama }}</div>
+                                        <div class="text-[11px] text-slate-400">NIP: {{ $p->nip ?? '-' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-3 py-3">
+                                <span class="mb-1 inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold {{ $sakit ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700' }}">
+                                    {{ strtoupper((string) $p->jenis) }}
+                                </span>
+                                <p class="max-w-[250px] text-xs text-slate-500">{{ $p->keterangan }}</p>
+                            </td>
+                            <td class="px-3 py-3">
+                                @if ($pUrl)
+                                    <a href="{{ $pUrl }}" target="_blank" rel="noopener"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 no-underline transition-colors hover:bg-slate-50">
+                                        <i class="bi bi-image"></i> Lihat Bukti
+                                    </a>
+                                @else
+                                    <span class="text-xs text-slate-400">-</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex justify-end gap-1">
+                                    <button type="button" @click="act({{ (int) $p->id }}, 'approve')" title="Setujui"
+                                        :disabled="busy === {{ (int) $p->id }}"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-xs text-white transition-colors hover:bg-emerald-700 disabled:opacity-50">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button type="button" @click="act({{ (int) $p->id }}, 'reject')" title="Tolak"
+                                        :disabled="busy === {{ (int) $p->id }}"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-600 text-xs text-white transition-colors hover:bg-rose-700 disabled:opacity-50">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+            @endif
+        </x-ui.card>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
 <script>
-    const CSRF_TOKEN = CSRF_HASH;
+document.addEventListener('alpine:init', () => {
+    Alpine.data('pendingPermitsPage', () => ({
+        config: { csrf: '', urls: {} },
 
-    function approvePermit(id) {
-        Swal.fire({
-            title: 'Setujui Permintaan?',
-            text: 'Absensi akan otomatis diupdate untuk rentang tanggal tersebut.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="bi bi-check-lg mr-1"></i> Ya, Setujui',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const data = {};
-                data[CSRF_NAME] = CSRF_TOKEN;
+        busy: null,
+        removed: [],
 
-                $.post('{{ url('admin/presensi/approve-permit') }}/' + id, data, function (res) {
-                    if (res.status) {
-                        Swal.fire({
-                            title: 'Berhasil!',
-                            text: res.message,
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                        $('#row-' + id).fadeOut(500, function () { $(this).remove(); });
-                    } else {
-                        Swal.fire('Gagal', res.message, 'error');
-                    }
-                }, 'json');
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+
+            this.config = {
+                csrf: cfg.csrf || '',
+                urls: cfg.urls || {},
+            };
+        },
+
+        async act(id, action) {
+            if (this.busy === id) return;
+
+            const menyetujui = action === 'approve';
+
+            const konfirmasi = await Swal.fire({
+                title: menyetujui ? 'Setujui Permintaan?' : 'Tolak Permintaan?',
+                text: menyetujui
+                    ? 'Absensi akan otomatis diupdate untuk rentang tanggal tersebut.'
+                    : 'Permintaan izin/sakit akan ditolak.',
+                icon: menyetujui ? 'question' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: menyetujui ? 'Ya, Setujui' : 'Ya, Tolak',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            this.busy = id;
+
+            try {
+                const body = new URLSearchParams();
+                body.append('_token', this.config.csrf);
+
+                const response = await fetch(this.config.urls[action] + '/' + id, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'X-CSRF-TOKEN': this.config.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+
+                let result = null;
+
+                try {
+                    result = await response.json();
+                } catch (error) {
+                    result = null;
+                }
+
+                if (!response.ok) {
+                    throw new Error((result && (result.message || result.msg)) || 'Gagal terhubung ke server.');
+                }
+
+                if (result && result.status) {
+                    this.removed.push(id);
+                    Swal.fire({
+                        icon: 'success',
+                        title: menyetujui ? 'Berhasil!' : 'Ditolak',
+                        text: result.message || '',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+                    return;
+                }
+
+                Swal.fire({ icon: 'error', title: 'Gagal', text: (result && result.message) || '' });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: error.message || 'Gagal terhubung ke server.' });
+            } finally {
+                this.busy = null;
             }
-        });
-    }
-
-    function rejectPermit(id) {
-        Swal.fire({
-            title: 'Tolak Permintaan?',
-            text: 'Permintaan izin/sakit akan ditolak.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="bi bi-x-lg mr-1"></i> Ya, Tolak',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const data = {};
-                data[CSRF_NAME] = CSRF_TOKEN;
-
-                $.post('{{ url('admin/presensi/reject-permit') }}/' + id, data, function (res) {
-                    if (res.status) {
-                        Swal.fire({
-                            title: 'Ditolak',
-                            text: res.message,
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                        $('#row-' + id).fadeOut(500, function () { $(this).remove(); });
-                    } else {
-                        Swal.fire('Gagal', res.message, 'error');
-                    }
-                }, 'json');
-            }
-        });
-    }
+        },
+    }));
+});
 </script>
-
 @endsection

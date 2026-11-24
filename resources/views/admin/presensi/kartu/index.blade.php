@@ -996,7 +996,6 @@
     }
 </style>
 @endsection
-
 @section('content')
 <?php
     // Di-set sekali di awal section lalu dipakai seluruh link & switcher desain.
@@ -1019,390 +1018,376 @@
     $qsSertaan = '&mode=' . $modeAktif
         . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '')
         . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : '');
+    // URL reset filter: kembali ke semua kelas/siswa dengan desain & tata letak yang aktif.
+    $resetUrl = url($basePath . '?desain=' . $desainAktif . '&mode=' . $modeAktif
+        . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '')
+        . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : ''));
+    // Kelas tab pilihan (desain / tata letak / template) supaya markup tidak berulang.
+    $tabClass = fn (bool $aktif) => 'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline '
+        . ($aktif
+            ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
+            : 'text-slate-500 hover:text-slate-700 hover:bg-white/70');
 ?>
-<div class="fade-in-up p-4 md:p-6 space-y-6">
 
-    <!-- Header & Action -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-qr-code-scan"></i> Kartu Presensi Siswa
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Cetak Kartu Absen Siswa QR</h1>
-            <p class="text-xs text-slate-500 mt-1">Cetak kartu ID presensi siswa dengan QR Code standar untuk scan absensi harian & KBM.</p>
-            <div class="mt-4 flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-                <span class="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/70 px-2.5 py-1 text-blue-700">
-                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] text-white">1</span> Pilih desain
-                </span>
-                <i class="bi bi-chevron-right text-slate-300"></i>
-                <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
-                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">2</span> Pilih kelas
-                </span>
-                <i class="bi bi-chevron-right text-slate-300"></i>
-                <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
-                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">3</span> Cetak
-                </span>
-            </div>
-        </div>
-        <div class="flex items-center gap-2.5 flex-wrap">
-            <a id="btnCetakLembar"
-               href="{{ url($basePath . '/cetak?' . $qsCetak . '&desain=' . $desainAktif . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : '') . '&v=5') }}"
-               target="_blank"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm shadow-blue-500/20 no-underline">
-                <i class="bi bi-printer-fill"></i> Cetak Kartu
-            </a>
-            <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
-                <i class="bi bi-camera-fill"></i> Buka Scanner QR
-            </a>
+<div class="space-y-6"
+     x-data="kartuSiswaPage({ base: @js(url($basePath)), desain: @js($desainAktif), mode: @js($modeAktif), flip: @js($flipAktif), idKelas: @js((string) $id_kelas), idSiswa: @js((string) $id_siswa) })">
+
+    <div class="space-y-3">
+        <x-ui.page-header
+            title="Cetak Kartu Absen Siswa QR"
+            icon="bi-qr-code-scan"
+            subtitle="Cetak kartu ID presensi siswa dengan QR Code standar untuk scan absensi harian & KBM."
+            :crumbs="['Presensi', 'Kartu Siswa']">
+            <x-slot:actions>
+                <a :href="cetakUrl" target="_blank"
+                   class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                    <i class="bi bi-printer-fill"></i> Cetak Kartu
+                </a>
+                <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}"
+                   class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                    <i class="bi bi-camera-fill"></i> Buka Scanner QR
+                </a>
+            </x-slot:actions>
+        </x-ui.page-header>
+
+        <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/70 px-2.5 py-1 text-blue-700">
+                <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] text-white">1</span> Pilih desain
+            </span>
+            <i class="bi bi-chevron-right text-slate-300"></i>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
+                <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">2</span> Pilih kelas
+            </span>
+            <i class="bi bi-chevron-right text-slate-300"></i>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
+                <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-400 text-[9px] text-white">3</span> Cetak
+            </span>
         </div>
     </div>
 
     <!-- Filter & Control Panel -->
-    <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
-        <!-- Judul Panel Opsi -->
-        <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
-            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 text-blue-600 shrink-0">
-                <i class="bi bi-sliders"></i>
-            </span>
-            <div class="min-w-0">
-                <p class="text-sm font-extrabold text-slate-800 leading-tight">Opsi Cetak Kartu</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">Pilih desain kartu dan tata letak cetak sebelum mencetak.</p>
-            </div>
-        </div>
+    <x-ui.card title="Opsi Cetak Kartu" icon="bi-sliders" subtitle="Pilih desain kartu dan tata letak cetak sebelum mencetak." bodyClass="p-5 space-y-5">
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <!-- Pilihan Desain Kartu -->
-        <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Desain & Format Kartu</label>
-            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan desain kartu">
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex' . $qsSertaan . '&v=5') }}"
-                   aria-current="{{ $desainAktif === 'duplex' ? 'page' : 'false' }}"
-                   title="Kartu pelajar horizontal 8,56 × 5,4 cm, dicetak 2 sisi"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-layers-fill"></i> Kartu Pelajar (Landscape)
-                </a>
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
-                   aria-current="{{ $desainAktif === 'duplex_portrait' ? 'page' : 'false' }}"
-                   title="Kartu pelajar vertikal 5,4 × 8,56 cm, dicetak 2 sisi"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $desainAktif === 'duplex_portrait' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-card-heading"></i> Kartu Pelajar (Portrait)
-                </a>
-            </div>
-            <p class="text-[11px] text-slate-400 mt-1.5">
-                @if($desainAktif === 'duplex')
-                    <strong>Kartu Pelajar Landscape:</strong> desain horizontal 8,56 × 5,4 cm dengan foto, identitas, dan QR Code — dicetak 2 sisi (depan + belakang).
-                @else
-                    <strong>Kartu Pelajar Portrait:</strong> desain vertikal 5,4 × 8,56 cm dengan foto dan QR Code — dicetak 2 sisi (depan + belakang).
-                @endif
-            </p>
-        </div>
-
-        <!-- Pilihan Tata Letak / Mode Cetak -->
-        <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tata Letak Cetak</label>
-            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan tata letak cetak">
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=lembar&v=5') }}"
-                   aria-current="{{ $modeAktif === 'lembar' ? 'page' : 'false' }}"
-                   title="Sisi depan & belakang berdampingan dalam satu lembar"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'lembar' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-file-earmark"></i> Lembar
-                </a>
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $flipAktif . '&v=5') }}"
-                   aria-current="{{ $modeAktif === 'bolakbalik' ? 'page' : 'false' }}"
-                   title="Grid A4 dua tahap: semua depan, lalu semua belakang"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'bolakbalik' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-layout-text-window-reverse"></i> Bolak-balik (Grid A4)
-                </a>
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=ktp&v=5') }}"
-                   aria-current="{{ $modeAktif === 'ktp' ? 'page' : 'false' }}"
-                   title="Cetak langsung ke kartu CR80 85,6 × 54 mm"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $modeAktif === 'ktp' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-credit-card-2-front"></i> Ukuran KTP (CR80)
-                </a>
-            </div>
-            <p class="text-[11px] text-slate-400 mt-1.5">
-                @if($modeAktif === 'ktp')
-                    <strong>Ukuran KTP :</strong> Cetak langsung ke kartu CR80 85.6 × 54 mm, satu kartu per halaman — cocok untuk printer kartu.
-                @elseif($modeAktif === 'bolakbalik')
-                    <strong>Bolak-balik :</strong> Grid A4 dua tahap — cetak semua sisi depan, balik tumpukan kertas, lalu cetak semua sisi belakang.
-                @else
-                    <strong>Lembar :</strong> Sisi depan & belakang dicetak berdampingan dalam satu lembar.
-                @endif
-            </p>
-            @if($modeAktif === 'bolakbalik')
-                <div class="mt-3 flex items-center gap-2 flex-wrap">
-                    <span class="text-[11px] font-bold text-slate-600">Arah balik kertas:</span>
-                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=long&v=5') }}"
-                       aria-current="{{ $flipAktif === 'long' ? 'page' : 'false' }}"
-                       class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all no-underline {{ $flipAktif === 'long' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                        <i class="bi bi-arrow-left-right"></i> Sisi Panjang (Long Edge)
+        <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+            <!-- Pilihan Desain Kartu -->
+            <div>
+                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Desain & Format Kartu</label>
+                <div class="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Pilihan desain kartu">
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex' . $qsSertaan . '&v=5') }}"
+                       aria-current="{{ $desainAktif === 'duplex' ? 'page' : 'false' }}"
+                       title="Kartu pelajar horizontal 8,56 × 5,4 cm, dicetak 2 sisi"
+                       class="{{ $tabClass($desainAktif === 'duplex') }}">
+                        <i class="bi bi-layers-fill"></i> Kartu Pelajar (Landscape)
                     </a>
-                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=short&v=5') }}"
-                       aria-current="{{ $flipAktif === 'short' ? 'page' : 'false' }}"
-                       class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all no-underline {{ $flipAktif === 'short' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                        <i class="bi bi-arrow-down-up"></i> Sisi Pendek (Short Edge)
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
+                       aria-current="{{ $desainAktif === 'duplex_portrait' ? 'page' : 'false' }}"
+                       title="Kartu pelajar vertikal 5,4 × 8,56 cm, dicetak 2 sisi"
+                       class="{{ $tabClass($desainAktif === 'duplex_portrait') }}">
+                        <i class="bi bi-card-heading"></i> Kartu Pelajar (Portrait)
                     </a>
                 </div>
-            @endif
-        </div>
-
-        @if($desainAktif === 'duplex_portrait')
-        <!-- Pilihan Template Kartu (hanya duplex portrait) -->
-        <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Template Kartu</label>
-            <div class="inline-flex p-1 bg-slate-100 rounded-xl gap-1 flex-wrap" role="tablist" aria-label="Pilihan template kartu">
-                <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=vektor&v=5') }}"
-                   aria-current="{{ $templateAktif === 'vektor' ? 'page' : 'false' }}"
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $templateAktif === 'vektor' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-vector-pen"></i> Vektor
-                </a>
-                <a href="{{ $pngHref }}"
-                   aria-current="{{ $templateAktif === 'png' ? 'page' : 'false' }}"
-                   {{ $templatePngSiap ? '' : ($bisaSetelan ? 'title="Unggah latar kartu depan &amp; belakang di menu Pengaturan dulu" style="opacity:.45;"' : 'aria-disabled="true" title="Latar kartu diunggah admin melalui menu Pengaturan" tabindex="-1" style="pointer-events:none;opacity:.45;"') }}
-                   class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline {{ $templateAktif === 'png' ? 'bg-white text-blue-700 shadow-xs border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70' }}">
-                    <i class="bi bi-image"></i> Latar PNG
-                </a>
+                <p class="mt-1.5 text-[11px] text-slate-400">
+                    @if($desainAktif === 'duplex')
+                        <strong>Kartu Pelajar Landscape:</strong> desain horizontal 8,56 × 5,4 cm dengan foto, identitas, dan QR Code — dicetak 2 sisi (depan + belakang).
+                    @else
+                        <strong>Kartu Pelajar Portrait:</strong> desain vertikal 5,4 × 8,56 cm dengan foto dan QR Code — dicetak 2 sisi (depan + belakang).
+                    @endif
+                </p>
             </div>
-            <p class="text-[11px] text-slate-400 mt-1.5">
-                @if($templateAktif === 'png')
-                    <strong>Latar PNG :</strong> Desain memakai latar PNG yang diunggah di menu <strong>Pengaturan</strong> — kop, ombak, dan hiasan vektor disembunyikan, hanya data (foto, nama, QR, barcode) yang tercetak di atasnya.
-                @elseif($templatePngSiap)
-                    <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG sudah tersedia — pilih "Latar PNG" untuk memakainya.
-                @elseif($bisaSetelan)
-                    <strong>Vektor :</strong> Desain kartu bawaan. Belum ada latar PNG — <strong>klik "Latar PNG"</strong> untuk mengunggah Latar Depan &amp; Belakang di menu Pengaturan.
-                @else
-                    <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG hanya aktif bila admin mengunggah Latar Kartu Depan &amp; Belakang di menu Pengaturan.
+
+            <!-- Pilihan Tata Letak / Mode Cetak -->
+            <div>
+                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Tata Letak Cetak</label>
+                <div class="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Pilihan tata letak cetak">
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=lembar&v=5') }}"
+                       aria-current="{{ $modeAktif === 'lembar' ? 'page' : 'false' }}"
+                       title="Sisi depan & belakang berdampingan dalam satu lembar"
+                       class="{{ $tabClass($modeAktif === 'lembar') }}">
+                        <i class="bi bi-file-earmark"></i> Lembar
+                    </a>
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $flipAktif . '&v=5') }}"
+                       aria-current="{{ $modeAktif === 'bolakbalik' ? 'page' : 'false' }}"
+                       title="Grid A4 dua tahap: semua depan, lalu semua belakang"
+                       class="{{ $tabClass($modeAktif === 'bolakbalik') }}">
+                        <i class="bi bi-layout-text-window-reverse"></i> Bolak-balik (Grid A4)
+                    </a>
+                    <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=ktp&v=5') }}"
+                       aria-current="{{ $modeAktif === 'ktp' ? 'page' : 'false' }}"
+                       title="Cetak langsung ke kartu CR80 85,6 × 54 mm"
+                       class="{{ $tabClass($modeAktif === 'ktp') }}">
+                        <i class="bi bi-credit-card-2-front"></i> Ukuran KTP (CR80)
+                    </a>
+                </div>
+                <p class="mt-1.5 text-[11px] text-slate-400">
+                    @if($modeAktif === 'ktp')
+                        <strong>Ukuran KTP :</strong> Cetak langsung ke kartu CR80 85.6 × 54 mm, satu kartu per halaman — cocok untuk printer kartu.
+                    @elseif($modeAktif === 'bolakbalik')
+                        <strong>Bolak-balik :</strong> Grid A4 dua tahap — cetak semua sisi depan, balik tumpukan kertas, lalu cetak semua sisi belakang.
+                    @else
+                        <strong>Lembar :</strong> Sisi depan & belakang dicetak berdampingan dalam satu lembar.
+                    @endif
+                </p>
+                @if($modeAktif === 'bolakbalik')
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                        <span class="text-[11px] font-bold text-slate-600">Arah balik kertas:</span>
+                        <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=long&v=5') }}"
+                           aria-current="{{ $flipAktif === 'long' ? 'page' : 'false' }}"
+                           class="{{ $tabClass($flipAktif === 'long') }} text-[11px]">
+                            <i class="bi bi-arrow-left-right"></i> Sisi Panjang (Long Edge)
+                        </a>
+                        <a href="{{ url($basePath . '?' . $qsCetak . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=short&v=5') }}"
+                           aria-current="{{ $flipAktif === 'short' ? 'page' : 'false' }}"
+                           class="{{ $tabClass($flipAktif === 'short') }} text-[11px]">
+                            <i class="bi bi-arrow-down-up"></i> Sisi Pendek (Short Edge)
+                        </a>
+                    </div>
                 @endif
-            </p>
-        </div>
-        @endif
+            </div>
 
-        <div class="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-3 text-[11px] text-blue-800" style="grid-column: 1 / -1;">
-            <i class="bi bi-lightbulb-fill mt-0.5 text-blue-500"></i>
-            <p class="font-semibold leading-relaxed m-0">
-                Hasil cetak terbaik: gunakan skala <strong>100%</strong>, pilih kertas <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>, dan aktifkan <strong>Background graphics</strong>.
-            </p>
-        </div>
+            @if($desainAktif === 'duplex_portrait')
+                <!-- Pilihan Template Kartu (hanya duplex portrait) -->
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Template Kartu</label>
+                    <div class="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Pilihan template kartu">
+                        <a href="{{ url($basePath . '?' . $qsCetak . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=vektor&v=5') }}"
+                           aria-current="{{ $templateAktif === 'vektor' ? 'page' : 'false' }}"
+                           class="{{ $tabClass($templateAktif === 'vektor') }}">
+                            <i class="bi bi-vector-pen"></i> Vektor
+                        </a>
+                        <a href="{{ $pngHref }}"
+                           aria-current="{{ $templateAktif === 'png' ? 'page' : 'false' }}"
+                           {!! $templatePngSiap ? '' : ($bisaSetelan ? 'title="Unggah latar kartu depan &amp; belakang di menu Pengaturan dulu" style="opacity:.45;"' : 'aria-disabled="true" title="Latar kartu diunggah admin melalui menu Pengaturan" tabindex="-1" style="pointer-events:none;opacity:.45;"') !!}
+                           class="{{ $tabClass($templateAktif === 'png') }}">
+                            <i class="bi bi-image"></i> Latar PNG
+                        </a>
+                    </div>
+                    <p class="mt-1.5 text-[11px] text-slate-400">
+                        @if($templateAktif === 'png')
+                            <strong>Latar PNG :</strong> Desain memakai latar PNG yang diunggah di menu <strong>Pengaturan</strong> — kop, ombak, dan hiasan vektor disembunyikan, hanya data (foto, nama, QR, barcode) yang tercetak di atasnya.
+                        @elseif($templatePngSiap)
+                            <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG sudah tersedia — pilih "Latar PNG" untuk memakainya.
+                        @elseif($bisaSetelan)
+                            <strong>Vektor :</strong> Desain kartu bawaan. Belum ada latar PNG — <strong>klik "Latar PNG"</strong> untuk mengunggah Latar Depan &amp; Belakang di menu Pengaturan.
+                        @else
+                            <strong>Vektor :</strong> Desain kartu bawaan. Latar PNG hanya aktif bila admin mengunggah Latar Kartu Depan &amp; Belakang di menu Pengaturan.
+                        @endif
+                    </p>
+                </div>
+            @endif
+
+            <div class="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-3 text-[11px] text-blue-800 lg:col-span-2">
+                <i class="bi bi-lightbulb-fill mt-0.5 text-blue-500"></i>
+                <p class="m-0 font-semibold leading-relaxed">
+                    Hasil cetak terbaik: gunakan skala <strong>100%</strong>, pilih kertas <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>, dan aktifkan <strong>Background graphics</strong>.
+                </p>
+            </div>
         </div>
 
-        <hr class="my-5 border-slate-100">
+        <hr class="border-slate-100">
 
         <!-- Filter Data -->
         <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Filter Data Siswa</label>
-        <form method="get" action="{{ url($basePath) }}" id="filterForm" data-base="{{ url($basePath) }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            <input type="hidden" name="desain" id="inputDesain" value="{{ $desainAktif }}">
-            <input type="hidden" name="mode" id="inputMode" value="{{ $modeAktif }}">
-            <input type="hidden" name="flip" id="inputFlip" value="{{ $flipAktif }}">
-            <!-- Pilih Kelas -->
-            <div class="md:col-span-4">
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Kelas</label>
-                <select name="id_kelas" id="selectKelas" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
-                    <option value="0">-- Semua Kelas --</option>
-                    <?php foreach ($kelases as $k): ?>
-                        <option value="{{ $k->id_kelas }}" {{ ($id_kelas == $k->id_kelas) ? 'selected' : '' }}>
-                            Kelas {{ $k->nama_kelas }} ({{ $k->jumlah_siswa }} Siswa)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Filter Data Siswa</label>
+            <form method="get" action="{{ url($basePath) }}" x-ref="filterForm" class="grid grid-cols-1 items-end gap-4 md:grid-cols-12">
+                <input type="hidden" name="desain" value="{{ $desainAktif }}">
+                <input type="hidden" name="mode" value="{{ $modeAktif }}">
+                <input type="hidden" name="flip" value="{{ $flipAktif }}">
 
-            <!-- Pilih Siswa (Per Orang) -->
-            <div class="md:col-span-4">
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Pilih Siswa (Opsional / Per Orang)</label>
-                <select name="id_siswa" id="selectSiswa" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
-                    <option value="0">-- Semua Siswa di Kelas Ini --</option>
-                    <?php foreach ($siswa_options as $so): ?>
-                        <option value="{{ $so->id_siswa }}" {{ ($id_siswa == $so->id_siswa) ? 'selected' : '' }}>
-                            {{ $so->nama }} ({{ $so->id_label ?? 'ID' }}: {{ $so->id_value ?? '-' }})
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Pencarian Cepat Nama / NIS -->
-            <div class="md:col-span-4">
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Filter Pencarian</label>
-                <div class="relative">
-                    <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchInput" placeholder="Cari nama, NIS, atau NISN siswa..."
-                           aria-label="Cari nama, NIS, atau NISN siswa"
-                           class="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-slate-300">
-                    <button type="button" id="clearSearch" aria-label="Bersihkan pencarian"
-                            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
-                        <i class="bi bi-x-circle-fill text-[13px]"></i>
-                    </button>
+                <!-- Pilih Kelas -->
+                <div class="md:col-span-4">
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Pilih Kelas</label>
+                    <select name="id_kelas" x-model="idKelas" @change="idSiswa = '0'; $refs.filterForm.submit()"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="0">-- Semua Kelas --</option>
+                        @foreach ($kelases as $k)
+                            <option value="{{ $k->id_kelas }}" @selected($id_kelas == $k->id_kelas)>
+                                Kelas {{ $k->nama_kelas }} ({{ $k->jumlah_siswa }} Siswa)
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
-            </div>
 
-            <div class="flex items-center justify-end pt-1" style="grid-column: 1 / -1;">
-                <button type="button" id="resetFilter"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
-                    <i class="bi bi-arrow-counterclockwise"></i> Reset filter
-                </button>
-            </div>
-        </form>
+                <!-- Pilih Siswa (Per Orang) -->
+                <div class="md:col-span-4">
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Pilih Siswa (Opsional / Per Orang)</label>
+                    <select name="id_siswa" x-model="idSiswa" @change="$refs.filterForm.submit()"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="0">-- Semua Siswa di Kelas Ini --</option>
+                        @foreach ($siswa_options as $so)
+                            <option value="{{ $so->id_siswa }}" @selected($id_siswa == $so->id_siswa)>
+                                {{ $so->nama }} ({{ $so->id_label ?? 'ID' }}: {{ $so->id_value ?? '-' }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Pencarian Cepat Nama / NIS -->
+                <div class="md:col-span-4">
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Filter Pencarian</label>
+                    <div class="relative">
+                        <i class="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                        <input type="text" x-ref="search" x-model="query"
+                               placeholder="Cari nama, NIS, atau NISN siswa..."
+                               aria-label="Cari nama, NIS, atau NISN siswa"
+                               @keydown.enter.prevent
+                               @keydown.escape.prevent="clearSearch()"
+                               class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-9 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="button" x-show="query.trim() !== ''" x-cloak @click="clearSearch()"
+                                aria-label="Bersihkan pencarian"
+                                class="absolute right-2.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600">
+                            <i class="bi bi-x-circle-fill text-[13px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end pt-1 md:col-span-12">
+                    <a href="{{ $resetUrl }}"
+                       class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600 no-underline transition-colors hover:bg-slate-200">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset filter
+                    </a>
+                </div>
+            </form>
         </div>
 
-        <?php if (!empty($catatan)): ?>
-            <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
+        @if (!empty($catatan))
+            <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
                 <i class="bi bi-exclamation-triangle-fill mt-0.5 text-amber-500"></i>
                 <p class="font-semibold leading-relaxed">{{ $catatan }}</p>
             </div>
-        <?php endif; ?>
+        @endif
 
-        <?php if (!empty($terpotong)): ?>
-            <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+        @if (!empty($terpotong))
+            <div class="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
                 <i class="bi bi-info-circle-fill mt-0.5 text-blue-500"></i>
                 <p class="font-semibold leading-relaxed">
                     Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama supaya halaman tidak macet.
                     Pilih satu kelas atau satu siswa untuk mencetak sisanya.
                 </p>
             </div>
-        <?php endif; ?>
-    </div>
+        @endif
+    </x-ui.card>
 
     <!-- Live Card Grid Preview -->
-    <?php if (empty($siswa_list)): ?>
-        <div class="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
-            <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 text-2xl mx-auto mb-3">
-                <i class="bi bi-person-x"></i>
-            </div>
-            <h3 class="text-base font-bold text-slate-800">Tidak Ada Siswa Ditemukan</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                <?php if (!empty($catatan)): ?>
-                    {{ $catatan }}
-                <?php else: ?>
-                    Silakan pilih kelas lain atau periksa data penempatan kelas siswa pada Tahun Pelajaran aktif.
-                <?php endif; ?>
-            </p>
-            @if ($bisaSetelan)
-                <a href="{{ url('datasiswa') }}"
-                   class="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors no-underline">
-                    <i class="bi bi-people-fill"></i> Buka Data Siswa
-                </a>
-            @endif
-        </div>
-    <?php else: ?>
-
-        {{-- ══════════════════════════════════════════════════════════════════
-             1. DUPLEX LANDSCAPE PREVIEW (8.56 × 5.4 cm)
-        ══════════════════════════════════════════════════════════════════ --}}
-        <?php if ($desainAktif === 'duplex'): ?>
-        <div id="cardGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <?php foreach ($siswa_list as $s): ?>
-                <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
-                     data-name="{{ strtolower($s->nama) }}"
-                     data-nis="{{ strtolower($s->nis ?? '') }}"
-                     data-nisn="{{ strtolower($s->nisn ?? '') }}">
-                    @php
-                        $inisialSiswa = collect(preg_split('/\s+/', trim((string) $s->nama)))
-                            ->filter()
-                            ->take(2)
-                            ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
-                            ->implode('');
-                    @endphp
-                    <div class="flex items-start justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-700 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialSiswa }}</span>
-                            <div class="min-w-0">
-                                <h5 class="text-[12px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $s->nama }}">{{ $s->nama }}</h5>
-                                <p class="text-[10px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
-                                    <span class="font-mono text-slate-600">{{ $s->nis ?: ($s->nisn ?: 'Siswa') }}</span>
-                                    <span class="text-slate-300 mx-1">•</span>{{ $s->nama_kelas }}
-                                </p>
+    @if (empty($siswa_list))
+        <x-ui.card>
+            <x-ui.empty icon="bi-person-x" title="Tidak Ada Siswa Ditemukan"
+                :description="!empty($catatan) ? $catatan : 'Silakan pilih kelas lain atau periksa data penempatan kelas siswa pada Tahun Pelajaran aktif.'">
+                @if ($bisaSetelan)
+                    <a href="{{ url('datasiswa') }}"
+                       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline transition-colors hover:bg-blue-700">
+                        <i class="bi bi-people-fill"></i> Buka Data Siswa
+                    </a>
+                @endif
+            </x-ui.empty>
+        </x-ui.card>
+    @else
+        @if ($desainAktif === 'duplex')
+            {{-- 1. DUPLEX LANDSCAPE PREVIEW (8.56 × 5.4 cm) --}}
+            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                @foreach ($siswa_list as $s)
+                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs"
+                         x-show="matches($el)"
+                         data-name="{{ strtolower($s->nama) }}"
+                         data-nis="{{ strtolower($s->nis ?? '') }}"
+                         data-nisn="{{ strtolower($s->nisn ?? '') }}">
+                        @php
+                            $inisialSiswa = collect(preg_split('/\s+/', trim((string) $s->nama)))
+                                ->filter()
+                                ->take(2)
+                                ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                                ->implode('');
+                        @endphp
+                        <div class="mb-3 flex items-start justify-between gap-3 border-b border-slate-100 pb-2">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-[11px] font-extrabold tracking-wide text-white">{{ $inisialSiswa }}</span>
+                                <div class="min-w-0">
+                                    <h5 class="m-0 truncate text-[12px] font-extrabold leading-tight text-slate-800" title="{{ $s->nama }}">{{ $s->nama }}</h5>
+                                    <p class="m-0 mt-0.5 truncate text-[10px] font-semibold text-slate-500">
+                                        <span class="font-mono text-slate-600">{{ $s->nis ?: ($s->nisn ?: 'Siswa') }}</span>
+                                        <span class="mx-1 text-slate-300">•</span>{{ $s->nama_kelas }}
+                                    </p>
+                                </div>
+                            </div>
+                            <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex' . $qsSertaan . '&v=5') }}"
+                               target="_blank"
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:bg-blue-100">
+                                <i class="bi bi-printer"></i> Cetak Kartu
+                            </a>
+                        </div>
+                        <!-- Front & Back side-by-side: 100% Identik dengan Tampilan Cetak -->
+                        <div class="flex flex-wrap items-center justify-center gap-4">
+                            <div class="card-stage">
+                                <span class="card-stage-label"><i class="bi bi-credit-card-2-front"></i> Sisi Depan</span>
+                                @include('admin.presensi.kartu.partials.kartu_dl_depan')
+                            </div>
+                            <div class="card-stage">
+                                <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
+                                @include('admin.presensi.kartu.partials.kartu_dl_belakang')
                             </div>
                         </div>
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex' . $qsSertaan . '&v=5') }}"
-                           target="_blank"
-                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
-                            <i class="bi bi-printer"></i> Cetak Kartu
-                        </a>
                     </div>
-                    <!-- Front & Back side-by-side: 100% Identik dengan Tampilan Cetak -->
-                    <div class="flex flex-wrap items-center justify-center gap-4">
-                        <!-- SISI DEPAN -->
-                        <div class="card-stage">
-                            <span class="card-stage-label"><i class="bi bi-credit-card-2-front"></i> Sisi Depan</span>
-                            @include('admin.presensi.kartu.partials.kartu_dl_depan')
+                @endforeach
+            </div>
+        @elseif ($desainAktif === 'duplex_portrait')
+            {{-- 2. DUPLEX PORTRAIT PREVIEW (5.4 × 8.56 cm) --}}
+            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($siswa_list as $s)
+                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs"
+                         x-show="matches($el)"
+                         data-name="{{ strtolower($s->nama) }}"
+                         data-nis="{{ strtolower($s->nis ?? '') }}"
+                         data-nisn="{{ strtolower($s->nisn ?? '') }}">
+                        @php
+                            $inisialSiswa = collect(preg_split('/\s+/', trim((string) $s->nama)))
+                                ->filter()
+                                ->take(2)
+                                ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                                ->implode('');
+                        @endphp
+                        <div class="mb-3 flex items-start justify-between gap-3 border-b border-slate-100 pb-2">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-[11px] font-extrabold tracking-wide text-white">{{ $inisialSiswa }}</span>
+                                <div class="min-w-0">
+                                    <h5 class="m-0 truncate text-[12px] font-extrabold leading-tight text-slate-800" title="{{ $s->nama }}">{{ $s->nama }}</h5>
+                                    <p class="m-0 mt-0.5 truncate text-[10px] font-semibold text-slate-500">
+                                        <span class="font-mono text-slate-600">{{ $s->nis ?: ($s->nisn ?: 'Siswa') }}</span>
+                                        <span class="mx-1 text-slate-300">•</span>{{ $s->nama_kelas }}
+                                    </p>
+                                </div>
+                            </div>
+                            <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
+                               target="_blank"
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:bg-blue-100">
+                                <i class="bi bi-printer"></i> Cetak
+                            </a>
                         </div>
-
-                        <!-- SISI BELAKANG -->
-                        <div class="card-stage">
-                            <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
-                            @include('admin.presensi.kartu.partials.kartu_dl_belakang')
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        {{-- ══════════════════════════════════════════════════════════════════
-             2. DUPLEX PORTRAIT PREVIEW (5.4 × 8.56 cm)
-        ══════════════════════════════════════════════════════════════════ --}}
-        <?php elseif ($desainAktif === 'duplex_portrait'): ?>
-        <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <?php foreach ($siswa_list as $s): ?>
-                <div class="student-card-item card-preview bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs"
-                     data-name="{{ strtolower($s->nama) }}"
-                     data-nis="{{ strtolower($s->nis ?? '') }}"
-                     data-nisn="{{ strtolower($s->nisn ?? '') }}">
-                    @php
-                        $inisialSiswa = collect(preg_split('/\s+/', trim((string) $s->nama)))
-                            ->filter()
-                            ->take(2)
-                            ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
-                            ->implode('');
-                    @endphp
-                    <div class="flex items-start justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-700 text-white text-[11px] font-extrabold tracking-wide shrink-0">{{ $inisialSiswa }}</span>
-                            <div class="min-w-0">
-                                <h5 class="text-[12px] font-extrabold text-slate-800 leading-tight truncate m-0" title="{{ $s->nama }}">{{ $s->nama }}</h5>
-                                <p class="text-[10px] font-semibold text-slate-500 m-0 mt-0.5 truncate">
-                                    <span class="font-mono text-slate-600">{{ $s->nis ?: ($s->nisn ?: 'Siswa') }}</span>
-                                    <span class="text-slate-300 mx-1">•</span>{{ $s->nama_kelas }}
-                                </p>
+                        <div class="flex flex-wrap items-center justify-center gap-4">
+                            <div class="card-stage">
+                                <span class="card-stage-label"><i class="bi bi-credit-card"></i> Sisi Depan</span>
+                                @include('admin.presensi.kartu.partials.kartu_dp_depan')
+                            </div>
+                            <div class="card-stage">
+                                <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
+                                @include('admin.presensi.kartu.partials.kartu_dp_belakang')
                             </div>
                         </div>
-                        <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
-                           target="_blank"
-                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold transition-colors no-underline border border-blue-200/60">
-                            <i class="bi bi-printer"></i> Cetak
-                        </a>
                     </div>
-                    <div class="flex flex-wrap items-center justify-center gap-4">
-                        <!-- SISI DEPAN (FRONT) PORTRAIT -->
-                        <div class="card-stage">
-                            <span class="card-stage-label"><i class="bi bi-credit-card"></i> Sisi Depan</span>
-                            @include('admin.presensi.kartu.partials.kartu_dp_depan')
-                        </div>
-
-                        <!-- SISI BELAKANG (BACK) PORTRAIT -->
-                        <div class="card-stage">
-                            <span class="card-stage-label"><i class="bi bi-arrow-repeat"></i> Sisi Belakang</span>
-                            @include('admin.presensi.kartu.partials.kartu_dp_belakang')
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        <?php endif; ?>
-
-        <div id="emptyFilter" class="hidden bg-white rounded-3xl p-10 text-center border border-slate-200/80">
-            <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 text-xl mx-auto mb-3">
-                <i class="bi bi-search"></i>
+                @endforeach
             </div>
-            <h3 class="text-sm font-bold text-slate-800">Tidak ada kartu yang cocok</h3>
-            <p class="text-xs text-slate-500 mt-1">Ubah kata kunci pencarian nama, NIS, atau NISN siswa.</p>
-            <button type="button" id="btnResetCari"
-                    class="inline-flex items-center gap-1.5 mt-4 px-3.5 py-2 rounded-xl text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition-colors">
-                <i class="bi bi-arrow-counterclockwise"></i> Bersihkan pencarian
-            </button>
+        @endif
+
+        <div x-show="matchCount === 0" x-cloak>
+            <x-ui.card>
+                <x-ui.empty icon="bi-search" title="Tidak ada kartu yang cocok"
+                    description="Ubah kata kunci pencarian nama, NIS, atau NISN siswa.">
+                    <button type="button" @click="clearSearch()"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3.5 py-2 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                        <i class="bi bi-arrow-counterclockwise"></i> Bersihkan pencarian
+                    </button>
+                </x-ui.empty>
+            </x-ui.card>
         </div>
-    <?php endif; ?>
+    @endif
 
 </div>
 @endsection
@@ -1411,195 +1396,142 @@
 <!-- Library QRCode JS -->
 <script src="{{ asset('assets/app/js/qrcode.min.js') }}"></script>
 <script>
-$(document).ready(function() {
-    const basePath = $('#filterForm').data('base');
+document.addEventListener('alpine:init', () => {
+    Alpine.data('kartuSiswaPage', (config = {}) => ({
+        base: config.base || '',
+        desain: config.desain || 'duplex',
+        mode: config.mode || 'lembar',
+        flip: config.flip || 'long',
+        idKelas: String(config.idKelas ?? '0'),
+        idSiswa: String(config.idSiswa ?? '0'),
+        query: '',
 
-    // Generate QR Code untuk setiap kartu yang tampil
-    $('.qr-box, .qr-print-box').each(function() {
-        const el = this;
-        const code = $(el).data('code');
-        const size = parseInt($(el).data('size') || '64', 10) || 64;
-        if (code) {
-            try {
-                new QRCode(el, {
-                    text: String(code),
-                    width: size * 2,
-                    height: size * 2,
-                    colorDark: "#09265e",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-            } catch (e) {
-                $(el).html('<span class="font-mono text-xs font-bold">' + $('<div>').text(code).html() + '</span>');
+        init() {
+            this.$nextTick(() => {
+                this.renderQrCodes();
+                this.renderBarcodes();
+            });
+        },
+
+        /** URL cetak mengikuti pilihan kelas/siswa + format yang sedang aktif. */
+        get cetakUrl() {
+            const params = new URLSearchParams();
+            params.set('id_kelas', this.idKelas || '0');
+            if (this.idSiswa && this.idSiswa !== '0') {
+                params.set('id_siswa', this.idSiswa);
             }
-        } else {
-            $(el).html('<span class="text-[10px] text-slate-400">QR kosong</span>');
-        }
-    });
+            params.set('desain', this.desain);
+            params.set('mode', this.mode);
+            if (this.mode === 'bolakbalik') {
+                params.set('flip', this.flip);
+            }
+            params.set('v', '5');
 
-    // Render Vector Barcodes (Code 39 standard - high sharp resolution)
-    const barcodeSvgs = document.querySelectorAll('.barcode-svg');
-    const code39Map = {
-        '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
-        '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
-        '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
-        'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
-        'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100',
-        'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011',
-        'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110',
-        'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001',
-        'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000',
-        '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100'
-    };
+            return this.base + '/cetak?' + params.toString();
+        },
 
-    barcodeSvgs.forEach(function(svg) {
-        let rawText = (svg.getAttribute('data-barcode') || '12345678').toString().toUpperCase().replace(/[^0-9A-Z\-]/g, '');
-        if (!rawText) rawText = '000000';
-        const fullText = '*' + rawText + '*';
-        let x = 0;
-        const narrow = 1.0;
-        const wide = 2.4;
-        const height = 24;
-        let rects = '';
-        for (let i = 0; i < fullText.length; i++) {
-            const c = code39Map[fullText[i]] || code39Map['0'];
-            for (let j = 0; j < 9; j++) {
-                const isBar = (j % 2 === 0);
-                const w = (c[j] === '1') ? wide : narrow;
-                if (isBar) {
-                    rects += '<rect x="' + x.toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + height + '" fill="#09265e" />';
+        /** Cocokkan satu kartu dengan kata kunci nama / NIS / NISN. */
+        matches(el) {
+            const q = this.query.trim().toLowerCase();
+            if (!q) return true;
+            const data = el.dataset || {};
+
+            return String(data.name || '').includes(q)
+                || String(data.nis || '').includes(q)
+                || String(data.nisn || '').includes(q);
+        },
+
+        get matchCount() {
+            const grid = this.$refs.grid;
+            if (!grid) return 0;
+
+            return Array.from(grid.querySelectorAll('.student-card-item'))
+                .filter((el) => this.matches(el)).length;
+        },
+
+        clearSearch() {
+            this.query = '';
+            this.$nextTick(() => this.$refs.search?.focus());
+        },
+
+        /** Render QR untuk setiap kartu yang tampil (dan yang tersembunyi). */
+        renderQrCodes() {
+            if (typeof QRCode === 'undefined') return;
+
+            document.querySelectorAll('.qr-box, .qr-print-box').forEach((el) => {
+                const code = el.dataset.code;
+                const size = parseInt(el.dataset.size || '64', 10) || 64;
+
+                if (!code) {
+                    const kosong = document.createElement('span');
+                    kosong.className = 'text-[10px] text-slate-400';
+                    kosong.textContent = 'QR kosong';
+                    el.replaceChildren(kosong);
+                    return;
                 }
-                x += w;
-            }
-            x += narrow;
-        }
-        svg.setAttribute('viewBox', '0 0 ' + x.toFixed(1) + ' ' + height);
-        svg.innerHTML = rects;
-    });
 
-    function refreshCetakLink() {
-        const idKelas = $('#selectKelas').val() || '0';
-        const idSiswa = $('#selectSiswa').val() || '0';
-        const desain  = $('#inputDesain').val() || 'duplex';
-        const mode    = $('#inputMode').val() || 'lembar';
-        const flip    = $('#inputFlip').val() || 'long';
-        let url = basePath + '/cetak?id_kelas=' + encodeURIComponent(idKelas);
-        if (idSiswa !== '0') url += '&id_siswa=' + encodeURIComponent(idSiswa);
-        url += '&desain=' + encodeURIComponent(desain);
-        url += '&mode=' + encodeURIComponent(mode);
-        if (mode === 'bolakbalik') url += '&flip=' + encodeURIComponent(flip);
-        url += '&v=5';
-        $('#btnCetakLembar').attr('href', url);
-    }
-
-    // Muat opsi siswa via AJAX saat kelas diganti (tanpa reload penuh bila memungkinkan)
-    $('#selectKelas').on('change', function() {
-        const idKelas = $(this).val();
-        $('#selectSiswa').val('0');
-        refreshCetakLink();
-        if (idKelas === '0') {
-            $('#filterForm').submit();
-            return;
-        }
-        const $siswa = $('#selectSiswa');
-        $siswa.prop('disabled', true);
-        $.get(basePath + '/siswa/' + encodeURIComponent(idKelas))
-            .done(function(res) {
-                if (res && res.status && Array.isArray(res.data)) {
-                    $siswa.empty().append('<option value="0">-- Semua Siswa di Kelas Ini --</option>');
-                    res.data.forEach(function(row) {
-                        $siswa.append('<option value="' + row.id_siswa + '">' + $('<div>').text(row.nama).html() + ' (' + $('<div>').text((row.id_label || 'ID') + ': ' + (row.id_value || '-')).html() + ')</option>');
+                try {
+                    new QRCode(el, {
+                        text: String(code),
+                        width: size * 2,
+                        height: size * 2,
+                        colorDark: '#09265e',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H,
                     });
-                    // Tetap submit agar grid kartu ikut terfilter server-side
-                    $('#filterForm').submit();
-                } else {
-                    $('#filterForm').submit();
+                } catch (e) {
+                    const fallback = document.createElement('span');
+                    fallback.className = 'font-mono text-xs font-bold';
+                    fallback.textContent = String(code);
+                    el.replaceChildren(fallback);
                 }
-            })
-            .fail(function() { $('#filterForm').submit(); })
-            .always(function() { $siswa.prop('disabled', false); });
-    });
+            });
+        },
 
-    // Auto submit filter saat ganti siswa
-    $('#selectSiswa').on('change', function() {
-        refreshCetakLink();
-        $('#filterForm').submit();
-    });
+        /** Render barcode Code 39 sebagai SVG tajam (bukan gambar raster). */
+        renderBarcodes() {
+            const peta = {
+                '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
+                '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
+                '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
+                'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
+                'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100',
+                'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011',
+                'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110',
+                'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001',
+                'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000',
+                '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100',
+            };
 
-    // Realtime search filter nama / NIS / NISN di preview grid.
-    // Hitungan dan pesan "tidak ada hasil" ikut diperbarui agar konsisten
-    // dengan panel ringkasan di halaman kartu guru.
-    function filterKartu() {
-        const query = $('#searchInput').val().toLowerCase().trim();
-        let tampil = 0;
+            document.querySelectorAll('.barcode-svg').forEach((svg) => {
+                let teks = (svg.dataset.barcode || '12345678').toString().toUpperCase().replace(/[^0-9A-Z\-]/g, '');
+                if (!teks) teks = '000000';
 
-        $('.student-card-item').each(function() {
-            // jQuery .data() mengubah string angka jadi Number, jadi .includes()
-            // melempar TypeError dan membatalkan seluruh loop filter.
-            // String() memastikan nilainya tetap teks.
-            const name = String($(this).data('name') || '');
-            const nis  = String($(this).data('nis') || '');
-            const nisn = String($(this).data('nisn') || '');
+                const penuh = '*' + teks + '*';
+                const sempit = 1.0;
+                const lebar = 2.4;
+                const tinggi = 24;
+                let x = 0;
+                let rects = '';
 
-            const cocok = name.includes(query) || nis.includes(query) || nisn.includes(query);
-            $(this).toggle(cocok);
-            if (cocok) {
-                tampil++;
-            }
-        });
+                for (let i = 0; i < penuh.length; i++) {
+                    const pola = peta[penuh[i]] || peta['0'];
+                    for (let j = 0; j < 9; j++) {
+                        const bilah = j % 2 === 0;
+                        const w = pola[j] === '1' ? lebar : sempit;
+                        if (bilah) {
+                            rects += '<rect x="' + x.toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + tinggi + '" fill="#09265e" />';
+                        }
+                        x += w;
+                    }
+                    x += sempit;
+                }
 
-        $('#emptyFilter').toggleClass('hidden', tampil > 0);
-    }
-
-    function syncSearchUi() {
-        $('#clearSearch').toggleClass('hidden', $('#searchInput').val().trim() === '');
-    }
-
-    $('#searchInput').on('input', function() {
-        syncSearchUi();
-        filterKartu();
-    }).on('keydown', function(e) {
-        if (e.key === 'Enter') {
-            // Pencarian berjalan realtime; Enter tidak perlu mengirim form
-            // (mengirim form justru menghapus kata kunci yang sedang diketik).
-            e.preventDefault();
-            return;
-        }
-        if (e.key === 'Escape') {
-            $(this).val('');
-            syncSearchUi();
-            filterKartu();
-        }
-    });
-
-    function resetCari() {
-        $('#searchInput').val('');
-        syncSearchUi();
-        filterKartu();
-        $('#searchInput').trigger('focus');
-    }
-
-    $('#clearSearch, #btnResetCari').on('click', resetCari);
-
-    $('#resetFilter').on('click', function() {
-        const params = new URLSearchParams();
-        const current = new URLSearchParams(window.location.search);
-        const desain = $('#inputDesain').val() || 'duplex';
-        const mode = $('#inputMode').val() || 'lembar';
-        const flip = $('#inputFlip').val() || 'long';
-
-        params.set('desain', desain);
-        params.set('mode', mode);
-        if (mode === 'bolakbalik') {
-            params.set('flip', flip);
-        }
-        if (desain === 'duplex_portrait' && current.get('template')) {
-            params.set('template', current.get('template'));
-        }
-        window.location.href = basePath + '?' + params.toString();
-    });
-
-    syncSearchUi();
+                svg.setAttribute('viewBox', '0 0 ' + x.toFixed(1) + ' ' + tinggi);
+                svg.innerHTML = rects;
+            });
+        },
+    }));
 });
 </script>
 @endsection

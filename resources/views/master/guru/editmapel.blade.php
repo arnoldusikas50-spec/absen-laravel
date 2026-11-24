@@ -24,8 +24,8 @@
 
         <div class="flex flex-wrap gap-4">
             <div class="w-full">
-                <div class="alert-tw alert-info">
-                    <i class="bi bi-info-circle-fill mr-2"></i>
+                <div class="flex items-start gap-2.5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3.5 text-xs leading-relaxed text-blue-900">
+                    <i class="bi bi-info-circle-fill mt-0.5 shrink-0"></i>
                     <span>Tentukan jabatan dan mata pelajaran yang diampu oleh <b>{{ $guru->nama_guru ?? '-' }}</b>
                         pada tahun pelajaran <b>{{ $tp_active->tahun ?? '-' }}</b>
                         semester <b>{{ $smt_active->nama_smt ?? $smt_active->smt ?? '-' }}</b>.
@@ -38,36 +38,36 @@
                 <form id="editjabatan">
                     @csrf
                     <input type="hidden" name="id_guru" value="{{ (int) $guru->id_guru }}">
-                    <div class="card-tw"><div class="card-tw-header">
-                            <h6 class="font-bold text-slate-700">Edit Jabatan & Mapel</h6>
-                            <div class="flex gap-2 ml-auto">
-                                <a href="{{ url('dataguru') }}" class="btn-tw btn-tw-sm btn-light">
+                    <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4">
+                            <h6 class="mb-0 text-sm font-bold text-slate-800">Edit Jabatan &amp; Mapel</h6>
+                            <div class="ml-auto flex gap-2">
+                                <a href="{{ url('dataguru') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 ring-1 ring-slate-200 transition-colors hover:bg-slate-50">
                                     <i class="bi bi-arrow-left mr-1"></i>
                                     <span class="hidden sm:inline">Kembali</span>
                                 </a>
-                                <button type="submit" class="btn-tw btn-tw-sm btn-primary">
+                                <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
                                     <i class="bi bi-save mr-1"></i> Simpan
                                 </button>
                             </div>
                         </div>
-                        <div class="card-tw-body">
+                        <div class="p-5">
                             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
                                 <div class="lg:col-span-4">
-                                    <div class="border rounded p-3 mb-6 bg-slate-50">
-                                        <h6 class="font-bold mb-6"><i class="bi bi-briefcase mr-2"></i>Jabatan Utama
+                                    <div class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <h6 class="mb-5 text-sm font-bold text-slate-800"><i class="bi bi-briefcase mr-2"></i>Jabatan Utama
                                         </h6>
                                         <div class="mb-6">
-                                            <label class="form-label-tw">Jabatan</label>
-                                            <select name="level" id="level" class="form-select-tw" required>
+                                            <label class="mb-1.5 block text-xs font-bold text-slate-600">Jabatan</label>
+                                            <select name="level" id="level" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" required>
 @foreach($levels as $__k => $__v)
     <option value="{{ $__k }}"{{ (is_array($guru->id_level) ? in_array($__k, ($guru->id_level)) : $__k == ($guru->id_level)) ? ' selected' : '' }}>{{ $__v }}</option>
 @endforeach
 </select>
                                         </div>
                                         <div id="div-wali" class="{{ $guru->id_level == '4' ? '' : 'hidden' }}">
-                                            <label class="form-label-tw">Wali
+                                            <label class="mb-1.5 block text-xs font-bold text-slate-600">Wali
                                                 Kelas</label>
-                                            <select name="kelas_wali" id="kelas_wali" class="form-select-tw">
+                                            <select name="kelas_wali" id="kelas_wali" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
 @foreach($kelass as $__k => $__v)
     <option value="{{ $__k }}"{{ (is_array($guru->id_kelas) ? in_array($__k, ($guru->id_kelas)) : $__k == ($guru->id_kelas)) ? ' selected' : '' }}>{{ $__v }}</option>
 @endforeach
@@ -75,22 +75,22 @@
                                         </div>
                                     </div>
 
-                                    <div class="border rounded p-3">
-                                        <h6 class="font-bold mb-6"><i class="bi bi-book mr-2"></i>Mata Pelajaran &
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <h6 class="mb-5 text-sm font-bold text-slate-800"><i class="bi bi-book mr-2"></i>Mata Pelajaran &
                                             Ekstra</h6>
                                         <div class="mb-6">
-                                            <label class="form-label-tw">Mata Pelajaran
+                                            <label class="mb-1.5 block text-xs font-bold text-slate-600">Mata Pelajaran
                                                 yang Diampu</label>
-                                            <select name="mapel[]" id="mapel" class="form-control-tw select2" multiple="multiple" data-placeholder="Ketik untuk cari mapel...">
+                                            <select name="mapel[]" id="mapel" class="select2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" multiple="multiple" data-placeholder="Ketik untuk cari mapel...">
 @foreach($mapels as $__k => $__v)
     <option value="{{ $__k }}"{{ (is_array(array_column($guru->mapel_kelas, 'id_mapel')) ? in_array($__k, (array_column($guru->mapel_kelas, 'id_mapel'))) : $__k == (array_column($guru->mapel_kelas, 'id_mapel'))) ? ' selected' : '' }}>{{ $__v }}</option>
 @endforeach
 </select>
                                         </div>
                                         <div class="mb-0">
-                                            <label class="form-label-tw">Ekstrakurikuler
+                                            <label class="mb-1.5 block text-xs font-bold text-slate-600">Ekstrakurikuler
                                                 yang Diampu</label>
-                                            <select name="ekstra[]" id="ekstra" class="form-control-tw select2" multiple="multiple" data-placeholder="Ketik untuk cari ekstra...">
+                                            <select name="ekstra[]" id="ekstra" class="select2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" multiple="multiple" data-placeholder="Ketik untuk cari ekstra...">
 @foreach($ekskul as $__k => $__v)
     <option value="{{ $__k }}"{{ (is_array(array_column($guru->ekstra_kelas, 'id_ekstra')) ? in_array($__k, (array_column($guru->ekstra_kelas, 'id_ekstra'))) : $__k == (array_column($guru->ekstra_kelas, 'id_ekstra'))) ? ' selected' : '' }}>{{ $__v }}</option>
 @endforeach
@@ -100,8 +100,8 @@
                                 </div>
 
                                 <div class="lg:col-span-8">
-                                    <div class="border rounded p-3 h-full">
-                                        <h6 class="font-bold mb-6"><i class="bi bi-ui-checks-grid mr-2"></i>Mapping
+                                    <div class="h-full rounded-2xl border border-slate-200 bg-white p-4">
+                                        <h6 class="mb-5 text-sm font-bold text-slate-800"><i class="bi bi-ui-checks-grid mr-2"></i>Mapping
                                             Kelas</h6>
                                         <div id="mapping-container">
                                             <div id="input-mapel" class="mb-6"></div>
@@ -159,11 +159,11 @@ $(document).ready(function () {
         });
 
         return `
-            <div class="card-tw mapping-row mb-3" id="row-${type}-${escHtml(id)}">
-                <div class="card-tw-body">
-                    <label class="form-label-tw">${escHtml(title)}: ${escHtml(name)}</label>
+            <div class="mapping-row mb-3 rounded-2xl border border-slate-200 bg-slate-50/60" id="row-${type}-${escHtml(id)}">
+                <div class="p-4">
+                    <label class="mb-1.5 block text-xs font-bold text-slate-600">${escHtml(title)}: ${escHtml(name)}</label>
                     <input type="hidden" name="${namePrefix}${escHtml(id)}" value="${escHtml(name)}">
-                    <select name="${prefix}${escHtml(id)}[]" class="form-control-tw select2" multiple="multiple" data-placeholder="Pilih Kelas">
+                    <select name="${prefix}${escHtml(id)}[]" class="select2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" multiple="multiple" data-placeholder="Pilih Kelas">
                         ${options}
                     </select>
                 </div>

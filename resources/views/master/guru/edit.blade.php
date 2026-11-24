@@ -1,542 +1,523 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    /* ── Tab pills ── */
-    .tab-pill { transition: background .15s, color .15s, box-shadow .15s; position: relative; }
-    .tab-pill.active { background: #fff; color: var(--primary-600); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
-    .tab-pill .tab-err {
-        position: absolute; top: 4px; right: 6px;
-        min-width: 16px; height: 16px; padding: 0 4px;
-        background: #ef4444; color: #fff; font-size: 10px; font-weight: 800;
-        border-radius: 9999px; display: none; align-items: center; justify-content: center;
-    }
-    .tab-pill.has-error .tab-err { display: inline-flex; }
-    .tab-pill .tab-count {
-        min-width: 20px; height: 20px; padding: 0 6px;
-        background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 800;
-        border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;
-    }
-    /* ── Section title ── */
-    .sec-title { display: flex; align-items: center; gap: .6rem; margin: 1.25rem 0 .75rem; }
-    .sec-title:first-child { margin-top: 0; }
-    .sec-title .sec-ic {
-        width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center; font-size: 13px;
-    }
-    .sec-title h3 { font-size: 13px; font-weight: 800; color: #0f172a; margin: 0; }
-    .sec-title p { font-size: 11px; color: #94a3b8; margin: 0; }
-    /* ── Field states ── */
-    .field-err { border-color: #f87171 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important; }
-    .field-msg { display: none; font-size: 11px; color: #dc2626; margin-top: 4px; }
-    .field-msg.show { display: block; }
-    .req::after { content: ' *'; color: #ef4444; font-weight: 800; }
-    /* ── Sticky save bar ── */
-    .savebar {
-        position: sticky; bottom: 12px; z-index: 30;
-        background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
-        border: 1px solid #e2e8f0; border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(15,23,42,.12);
-    }
-    .dirty-dot { width: 8px; height: 8px; border-radius: 9999px; background: #cbd5e1; }
-    .dirty-dot.on { background: #f59e0b; animation: blink 1.2s infinite; }
-    @keyframes blink { 50% { opacity: .35; } }
-    /* ── Dropzone foto ── */
-    .dz { border: 2px dashed #cbd5e1; border-radius: 14px; transition: all .15s; cursor: pointer; }
-    .dz:hover, .dz.over { border-color: var(--primary-600); background: var(--primary-50); }
-    /* ── Photo crop modal ── */
-    #editFotoModal .modal-box-tw { display: flex; overflow: hidden; }
-    #editFotoModal .modal-box-tw > .bg-white {
-        display: flex; flex-direction: column; min-height: 0; max-height: 92vh; width: 100%;
-    }
-    #editFotoModal .modal-header-tw, #editFotoModal .modal-footer-tw { flex: 0 0 auto; }
-    #editFotoModal .modal-body-tw { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-    .crop-ratio-switch {
-        display: inline-flex; gap: 2px; padding: 3px;
-        border-radius: 9999px; background: #f1f5f9;
-    }
-    .crop-ratio-option {
-        border: 0; border-radius: 9999px; padding: 5px 12px;
-        background: transparent; color: #64748b; cursor: pointer;
-        font-size: 12px; font-weight: 700; transition: background .15s, color .15s, box-shadow .15s;
-    }
-    .crop-ratio-option.active {
-        background: #fff; color: var(--primary-600); box-shadow: 0 1px 4px rgba(15,23,42,.12);
-    }
-    .crop-reset-button {
-        width: 32px; height: 32px; border: 1px solid #e2e8f0; border-radius: 9999px;
-        display: inline-flex; align-items: center; justify-content: center;
-        background: #fff; color: #64748b; cursor: pointer;
-    }
-    .crop-reset-button:hover { background: #f8fafc; color: #0f172a; }
-    /* ── Password strength ── */
-    .pw-bar { height: 6px; border-radius: 9999px; background: #e2e8f0; overflow: hidden; }
-    .pw-bar > div { height: 100%; width: 0; border-radius: 9999px; transition: width .2s, background .2s; }
-    /* ── Signature canvas ── */
-    #sig-canvas {
-        border: 2px dotted #CCCCCC;
-        border-radius: 15px;
-        cursor: crosshair;
-        background-color: #ffffff;
-        width: 100%;
-        max-width: 400px;
-        height: 200px;
-        touch-action: none;
-        display: block;
-        margin: 0 auto;
-    }
-    @media (max-width: 1023px) { .profile-sticky { position: static !important; top: auto !important; } }
-</style>
-@endsection
-
 @section('content')
 
-<?php
-$fotoRaw = trim((string) ($guru->foto ?? ''));
-$foto = ($fotoRaw !== '' && strpos($fotoRaw, '..') === false && file_exists(public_path() . '/' . ltrim($fotoRaw, '/')))
-    ? url(ltrim($fotoRaw, '/'))
-    : asset('assets/img/guru.png');
+@php
+    $fotoRaw = trim((string) ($guru->foto ?? ''));
+    $foto = ($fotoRaw !== '' && strpos($fotoRaw, '..') === false && file_exists(public_path() . '/' . ltrim($fotoRaw, '/')))
+        ? url(ltrim($fotoRaw, '/'))
+        : asset('assets/img/guru.png');
 
-// Peta field by name agar bisa dirender per seksi tanpa ubah controller
-$mapProf = []; foreach (($input_profile ?? []) as $it) { $mapProf[$it->name] = $it; }
-$mapAlm  = []; foreach (($input_alamat ?? []) as $it) { $mapAlm[$it->name] = $it; }
-$v = fn($m, $k) => e($m[$k]->value ?? '');
+    // Peta field by name agar bisa dirender per seksi tanpa ubah controller
+    $mapProf = []; foreach (($input_profile ?? []) as $it) { $mapProf[$it->name] = $it; }
+    $mapAlm  = []; foreach (($input_alamat ?? []) as $it) { $mapAlm[$it->name] = $it; }
+    $v = fn ($m, $k) => e($m[$k]->value ?? '');
 
-// Kelengkapan data (progress). no_hp sengaja TIDAK dihitung lagi: kolom
-// itu milik Dapodik dan tidak lagi bisa diisi dari form ini, jadi
-// menghitungnya membuat progres terlihat selalu kurang.
-$checkVals = [
-    $mapProf['nama_guru']->value ?? '', $mapProf['nip']->value ?? '', $mapProf['email']->value ?? '',
-    $mapAlm['tempat_lahir']->value ?? '', $mapAlm['tgl_lahir']->value ?? '',
-    $mapAlm['alamat_jalan']->value ?? '', $mapAlm['no_ktp']->value ?? '',
-];
-$filled = 0;
-foreach ($checkVals as $cv) { if (trim((string) $cv) !== '') $filled++; }
-$pct = (int) round($filled / count($checkVals) * 100);
+    // Kelengkapan data (progress). no_hp sengaja TIDAK dihitung lagi: kolom
+    // itu milik Dapodik dan tidak lagi bisa diisi dari form ini.
+    $checkVals = [
+        $mapProf['nama_guru']->value ?? '', $mapProf['nip']->value ?? '', $mapProf['email']->value ?? '',
+        $mapAlm['tempat_lahir']->value ?? '', $mapAlm['tgl_lahir']->value ?? '',
+        $mapAlm['alamat_jalan']->value ?? '', $mapAlm['no_ktp']->value ?? '',
+    ];
+    $filled = 0;
+    foreach ($checkVals as $cv) { if (trim((string) $cv) !== '') { $filled++; } }
+    $pct = (int) round($filled / count($checkVals) * 100);
 
-// Tgl lahir → normalisasi Y-m-d untuk input date
-$tglLahir = trim((string) ($mapAlm['tgl_lahir']->value ?? ''));
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglLahir) || $tglLahir === '0000-00-00') $tglLahir = '';
+    // Tgl lahir → normalisasi Y-m-d untuk input date
+    $tglLahir = trim((string) ($mapAlm['tgl_lahir']->value ?? ''));
+    if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglLahir) || $tglLahir === '0000-00-00') { $tglLahir = ''; }
 
-// TMT pengangkatan → normalisasi Y-m-d, caranya sama dengan tgl lahir
-$tmtPegawai = trim((string) ($mapProf['tmt']->value ?? ''));
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmtPegawai) || $tmtPegawai === '0000-00-00') $tmtPegawai = '';
+    // TMT pengangkatan → normalisasi Y-m-d, caranya sama dengan tgl lahir
+    $tmtPegawai = trim((string) ($mapProf['tmt']->value ?? ''));
+    if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmtPegawai) || $tmtPegawai === '0000-00-00') { $tmtPegawai = ''; }
 
-$jabatan = trim(($guru->level ?? '') . ' ' . ($guru->nama_kelas ?? ''));
-if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
-?>
+    $jabatan = trim(($guru->level ?? '') . ' ' . ($guru->nama_kelas ?? ''));
+    if ($jabatan === '') { $jabatan = 'Guru / Tenaga Kependidikan'; }
 
-<div class="fade-in-up p-4 md:p-6 space-y-4 w-full max-w-none">
-    <!-- Breadcrumb -->
-    <nav class="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold" aria-label="Breadcrumb">
-        <a href="{{ url('dashboard') }}" class="hover:text-blue-600 no-underline">Dashboard</a>
-        <span>/</span>
-        <a href="{{ url('dataguru') }}" class="hover:text-blue-600 no-underline">Data Guru</a>
-        <span>/</span>
-        <span class="text-slate-600">Edit</span>
-    </nav>
+    $currentStatusPegawai = (string) ($mapProf['status_pegawai']->value ?? '');
+    $opsiStatusPegawai = ['PNS', 'CPNS', 'PPPK', 'Guru Honor Sekolah', 'Tenaga Honor Sekolah'];
+    // Nilai legacy di luar daftar tetap ditampilkan supaya menyimpan tidak
+    // diam-diam mengosongkannya.
+    if ($currentStatusPegawai !== '' && ! in_array($currentStatusPegawai, $opsiStatusPegawai, true)) {
+        array_unshift($opsiStatusPegawai, $currentStatusPegawai);
+    }
+@endphp
 
-    <!-- Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-xs">
-        <div class="min-w-0">
-            <div class="flex items-center gap-2 flex-wrap mb-2">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-[11px] font-bold">
-                    <i class="bi bi-pencil-square"></i> Edit Data Guru
-                </span>
-                <span class="badge-tw badge-primary font-mono">NIP {{ $guru->nip ?? '-' }}</span>
-            </div>
-            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight truncate">{{ $judul ?? 'Edit Guru' }} — {{ $guru->nama_guru ?? '' }}</h1>
-            <p class="text-xs text-slate-500 mt-1 font-mono">{{ $subjudul ?? 'Edit Data' }} · {{ $guru->username ?? '-' }} · TP {{ $tp_active->tahun ?? '-' }} {{ $smt_active->smt ?? '' }}</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap shrink-0">
-            <a href="{{ url('dataguru') }}" class="btn-tw btn-light">
-                <i class="bi bi-arrow-left mr-1"></i> Kembali
+<div class="fade-in-up space-y-4 px-4 pt-6 md:px-6"
+    x-data="guruEdit"
+    data-token="{{ csrf_token() }}"
+    data-id-guru="{{ (int) $id_active }}"
+    data-foto="{{ $foto }}"
+    data-foto-default="{{ asset('assets/img/guru.png') }}"
+    data-ttd="{{ ! empty($guru->ttd) ? url(ltrim($guru->ttd, '/')) : '' }}"
+    data-url-save="{{ url('dataguru/save') }}"
+    data-url-upload-foto="{{ url('dataguru/uploadFile/' . (int) $id_active) }}"
+    data-url-delete-foto="{{ url('dataguru/delete_foto/' . (int) $id_active) }}"
+    data-url-login="{{ url('dataguru/editLogin') }}"
+    data-url-save-ttd="{{ url('dataguru/save_signature') }}"
+    data-url-delete-ttd="{{ url('dataguru/delete_ttd') }}"
+    data-url-list="{{ url('dataguru') }}"
+    data-url-detail="{{ url('dataguru/detail/' . (int) $id_active) }}">
+
+    <x-ui.page-header
+        title="{{ $judul ?? 'Edit Guru' }} — {{ $guru->nama_guru ?? '' }}"
+        icon="bi-pencil-square"
+        :subtitle="($subjudul ?? 'Edit Data') . ' · ' . ($guru->username ?? '-') . ' · TP ' . ($tp_active->tahun ?? '-') . ' ' . ($smt_active->smt ?? '')"
+        :crumbs="['Data Guru', $guru->nama_guru ?? 'Edit']">
+        <x-slot:actions>
+            <a href="{{ url('dataguru') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-arrow-left"></i> Kembali
             </a>
-            <a href="{{ url('dataguru/detail/' . $id_active) }}" class="btn-tw btn-light">
-                <i class="bi bi-eye mr-1"></i> Lihat Detail
+            <a href="{{ url('dataguru/detail/' . $id_active) }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-eye"></i> Lihat Detail
             </a>
-            <button type="button" id="btn-save-top" class="btn-tw btn-primary">
-                <i class="bi bi-save mr-1"></i> Simpan
+            <button type="button" @click="submit()" :disabled="saving"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                <i class="bi bi-save"></i> Simpan
             </button>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <!-- Inline error alert -->
-    <div id="form-alert" class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert"></div>
+    <div x-show="alert" x-cloak class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700" role="alert" x-text="alert"></div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start w-full">
-        <!-- ═══ Kolom profil (sticky) — 40% ═══ -->
-        <aside class="w-full min-w-0 lg:col-span-2 profile-sticky lg:sticky lg:top-4 space-y-4">
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div class="flex items-center gap-2 p-4 border-b border-slate-100">
-                    <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <i class="bi bi-person-badge text-sm"></i>
-                    </span>
-                    <h2 class="text-sm font-extrabold text-slate-900">Profil Guru</h2>
-                </div>
-                <div class="p-5">
-                    <div class="mb-5 text-center">
-                        <div class="relative inline-block">
-                            <img id="foto-guru" src="{{ $foto }}"
-                                class="rounded-full shadow-sm ring-4 ring-slate-100"
-                                style="width: 132px; height: 132px; object-fit: cover;"
-                                alt="Foto {{ $guru->nama_guru ?? 'guru' }}"
-                                onerror="this.onerror=null;this.src='{{ asset('assets/img/guru.png') }}'">
-                            <span class="absolute bottom-2 right-2 w-4 h-4 rounded-full bg-emerald-500 ring-2 ring-white" title="Aktif"></span>
-                            <button type="button"
-                                class="btn-tw btn-tw-sm btn-primary !rounded-full !p-0 absolute bottom-0 right-0 shadow-md"
-                                style="width:32px;height:32px;"
-                                data-ui-toggle="modal" data-ui-target="#editFotoModal"
-                                title="Ganti Foto" aria-label="Ganti foto">
-                                <i class="bi bi-camera"></i>
-                            </button>
-                        </div>
-                        <h4 id="profile-nama" class="mt-3 font-bold text-slate-900">{{ $guru->nama_guru ?? '-' }}</h4>
-                        <p class="text-slate-400 text-xs mt-0.5">{{ $jabatan }}</p>
-                        <p class="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-mono"><i class="bi bi-person-circle"></i>{{ $guru->username ?? '-' }}</span>
-                        </p>
-                    </div>
-
-                    <!-- Kelengkapan -->
-                    <div class="rounded-2xl bg-slate-50 border border-slate-100 p-3 mb-4">
-                        <div class="flex items-center justify-between text-[11px] font-bold mb-1.5">
-                            <span class="text-slate-600">Kelengkapan data</span>
-                            <span class="text-blue-700">{{ $pct }}%</span>
-                        </div>
-                        <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all" style="width: {{ $pct }}%"></div>
-                        </div>
-                    </div>
-
-                    <dl class="text-xs space-y-2.5 mb-4">
-                        <div class="flex items-center justify-between gap-2">
-                            <dt class="text-slate-400">NIP / NUPTK</dt>
-                            <dd class="font-bold text-slate-700 font-mono text-right">{{ $guru->nip ?? '-' }}</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <dt class="text-slate-400">No. HP <span class="text-[10px] font-normal">(dari Dapodik)</span></dt>
-                            <dd class="font-bold text-slate-700 font-mono text-right">{{ $guru->no_hp ?? '-' }}</dd>
-                        </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <dt class="text-slate-400">Tahun aktif</dt>
-                            <dd class="font-bold text-slate-700">TP {{ $tp_active->tahun ?? '-' }} · {{ $smt_active->smt ?? '' }}</dd>
-                        </div>
-                    </dl>
-
-                    <div class="grid gap-2">
-                        <button type="button" class="btn-tw btn-warning w-full justify-center" data-ui-toggle="modal" data-ui-target="#editLoginModal">
-                            <i class="bi bi-key mr-2"></i> Akun Login
+    <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+        <!-- ═══ Profil ═══ -->
+        <aside class="min-w-0 space-y-4 lg:col-span-2 lg:sticky lg:top-4">
+            <x-ui.card title="Profil Guru" icon="bi-person-badge">
+                <div class="mb-5 text-center">
+                    <div class="relative inline-block">
+                        <img :src="fotoSrc" alt="Foto {{ $guru->nama_guru ?? 'guru' }}"
+                            class="h-[132px] w-[132px] rounded-full object-cover shadow-sm ring-4 ring-slate-100">
+                        <span class="absolute bottom-2 right-2 h-4 w-4 rounded-full bg-emerald-500 ring-2 ring-white" title="Aktif"></span>
+                        <button type="button" @click="openFotoModal()"
+                            class="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-md transition-colors hover:bg-blue-700"
+                            title="Ganti Foto" aria-label="Ganti foto">
+                            <i class="bi bi-camera text-xs"></i>
                         </button>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button" class="btn-tw btn-light justify-center" data-ui-toggle="modal" data-ui-target="#editFotoModal">
-                                <i class="bi bi-camera mr-1"></i> Foto
-                            </button>
-                            <button type="button" class="btn-tw btn-outline-danger justify-center" id="btn-delete-foto">
-                                <i class="bi bi-trash mr-1"></i> Hapus
-                            </button>
-                        </div>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-3 leading-relaxed"><i class="bi bi-info-circle mr-1"></i>Perubahan tersimpan via tombol <b>Simpan</b> di bawah. <kbd class="px-1 py-0.5 bg-slate-100 rounded text-[10px] font-mono">Ctrl+S</kbd> untuk simpan cepat.</p>
+                    <h4 x-text="namaPreview" class="mt-3 font-bold text-slate-900">{{ $guru->nama_guru ?? '-' }}</h4>
+                    <p class="mt-0.5 text-xs text-slate-400">{{ $jabatan }}</p>
+                    <p class="mt-1.5">
+                        <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-500">
+                            <i class="bi bi-person-circle"></i>{{ $guru->username ?? '-' }}
+                        </span>
+                    </p>
                 </div>
-            </div>
 
-            <!-- Kartu TTD -->
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div class="flex items-center gap-2 p-4 border-b border-slate-100">
-                    <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                        <i class="bi bi-pencil-square text-sm"></i>
-                    </span>
-                    <h2 class="text-sm font-extrabold text-slate-900">Tanda Tangan</h2>
-                </div>
-                <div class="p-4">
-                    <div id="ttd-placeholder"
-                        class="items-center justify-center text-slate-400 {{ !empty($guru->ttd) ? 'hidden' : 'flex' }}"
-                        style="height: 100px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc;">
-                        <span class="text-xs"><i class="bi bi-pen mr-1"></i>Belum ada TTD</span>
+                <div class="mb-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <div class="mb-1.5 flex items-center justify-between text-[11px] font-bold">
+                        <span class="text-slate-600">Kelengkapan data</span>
+                        <span class="text-blue-700">{{ $pct }}%</span>
                     </div>
-                    <img src="{!! !empty($guru->ttd) ? e(url(ltrim($guru->ttd, '/'))) : '' !!}" alt="TTD"
-                        id="img-ttd-preview"
-                        class="max-w-full h-auto mx-auto {{ empty($guru->ttd) ? 'hidden' : 'block' }}"
-                        style="max-height: 100px;">
-                    <div class="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" class="btn-tw btn-tw-sm btn-success justify-center" id="btn-create-ttd" title="Buat TTD Baru">
-                            <i class="bi bi-pencil-square mr-1"></i> {{ empty($guru->ttd) ? 'Buat TTD' : 'Buat Ulang' }}
+                    <div class="h-2 overflow-hidden rounded-full bg-slate-200">
+                        <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500" style="width: {{ $pct }}%"></div>
+                    </div>
+                </div>
+
+                <dl class="mb-4 space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <dt class="text-slate-400">NIP / NUPTK</dt>
+                        <dd class="text-right font-mono font-bold text-slate-700">{{ $guru->nip ?? '-' }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <dt class="text-slate-400">No. HP <span class="text-[10px] font-normal">(Dapodik)</span></dt>
+                        <dd class="text-right font-mono font-bold text-slate-700">{{ $guru->no_hp ?? '-' }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <dt class="text-slate-400">Tahun aktif</dt>
+                        <dd class="font-bold text-slate-700">TP {{ $tp_active->tahun ?? '-' }} · {{ $smt_active->smt ?? '' }}</dd>
+                    </div>
+                </dl>
+
+                <div class="grid gap-2">
+                    <button type="button" @click="$store.modals.open('#editLoginModal')"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors hover:bg-amber-600">
+                        <i class="bi bi-key"></i> Akun Login
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" @click="openFotoModal()"
+                            class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50">
+                            <i class="bi bi-camera"></i> Foto
                         </button>
-                        <button type="button" class="btn-tw btn-tw-sm btn-outline-danger justify-center {{ empty($guru->ttd) ? 'hidden' : '' }}"
-                            id="btn-delete-ttd" title="Hapus TTD">
-                            <i class="bi bi-trash mr-1"></i> Hapus
+                        <button type="button" @click="deleteFoto()" :disabled="deletingFoto"
+                            class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50">
+                            <i class="bi bi-trash"></i> Hapus
                         </button>
                     </div>
                 </div>
-            </div>
+                <p class="mt-3 text-[11px] leading-relaxed text-slate-400">
+                    <i class="bi bi-info-circle mr-1"></i>Perubahan tersimpan via tombol <b>Simpan</b>.
+                    <kbd class="rounded bg-slate-100 px-1 py-0.5 font-mono text-[10px]">Ctrl+S</kbd> untuk simpan cepat.
+                </p>
+            </x-ui.card>
+
+            <x-ui.card title="Tanda Tangan" icon="bi-pencil-square" tone="emerald">
+                <div x-show="!ttdSrc" x-cloak class="flex h-[100px] items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                    <span class="text-xs"><i class="bi bi-pen mr-1"></i>Belum ada TTD</span>
+                </div>
+                <img x-show="ttdSrc" x-cloak :src="ttdSrc" alt="TTD" class="mx-auto block h-auto max-h-[100px] max-w-full">
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                    <button type="button" @click="openSignature()"
+                        class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+                        title="Buat TTD Baru">
+                        <i class="bi bi-pencil-square"></i> <span x-text="ttdSrc ? 'Buat Ulang' : 'Buat TTD'"></span>
+                    </button>
+                    <button type="button" x-show="ttdSrc" x-cloak @click="deleteTtd()" :disabled="deletingTtd"
+                        class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+                        title="Hapus TTD">
+                        <i class="bi bi-trash"></i> Hapus
+                    </button>
+                </div>
+            </x-ui.card>
         </aside>
 
-        <!-- ═══ Form — 60% ═══ -->
-        <div class="min-w-0 w-full lg:col-span-3">
-            <form id="formguru" enctype="multipart/form-data" novalidate>
+        <!-- ═══ Form ═══ -->
+        <div class="min-w-0 lg:col-span-3">
+            <form x-ref="form" @submit.prevent="submit()" @input="markDirty()" @change="markDirty()"
+                enctype="multipart/form-data" novalidate>
                 @csrf
                 <input type="hidden" name="id_guru" value="{{ (int) $id_active }}">
 
-                <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs w-full">
+                <div class="w-full rounded-2xl border border-slate-200/80 bg-white shadow-xs">
                     <!-- Tab bar -->
-                    <div class="p-3 border-b border-slate-100 lg:sticky lg:top-0 bg-white/95 backdrop-blur rounded-t-3xl z-20">
-                        <div class="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl" id="guruEditTabs" role="tablist" aria-label="Bagian data guru">
-                            <button type="button" class="tab-pill active flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-bold min-w-0" id="profile-tab" data-ui-toggle="tab" data-ui-target="#profile-pane" role="tab" aria-selected="true" aria-controls="profile-pane">
-                                <i class="bi bi-person"></i> Profil <span class="tab-err" data-err-for="profile-pane">!</span>
+                    <div class="z-20 rounded-t-2xl border-b border-slate-100 bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0">
+                        <div class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Bagian data guru">
+                            <button type="button" @click="tab = 'profile'" :aria-selected="tab === 'profile' ? 'true' : 'false'"
+                                :class="tab === 'profile' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                                class="relative flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-all"
+                                role="tab" aria-controls="profile-pane">
+                                <i class="bi bi-person"></i> Profil
+                                <span x-show="tabErrors.profile > 0" x-cloak
+                                    class="absolute right-1.5 top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold text-white"
+                                    x-text="tabErrors.profile"></span>
                             </button>
-                            <button type="button" class="tab-pill flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-bold text-slate-500 min-w-0" id="address-tab" data-ui-toggle="tab" data-ui-target="#address-pane" role="tab" aria-selected="false" aria-controls="address-pane">
-                                <i class="bi bi-geo-alt"></i> Alamat &amp; Data <span class="tab-err" data-err-for="address-pane">!</span>
+                            <button type="button" @click="tab = 'address'" :aria-selected="tab === 'address' ? 'true' : 'false'"
+                                :class="tab === 'address' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                                class="relative flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold transition-all"
+                                role="tab" aria-controls="address-pane">
+                                <i class="bi bi-geo-alt"></i> Alamat &amp; Data
+                                <span x-show="tabErrors.address > 0" x-cloak
+                                    class="absolute right-1.5 top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold text-white"
+                                    x-text="tabErrors.address"></span>
                             </button>
                         </div>
                     </div>
 
                     <div class="p-5">
-                        <div class="tab-content pt-1 w-full" id="guruEditTabsContent">
-                            <!-- ── TAB: PROFIL ── -->
-                            <div class="tab-pane show active" id="profile-pane" role="tabpanel" aria-labelledby="profile-tab">
-                                <div class="sec-title">
-                                    <span class="sec-ic bg-blue-50 text-blue-600"><i class="bi bi-person"></i></span>
-                                    <div><h3>Data Pokok</h3><p>Identitas utama — nama wajib diisi</p></div>
+                        <!-- TAB PROFIL -->
+                        <div x-show="tab === 'profile'" id="profile-pane" role="tabpanel">
+                            <div class="mb-3 flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-blue-50 text-[13px] text-blue-600"><i class="bi bi-person"></i></span>
+                                <div>
+                                    <h3 class="text-[13px] font-extrabold text-slate-900">Data Pokok</h3>
+                                    <p class="text-[11px] text-slate-400">Identitas utama — nama wajib diisi</p>
                                 </div>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div class="md:col-span-2">
-                                        <label for="f-nama_guru" class="form-label-tw req">Nama Lengkap</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-person"></i></span>
-                                            <input type="text" id="f-nama_guru" name="nama_guru" value="{{ $v($mapProf, 'nama_guru') }}" class="form-control-tw pl-9" placeholder="Nama lengkap beserta gelar" required maxlength="100" autocomplete="off">
-                                        </div>
-                                        <p class="field-msg" data-msg-for="f-nama_guru"></p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <label for="f-nama_guru" class="mb-1.5 block text-xs font-bold text-slate-700">Nama Lengkap <span class="text-rose-500">*</span></label>
+                                    <div class="relative">
+                                        <i class="bi bi-person pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="text" id="f-nama_guru" name="nama_guru" x-ref="nama_guru" @input="namaPreview = $event.target.value"
+                                            value="{{ $v($mapProf, 'nama_guru') }}" required maxlength="100" autocomplete="off"
+                                            placeholder="Nama lengkap beserta gelar"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            :class="errors.nama_guru ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
                                     </div>
-                                    <div>
-                                        <label for="f-nip" class="form-label-tw">NIP / NUPTK</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-person-badge"></i></span>
-                                            <input type="text" id="f-nip" name="nip" inputmode="numeric" value="{{ $v($mapProf, 'nip') }}" class="form-control-tw pl-9 font-mono" placeholder="18 digit NIP / NUPTK" maxlength="30" autocomplete="off">
-                                        </div>
-                                        <p class="field-msg" data-msg-for="f-nip"></p>
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.nama_guru" x-cloak x-text="errors.nama_guru"></p>
+                                </div>
+
+                                <div>
+                                    <label for="f-nip" class="mb-1.5 block text-xs font-bold text-slate-700">NIP / NUPTK</label>
+                                    <div class="relative">
+                                        <i class="bi bi-person-badge pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="text" id="f-nip" name="nip" inputmode="numeric" value="{{ $v($mapProf, 'nip') }}"
+                                            maxlength="30" autocomplete="off" placeholder="18 digit NIP / NUPTK"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            :class="errors.nip ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
                                     </div>
-                                    <div>
-                                        <label for="f-jk" class="form-label-tw">Jenis Kelamin</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-gender-ambiguous"></i></span>
-                                            <select id="f-jk" class="form-select-tw pl-9" name="jenis_kelamin">
-                                                <option value="" {{ empty($mapProf['jenis_kelamin']->value ?? '') ? 'selected' : '' }}>— Pilih —</option>
-                                                <option value="L" {{ ($mapProf['jenis_kelamin']->value ?? '') == 'L' ? 'selected' : '' }}>Laki-laki</option>
-                                                <option value="P" {{ ($mapProf['jenis_kelamin']->value ?? '') == 'P' ? 'selected' : '' }}>Perempuan</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label for="f-status_pegawai" class="form-label-tw">Status Pegawai</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-person-vcard"></i></span>
-                                            <select id="f-status_pegawai" class="form-select-tw pl-9" name="status_pegawai">
-                                                <?php
-                                                    $curSp = (string) ($mapProf['status_pegawai']->value ?? '');
-                                                    $opsiSp = ['PNS', 'CPNS', 'PPPK', 'Guru Honor Sekolah', 'Tenaga Honor Sekolah'];
-                                                    // Nilai legacy di luar daftar tetap ditampilkan
-                                                    // supaya menyimpan tidak diam-diam mengosongkannya.
-                                                    if ($curSp !== '' && !in_array($curSp, $opsiSp, true)) {
-                                                        array_unshift($opsiSp, $curSp);
-                                                    }
-                                                ?>
-                                                <option value="" {{ $curSp === '' ? 'selected' : '' }}>— Tidak Terdata —</option>
-                                                <?php foreach ($opsiSp as $optSp): ?>
-                                                    <option value="{{ $optSp }}" {{ $curSp === $optSp ? 'selected' : '' }}>{{ $optSp }}</option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">Menentukan hak cuti (PNS vs PPPK) di aplikasi absensi.</p>
-                                    </div>
-                                    <div>
-                                        <label for="f-tmt" class="form-label-tw">TMT Pengangkatan</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-calendar-check"></i></span>
-                                            <input type="date" id="f-tmt" name="tmt" value="{{ $tmtPegawai }}" class="form-control-tw pl-9" placeholder="yyyy-mm-dd">
-                                        </div>
-                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">Basis hitungan masa kerja (syarat cuti 1/5 tahun). Kosongkan bila tidak tahu.</p>
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.nip" x-cloak x-text="errors.nip"></p>
+                                </div>
+
+                                <div>
+                                    <label for="f-jk" class="mb-1.5 block text-xs font-bold text-slate-700">Jenis Kelamin</label>
+                                    <div class="relative">
+                                        <i class="bi bi-gender-ambiguous pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <select id="f-jk" name="jenis_kelamin"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            <option value="" {{ empty($mapProf['jenis_kelamin']->value ?? '') ? 'selected' : '' }}>— Pilih —</option>
+                                            <option value="L" {{ ($mapProf['jenis_kelamin']->value ?? '') == 'L' ? 'selected' : '' }}>Laki-laki</option>
+                                            <option value="P" {{ ($mapProf['jenis_kelamin']->value ?? '') == 'P' ? 'selected' : '' }}>Perempuan</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                <div class="sec-title">
-                                    <span class="sec-ic bg-emerald-50 text-emerald-600"><i class="bi bi-telephone"></i></span>
-                                    <div><h3>Kontak</h3><p>Email, HP &amp; agama</p></div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label for="f-email" class="form-label-tw">Email</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-envelope"></i></span>
-                                            <input type="email" id="f-email" name="email" value="{{ $v($mapProf, 'email') }}" class="form-control-tw pl-9" placeholder="nama@sekolah.id" maxlength="100" autocomplete="off">
-                                        </div>
-                                        <p class="field-msg" data-msg-for="f-email"></p>
+                                <div>
+                                    <label for="f-status_pegawai" class="mb-1.5 block text-xs font-bold text-slate-700">Status Pegawai</label>
+                                    <div class="relative">
+                                        <i class="bi bi-person-vcard pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <select id="f-status_pegawai" name="status_pegawai"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            <option value="" {{ $currentStatusPegawai === '' ? 'selected' : '' }}>— Tidak Terdata —</option>
+                                            @foreach ($opsiStatusPegawai as $optSp)
+                                                <option value="{{ $optSp }}" {{ $currentStatusPegawai === $optSp ? 'selected' : '' }}>{{ $optSp }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
-                                    <div>
-                                        <label for="f-agama" class="form-label-tw">Agama</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-star"></i></span>
-                                            <select id="f-agama" class="form-select-tw pl-9" name="agama">
-                                                <option value="">— Pilih Agama —</option>
-                                                <?php foreach (["Islam", "Katolik", "Protestan", "Hindu", "Budha", "Konghucu"] as $agama): ?>
-                                                    <option value="{{ $agama }}" {{ ($mapProf['agama']->value ?? '') == $agama ? 'selected' : '' }}>{{ $agama }}</option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">Menentukan hak cuti (PNS vs PPPK) di aplikasi absensi.</p>
                                 </div>
 
-                                <div class="sec-title">
-                                    <span class="sec-ic bg-violet-50 text-violet-600"><i class="bi bi-key"></i></span>
-                                    <div><h3>Integrasi</h3><p>Kunci API &amp; kanal notifikasi (opsional)</p></div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label for="f-api_key" class="form-label-tw">Google API Key</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-key"></i></span>
-                                            <input type="password" id="f-api_key" name="api_key" value="{{ $v($mapProf, 'api_key') }}" class="form-control-tw pl-9 pr-11 font-mono" placeholder="AIza..." maxlength="255" autocomplete="off">
-                                            <button type="button" id="btn-toggle-apikey" class="absolute inset-y-0 right-0 px-3.5 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer" title="Tampilkan/sembunyikan" aria-label="Tampilkan API key"><i class="bi bi-eye"></i></button>
-                                        </div>
-                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">Dipakai untuk fitur peta presensi. Biarkan apa adanya jika tidak tahu.</p>
+                                <div>
+                                    <label for="f-tmt" class="mb-1.5 block text-xs font-bold text-slate-700">TMT Pengangkatan</label>
+                                    <div class="relative">
+                                        <i class="bi bi-calendar-check pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="date" id="f-tmt" name="tmt" value="{{ $tmtPegawai }}"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label for="f-nomor_rfid" class="form-label-tw">Nomor Kartu RFID</label>
-                                            <div class="relative">
-                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-card-id"></i></span>
-                                                <input type="text" id="f-nomor_rfid" name="nomor_rfid" inputmode="text" value="{{ $v($mapProf, 'nomor_rfid') }}" class="form-control-tw pl-9 pr-24 font-mono text-uppercase" placeholder="04A1B2C3D" maxlength="64" autocomplete="off">
-                                                <button type="button" id="btn-scan-nfc-field" onclick="scanNfcToField('#f-nomor_rfid')" class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition-all" title="Tempelkan kartu ke HP untuk isi otomatis">
-                                                    <i class="bi bi-broadcast"></i> <span>Tap NFC</span>
-                                                </button>
-                                            </div>
-                                            <p class="field-msg" data-msg-for="f-nomor_rfid"></p>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">Nomor kartu RFID guru/GTK — nomor inilah yang dicetak sebagai QR/barcode dan dibaca reader RFID, jadi QR, tap kartu, dan USB scanner memakai nomor yang sama. Kosongkan bila tidak pakai RFID.</p>
-                                        </div>
-                                        <div>
-                                            <label for="f-fingerprint_uid" class="form-label-tw">UserID Mesin Sidik Jari</label>
-                                            <div class="relative">
-                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-fingerprint"></i></span>
-                                                <input type="text" id="f-fingerprint_uid" name="fingerprint_uid" inputmode="text" value="{{ $v($mapProf, 'fingerprint_uid') }}" class="form-control-tw pl-9 font-mono" placeholder="1001" maxlength="64" autocomplete="off">
-                                            </div>
-                                            <p class="field-msg" data-msg-for="f-fingerprint_uid"></p>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">UserID yang terdaftar di mesin sidik jari GEISA GX330. Kosongkan bila tidak pakai fingerprint.</p>
-                                        </div>
-                                        <div>
-                                            <label for="f-telegram_id" class="form-label-tw">ID Telegram</label>
-                                            <div class="relative">
-                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-telegram"></i></span>
-                                                <input type="text" id="f-telegram_id" name="telegram_id" inputmode="numeric" value="{{ $v($mapProf, 'telegram_id') }}" class="form-control-tw pl-9 font-mono" placeholder="123456789" maxlength="50" autocomplete="off">
-                                            </div>
-                                            <p class="field-msg" data-msg-for="f-telegram_id"></p>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">Cara mendapat ID: buka bot <b>@userinfobot</b> di Telegram, tekan Start, salin angka yang tampil. Kosongkan untuk melepas.</p>
-                                        </div>
-                                        <div>
-                                            <label for="f-wa_number" class="form-label-tw">No. WhatsApp</label>
-                                            <div class="relative">
-                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-whatsapp"></i></span>
-                                                <input type="tel" id="f-wa_number" name="wa_number" inputmode="tel" value="{{ $v($mapProf, 'wa_number') }}" class="form-control-tw pl-9 font-mono" placeholder="6281234567890" maxlength="20" autocomplete="off">
-                                            </div>
-                                            <p class="field-msg" data-msg-for="f-wa_number"></p>
-                                            <?php if (!empty($waVerified)): ?>
-                                            <p class="text-[11px] text-emerald-600 mt-1 mb-0"><i class="bi bi-check-circle"></i> Nomor ini aktif — notifikasi personal dikirim ke sini.</p>
-                                            <?php elseif (!empty($waNumber) && !empty($waNumber)): ?>
-                                            <p class="text-[11px] text-amber-600 mt-1 mb-0"><i class="bi bi-hourglass-split"></i> Tersimpan, menunggu konfirmasi di <b>Kelola Tautan Guru</b>.</p>
-                                            <?php else: ?>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">Tujuan notifikasi: denda, surat teguran, peringatan alpha. Boleh ditulis 08 / +62 / 62 — otomatis dinormalisasi. Kosongkan untuk melepas.</p>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">Basis hitungan masa kerja (syarat cuti 1/5 tahun).</p>
                                 </div>
-                            </div><!-- /#profile-pane -->
+                            </div>
 
-                            <!-- ── TAB: ALAMAT & DATA ── -->
-                            <div class="tab-pane" id="address-pane" role="tabpanel" aria-labelledby="address-tab">
-                                <div class="sec-title">
-                                    <span class="sec-ic bg-amber-50 text-amber-600"><i class="bi bi-person-badge"></i></span>
-                                    <div><h3>Identitas Kependudukan</h3><p>NIK &amp; kelahiran</p></div>
+                            <div class="mb-3 mt-5 flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-emerald-50 text-[13px] text-emerald-600"><i class="bi bi-telephone"></i></span>
+                                <div>
+                                    <h3 class="text-[13px] font-extrabold text-slate-900">Kontak</h3>
+                                    <p class="text-[11px] text-slate-400">Email, HP &amp; agama</p>
                                 </div>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label for="f-no_ktp" class="form-label-tw">NIK (No. KTP)</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-person-badge"></i></span>
-                                            <input type="text" id="f-no_ktp" name="no_ktp" inputmode="numeric" value="{{ $v($mapAlm, 'no_ktp') }}" class="form-control-tw pl-9 font-mono" placeholder="16 digit NIK" maxlength="20" autocomplete="off">
-                                        </div>
-                                        <p class="field-msg" data-msg-for="f-no_ktp"></p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label for="f-email" class="mb-1.5 block text-xs font-bold text-slate-700">Email</label>
+                                    <div class="relative">
+                                        <i class="bi bi-envelope pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="email" id="f-email" name="email" value="{{ $v($mapProf, 'email') }}"
+                                            maxlength="100" autocomplete="off" placeholder="nama@sekolah.id"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            :class="errors.email ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
                                     </div>
-                                    <div class="hidden md:block"></div>
-                                    <div>
-                                        <label for="f-tempat_lahir" class="form-label-tw">Tempat Lahir</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-geo-alt"></i></span>
-                                            <input type="text" id="f-tempat_lahir" name="tempat_lahir" value="{{ $v($mapAlm, 'tempat_lahir') }}" class="form-control-tw pl-9" placeholder="Kota kelahiran" maxlength="50" autocomplete="off">
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label for="f-tgl_lahir" class="form-label-tw">Tanggal Lahir</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"><i class="bi bi-calendar-date"></i></span>
-                                            <input type="date" id="f-tgl_lahir" name="tgl_lahir" value="{{ $tglLahir }}" class="form-control-tw pl-9" max="{{ date('Y-m-d') }}">
-                                        </div>
-                                        <p class="field-msg" data-msg-for="f-tgl_lahir"></p>
-                                    </div>
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.email" x-cloak x-text="errors.email"></p>
                                 </div>
 
-                                <div class="sec-title">
-                                    <span class="sec-ic bg-blue-50 text-blue-600"><i class="bi bi-house-door"></i></span>
-                                    <div><h3>Alamat Domisili</h3><p>Alamat lengkap tempat tinggal</p></div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label for="f-alamat_jalan" class="form-label-tw">Alamat (Jalan / Dusun)</label>
-                                        <textarea id="f-alamat_jalan" name="alamat_jalan" rows="2" class="form-control-tw" placeholder="Nama jalan, nomor rumah, RT/RW, dusun...">{{ $v($mapAlm, 'alamat_jalan') }}</textarea>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-4 mt-4">
-                                    <div>
-                                        <label for="f-kecamatan" class="form-label-tw">Kecamatan</label>
-                                        <input type="text" id="f-kecamatan" name="kecamatan" value="{{ $v($mapAlm, 'kecamatan') }}" class="form-control-tw" placeholder="Kecamatan" maxlength="50">
-                                    </div>
-                                    <div>
-                                        <label for="f-kabupaten" class="form-label-tw">Kota / Kabupaten</label>
-                                        <input type="text" id="f-kabupaten" name="kabupaten" value="{{ $v($mapAlm, 'kabupaten') }}" class="form-control-tw" placeholder="Kota / kabupaten" maxlength="50">
-                                    </div>
-                                    <div>
-                                        <label for="f-provinsi" class="form-label-tw">Provinsi</label>
-                                        <input type="text" id="f-provinsi" name="provinsi" value="{{ $v($mapAlm, 'provinsi') }}" class="form-control-tw" placeholder="Provinsi" maxlength="50">
-                                    </div>
-                                    <div>
-                                        <label for="f-kode_pos" class="form-label-tw">Kode Pos</label>
-                                        <input type="text" id="f-kode_pos" name="kode_pos" inputmode="numeric" value="{{ $v($mapAlm, 'kode_pos') }}" class="form-control-tw font-mono" placeholder="85xxx" maxlength="10">
-                                        <p class="field-msg" data-msg-for="f-kode_pos"></p>
+                                <div>
+                                    <label for="f-agama" class="mb-1.5 block text-xs font-bold text-slate-700">Agama</label>
+                                    <div class="relative">
+                                        <i class="bi bi-star pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <select id="f-agama" name="agama"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            <option value="">— Pilih Agama —</option>
+                                            @foreach (['Islam', 'Katolik', 'Protestan', 'Hindu', 'Budha', 'Konghucu'] as $agama)
+                                                <option value="{{ $agama }}" {{ ($mapProf['agama']->value ?? '') == $agama ? 'selected' : '' }}>{{ $agama }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                             </div>
 
+                            <div class="mb-3 mt-5 flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-violet-50 text-[13px] text-violet-600"><i class="bi bi-key"></i></span>
+                                <div>
+                                    <h3 class="text-[13px] font-extrabold text-slate-900">Integrasi</h3>
+                                    <p class="text-[11px] text-slate-400">Kunci API &amp; kanal notifikasi (opsional)</p>
+                                </div>
+                            </div>
 
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label for="f-api_key" class="mb-1.5 block text-xs font-bold text-slate-700">Google API Key</label>
+                                    <div class="relative">
+                                        <i class="bi bi-key pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input :type="showApiKey ? 'text' : 'password'" id="f-api_key" name="api_key"
+                                            value="{{ $v($mapProf, 'api_key') }}" maxlength="255" autocomplete="off" placeholder="AIza..."
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-11 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                        <button type="button" @click="showApiKey = ! showApiKey"
+                                            class="absolute inset-y-0 right-0 px-3.5 text-slate-400 hover:text-slate-600"
+                                            title="Tampilkan/sembunyikan" aria-label="Tampilkan API key">
+                                            <i class="bi" :class="showApiKey ? 'bi-eye-slash' : 'bi-eye'"></i>
+                                        </button>
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">Dipakai untuk fitur peta presensi. Biarkan apa adanya jika tidak tahu.</p>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label for="f-nomor_rfid" class="mb-1.5 block text-xs font-bold text-slate-700">Nomor Kartu RFID</label>
+                                        <div class="relative">
+                                            <i class="bi bi-card-id pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                            <input type="text" id="f-nomor_rfid" name="nomor_rfid" x-ref="nomor_rfid"
+                                                value="{{ $v($mapProf, 'nomor_rfid') }}" maxlength="64" autocomplete="off" placeholder="04A1B2C3D"
+                                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-24 font-mono text-sm uppercase text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                            <button type="button" @click="scanNfc()"
+                                                class="absolute right-1.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 transition-all hover:bg-indigo-100"
+                                                title="Tempelkan kartu ke HP untuk isi otomatis">
+                                                <i class="bi bi-broadcast"></i> <span>Tap NFC</span>
+                                            </button>
+                                        </div>
+                                        <p class="mt-1 text-[11px] leading-relaxed text-slate-400">Nomor kartu RFID guru/GTK — dipakai untuk QR, tap kartu, dan USB scanner. Kosongkan bila tidak pakai RFID.</p>
+                                    </div>
+
+                                    <div>
+                                        <label for="f-fingerprint_uid" class="mb-1.5 block text-xs font-bold text-slate-700">UserID Mesin Sidik Jari</label>
+                                        <div class="relative">
+                                            <i class="bi bi-fingerprint pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                            <input type="text" id="f-fingerprint_uid" name="fingerprint_uid" value="{{ $v($mapProf, 'fingerprint_uid') }}"
+                                                maxlength="64" autocomplete="off" placeholder="1001"
+                                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                        </div>
+                                        <p class="mt-1 text-[11px] leading-relaxed text-slate-400">UserID di mesin sidik jari GEISA GX330. Kosongkan bila tidak dipakai.</p>
+                                    </div>
+
+                                    <div>
+                                        <label for="f-telegram_id" class="mb-1.5 block text-xs font-bold text-slate-700">ID Telegram</label>
+                                        <div class="relative">
+                                            <i class="bi bi-telegram pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                            <input type="text" id="f-telegram_id" name="telegram_id" inputmode="numeric" value="{{ $v($mapProf, 'telegram_id') }}"
+                                                maxlength="50" autocomplete="off" placeholder="123456789"
+                                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                                :class="errors.telegram_id ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
+                                        </div>
+                                        <p class="mt-1 text-[11px] text-rose-600" x-show="errors.telegram_id" x-cloak x-text="errors.telegram_id"></p>
+                                        <p class="mt-1 text-[11px] leading-relaxed text-slate-400">Buka bot <b>@userinfobot</b> di Telegram, tekan Start, salin angkanya.</p>
+                                    </div>
+
+                                    <div>
+                                        <label for="f-wa_number" class="mb-1.5 block text-xs font-bold text-slate-700">No. WhatsApp</label>
+                                        <div class="relative">
+                                            <i class="bi bi-whatsapp pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                            <input type="tel" id="f-wa_number" name="wa_number" inputmode="tel" value="{{ $v($mapProf, 'wa_number') }}"
+                                                maxlength="20" autocomplete="off" placeholder="6281234567890"
+                                                class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                                :class="errors.wa_number ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
+                                        </div>
+                                        <p class="mt-1 text-[11px] text-rose-600" x-show="errors.wa_number" x-cloak x-text="errors.wa_number"></p>
+                                        @if (! empty($waVerified))
+                                            <p class="mt-1 text-[11px] text-emerald-600"><i class="bi bi-check-circle"></i> Nomor ini aktif — notifikasi personal dikirim ke sini.</p>
+                                        @elseif (! empty($waNumber))
+                                            <p class="mt-1 text-[11px] text-amber-600"><i class="bi bi-hourglass-split"></i> Tersimpan, menunggu konfirmasi di <b>Kelola Tautan Guru</b>.</p>
+                                        @else
+                                            <p class="mt-1 text-[11px] leading-relaxed text-slate-400">Tujuan notifikasi denda, teguran, dan peringatan alpha. Boleh 08 / +62 / 62.</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB ALAMAT -->
+                        <div x-show="tab === 'address'" x-cloak id="address-pane" role="tabpanel">
+                            <div class="mb-3 flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-amber-50 text-[13px] text-amber-600"><i class="bi bi-person-badge"></i></span>
+                                <div>
+                                    <h3 class="text-[13px] font-extrabold text-slate-900">Identitas Kependudukan</h3>
+                                    <p class="text-[11px] text-slate-400">NIK &amp; kelahiran</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label for="f-no_ktp" class="mb-1.5 block text-xs font-bold text-slate-700">NIK (No. KTP)</label>
+                                    <div class="relative">
+                                        <i class="bi bi-person-badge pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="text" id="f-no_ktp" name="no_ktp" inputmode="numeric" value="{{ $v($mapAlm, 'no_ktp') }}"
+                                            maxlength="20" autocomplete="off" placeholder="16 digit NIK"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            :class="errors.no_ktp ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.no_ktp" x-cloak x-text="errors.no_ktp"></p>
+                                </div>
+
+                                <div>
+                                    <label for="f-tempat_lahir" class="mb-1.5 block text-xs font-bold text-slate-700">Tempat Lahir</label>
+                                    <div class="relative">
+                                        <i class="bi bi-geo-alt pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="text" id="f-tempat_lahir" name="tempat_lahir" value="{{ $v($mapAlm, 'tempat_lahir') }}"
+                                            maxlength="50" autocomplete="off" placeholder="Kota kelahiran"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label for="f-tgl_lahir" class="mb-1.5 block text-xs font-bold text-slate-700">Tanggal Lahir</label>
+                                    <div class="relative">
+                                        <i class="bi bi-calendar-date pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                                        <input type="date" id="f-tgl_lahir" name="tgl_lahir" value="{{ $tglLahir }}" max="{{ date('Y-m-d') }}"
+                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            :class="errors.tgl_lahir ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.tgl_lahir" x-cloak x-text="errors.tgl_lahir"></p>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 mt-5 flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-blue-50 text-[13px] text-blue-600"><i class="bi bi-house-door"></i></span>
+                                <div>
+                                    <h3 class="text-[13px] font-extrabold text-slate-900">Alamat Domisili</h3>
+                                    <p class="text-[11px] text-slate-400">Alamat lengkap tempat tinggal</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label for="f-alamat_jalan" class="mb-1.5 block text-xs font-bold text-slate-700">Alamat (Jalan / Dusun)</label>
+                                    <textarea id="f-alamat_jalan" name="alamat_jalan" rows="2" placeholder="Nama jalan, nomor rumah, RT/RW, dusun..."
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">{{ $v($mapAlm, 'alamat_jalan') }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label for="f-kecamatan" class="mb-1.5 block text-xs font-bold text-slate-700">Kecamatan</label>
+                                    <input type="text" id="f-kecamatan" name="kecamatan" value="{{ $v($mapAlm, 'kecamatan') }}" maxlength="50" placeholder="Kecamatan"
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                                <div>
+                                    <label for="f-kabupaten" class="mb-1.5 block text-xs font-bold text-slate-700">Kota / Kabupaten</label>
+                                    <input type="text" id="f-kabupaten" name="kabupaten" value="{{ $v($mapAlm, 'kabupaten') }}" maxlength="50" placeholder="Kota / kabupaten"
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                                <div>
+                                    <label for="f-provinsi" class="mb-1.5 block text-xs font-bold text-slate-700">Provinsi</label>
+                                    <input type="text" id="f-provinsi" name="provinsi" value="{{ $v($mapAlm, 'provinsi') }}" maxlength="50" placeholder="Provinsi"
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                                </div>
+                                <div>
+                                    <label for="f-kode_pos" class="mb-1.5 block text-xs font-bold text-slate-700">Kode Pos</label>
+                                    <input type="text" id="f-kode_pos" name="kode_pos" inputmode="numeric" value="{{ $v($mapAlm, 'kode_pos') }}" maxlength="10" placeholder="85xxx"
+                                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        :class="errors.kode_pos ? 'border-rose-400 ring-2 ring-rose-500/10' : ''">
+                                    <p class="mt-1 text-[11px] text-rose-600" x-show="errors.kode_pos" x-cloak x-text="errors.kode_pos"></p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Sticky save bar -->
                     <div class="px-4 pb-4">
-                        <div class="savebar px-4 py-3 space-y-2.5">
+                        <div class="sticky bottom-3 z-30 space-y-2.5 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                                    <span class="dirty-dot" id="dirty-dot"></span>
-                                    <span id="dirty-text">Belum ada perubahan</span>
+                                    <span class="h-2 w-2 rounded-full transition-colors" :class="dirty ? 'animate-pulse bg-amber-500' : 'bg-slate-300'"></span>
+                                    <span x-text="dirty ? 'Ada perubahan belum disimpan' : 'Belum ada perubahan'"></span>
                                 </span>
-                                <span class="text-[11px] text-slate-400"><span class="text-red-500 font-bold">*</span> Nama wajib diisi</span>
+                                <span class="text-[11px] text-slate-400"><span class="font-bold text-red-500">*</span> Nama wajib diisi</span>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                <button type="reset" id="btn-reset" class="btn-tw btn-light justify-center">
-                                    <i class="bi bi-arrow-repeat mr-1"></i> Reset
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                <button type="button" @click="resetForm()"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50">
+                                    <i class="bi bi-arrow-repeat"></i> Reset
                                 </button>
-                                <a href="{{ url('dataguru') }}" class="btn-tw btn-outline-danger justify-center no-underline">
-                                    <i class="bi bi-x-lg mr-1"></i> Batal
+                                <a href="{{ url('dataguru') }}"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 no-underline transition-colors hover:bg-rose-50">
+                                    <i class="bi bi-x-lg"></i> Batal
                                 </a>
-                                <button type="submit" id="submit-profil" class="btn-tw btn-primary justify-center col-span-2 sm:col-span-1">
-                                    <i class="bi bi-save mr-1"></i> Simpan
+                                <button type="submit" :disabled="saving"
+                                    class="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors hover:bg-blue-700 disabled:opacity-60 sm:col-span-1">
+                                    <span x-show="saving" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                    <i class="bi bi-save" x-show="!saving"></i>
+                                    <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
                                 </button>
                             </div>
                         </div>
@@ -545,864 +526,922 @@ if ($jabatan === '') $jabatan = 'Guru / Tenaga Kependidikan';
             </form>
         </div>
     </div>
-</div>
 
-<!-- ═══ Modal Foto ═══ -->
-<div id="editFotoModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-md">
-        <div class="bg-white rounded-2xl overflow-hidden">
-            <div class="modal-header-tw">
-                <div>
-                    <h5 class="font-bold text-slate-800">Update Foto Guru</h5>
-                    <p class="text-[11px] text-slate-400 mb-0">Pilih ukuran dan atur posisi foto.</p>
+    <!-- ═══ Modal Foto ═══ -->
+    <x-ui.modal id="editFotoModal" title="Update Foto Guru" icon="bi-camera">
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+            <div x-show="!cropVisible">
+                <div role="button" tabindex="0" @click="pickFoto()" @keydown.enter.prevent="pickFoto()" @keydown.space.prevent="pickFoto()"
+                    @dragover.prevent="dzOver = true" @dragenter.prevent="dzOver = true"
+                    @dragleave.prevent="dzOver = false" @drop.prevent="onFotoDrop($event)"
+                    class="cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition-colors"
+                    :class="dzOver ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-500 hover:bg-blue-50'">
+                    <img :src="fotoSrc" alt="Preview foto"
+                        class="mx-auto mb-3 block h-[180px] w-[180px] rounded-2xl border object-cover shadow-sm">
+                    <p class="mb-0.5 text-xs font-bold text-slate-600">Seret &amp; letakkan foto di sini, atau <span class="text-blue-600 underline">klik untuk memilih</span></p>
+                    <p x-show="fotoName" x-cloak class="mt-1.5 break-all font-mono text-[11px] font-bold text-blue-700" x-text="fotoName"></p>
                 </div>
-                <button type="button" data-ui-dismiss="modal" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">&times;</button>
+                <input type="file" x-ref="foto" @change="onFotoPicked($event.target.files[0])" class="hidden" accept="image/jpeg,image/png">
             </div>
-            <div class="modal-body-tw">
-                <form id="foto-form" enctype="multipart/form-data">
-                    <div id="dz-foto" class="dz p-5 text-center" role="button" tabindex="0" aria-label="Pilih atau seret foto ke sini">
-                        <img id="preview-foto" src="{{ $foto }}"
-                            class="rounded-2xl border shadow-sm mb-3 mx-auto block"
-                            style="width: 180px; height: 180px; object-fit: cover;" alt="Preview foto">
-                        <p class="text-xs font-bold text-slate-600 mb-0.5">Seret &amp; letakkan foto di sini, atau <span class="text-blue-600 underline">klik untuk memilih</span></p>
-                        <p id="dz-filename" class="hidden mt-1.5 font-mono text-[11px] font-bold text-blue-700 break-all"></p>
-                        <input type="file" id="foto-input" name="foto" class="hidden" accept="image/jpeg,image/png">
+
+            <div x-show="cropVisible" x-cloak class="mt-1">
+                <div class="mb-2 flex items-center justify-center gap-2">
+                    <span class="text-[11px] text-slate-500">Ukuran</span>
+                    <div class="inline-flex gap-0.5 rounded-full bg-slate-100 p-1" role="group" aria-label="Ukuran foto">
+                        <button type="button" @click="setRatio('4x6')" :aria-pressed="ratio === '4x6' ? 'true' : 'false'"
+                            :class="ratio === '4x6' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'"
+                            class="rounded-full px-3 py-1 text-xs font-bold transition-all">4 × 6</button>
+                        <button type="button" @click="setRatio('3x4')" :aria-pressed="ratio === '3x4' ? 'true' : 'false'"
+                            :class="ratio === '3x4' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'"
+                            class="rounded-full px-3 py-1 text-xs font-bold transition-all">3 × 4</button>
                     </div>
-                    {{-- Crop foto untuk ukuran cetak foto kartu pegawai. --}}
-                    <div id="crop-panel" class="hidden mt-3">
-                        <div class="flex items-center justify-center gap-2 mb-2">
-                            <span class="text-[11px] text-slate-500">Ukuran</span>
-                            <div class="crop-ratio-switch" role="group" aria-label="Ukuran foto">
-                                <button type="button" id="crop-ratio-4x6" class="crop-ratio-option active" aria-pressed="true">4 × 6</button>
-                                <button type="button" id="crop-ratio-3x4" class="crop-ratio-option" aria-pressed="false">3 × 4</button>
-                            </div>
-                        </div>
-                        <div id="crop-viewport" class="relative mx-auto overflow-hidden rounded-2xl bg-slate-900"
-                            style="width: 100%; max-width: 210px; aspect-ratio: 2 / 3; touch-action: none; cursor: grab;">
-                            <img id="crop-img" alt="Pratinjau crop" draggable="false"
-                                style="position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; user-select: none; -webkit-user-drag: none;">
-                            <div style="position: absolute; inset: 4px; border: 2px dashed rgba(255,255,255,.8); border-radius: 4px; pointer-events: none;"></div>
-                        </div>
-                        <div class="flex items-center gap-2 mt-2 mx-auto" style="max-width: 250px;">
-                            <button type="button" id="crop-reset" class="crop-reset-button" title="Atur ulang crop" aria-label="Atur ulang crop"><i class="bi bi-arrow-counterclockwise"></i></button>
-                            <i class="bi bi-zoom-out text-slate-400 text-xs"></i>
-                            <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" class="w-full" aria-label="Zoom foto">
-                            <i class="bi bi-zoom-in text-slate-400 text-xs"></i>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mt-1 mb-0 text-center">Geser foto atau atur zoom.</p>
-                        <div class="flex items-center justify-between gap-2 mt-2">
-                            <button type="button" id="crop-cancel" class="btn-tw btn-secondary text-xs py-1 px-3">Ganti Foto</button>
-                            <div class="flex items-center gap-2">
-                                <button type="button" id="crop-apply" class="btn-tw btn-primary text-xs py-1 px-3"><i class="bi bi-check2 mr-1"></i>Terapkan</button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer-tw">
-                <button type="button" class="btn-tw btn-secondary" data-ui-dismiss="modal">Batal</button>
-                <button type="button" id="btn-save-foto" class="btn-tw btn-primary" disabled><i class="bi bi-cloud-arrow-up mr-1"></i>Upload Foto</button>
+                </div>
+
+                <div x-ref="viewport" @pointerdown="startDrag($event)" @pointermove="drag($event)"
+                    @pointerup="endDrag()" @pointercancel="endDrag()" @wheel.prevent="wheelZoom($event)"
+                    class="relative mx-auto max-w-[210px] cursor-grab touch-none overflow-hidden rounded-2xl bg-slate-900"
+                    :style="'width:100%; aspect-ratio: ' + (ratio === '4x6' ? '2 / 3' : '3 / 4') + ';'">
+                    <img x-ref="cropImg" alt="Pratinjau crop" draggable="false" @load="onCropLoad()" :src="cropSrc"
+                        class="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+                        :style="cropImgStyle">
+                    <div class="pointer-events-none absolute inset-1 rounded border-2 border-dashed border-white/80"></div>
+                </div>
+
+                <div class="mx-auto mt-2 flex max-w-[250px] items-center gap-2">
+                    <button type="button" @click="resetCrop()" title="Atur ulang crop" aria-label="Atur ulang crop"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <i class="bi bi-zoom-out text-xs text-slate-400"></i>
+                    <input type="range" min="1" max="3" step="0.01" x-model.number="zoom" @input="renderCrop()"
+                        class="w-full" aria-label="Zoom foto">
+                    <i class="bi bi-zoom-in text-xs text-slate-400"></i>
+                </div>
+                <p class="mt-1 text-center text-[11px] text-slate-400">Geser foto atau atur zoom.</p>
+                <div class="mt-2 flex items-center justify-between gap-2">
+                    <button type="button" @click="pickFoto()"
+                        class="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-200">Ganti Foto</button>
+                    <button type="button" @click="applyCrop()"
+                        class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1 text-xs font-bold text-white hover:bg-blue-700">
+                        <i class="bi bi-check2"></i> Terapkan
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- ═══ Modal Login ═══ -->
-<div id="editLoginModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-md">
-        <form id="login-form" novalidate>
-            @csrf
+        <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+            <button type="button" @click="$store.modals.close('#editFotoModal')"
+                class="rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300">Batal</button>
+            <button type="button" @click="uploadFoto()" :disabled="!fotoFile || uploadingFoto"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <span x-show="uploadingFoto" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                <i class="bi bi-cloud-arrow-up" x-show="!uploadingFoto"></i>
+                <span x-text="uploadingFoto ? 'Mengunggah...' : 'Upload Foto'"></span>
+            </button>
+        </div>
+    </x-ui.modal>
+
+    <!-- ═══ Modal Login ═══ -->
+    <x-ui.modal id="editLoginModal" title="Edit Akun Login" icon="bi-key" tone="amber">
+        <form @submit.prevent="saveLogin()" novalidate>
             <input type="hidden" name="id_guru" value="{{ (int) $id_active }}">
-            <div class="bg-white rounded-2xl overflow-hidden">
-                <div class="modal-header-tw">
-                    <div>
-                        <h5 class="font-bold text-slate-800">Edit Akun Login</h5>
-                        <p class="text-[11px] text-slate-400 mb-0">Kosongkan password bila hanya ganti username</p>
-                    </div>
-                    <button type="button" data-ui-dismiss="modal" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">&times;</button>
+            <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold text-slate-700" for="login-username">Username <span class="text-rose-500">*</span></label>
+                    <input type="text" id="login-username" x-model="login.username" required minlength="4" maxlength="30" autocomplete="username"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-[11px] text-rose-600" x-show="loginErrors.username" x-cloak x-text="loginErrors.username"></p>
                 </div>
-                <div class="modal-body-tw space-y-4">
-                    <div>
-                        <label class="form-label-tw req" for="login-username">Username</label>
-                        <input type="text" class="form-control-tw font-mono" id="login-username" name="username" value="{{ $guru->username ?? '' }}" required minlength="4" maxlength="30" autocomplete="username">
-                        <p class="field-msg" data-msg-for="login-username"></p>
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold text-slate-700" for="login-new">Password Baru
+                        <span class="font-normal text-slate-400">(opsional, min. 6)</span></label>
+                    <div class="relative">
+                        <input :type="showLoginPassword ? 'text' : 'password'" id="login-new" x-model="login.password"
+                            minlength="6" maxlength="72" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin ganti"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 pr-11 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button type="button" @click="showLoginPassword = ! showLoginPassword"
+                            class="absolute inset-y-0 right-0 px-3.5 text-slate-400 hover:text-slate-600"
+                            title="Tampilkan/sembunyikan" aria-label="Tampilkan password">
+                            <i class="bi" :class="showLoginPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+                        </button>
                     </div>
-                    <div>
-                        <label class="form-label-tw" for="login-new">Password Baru <span class="text-slate-400 font-normal">(opsional, min. 6)</span></label>
-                        <div class="relative">
-                            <input type="password" class="form-control-tw pr-11" id="login-new" name="new" minlength="6" maxlength="72" autocomplete="new-password"
-                                placeholder="Kosongkan jika tidak ingin ganti">
-                            <button type="button" id="btn-toggle-pw" class="absolute inset-y-0 right-0 px-3.5 text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer" title="Tampilkan/sembunyikan" aria-label="Tampilkan password"><i class="bi bi-eye"></i></button>
-                        </div>
-                        <div class="pw-bar mt-2"><div id="pw-strength"></div></div>
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                        <div class="h-full rounded-full transition-all" :class="strengthClass" :style="'width: ' + strength + '%'"></div>
                     </div>
-                    <div>
-                        <label class="form-label-tw" for="login-new-confirm">Konfirmasi Password Baru</label>
-                        <input type="password" class="form-control-tw" id="login-new-confirm" name="new_confirm" maxlength="72" autocomplete="new-password"
-                            placeholder="Ulangi password baru">
-                        <p class="field-msg" data-msg-for="login-new-confirm"></p>
-                    </div>
+                    <p class="mt-1 text-[11px] text-rose-600" x-show="loginErrors.password" x-cloak x-text="loginErrors.password"></p>
                 </div>
-                <div class="modal-footer-tw">
-                    <button type="button" class="btn-tw btn-secondary" data-ui-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn-tw btn-warning" id="btn-save-login"><i class="bi bi-key mr-1"></i>Update Login</button>
+                <div>
+                    <label class="mb-1.5 block text-xs font-bold text-slate-700" for="login-new-confirm">Konfirmasi Password Baru</label>
+                    <input type="password" id="login-new-confirm" x-model="login.confirm" maxlength="72" autocomplete="new-password"
+                        placeholder="Ulangi password baru"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-[11px] text-rose-600" x-show="loginErrors.confirm" x-cloak x-text="loginErrors.confirm"></p>
                 </div>
+            </div>
+            <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" @click="$store.modals.close('#editLoginModal')"
+                    class="rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300">Batal</button>
+                <button type="submit" :disabled="savingLogin"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white hover:bg-amber-600 disabled:opacity-60">
+                    <span x-show="savingLogin" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                    <i class="bi bi-key" x-show="!savingLogin"></i>
+                    <span x-text="savingLogin ? 'Menyimpan...' : 'Update Login'"></span>
+                </button>
             </div>
         </form>
-    </div>
-</div>
+    </x-ui.modal>
 
-<!-- ═══ Modal TTD ═══ -->
-<div id="modal-signature" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-lg">
-        <div class="bg-white rounded-2xl overflow-hidden">
-            <div class="modal-header-tw">
-                <div>
-                    <h5 class="font-bold text-slate-800">Buat Tanda Tangan</h5>
-                    <p class="text-[11px] text-slate-400 mb-0">Gambar dengan mouse / jari di kanvas</p>
-                </div>
-                <button type="button" data-ui-dismiss="modal" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">&times;</button>
-            </div>
-            <div class="modal-body-tw">
-                <canvas id="sig-canvas"></canvas>
-            </div>
-            <div class="modal-footer-tw">
-                <button type="button" class="btn-tw btn-secondary" id="sig-clear"><i class="bi bi-eraser mr-1"></i>Bersihkan</button>
-                <button type="button" class="btn-tw btn-primary" id="sig-submit"><i class="bi bi-check-lg mr-1"></i>Simpan TTD</button>
-            </div>
+    <!-- ═══ Modal TTD ═══ -->
+    <x-ui.modal id="modal-signature" title="Buat Tanda Tangan" icon="bi-pen" tone="emerald" size="max-w-lg">
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+            <p class="mb-2 text-[11px] text-slate-400">Gambar dengan mouse / jari di kanvas</p>
+            <canvas x-ref="sigCanvas" @pointerdown="sigStart($event)" @pointermove="sigMove($event)"
+                @pointerup="sigEnd()" @pointercancel="sigEnd()" @pointerleave="sigEnd()"
+                class="mx-auto block h-[200px] w-full max-w-[400px] cursor-crosshair touch-none rounded-[15px] border-2 border-dotted border-slate-300 bg-white"></canvas>
         </div>
-    </div>
+        <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+            <button type="button" @click="clearSignature()"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-300">
+                <i class="bi bi-eraser"></i> Bersihkan
+            </button>
+            <button type="button" @click="saveSignature()" :disabled="savingTtd"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                <span x-show="savingTtd" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                <i class="bi bi-check-lg" x-show="!savingTtd"></i>
+                <span x-text="savingTtd ? 'Menyimpan...' : 'Simpan TTD'"></span>
+            </button>
+        </div>
+    </x-ui.modal>
 </div>
 
 @endsection
 
 @section('scripts')
 <script>
-$(document).ready(function () {
-    // CSRF_NAME & CSRF_HASH sudah global dari layouts/main.php — jangan dideklarasikan ulang.
-    const idGuru = '{{ (int) $id_active }}';
-    const SAVE_HTML = '<i class="bi bi-save mr-1"></i> Simpan';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('guruEdit', () => ({
+        tab: 'profile',
+        dirty: false,
+        alert: '',
+        saving: false,
+        errors: {},
+        initial: '',
+        namaPreview: @js($guru->nama_guru ?? ''),
+        fotoSrc: '',
+        fotoDefault: '',
+        showApiKey: false,
+        deletingFoto: false,
+        config: {},
 
-    function csrf() { const d = {}; d[CSRF_NAME] = CSRF_HASH; return d; }
-    function spin() { return '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full"></span>'; }
-    function spinBtn($btn, busy, orig) {
-        if (busy) {
-            $btn.prop('disabled', true).html(spin() + ' Menyimpan...');
-        } else {
-            $btn.prop('disabled', false).html(orig);
-        }
-    }
+        // foto + crop
+        fotoModal: false,
+        dzOver: false,
+        fotoFile: null,
+        fotoName: '',
+        uploadingFoto: false,
+        cropVisible: false,
+        cropSrc: '',
+        cropUrl: '',
+        ratio: '4x6',
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        baseScale: 1,
+        natW: 0,
+        natH: 0,
+        viewW: 0,
+        viewH: 0,
+        dragging: false,
+        dragX: 0,
+        dragY: 0,
 
-    // ── Dirty tracking ──
-    const $form = $('#formguru');
-    const initial = $form.serialize();
-    let isDirty = false;
-    const setDirty = (d) => {
-        isDirty = d;
-        $('#dirty-dot').toggleClass('on', d);
-        $('#dirty-text').text(d ? 'Ada perubahan belum disimpan' : 'Belum ada perubahan');
-    };
-    $form.on('input change', function () {
-        setDirty($form.serialize() !== initial);
-        const nm = $('#f-nama_guru').val();
-        if (nm) $('#profile-nama').text(nm);
-    });
-    window.addEventListener('beforeunload', function (e) {
-        if (isDirty) { e.preventDefault(); e.returnValue = ''; }
-    });
-    $(document).on('keydown', function (e) {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-            e.preventDefault();
-            $form.trigger('submit');
-        }
-    });
-    $('#btn-save-top').on('click', function () { $form.trigger('submit'); });
-    $('#btn-reset').on('click', function (e) {
-        if (isDirty && !confirm('Batalkan semua perubahan yang belum disimpan?')) e.preventDefault();
-        else setTimeout(() => { setDirty(false); clearErrors(); }, 50);
-    });
+        // login
+        login: { username: @js($guru->username ?? ''), password: '', confirm: '' },
+        loginErrors: {},
+        showLoginPassword: false,
+        savingLogin: false,
 
-    // ── Validasi client (selaras aturan server) ──
-    const TAB_OF = { 'f-nama_guru':'profile-pane','f-email':'profile-pane','f-nip':'profile-pane','f-wa_number':'profile-pane','f-no_ktp':'address-pane','f-tgl_lahir':'address-pane','f-kode_pos':'address-pane','f-telegram_id':'profile-pane' };
-    function setErr(id, msg) {
-        $('#' + id).addClass('field-err');
-        const $m = $('[data-msg-for="' + id + '"]');
-        if (msg) { $m.text(msg).addClass('show'); } else { $m.text('').removeClass('show'); }
-        const tab = TAB_OF[id];
-        if (tab && msg) $('[data-err-for="' + tab + '"]').closest('.tab-pill').addClass('has-error');
-    }
-    function clearErrors() {
-        $('.field-err').removeClass('field-err');
-        $('.field-msg').text('').removeClass('show');
-        $('.tab-pill').removeClass('has-error');
-        $('#form-alert').addClass('hidden').html('');
-    }
-    $form.on('input change', 'input,select,textarea', function () { setErr(this.id, ''); });
-    // Dulu dipakai untuk f-no_hp. Field itu sudah diganti No. WhatsApp
-    // dan divalidasi terpisah di bawah, jadi helper ini tak lagi dipakai.
-    function validateClient() {
-        clearErrors();
-        const errs = [];
-        if (($('#f-nama_guru').val() || '').trim() === '') { setErr('f-nama_guru', 'Nama guru wajib diisi.'); errs.push('Nama guru wajib diisi'); }
-        const em = ($('#f-email').val() || '').trim();
-        if (em !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { setErr('f-email', 'Format email tidak valid.'); errs.push('Email tidak valid'); }
-        const nip = ($('#f-nip').val() || '').trim();
-        if (nip !== '' && !/^[0-9]+$/.test(nip)) { setErr('f-nip', 'NIP/NUPTK harus angka.'); errs.push('NIP tidak valid'); }
-                // Nomor WA notifikasi. Aturan longgar di sisi client (digit dan
-        // tanda baca) karena normalisasi sebenarnya dilakukan server lewat
-        // WhatsAppLink — 08, +62, dan 62 semuanya sah.
-        const wa = ($('#f-wa_number').val() || '').trim();
-        if (wa !== '' && !/^[0-9+\-\s()]{7,20}$/.test(wa)) { setErr('f-wa_number', 'Nomor WhatsApp tidak valid.'); errs.push('No. WhatsApp tidak valid'); }        const nik = ($('#f-no_ktp').val() || '').trim();
-        if (nik !== '' && !/^[0-9]{8,20}$/.test(nik)) { setErr('f-no_ktp', 'NIK 8–20 digit angka.'); errs.push('NIK tidak valid'); }
-        const tgl = $('#f-tgl_lahir').val();
-        if (tgl !== '' && isNaN(Date.parse(tgl))) { setErr('f-tgl_lahir', 'Tanggal lahir tidak valid.'); errs.push('Tanggal lahir tidak valid'); }
-        const kp = ($('#f-kode_pos').val() || '').trim();
-        if (kp !== '' && !/^[0-9]{3,10}$/.test(kp)) { setErr('f-kode_pos', 'Kode pos harus angka.'); errs.push('Kode pos tidak valid'); }
-        const tg = ($('#f-telegram_id').val() || '').replace(/[\s@]/g, '').trim();
-        if (tg !== '' && !/^-?\d{1,20}$/.test(tg)) { setErr('f-telegram_id', 'ID Telegram harus angka saja (mis. 123456789).'); errs.push('ID Telegram tidak valid'); }
-        return errs;
-    }
-    function gotoTab(id) {
-        const $btn = $('[data-ui-target="#' + id + '"]');
-        if ($btn.length) $btn.trigger('click');
-    }
+        // ttd
+        ttdSrc: '',
+        savingTtd: false,
+        deletingTtd: false,
+        sigDrawing: false,
+        sigX: 0,
+        sigY: 0,
 
-    // ── Submit profil ──
-    $form.on('submit', function (e) {
-        e.preventDefault();
-        const errs = validateClient();
-        if (errs.length) {
-            const firstTab = TAB_OF[$('.field-err').first().attr('id')] || 'profile-pane';
-            gotoTab(firstTab);
-            $('#form-alert').removeClass('hidden').html('<b>Periksa kembali:</b><br>• ' + errs.join('<br>• '));
-            $('#form-alert')[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-        }
-        const $btn = $('#submit-profil');
-        const orig = SAVE_HTML;
-        spinBtn($btn, true);
-        $('#btn-save-top').prop('disabled', true);
-        const formData = new FormData($form[0]);
-        formData.set(CSRF_NAME, CSRF_HASH);
-        $.ajax({
-            url: '{{ url('dataguru/save') }}',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            success: (res) => {
-                spinBtn($btn, false, orig);
-                $('#btn-save-top').prop('disabled', false);
-                if (res && res.status) {
-                    setDirty(false);
-
-                    // Pesan utama selalu tentang profilnya. Kanal
-                    // notifikasi hanya disebut kalau ADA yang benar-benar
-                    // berubah — kalau tidak, admin akan melihat pesan "Tautan
-                    // Telegram dilepas" setiap kali menyimpan email.
-                    const notif = Array.isArray(res.notif) ? res.notif.filter(Boolean) : [];
-                    const adaGagal = notif.some(c => /gagal|tidak bisa|ditolak|tidak tersedia/i.test(c));
-
-                    if (notif.length === 0) {
-                        Swal.fire('Berhasil', 'Data guru berhasil disimpan.', 'success')
-                            .then(() => window.location.reload());
-                    } else if (adaGagal) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Data guru disimpan, sebagian perlu perhatian',
-                            html: notif.join('<br>')
-                        }).then(() => window.location.reload());
-                    } else {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Data guru berhasil disimpan',
-                            html: '<b>Perubahan kanal notifikasi:</b><br>' + notif.join('<br>')
-                        }).then(() => window.location.reload());
-                    }
-                } else if (res && res.message) {
-                    $('#form-alert').removeClass('hidden').html('<b>Gagal menyimpan:</b><br>' + res.message);
-                    Swal.fire('Gagal', res.message, 'error');
-                } else {
-                    Swal.fire('Gagal', 'Periksa kembali inputan Anda', 'error');
-                }
-            },
-            error: () => { spinBtn($btn, false, orig); $('#btn-save-top').prop('disabled', false); Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error'); }
-        });
-    });
-
-    // ── Foto: dropzone klik + seret ──
-    const dz = $('#dz-foto'), fi = $('#foto-input');
-    dz.on('click keydown', function (e) {
-        // #foto-input berada DI DALAM #dz-foto, jadi fi.trigger('click') akan
-        // membubble balik ke dz dan memicu handler ini lagi tanpa henti
-        // (RangeError: Maximum call stack size exceeded). Abaikan event yang
-        // berasal dari input file itu sendiri.
-        if (e.target === fi[0]) { return; }
-        if (e.type === 'click' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.trigger('click'); }
-    });
-    dz.on('dragover dragenter', function (e) { e.preventDefault(); dz.addClass('over'); });
-    dz.on('dragleave drop', function (e) { e.preventDefault(); dz.removeClass('over'); });
-    dz.on('drop', function (e) {
-        const files = (e.originalEvent.dataTransfer || {}).files;
-        if (files && files[0]) { fi[0].files = files; fi.trigger('change'); }
-    });
-    // ── Crop + kompres foto (maks 800px, JPEG 80%) ──
-    // Foto dari kamera HP sering 3-8MB sehingga dulu selalu ditolak batas
-    // 2MB. Sekarang gambar dipotong sesuai rasio foto kartu lalu dikompres
-    // di browser, jadi yang dikirim ke server selalu ringan.
-    const FOTO_MAX_DIM = 800;
-    const FOTO_QUALITY = 0.8;
-    const FOTO_MAKS_ASLI = 15 * 1024 * 1024;
-    const cropImg = document.getElementById('crop-img');
-    const cropViewport = document.getElementById('crop-viewport');
-    const CROP_RATIOS = {
-        '4x6': { width: 2, height: 3 },
-        '3x4': { width: 3, height: 4 },
-    };
-    let cropRatioKey = '4x6';
-    let cropState = null;   // { img, viewWidth, viewHeight, baseScale, zoom, panX, panY }
-    let cropObjectUrl = null;
-    let fotoFile = null;    // hasil crop yang benar-benar diunggah
-
-    /** Skala tampil (px CSS per px asli) = skala dasar x zoom. */
-    function cropSkala() {
-        return cropState.baseScale * cropState.zoom;
-    }
-
-    /** Tahan geseran supaya gambar selalu menutupi viewport (tanpa celah). */
-    function cropBatasi() {
-        const s = cropState, skala = cropSkala();
-        const mx = Math.max(0, (s.img.naturalWidth * skala - s.viewWidth) / 2);
-        const my = Math.max(0, (s.img.naturalHeight * skala - s.viewHeight) / 2);
-        s.panX = Math.min(mx, Math.max(-mx, s.panX));
-        s.panY = Math.min(my, Math.max(-my, s.panY));
-    }
-
-    function cropAturRasio(key) {
-        if (!CROP_RATIOS[key]) {
-            return;
-        }
-
-        cropRatioKey = key;
-        const ratio = CROP_RATIOS[key];
-        cropViewport.style.aspectRatio = ratio.width + ' / ' + ratio.height;
-        $('#crop-ratio-4x6')
-            .toggleClass('active', key === '4x6')
-            .attr('aria-pressed', key === '4x6' ? 'true' : 'false');
-        $('#crop-ratio-3x4')
-            .toggleClass('active', key === '3x4')
-            .attr('aria-pressed', key === '3x4' ? 'true' : 'false');
-
-        if (cropState) {
-            cropState.viewWidth = cropViewport.clientWidth || 240;
-            cropState.viewHeight = cropViewport.clientHeight || (cropState.viewWidth * ratio.height / ratio.width);
-            cropState.baseScale = Math.max(
-                cropState.viewWidth / cropState.img.naturalWidth,
-                cropState.viewHeight / cropState.img.naturalHeight
-            );
-            cropState.zoom = 1;
-            cropState.panX = 0;
-            cropState.panY = 0;
-            $('#crop-zoom').val(1);
-            cropGambar();
-        }
-    }
-
-    function cropGambar() {
-        const s = cropState, skala = cropSkala();
-        cropImg.style.width = (s.img.naturalWidth * skala) + 'px';
-        cropImg.style.height = (s.img.naturalHeight * skala) + 'px';
-        cropImg.style.transform = 'translate(-50%, -50%) translate(' + s.panX + 'px, ' + s.panY + 'px)';
-    }
-
-    $('#crop-ratio-4x6').on('click', function () { cropAturRasio('4x6'); });
-    $('#crop-ratio-3x4').on('click', function () { cropAturRasio('3x4'); });
-    cropAturRasio(cropRatioKey);
-
-    function bukaCrop(file) {
-        if (cropObjectUrl) {
-            URL.revokeObjectURL(cropObjectUrl);
-        }
-
-        const objUrl = URL.createObjectURL(file);
-        cropObjectUrl = objUrl;
-        cropImg.onload = function () {
-            if (cropObjectUrl !== objUrl) {
-                URL.revokeObjectURL(objUrl);
-                return;
-            }
-
-            $('#dz-foto').addClass('hidden');
-            $('#crop-panel').removeClass('hidden');
-            cropAturRasio(cropRatioKey);
-            const ratio = CROP_RATIOS[cropRatioKey];
-            const viewWidth = cropViewport.clientWidth || 240;
-            const viewHeight = cropViewport.clientHeight || (viewWidth * ratio.height / ratio.width);
-            cropState = {
-                img: cropImg,
-                viewWidth: viewWidth,
-                viewHeight: viewHeight,
-                // Skala awal "cover": gambar menutupi seluruh viewport.
-                baseScale: Math.max(
-                    viewWidth / cropImg.naturalWidth,
-                    viewHeight / cropImg.naturalHeight
-                ),
-                zoom: 1,
-                panX: 0,
-                panY: 0,
-            };
-            cropGambar();
-            $('#crop-zoom').val(1);
-            fotoFile = null;
-            $('#dz-filename').addClass('hidden').text('');
-            $('#btn-save-foto').prop('disabled', true);
-        };
-        cropImg.onerror = function () {
-            if (cropObjectUrl === objUrl) {
-                URL.revokeObjectURL(objUrl);
-                cropObjectUrl = null;
-            }
-            Swal.fire('Gagal Membuka Foto', 'Foto tidak bisa diproses browser. Coba file JPG/PNG lain.', 'error');
-            fi.val('');
-        };
-        cropImg.src = objUrl;
-    }
-
-    function handleFoto(file) {
-        if (!file) return;
-        if (!/jpe?g|png/i.test(file.type + ' ' + file.name)) {
-            Swal.fire('Format Salah', 'Foto harus JPG/PNG.', 'warning');
-            fi.val('');
-            return;
-        }
-        if (file.size > FOTO_MAKS_ASLI) {
-            Swal.fire('Terlalu Besar', 'Ukuran file asli maksimal 15MB.', 'warning');
-            fi.val('');
-            return;
-        }
-        bukaCrop(file);
-    }
-    fi.on('change', function () { handleFoto(this.files[0]); });
-
-    // Terapkan crop: potong bagian yang terlihat di viewport, lalu kompres.
-    $('#crop-apply').on('click', function () {
-        const s = cropState;
-        if (!s) return;
-        const skala = cropSkala();
-        const cropWidth = s.viewWidth / skala;
-        const cropHeight = s.viewHeight / skala;
-        const sx = (s.img.naturalWidth - cropWidth) / 2 - s.panX / skala;
-        const sy = (s.img.naturalHeight - cropHeight) / 2 - s.panY / skala;
-        const ratio = CROP_RATIOS[cropRatioKey];
-        const outputHeight = Math.floor(FOTO_MAX_DIM / ratio.height) * ratio.height;
-        const outputWidth = outputHeight * ratio.width / ratio.height;
-        const canvas = document.createElement('canvas');
-        canvas.width = outputWidth;
-        canvas.height = outputHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        // Latar putih: PNG transparan tidak jadi hitam saat diubah ke JPEG.
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, outputWidth, outputHeight);
-        ctx.drawImage(s.img, sx, sy, cropWidth, cropHeight, 0, 0, outputWidth, outputHeight);
-
-        $('#crop-apply').prop('disabled', true);
-        canvas.toBlob(function (blob) {
-            $('#crop-apply').prop('disabled', false);
-            if (!blob) {
-                Swal.fire('Gagal', 'Crop tidak bisa diproses. Coba foto lain.', 'error');
-                return;
-            }
-            fotoFile = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
-            $('#btn-save-foto').prop('disabled', false);
-            const reader = new FileReader();
-            reader.onload = function (e) { $('#preview-foto').attr('src', e.target.result); };
-            reader.readAsDataURL(fotoFile);
-            cropState = null;
-            $('#crop-panel').addClass('hidden');
-            $('#dz-foto').removeClass('hidden');
-            $('#dz-filename').removeClass('hidden').text('foto.jpg · ' + Math.max(1, Math.round(fotoFile.size / 1024)) + ' KB');
-            if (cropObjectUrl) {
-                URL.revokeObjectURL(cropObjectUrl);
-                cropObjectUrl = null;
-            }
-            cropImg.onload = null;
-            cropImg.onerror = null;
-            cropImg.removeAttribute('src');
-        }, 'image/jpeg', FOTO_QUALITY);
-    });
-
-    /** Kembalikan modal foto ke kondisi awal (tanpa pilihan file). */
-    function bersihkanCrop() {
-        cropState = null;
-        fotoFile = null;
-        if (cropObjectUrl) {
-            URL.revokeObjectURL(cropObjectUrl);
-            cropObjectUrl = null;
-        }
-        cropImg.onload = null;
-        cropImg.onerror = null;
-        cropImg.removeAttribute('src');
-        $('#crop-panel').addClass('hidden');
-        $('#dz-foto').removeClass('hidden');
-        $('#dz-filename').addClass('hidden').text('');
-        $('#preview-foto').attr('src', $('#foto-guru').attr('src'));
-        $('#btn-save-foto').prop('disabled', true);
-        fi.val('');
-    }
-
-    $('#crop-cancel').on('click', function () {
-        bersihkanCrop();
-        fi[0].click();
-    });
-    // Modal dibuka lagi -> jangan tinggalkan sisa crop dari sesi sebelumnya.
-    $('[data-ui-target="#editFotoModal"]').on('click', bersihkanCrop);
-
-    $('#crop-reset').on('click', function () {
-        if (!cropState) return;
-        cropState.zoom = 1;
-        cropState.panX = 0;
-        cropState.panY = 0;
-        $('#crop-zoom').val(1);
-        cropGambar();
-    });
-
-    $('#crop-zoom').on('input', function () {
-        if (!cropState) return;
-        cropState.zoom = parseFloat(this.value) || 1;
-        cropBatasi();
-        cropGambar();
-    });
-
-    // Geser gambar: pointer event menangani mouse sekaligus sentuhan.
-    (function () {
-        let geser = false, x0 = 0, y0 = 0;
-        cropViewport.addEventListener('pointerdown', function (e) {
-            if (!cropState) return;
-            geser = true;
-            x0 = e.clientX;
-            y0 = e.clientY;
-            cropViewport.style.cursor = 'grabbing';
-            if (cropViewport.setPointerCapture) { cropViewport.setPointerCapture(e.pointerId); }
-        });
-        cropViewport.addEventListener('pointermove', function (e) {
-            if (!geser || !cropState) return;
-            cropState.panX += e.clientX - x0;
-            cropState.panY += e.clientY - y0;
-            x0 = e.clientX;
-            y0 = e.clientY;
-            cropBatasi();
-            cropGambar();
-        });
-        const selesai = function () { geser = false; cropViewport.style.cursor = 'grab'; };
-        cropViewport.addEventListener('pointerup', selesai);
-        cropViewport.addEventListener('pointercancel', selesai);
-        cropViewport.addEventListener('wheel', function (e) {
-            if (!cropState) return;
-            e.preventDefault();
-            cropState.zoom = Math.min(3, Math.max(1, cropState.zoom - e.deltaY * 0.0015));
-            $('#crop-zoom').val(cropState.zoom);
-            cropBatasi();
-            cropGambar();
-        }, { passive: false });
-    })();
-
-    // Photo Upload
-    $('#btn-save-foto').on('click', function () {
-        if (!fotoFile) { Swal.fire('Peringatan', 'Pilih file foto terlebih dahulu', 'warning'); return; }
-        const $btn = $(this);
-        const orig = $btn.html();
-        const formData = new FormData();
-        formData.append('foto', fotoFile, 'foto.jpg');
-        formData.set(CSRF_NAME, CSRF_HASH);
-        spinBtn($btn, true);
-        $.ajax({
-            url: '{{ route('dataguru.uploadFile.upload_file', ['id' => '__ID__']) }}'.replace('__ID__', idGuru),
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            success: (res) => {
-                spinBtn($btn, false, orig);
-                if (res && res.status) {
-                    $('#foto-guru').attr('src', res.src);
-                    $('#preview-foto').attr('src', res.src);
-                    AdminUI.modal.close('#editFotoModal');
-                    Swal.fire('Berhasil', 'Foto berhasil diperbarui', 'success');
-                } else {
-                    Swal.fire('Gagal', (res && res.message) || 'Gagal mengunggah foto.', 'error');
-                }
-            },
-            error: () => { spinBtn($btn, false, orig); Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error'); }
-        });
-    });
-
-    function deleteImage() {
-         Swal.fire({
-            title: 'Hapus Foto?',
-            text: 'Foto profil akan dihapus dan kembali ke default',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '{{ route('dataguru.delete_foto', ['id' => '__ID__']) }}'.replace('__ID__', idGuru),
-                    type: 'POST',
-                    data: csrf(),
-                    dataType: 'json',
-                    success: function (res) {
-                         if (res && res.status) {
-                            $('#foto-guru').attr('src', '{{ asset('assets/img/guru.png') }}');
-                            Swal.fire('Terhapus!', 'Foto profil berhasil dihapus.', 'success');
-                         } else {
-                            Swal.fire('Gagal', (res && res.message) || 'Gagal menghapus foto.', 'error');
-                         }
-                    },
-                    error: function() {
-                         Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-                    }
-                });
-            }
-        });
-    }
-    window.deleteImage = deleteImage;
-    $('#btn-delete-foto').on('click', deleteImage);
-
-    // API key toggle
-    $('#btn-toggle-apikey').on('click', function () {
-        const $p = $('#f-api_key');
-        const show = $p.attr('type') === 'password';
-        $p.attr('type', show ? 'text' : 'password');
-        $(this).html(show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>');
-    });
-
-    // ── Login: toggle + strength + konfirmasi ──
-    $('#btn-toggle-pw').on('click', function () {
-        const $p = $('#login-new');
-        const show = $p.attr('type') === 'password';
-        $p.attr('type', show ? 'text' : 'password');
-        $(this).html(show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>');
-    });
-    $('#login-new').on('input', function () {
-        const v = $(this).val() || '';
-        let score = 0;
-        if (v.length >= 6) score += 34;
-        if (v.length >= 10) score += 22;
-        if (/[0-9]/.test(v) && /[a-zA-Z]/.test(v)) score += 22;
-        if (/[^a-zA-Z0-9]/.test(v)) score += 22;
-        score = Math.min(score, 100);
-        const $bar = $('#pw-strength');
-        $bar.css('width', score + '%');
-        $bar.css('background', score < 34 ? '#ef4444' : (score < 70 ? '#f59e0b' : '#10b981'));
-    });
-
-    // Login Update
-    $('#login-form').on('submit', function (e) {
-        e.preventDefault();
-        const uname = ($('#login-username').val() || '').trim();
-        const pwd = $('#login-new').val() || '';
-        const pwd2 = $('#login-new-confirm').val() || '';
-        if (uname.length < 4) {
-            $('[data-msg-for="login-username"]').text('Username minimal 4 karakter.').addClass('show');
-            $('#login-username').addClass('field-err');
-            return;
-        }
-        if (pwd !== '' && pwd.length < 6) { Swal.fire('Perhatian', 'Password baru minimal 6 karakter.', 'warning'); return; }
-        if (pwd !== '' && pwd !== pwd2) {
-            $('[data-msg-for="login-new-confirm"]').text('Konfirmasi tidak sama dengan password baru.').addClass('show');
-            $('#login-new-confirm').addClass('field-err');
-            return;
-        }
-        const $btn = $('#btn-save-login');
-        const orig = $btn.html();
-        spinBtn($btn, true);
-        $.ajax({
-            url: '{{ url('dataguru/editLogin') }}',
-            type: 'POST',
-            data: $(this).serialize(),
-            dataType: 'json',
-            success: (res) => {
-                spinBtn($btn, false, orig);
-                if (res && res.status) {
-                    AdminUI.modal.close('#editLoginModal');
-                    $('#login-new, #login-new-confirm').val('');
-                    $('#pw-strength').css('width', '0');
-                    Swal.fire('Berhasil', res.text || 'Login diperbarui.', 'success');
-                } else if (res && res.errors) {
-                    Swal.fire('Gagal', Object.values(res.errors).join('<br>'), 'error');
-                } else {
-                    Swal.fire('Gagal', (res && (res.text || res.message)) || 'Gagal memperbarui login.', 'error');
-                }
-            },
-            error: () => { spinBtn($btn, false, orig); Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error'); }
-        });
-    });
-
-    // Signature Logic (pointer events = mouse + sentuh)
-    const canvas = document.getElementById('sig-canvas');
-    const ctx = canvas.getContext('2d');
-    let drawing = false;
-    let prevX = 0, prevY = 0;
-
-    function sigPos(e) {
-        const r = canvas.getBoundingClientRect();
-        return [e.clientX - r.left, e.clientY - r.top];
-    }
-    // Samakan resolusi kanvas dengan ukuran tampil agar goresan presisi
-    function fitSigCanvas() {
-        const r = canvas.getBoundingClientRect();
-        const w = Math.max(200, Math.floor(r.width));
-        const h = Math.max(120, Math.floor(r.height || 200));
-        if (canvas.width !== w || canvas.height !== h) {
-            canvas.width = w;
-            canvas.height = h;
-        }
-    }
-
-    $('#btn-create-ttd').on('click', () => {
-        AdminUI.modal.open('#modal-signature');
-        setTimeout(fitSigCanvas, 60);
-    });
-
-    canvas.addEventListener('pointerdown', (e) => {
-        drawing = true;
-        canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
-        [prevX, prevY] = sigPos(e);
-    });
-    canvas.addEventListener('pointermove', (e) => {
-        if (!drawing) return;
-        e.preventDefault();
-        const [x, y] = sigPos(e);
-        ctx.beginPath();
-        ctx.moveTo(prevX, prevY);
-        ctx.lineTo(x, y);
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        [prevX, prevY] = [x, y];
-    });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
-        canvas.addEventListener(ev, () => { drawing = false; })
-    );
-
-    $('#sig-clear').on('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
-
-    $('#sig-submit').on('click', function () {
-        const $btn = $(this);
-        const orig = $btn.html();
-        const dataUrl = canvas.toDataURL('image/png');
-        const payload = csrf();
-        payload.id_guru = idGuru;
-        payload.image = dataUrl;
-        spinBtn($btn, true);
-        $.ajax({
-            url: '{{ url('dataguru/save_signature') }}',
-            type: 'POST',
-            data: payload,
-            dataType: 'json',
-            success: (res) => {
-                spinBtn($btn, false, orig);
-                if (res && res.status) {
-                    $('#img-ttd-preview').attr('src', res.src).removeClass('hidden').addClass('block');
-                    $('#ttd-placeholder').addClass('hidden').removeClass('flex');
-                    $('#btn-delete-ttd').removeClass('hidden');
-                    AdminUI.modal.close('#modal-signature');
-                    Swal.fire('Berhasil', res.message || 'TTD tersimpan.', 'success');
-                } else {
-                    Swal.fire('Gagal', (res && res.message) || 'Gagal menyimpan TTD.', 'error');
-                }
-            },
-            error: () => { spinBtn($btn, false, orig); Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error'); }
-        });
-    });
-
-    $('#btn-delete-ttd').on('click', () => {
-        Swal.fire({
-            title: 'Hapus Tanda Tangan?', icon: 'warning',
-            showCancelButton: true, confirmButtonColor: '#d33',
-            confirmButtonText: 'Ya, Hapus', cancelButtonText: 'Batal'
-        }).then((r) => {
-            if (!r.isConfirmed) return;
-            const payload = csrf();
-            payload.id_guru = idGuru;
-            $.ajax({
-                url: '{{ url('dataguru/delete_ttd') }}',
-                type: 'POST',
-                data: payload,
-                dataType: 'json',
-                success: (res) => {
-                    if (res && res.status) {
-                        $('#img-ttd-preview').addClass('hidden').removeClass('block');
-                        $('#ttd-placeholder').removeClass('hidden').addClass('flex');
-                        $('#btn-delete-ttd').addClass('hidden');
-                        Swal.fire('Terhapus', res.message || 'TTD dihapus.', 'success');
-                    } else {
-                        Swal.fire('Gagal', (res && res.message) || 'Gagal menghapus TTD.', 'error');
-                    }
+        init() {
+            const data = this.$el.dataset;
+            this.config = {
+                token: data.token,
+                idGuru: Number(data.idGuru) || 0,
+                urls: {
+                    save: data.urlSave,
+                    uploadFoto: data.urlUploadFoto,
+                    deleteFoto: data.urlDeleteFoto,
+                    login: data.urlLogin,
+                    saveTtd: data.urlSaveTtd,
+                    deleteTtd: data.urlDeleteTtd,
+                    list: data.urlList,
                 },
-                error: () => Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error')
+            };
+
+            this.fotoSrc = data.foto || '';
+            this.fotoDefault = data.fotoDefault || '';
+            this.ttdSrc = data.ttd || '';
+            this.initial = this.serialize();
+
+            window.addEventListener('beforeunload', (event) => {
+                if (this.dirty) {
+                    event.preventDefault();
+                    event.returnValue = '';
+                }
             });
-        });
-    });
-});
 
-window.scanNfcToField = async function (fieldSelector) {
-    if (!('NDEFReader' in window)) {
-        Swal.fire({
-            icon: 'info',
-            title: 'Web NFC',
-            html: `<div class="text-left text-xs space-y-1.5 text-slate-600">
-                <p>Fitur Tap NFC langsung di browser membutuhkan:</p>
-                <ul class="list-disc pl-4 space-y-1">
-                    <li>Smartphone <strong>Android</strong> ber-NFC.</li>
-                    <li>Browser <strong>Google Chrome</strong> Android.</li>
-                    <li>Akses melalui protokol <strong>HTTPS</strong>.</li>
-                </ul>
-                <p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual atau menggunakan USB RFID reader.</p>
-            </div>`,
-            confirmButtonText: 'Tutup'
-        });
-        return;
-    }
+            window.addEventListener('keydown', (event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+                    event.preventDefault();
+                    this.submit();
+                }
+            });
+        },
 
-    try {
-        const ndef = new NDEFReader();
-        await ndef.scan();
-        Swal.fire({
-            title: 'Tempelkan Kartu NFC',
-            text: 'Dekatkan kartu RFID ke bagian belakang HP Anda sekarang...',
-            showCancelButton: true,
-            cancelButtonText: 'Batal',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        get tabErrors() {
+            const membership = {
+                profile: ['nama_guru', 'nip', 'email', 'wa_number', 'telegram_id'],
+                address: ['no_ktp', 'tgl_lahir', 'kode_pos'],
+            };
+            const counts = { profile: 0, address: 0 };
 
-        ndef.onreading = (event) => {
-            const rawSerial = event.serialNumber || '';
-            if (rawSerial) {
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                const clean = rawSerial.replace(/[: -]/g, '').toUpperCase();
-                $(fieldSelector).val(clean).trigger('input');
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Kartu Terbaca!',
-                    text: 'UID Kartu: ' + clean,
-                    timer: 1800,
-                    showConfirmButton: false
+            Object.keys(this.errors).forEach((field) => {
+                Object.keys(membership).forEach((key) => {
+                    if (membership[key].includes(field)) {
+                        counts[key]++;
+                    }
                 });
+            });
+
+            return counts;
+        },
+
+        get strength() {
+            const value = this.login.password || '';
+            let score = 0;
+
+            if (value.length >= 6) { score += 34; }
+            if (value.length >= 10) { score += 22; }
+            if (/[0-9]/.test(value) && /[a-zA-Z]/.test(value)) { score += 22; }
+            if (/[^a-zA-Z0-9]/.test(value)) { score += 22; }
+
+            return Math.min(score, 100);
+        },
+
+        get strengthClass() {
+            return this.strength < 34 ? 'bg-red-500' : (this.strength < 70 ? 'bg-amber-500' : 'bg-emerald-500');
+        },
+
+        serialize() {
+            if (! this.$refs.form) {
+                return '';
             }
-        };
-    } catch (err) {
-        Swal.fire('Gagal', err.message || 'Tidak dapat membaca NFC.', 'error');
-    }
-};
+
+            return new URLSearchParams(new FormData(this.$refs.form)).toString();
+        },
+
+        markDirty() {
+            this.dirty = this.serialize() !== this.initial;
+        },
+
+        resetForm() {
+            if (this.dirty && ! confirm('Batalkan semua perubahan yang belum disimpan?')) {
+                return;
+            }
+
+            window.location.reload();
+        },
+
+        post(url, payload) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ _token: this.config.token, ...payload }),
+            }).then(async (response) => {
+                const json = await response.json().catch(() => ({}));
+
+                return { ok: response.ok, json: json };
+            });
+        },
+
+        validate() {
+            const form = this.$refs.form;
+            const value = (name) => (form.elements[name]?.value || '').trim();
+            const errors = {};
+
+            if (value('nama_guru') === '') {
+                errors.nama_guru = 'Nama guru wajib diisi.';
+            }
+
+            const email = value('email');
+            if (email !== '' && ! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errors.email = 'Format email tidak valid.';
+            }
+
+            const nip = value('nip');
+            if (nip !== '' && ! /^[0-9]+$/.test(nip)) {
+                errors.nip = 'NIP/NUPTK harus angka.';
+            }
+
+            // Aturan longgar di client: normalisasi sebenarnya dilakukan server
+            // lewat WhatsAppLink — 08, +62, dan 62 semuanya sah.
+            const wa = value('wa_number');
+            if (wa !== '' && ! /^[0-9+\-\s()]{7,20}$/.test(wa)) {
+                errors.wa_number = 'Nomor WhatsApp tidak valid.';
+            }
+
+            const nik = value('no_ktp');
+            if (nik !== '' && ! /^[0-9]{8,20}$/.test(nik)) {
+                errors.no_ktp = 'NIK 8–20 digit angka.';
+            }
+
+            const lahir = value('tgl_lahir');
+            if (lahir !== '' && isNaN(Date.parse(lahir))) {
+                errors.tgl_lahir = 'Tanggal lahir tidak valid.';
+            }
+
+            const kodePos = value('kode_pos');
+            if (kodePos !== '' && ! /^[0-9]{3,10}$/.test(kodePos)) {
+                errors.kode_pos = 'Kode pos harus angka.';
+            }
+
+            const telegram = value('telegram_id').replace(/[\s@]/g, '');
+            if (telegram !== '' && ! /^-?\d{1,20}$/.test(telegram)) {
+                errors.telegram_id = 'ID Telegram harus angka saja.';
+            }
+
+            this.errors = errors;
+
+            return Object.keys(errors).length === 0;
+        },
+
+        async submit() {
+            if (this.saving) {
+                return;
+            }
+
+            this.alert = '';
+
+            if (! this.validate()) {
+                this.tab = this.errors.no_ktp || this.errors.tgl_lahir || this.errors.kode_pos ? 'address' : 'profile';
+                this.alert = 'Periksa kembali: ' + Object.values(this.errors).join(' • ');
+                return;
+            }
+
+            this.saving = true;
+
+            const body = new FormData(this.$refs.form);
+            body.set('_token', this.config.token);
+
+            try {
+                const response = await fetch(this.config.urls.save, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body,
+                });
+                const res = await response.json().catch(() => ({}));
+
+                if (! res || ! res.status) {
+                    const message = (res && res.message) || 'Periksa kembali inputan Anda.';
+                    this.alert = 'Gagal menyimpan: ' + message;
+                    Swal.fire('Gagal', message, 'error');
+                    return;
+                }
+
+                this.dirty = false;
+
+                // Pesan utama selalu tentang profilnya; kanal notifikasi hanya
+                // disebut kalau ada yang benar-benar berubah.
+                const notif = Array.isArray(res.notif) ? res.notif.filter(Boolean) : [];
+                const adaGagal = notif.some((text) => /gagal|tidak bisa|ditolak|tidak tersedia/i.test(text));
+
+                if (notif.length === 0) {
+                    await Swal.fire('Berhasil', 'Data guru berhasil disimpan.', 'success');
+                } else if (adaGagal) {
+                    await Swal.fire({ icon: 'warning', title: 'Data guru disimpan, sebagian perlu perhatian', html: notif.join('<br>') });
+                } else {
+                    await Swal.fire({ icon: 'success', title: 'Data guru berhasil disimpan', html: '<b>Perubahan kanal notifikasi:</b><br>' + notif.join('<br>') });
+                }
+
+                window.location.reload();
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        /* ── Foto ────────────────────────────────────────────── */
+        openFotoModal() {
+            this.resetFoto();
+            this.$store.modals.open('#editFotoModal');
+        },
+
+        pickFoto() {
+            this.$refs.foto.click();
+        },
+
+        resetFoto() {
+            this.fotoFile = null;
+            this.fotoName = '';
+            this.cropVisible = false;
+            this.dzOver = false;
+            this.$refs.foto.value = '';
+            this.revokeCropUrl();
+        },
+
+        revokeCropUrl() {
+            if (this.cropUrl) {
+                URL.revokeObjectURL(this.cropUrl);
+                this.cropUrl = '';
+            }
+        },
+
+        onFotoDrop(event) {
+            this.dzOver = false;
+            const files = event.dataTransfer && event.dataTransfer.files;
+
+            if (files && files.length) {
+                this.onFotoPicked(files[0]);
+            }
+        },
+
+        onFotoPicked(file) {
+            if (! file) {
+                return;
+            }
+
+            if (! /jpe?g|png/i.test(file.type + ' ' + file.name)) {
+                Swal.fire('Format Salah', 'Foto harus JPG/PNG.', 'warning');
+                return;
+            }
+
+            if (file.size > 15 * 1024 * 1024) {
+                Swal.fire('Terlalu Besar', 'Ukuran file asli maksimal 15MB.', 'warning');
+                return;
+            }
+
+            this.revokeCropUrl();
+            this.cropUrl = URL.createObjectURL(file);
+            this.cropSrc = this.cropUrl;
+            this.cropVisible = true;
+            this.fotoFile = null;
+            this.fotoName = '';
+            this.ratio = '4x6';
+            this.zoom = 1;
+            this.panX = 0;
+            this.panY = 0;
+        },
+
+        onCropLoad() {
+            const image = this.$refs.cropImg;
+            const viewport = this.$refs.viewport;
+
+            if (! image || ! viewport) {
+                return;
+            }
+
+            this.natW = image.naturalWidth || 1;
+            this.natH = image.naturalHeight || 1;
+            this.measureViewport();
+        },
+
+        measureViewport() {
+            const viewport = this.$refs.viewport;
+
+            if (! viewport) {
+                return;
+            }
+
+            this.viewW = viewport.clientWidth || 210;
+            this.viewH = viewport.clientHeight || this.viewW * (this.ratio === '4x6' ? 1.5 : 1.333);
+            this.baseScale = Math.max(this.viewW / this.natW, this.viewH / this.natH);
+        },
+
+        get cropImgStyle() {
+            if (! this.natW) {
+                return 'display:none';
+            }
+
+            const scale = this.baseScale * this.zoom;
+
+            return 'width:' + (this.natW * scale) + 'px;height:' + (this.natH * scale)
+                + 'px;transform:translate(-50%,-50%) translate(' + this.panX + 'px,' + this.panY + 'px);';
+        },
+
+        renderCrop() {
+            this.clampPan();
+        },
+
+        clampPan() {
+            const scale = this.baseScale * this.zoom;
+            const maxX = Math.max(0, (this.natW * scale - this.viewW) / 2);
+            const maxY = Math.max(0, (this.natH * scale - this.viewH) / 2);
+
+            this.panX = Math.min(maxX, Math.max(-maxX, this.panX));
+            this.panY = Math.min(maxY, Math.max(-maxY, this.panY));
+        },
+
+        setRatio(key) {
+            this.ratio = key;
+            this.$nextTick(() => {
+                this.zoom = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.measureViewport();
+                this.clampPan();
+            });
+        },
+
+        resetCrop() {
+            this.zoom = 1;
+            this.panX = 0;
+            this.panY = 0;
+        },
+
+        startDrag(event) {
+            if (! this.natW) {
+                return;
+            }
+
+            this.dragging = true;
+            this.dragX = event.clientX;
+            this.dragY = event.clientY;
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+        },
+
+        drag(event) {
+            if (! this.dragging) {
+                return;
+            }
+
+            this.panX += event.clientX - this.dragX;
+            this.panY += event.clientY - this.dragY;
+            this.dragX = event.clientX;
+            this.dragY = event.clientY;
+            this.clampPan();
+        },
+
+        endDrag() {
+            this.dragging = false;
+        },
+
+        wheelZoom(event) {
+            if (! this.natW) {
+                return;
+            }
+
+            this.zoom = Math.min(3, Math.max(1, this.zoom - event.deltaY * 0.0015));
+            this.clampPan();
+        },
+
+        applyCrop() {
+            if (! this.natW) {
+                return;
+            }
+
+            const scale = this.baseScale * this.zoom;
+            const cropWidth = this.viewW / scale;
+            const cropHeight = this.viewH / scale;
+            const sourceX = (this.natW - cropWidth) / 2 - this.panX / scale;
+            const sourceY = (this.natH - cropHeight) / 2 - this.panY / scale;
+            const maxDim = 800;
+            const ratio = this.ratio === '4x6' ? { width: 2, height: 3 } : { width: 3, height: 4 };
+            const outputHeight = Math.floor(maxDim / ratio.height) * ratio.height;
+            const outputWidth = outputHeight * ratio.width / ratio.height;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = outputWidth;
+            canvas.height = outputHeight;
+
+            const context = canvas.getContext('2d');
+            context.imageSmoothingQuality = 'high';
+            // Latar putih: PNG transparan tidak jadi hitam saat diubah ke JPEG.
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, outputWidth, outputHeight);
+            context.drawImage(this.$refs.cropImg, sourceX, sourceY, cropWidth, cropHeight, 0, 0, outputWidth, outputHeight);
+
+            canvas.toBlob((blob) => {
+                if (! blob) {
+                    Swal.fire('Gagal', 'Crop tidak bisa diproses. Coba foto lain.', 'error');
+                    return;
+                }
+
+                this.fotoFile = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
+                this.fotoName = 'foto.jpg · ' + Math.max(1, Math.round(blob.size / 1024)) + ' KB';
+                this.cropVisible = false;
+                this.fotoSrc = URL.createObjectURL(blob);
+                this.revokeCropUrl();
+            }, 'image/jpeg', 0.8);
+        },
+
+        async uploadFoto() {
+            if (! this.fotoFile) {
+                Swal.fire('Peringatan', 'Pilih file foto terlebih dahulu.', 'warning');
+                return;
+            }
+
+            this.uploadingFoto = true;
+
+            const body = new FormData();
+            body.append('foto', this.fotoFile, 'foto.jpg');
+            body.append('_token', this.config.token);
+
+            try {
+                const response = await fetch(this.config.urls.uploadFoto, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body,
+                });
+                const res = await response.json().catch(() => ({}));
+
+                if (! res || ! res.status) {
+                    Swal.fire('Gagal', (res && res.message) || 'Gagal mengunggah foto.', 'error');
+                    return;
+                }
+
+                this.fotoSrc = res.src || this.fotoSrc;
+                this.$store.modals.close('#editFotoModal');
+                Swal.fire('Berhasil', 'Foto berhasil diperbarui', 'success');
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.uploadingFoto = false;
+            }
+        },
+
+        async deleteFoto() {
+            const confirmation = await Swal.fire({
+                title: 'Hapus Foto?',
+                text: 'Foto profil akan dihapus dan kembali ke default.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+            });
+
+            if (! confirmation.isConfirmed) {
+                return;
+            }
+
+            this.deletingFoto = true;
+
+            try {
+                const { ok, json } = await this.post(this.config.urls.deleteFoto, {});
+
+                if (ok && json.status) {
+                    this.fotoSrc = this.fotoDefault;
+                    Swal.fire('Terhapus!', 'Foto profil berhasil dihapus.', 'success');
+                    return;
+                }
+
+                Swal.fire('Gagal', (json && json.message) || 'Gagal menghapus foto.', 'error');
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.deletingFoto = false;
+            }
+        },
+
+        /* ── Login ───────────────────────────────────────────── */
+        async saveLogin() {
+            const errors = {};
+
+            if (this.login.username.trim().length < 4) {
+                errors.username = 'Username minimal 4 karakter.';
+            }
+
+            if (this.login.password !== '' && this.login.password.length < 6) {
+                errors.password = 'Password baru minimal 6 karakter.';
+            }
+
+            if (this.login.password !== '' && this.login.password !== this.login.confirm) {
+                errors.confirm = 'Konfirmasi tidak sama dengan password baru.';
+            }
+
+            this.loginErrors = errors;
+
+            if (Object.keys(errors).length > 0) {
+                return;
+            }
+
+            this.savingLogin = true;
+
+            try {
+                const { ok, json } = await this.post(this.config.urls.login, {
+                    id_guru: this.config.idGuru,
+                    username: this.login.username.trim(),
+                    new: this.login.password,
+                    new_confirm: this.login.confirm,
+                });
+
+                if (ok && json.status) {
+                    this.$store.modals.close('#editLoginModal');
+                    this.login.password = '';
+                    this.login.confirm = '';
+                    Swal.fire('Berhasil', json.text || 'Login diperbarui.', 'success');
+                    return;
+                }
+
+                const message = json.errors
+                    ? Object.values(json.errors).join('<br>')
+                    : (json.text || json.message || 'Gagal memperbarui login.');
+
+                Swal.fire('Gagal', message, 'error');
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.savingLogin = false;
+            }
+        },
+
+        /* ── Tanda tangan ────────────────────────────────────── */
+        openSignature() {
+            this.$store.modals.open('#modal-signature');
+            this.$nextTick(() => setTimeout(() => this.fitCanvas(), 60));
+        },
+
+        fitCanvas() {
+            const canvas = this.$refs.sigCanvas;
+
+            if (! canvas) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(200, Math.floor(rect.width));
+            const height = Math.max(120, Math.floor(rect.height || 200));
+
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+        },
+
+        sigPoint(event) {
+            const rect = this.$refs.sigCanvas.getBoundingClientRect();
+
+            return [event.clientX - rect.left, event.clientY - rect.top];
+        },
+
+        sigStart(event) {
+            this.sigDrawing = true;
+            this.$refs.sigCanvas.setPointerCapture?.(event.pointerId);
+            [this.sigX, this.sigY] = this.sigPoint(event);
+        },
+
+        sigMove(event) {
+            if (! this.sigDrawing) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const context = this.$refs.sigCanvas.getContext('2d');
+            const [x, y] = this.sigPoint(event);
+
+            context.beginPath();
+            context.moveTo(this.sigX, this.sigY);
+            context.lineTo(x, y);
+            context.lineWidth = 2;
+            context.lineCap = 'round';
+            context.stroke();
+            this.sigX = x;
+            this.sigY = y;
+        },
+
+        sigEnd() {
+            this.sigDrawing = false;
+        },
+
+        clearSignature() {
+            const canvas = this.$refs.sigCanvas;
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        },
+
+        async saveSignature() {
+            this.savingTtd = true;
+
+            try {
+                const { ok, json } = await this.post(this.config.urls.saveTtd, {
+                    id_guru: this.config.idGuru,
+                    image: this.$refs.sigCanvas.toDataURL('image/png'),
+                });
+
+                if (ok && json.status) {
+                    this.ttdSrc = json.src || this.ttdSrc;
+                    this.$store.modals.close('#modal-signature');
+                    Swal.fire('Berhasil', json.message || 'TTD tersimpan.', 'success');
+                    return;
+                }
+
+                Swal.fire('Gagal', (json && json.message) || 'Gagal menyimpan TTD.', 'error');
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.savingTtd = false;
+            }
+        },
+
+        async deleteTtd() {
+            const confirmation = await Swal.fire({
+                title: 'Hapus Tanda Tangan?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal',
+            });
+
+            if (! confirmation.isConfirmed) {
+                return;
+            }
+
+            this.deletingTtd = true;
+
+            try {
+                const { ok, json } = await this.post(this.config.urls.deleteTtd, { id_guru: this.config.idGuru });
+
+                if (ok && json.status) {
+                    this.ttdSrc = '';
+                    Swal.fire('Terhapus', json.message || 'TTD dihapus.', 'success');
+                    return;
+                }
+
+                Swal.fire('Gagal', (json && json.message) || 'Gagal menghapus TTD.', 'error');
+            } catch (e) {
+                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
+            } finally {
+                this.deletingTtd = false;
+            }
+        },
+
+        /* ── NFC ─────────────────────────────────────────────── */
+        async scanNfc() {
+            if (! ('NDEFReader' in window)) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Web NFC',
+                    html: '<div class="space-y-1.5 text-left text-xs text-slate-600">'
+                        + '<p>Fitur Tap NFC langsung di browser membutuhkan:</p>'
+                        + '<ul class="list-disc space-y-1 pl-4"><li>Smartphone <strong>Android</strong> ber-NFC.</li>'
+                        + '<li>Browser <strong>Google Chrome</strong> Android.</li>'
+                        + '<li>Akses melalui protokol <strong>HTTPS</strong>.</li></ul>'
+                        + '<p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual.</p></div>',
+                    confirmButtonText: 'Tutup',
+                });
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+
+                Swal.fire({
+                    title: 'Tempelkan Kartu NFC',
+                    text: 'Dekatkan kartu RFID ke bagian belakang HP Anda sekarang...',
+                    showCancelButton: true,
+                    cancelButtonText: 'Batal',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                });
+
+                ndef.onreading = (event) => {
+                    const serial = event.serialNumber || '';
+
+                    if (! serial) {
+                        return;
+                    }
+
+                    navigator.vibrate?.([100, 50, 100]);
+
+                    const clean = serial.replace(/[: -]/g, '').toUpperCase();
+                    const field = this.$refs.nomor_rfid;
+
+                    field.value = clean;
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    this.markDirty();
+
+                    Swal.fire({ icon: 'success', title: 'Kartu Terbaca!', text: 'UID Kartu: ' + clean, timer: 1800, showConfirmButton: false });
+                };
+            } catch (e) {
+                Swal.fire('Gagal', e.message || 'Tidak dapat membaca NFC.', 'error');
+            }
+        },
+    }));
+});
 </script>
 @endsection

@@ -1,693 +1,698 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    /* ── Tab pills (pola users) ─────────────── */
-    .tab-pill { transition: background .15s, color .15s, box-shadow .15s; }
-    .tab-pill.active {
-        background: #fff;
-        color: #0284c7;
-        box-shadow: 0 1px 6px rgba(0,0,0,.08);
-    }
-
-    .num-tabular {
-        font-variant-numeric: tabular-nums;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-
-    @media print {
-        .no-print { display: none !important; }
-        .fade-in-up { animation: none !important; }
-        body { background: #fff !important; }
-    }
-</style>
-@endsection
-
 @section('content')
+@php
+    // Normalisasi URL foto absensi: kolom menyimpan path relatif "uploads/absen/xxx.jpg".
+    $fotoUrl = function ($v) {
+        $s = trim((string) $v);
 
-<?php
-// Normalisasi URL foto absensi: kolom menyimpan path relatif "uploads/absen/xxx.jpg".
-$fotoUrl = function ($v) {
-    $s = trim((string) $v);
-    if ($s === '') return null;
-    if (preg_match('#^https?://#i', $s) || strpos($s, '/') === 0) return $s;
-    if (strpos($s, 'uploads/') === false) $s = 'uploads/absen/' . ltrim($s, '/');
-    $ver = file_exists(public_path() . '/' . $s) ? filemtime(public_path() . '/' . $s) : time();
-    return url($s) . '?v=' . $ver;
-};
-$namaBulanId = ['','Januari','Februari','Maret','April','Mei','Juni',
-                'Juli','Agustus','September','Oktober','November','Desember'];
-$labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
-?>
+        if ($s === '') {
+            return null;
+        }
 
-<!-- Page Header (pola kartu/dapodik/izin) -->
-<div class="fade-in-up p-4 md:p-6 space-y-6">
+        if (preg_match('#^https?://#i', $s) || strpos($s, '/') === 0) {
+            return $s;
+        }
 
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-cyan-50 text-cyan-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-briefcase-fill"></i> Verifikasi Dinas Luar
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'Verifikasi Dinas Luar' }}</h1>
-            <p class="text-xs text-slate-500 mt-1">Tinjau, periksa koordinat GPS, foto kehadiran, dan setujui permintaan dinas luar guru.</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/izin') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
-                <i class="bi bi-file-earmark-medical text-cyan-600"></i> Verifikasi Izin/Sakit
+        if (strpos($s, 'uploads/') === false) {
+            $s = 'uploads/absen/' . ltrim($s, '/');
+        }
+
+        $ver = file_exists(public_path() . '/' . $s) ? filemtime(public_path() . '/' . $s) : time();
+
+        return url($s) . '?v=' . $ver;
+    };
+
+    $namaBulanId = ['','Januari','Februari','Maret','April','Mei','Juni',
+                    'Juli','Agustus','September','Oktober','November','Desember'];
+    $labelBulanIni = $namaBulanId[(int) date('n')] . ' ' . date('Y');
+    $avatarFallback = \App\Services\AvatarService::cadangan();
+
+    $barisPending = [];
+    foreach ($pending as $p) {
+        $nama = $p->nama_guru ?? $p->username ?? 'Guru';
+        $fotoAbsen = $fotoUrl($p->foto_masuk ?? null) ?: $fotoUrl($p->foto_pulang ?? null);
+        $lat = !empty($p->lat_masuk) ? (float) $p->lat_masuk : null;
+        $lng = !empty($p->lng_masuk) ? (float) $p->lng_masuk : null;
+
+        $barisPending[] = [
+            'id' => (int) $p->id,
+            'cari' => mb_strtolower($nama . ' ' . ($p->nip ?? '') . ' ' . (!empty($p->tgl) ? date('d-m-Y', strtotime($p->tgl)) : '') . ' ' . ($p->device_info ?? '')),
+            'nama' => $nama,
+            'nip' => (string) ($p->nip ?? ''),
+            'avatar' => \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), (string) $nama, '#0284c7'),
+            'avatarFallback' => $avatarFallback,
+            'tanggal' => !empty($p->tgl) ? date('d M Y', strtotime($p->tgl)) : '—',
+            'jamMasuk' => !empty($p->jam_masuk) ? date('H:i', strtotime($p->jam_masuk)) : null,
+            'jamPulang' => !empty($p->jam_pulang) ? date('H:i', strtotime($p->jam_pulang)) : null,
+            'lat' => $lat,
+            'lng' => $lng,
+            'koordinat' => ($lat !== null && $lng !== null) ? round($lat, 5) . ', ' . round($lng, 5) : null,
+            'maps' => ($lat !== null && $lng !== null) ? 'https://maps.google.com/?q=' . $lat . ',' . $lng : null,
+            'akurasi' => !empty($p->gps_accuracy) ? (int) round($p->gps_accuracy) : null,
+            'mock' => !empty($p->is_mock_location) && (int) $p->is_mock_location === 1,
+            'keterangan' => trim((string) ($p->keterangan ?? '')),
+            'device' => trim((string) ($p->device_info ?? '')),
+            'ip' => trim((string) ($p->ip_address ?? '')),
+            'foto' => $fotoAbsen,
+        ];
+    }
+
+    $barisRiwayat = [];
+    foreach ($history ?? [] as $h) {
+        $nama = $h->nama_guru ?? $h->username ?? 'Guru';
+        $fotoAbsen = $fotoUrl($h->foto_masuk ?? null) ?: $fotoUrl($h->foto_pulang ?? null);
+        $disetujui = in_array($h->status_masuk, ['DINAS_APPROVED', 'DINAS'], true);
+        $lat = !empty($h->lat_masuk) ? (float) $h->lat_masuk : null;
+        $lng = !empty($h->lng_masuk) ? (float) $h->lng_masuk : null;
+
+        $barisRiwayat[] = [
+            'id' => (int) $h->id,
+            'cari' => mb_strtolower($nama . ' ' . ($h->nip ?? '') . ' ' . (!empty($h->tgl) ? date('d-m-Y', strtotime($h->tgl)) : '')),
+            'nama' => $nama,
+            'nip' => (string) ($h->nip ?? ''),
+            'avatar' => \App\Services\AvatarService::tampilan((string) ($h->foto ?? ''), (string) $nama, '#64748b'),
+            'avatarFallback' => $avatarFallback,
+            'tanggal' => !empty($h->tgl) ? date('d M Y', strtotime($h->tgl)) : '—',
+            'jamMasuk' => !empty($h->jam_masuk) ? date('H:i', strtotime($h->jam_masuk)) : null,
+            'jamPulang' => !empty($h->jam_pulang) ? date('H:i', strtotime($h->jam_pulang)) : null,
+            'koordinat' => ($lat !== null && $lng !== null) ? round($lat, 5) . ', ' . round($lng, 5) : null,
+            'maps' => ($lat !== null && $lng !== null) ? 'https://maps.google.com/?q=' . $lat . ',' . $lng : null,
+            'status' => $disetujui
+                ? ['kode' => 'approved', 'label' => 'Disetujui', 'ikon' => 'bi-check-circle-fill', 'kelas' => 'bg-emerald-50 text-emerald-700']
+                : ['kode' => 'rejected', 'label' => 'Ditolak', 'ikon' => 'bi-x-circle-fill', 'kelas' => 'bg-rose-50 text-rose-700'],
+            'diproses' => !empty($h->updated_at) ? date('d/m/Y H:i', strtotime($h->updated_at)) : '—',
+            'foto' => $fotoAbsen,
+        ];
+    }
+
+    // Kelas Tailwind ditulis utuh (bukan dirakit) agar ikut ter-scan saat build.
+    $kpi = [
+        [
+            'label' => 'Menunggu (Pending)', 'kunci' => 'pending', 'nilai' => $stats['pending'] ?? 0,
+            'ikon' => 'bi-hourglass-split', 'ket' => 'Permintaan dinas luar baru', 'catatan' => 'Perlu Respon',
+            'aksen' => 'border-l-amber-500', 'ikonKelas' => 'bg-amber-50 text-amber-600',
+            'badgeKelas' => 'bg-amber-50 text-amber-700',
+            'sorot' => ($stats['pending'] ?? 0) > 0 ? 'ring-1 ring-amber-200' : '',
+        ],
+        [
+            'label' => 'Disetujui (Bulan Ini)', 'kunci' => 'approved', 'nilai' => $stats['approved'] ?? 0,
+            'ikon' => 'bi-check2-circle', 'ket' => 'Poin kehadiran diberikan', 'catatan' => 'Tervalidasi',
+            'aksen' => 'border-l-emerald-500', 'ikonKelas' => 'bg-emerald-50 text-emerald-600',
+            'badgeKelas' => 'bg-emerald-50 text-emerald-700',
+            'sorot' => '',
+        ],
+        [
+            'label' => 'Ditolak (Bulan Ini)', 'kunci' => 'rejected', 'nilai' => $stats['rejected'] ?? 0,
+            'ikon' => 'bi-x-circle', 'ket' => 'Dianggap tidak sah / ditolak', 'catatan' => 'Ditolak',
+            'aksen' => 'border-l-rose-500', 'ikonKelas' => 'bg-rose-50 text-rose-600',
+            'badgeKelas' => 'bg-rose-50 text-rose-700',
+            'sorot' => '',
+        ],
+        [
+            'label' => 'Total Pengajuan', 'kunci' => 'total', 'nilai' => $stats['total'] ?? 0,
+            'ikon' => 'bi-collection', 'ket' => 'Antrean + diproses bulan ini', 'catatan' => $labelBulanIni,
+            'aksen' => 'border-l-sky-500', 'ikonKelas' => 'bg-sky-50 text-sky-600',
+            'badgeKelas' => 'bg-sky-50 text-sky-700',
+            'sorot' => '',
+        ],
+    ];
+
+    $config = [
+        'pending' => $barisPending,
+        'riwayat' => $barisRiwayat,
+        'urls' => [
+            'approve' => url('admin/presensi/approve-dinas'),
+            'reject' => url('admin/presensi/reject-dinas'),
+        ],
+        'csrf' => csrf_token(),
+    ];
+@endphp
+
+<div class="space-y-4" x-data="pendingDinas(@js($config))">
+
+    <x-ui.page-header title="{{ $judul ?? 'Verifikasi Dinas Luar' }}" icon="bi-briefcase-fill" tone="blue"
+        subtitle="Tinjau koordinat GPS, foto kehadiran, lalu setujui permintaan dinas luar guru."
+        :crumbs="['Presensi', 'Dinas Luar']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/izin') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                <i class="bi bi-file-earmark-medical text-blue-600"></i> Verifikasi Izin/Sakit
             </a>
-            <a href="{{ url('admin/presensi') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+            <a href="{{ url('admin/presensi') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
                 <i class="bi bi-speedometer2"></i> Monitoring Presensi
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <!-- KPI Stat Cards (pola dapodik: border-l accent) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- 1. Menunggu Verifikasi (Pending) -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-amber-500 shadow-xs p-4 flex items-center gap-3 {{ ($stats['pending'] ?? 0) > 0 ? 'ring-1 ring-amber-200' : '' }}">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center text-xl shrink-0">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Menunggu (Pending)</div>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                    <h3 class="text-2xl font-extrabold text-slate-900 num-tabular mb-0">{{ number_format($stats['pending'] ?? 0) }}</h3>
-                    <?php if (($stats['pending'] ?? 0) > 0): ?>
-                        <span class="badge-tw badge-warning text-[10px] rounded-full px-2 py-0.5 animate-pulse">Perlu Respon</span>
-                    <?php endif; ?>
-                </div>
-                <span class="text-[11px] text-slate-400 block mt-0.5">Permintaan dinas luar baru</span>
-            </div>
-        </div>
-
-        <!-- 2. Disetujui (Approved) -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-xs p-4 flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
-                <i class="bi bi-check2-circle"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Disetujui (Bulan Ini)</div>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                    <h3 class="text-2xl font-extrabold text-emerald-600 num-tabular mb-0">{{ number_format($stats['approved'] ?? 0) }}</h3>
-                    <span class="text-[10px] text-emerald-600 font-semibold">Tervalidasi</span>
-                </div>
-                <span class="text-[11px] text-slate-400 block mt-0.5">Poin kehadiran diberikan</span>
-            </div>
-        </div>
-
-        <!-- 3. Ditolak (Rejected) -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-red-500 shadow-xs p-4 flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-xl shrink-0">
-                <i class="bi bi-x-circle"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ditolak (Bulan Ini)</div>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                    <h3 class="text-2xl font-extrabold text-red-500 num-tabular mb-0">{{ number_format($stats['rejected'] ?? 0) }}</h3>
-                    <span class="text-[10px] text-red-500 font-semibold">Ditolak</span>
-                </div>
-                <span class="text-[11px] text-slate-400 block mt-0.5">Dianggap tidak sah / ditolak</span>
-            </div>
-        </div>
-
-        <!-- 4. Total Pengajuan -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 border-l-4 border-l-cyan-500 shadow-xs p-4 flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-xl shrink-0">
-                <i class="bi bi-collection"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Pengajuan</div>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                    <h3 class="text-2xl font-extrabold text-slate-900 num-tabular mb-0">{{ number_format($stats['total'] ?? 0) }}</h3>
-                    <span class="badge-tw badge-info text-[10px] rounded-full px-2 py-0.5">{{ $labelBulanIni }}</span>
-                </div>
-                <span class="text-[11px] text-slate-400 block mt-0.5">Antrean + diproses bulan ini</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Table Container -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <!-- Card Tabs & Action Bar -->
-        <div class="flex items-center gap-1 p-3 border-b border-slate-100 overflow-x-auto">
-            <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-xl" id="dinasTabs">
-                <button type="button" class="tab-pill active flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap" id="tabPendingBtn" data-dtab="pending">
-                    <i class="bi bi-hourglass-split"></i> Menunggu Verifikasi
-                    <span class="badge-tw badge-warning text-[10px] rounded-full px-2 py-0.5 num-tabular" id="badgeCountPending">{{ count($pending) }}</span>
-                </button>
-                <button type="button" class="tab-pill flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-slate-500 whitespace-nowrap" id="tabHistoryBtn" data-dtab="history">
-                    <i class="bi bi-clock-history"></i> Riwayat ({{ $labelBulanIni }})
-                    <span class="badge-tw badge-secondary text-[10px] rounded-full px-2 py-0.5 num-tabular">{{ count($history ?? []) }}</span>
-                </button>
-            </div>
-
-            <!-- Realtime Search -->
-            <div class="ml-auto flex items-center gap-2 pl-2">
-                <div class="relative w-full md:w-64">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
-                        <i class="bi bi-search"></i>
+    {{-- KPI ringkas --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        @foreach ($kpi as $item)
+            <x-ui.card body-class="p-4" class="border-l-4 {{ $item['aksen'] }} {{ $item['sorot'] }}">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl {{ $item['ikonKelas'] }}">
+                        <i class="bi {{ $item['ikon'] }}"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $item['label'] }}</p>
+                        <div class="mt-0.5 flex items-baseline gap-2">
+                            <p class="text-2xl font-extrabold tabular-nums text-slate-900">{{ number_format($item['nilai']) }}</p>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold {{ $item['badgeKelas'] }}">{{ $item['catatan'] }}</span>
+                        </div>
+                        <p class="mt-0.5 text-[11px] text-slate-400">{{ $item['ket'] }}</p>
                     </div>
-                    <input type="text" id="searchDinasInput"
-                        class="form-control-tw pl-8 pr-7 text-xs py-1.5 w-full rounded-lg"
-                        placeholder="Cari guru, NIP, tanggal..." autocomplete="off">
-                    <button type="button" id="clearDinasSearch" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 text-xs border-none bg-transparent cursor-pointer" title="Bersihkan">
-                        <i class="bi bi-x-circle-fill"></i>
+                </div>
+            </x-ui.card>
+        @endforeach
+    </div>
+
+    <x-ui.card body-class="p-0">
+        <x-slot:toolbar>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div class="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Tab verifikasi dinas">
+                    <button type="button" role="tab" :aria-selected="tab === 'pending' ? 'true' : 'false'"
+                        @click="tab = 'pending'"
+                        :class="tab === 'pending' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'"
+                        class="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-bold transition-colors">
+                        <i class="bi bi-hourglass-split"></i> Menunggu Verifikasi
+                        <span class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums"
+                            :class="tab === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'"
+                            x-text="semuaPending.length"></span>
+                    </button>
+                    <button type="button" role="tab" :aria-selected="tab === 'history' ? 'true' : 'false'"
+                        @click="tab = 'history'"
+                        :class="tab === 'history' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'"
+                        class="inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-bold transition-colors">
+                        <i class="bi bi-clock-history"></i> Riwayat
+                        <span class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums"
+                            :class="tab === 'history' ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'"
+                            x-text="semuaRiwayat.length"></span>
+                    </button>
+                </div>
+
+                <div class="relative w-full sm:ml-auto sm:w-64">
+                    <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                    <input type="text" x-model="cari" x-ref="cari" autocomplete="off"
+                        placeholder="Cari guru, NIP, tanggal..."
+                        aria-label="Cari pengajuan dinas"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <button type="button" x-show="cari !== ''" x-cloak @click="cari = ''; $refs.cari.focus()"
+                        class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700"
+                        title="Bersihkan pencarian">
+                        <i class="bi bi-x text-xs"></i>
                     </button>
                 </div>
             </div>
-        </div>
+        </x-slot:toolbar>
 
-        <!-- TAB 1: PENDING VERIFIKASI -->
-        <div id="sectionPending">
-            <?php if (empty($pending)): ?>
-                <div class="text-center py-16 px-4">
-                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                    <h5 class="text-base font-bold text-slate-700 mb-1">Semua Dinas Telah Diverifikasi</h5>
-                    <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                        Saat ini tidak ada permintaan presensi dinas luar yang sedang menunggu persetujuan.
-                    </p>
-                </div>
-            <?php else: ?>
-                <div class="overflow-x-auto">
-                    <table class="table-tw" id="tablePending">
-                        <thead>
-                            <tr>
-                                <th class="text-center w-12">#</th>
-                                <th>Guru / Pegawai</th>
-                                <th>Tanggal & Waktu</th>
-                                <th>Koordinat & Lokasi</th>
-                                <th>Device & Jaringan</th>
-                                <th class="text-center w-24">Foto</th>
-                                <th class="text-right pr-6" style="min-width: 140px;">Aksi Verifikasi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php
-                            $no = 1;
-                            foreach ($pending as $p):
-                                $nama = $p->nama_guru ?? $p->username ?? 'Guru';
-                                $avatar = \App\Services\AvatarService::tampilan((string) ($p->foto ?? ''), (string) $nama, '#0284c7');
-                                $fotoAbsen = $fotoUrl($p->foto_masuk ?? null) ?: $fotoUrl($p->foto_pulang ?? null);
-                                $searchString = strtolower($nama . ' ' . ($p->nip ?? '') . ' ' . date('d-m-Y', strtotime($p->tgl)) . ' ' . ($p->device_info ?? ''));
-                            ?>
-                                <tr id="row-{{ (int) $p->id }}" class="dinas-row" data-search="{{ $searchString }}">
-                                    <!-- No -->
-                                    <td class="text-center font-bold text-slate-400 text-xs num-tabular">{{ $no++ }}</td>
+        {{-- ══════════ TAB PENDING ══════════ --}}
+        <div x-show="tab === 'pending'" class="max-h-[62vh] overflow-auto" tabindex="0">
+            <table class="w-full text-[13px]">
+                <thead class="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                        <th class="w-10 px-3 py-3 text-center font-bold">#</th>
+                        <th class="min-w-[220px] px-3 py-3 text-left font-bold">Guru / Pegawai</th>
+                        <th class="min-w-[150px] px-3 py-3 text-left font-bold">Tanggal &amp; Waktu</th>
+                        <th class="min-w-[220px] px-3 py-3 text-left font-bold">Koordinat &amp; Lokasi</th>
+                        <th class="min-w-[170px] px-3 py-3 text-left font-bold">Device &amp; Jaringan</th>
+                        <th class="w-20 px-3 py-3 text-center font-bold">Foto</th>
+                        <th class="min-w-[190px] px-3 py-3 text-center font-bold">Aksi Verifikasi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr x-show="barisPending.length === 0">
+                        <td colspan="7" class="px-3 py-12 text-center">
+                            <span class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-500">
+                                <i class="bi bi-check-circle"></i>
+                            </span>
+                            <p class="text-sm font-bold text-slate-700"
+                                x-text="semuaPending.length === 0 ? 'Semua Dinas Telah Diverifikasi' : 'Tidak ada pengajuan yang cocok'"></p>
+                            <p class="mt-1 text-xs text-slate-400"
+                                x-text="semuaPending.length === 0 ? 'Saat ini tidak ada permintaan presensi dinas luar yang menunggu persetujuan.' : 'Coba ubah kata kunci pencarian.'"></p>
+                            <button type="button" x-show="semuaPending.length > 0" @click="cari = ''"
+                                class="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset pencarian
+                            </button>
+                        </td>
+                    </tr>
 
-                                    <!-- Guru -->
-                                    <td>
-                                        <div class="flex items-center gap-3">
-                                            <img src="{{ $avatar }}" class="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm flex-shrink-0" alt="Avatar" loading="lazy">
-                                            <div class="min-w-0">
-                                                <div class="font-bold text-slate-800 text-sm leading-tight truncate">{{ $nama }}</div>
-                                                <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                                    <span>NIP: {{ $p->nip ?? '-' }}</span>
-                                                    <span class="text-slate-300">•</span>
-                                                    <span class="badge-tw badge-warning text-[10px] rounded-full px-2 py-0.2">Pending</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
+                    <template x-for="(row, index) in barisPending" :key="row.id">
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400" x-text="index + 1"></td>
 
-                                    <!-- Tanggal & Waktu -->
-                                    <td>
-                                        <div class="space-y-1">
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                                                <i class="bi bi-calendar-check text-cyan-600"></i>
-                                                <span>{{ date('d M Y', strtotime($p->tgl)) }}</span>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-500 num-tabular">
-                                                <i class="bi bi-clock text-slate-400"></i>
-                                                <span>Masuk: <strong class="text-slate-700">{{ !empty($p->jam_masuk) ? date('H:i', strtotime($p->jam_masuk)) : '-' }}</strong></span>
-                                                <?php if (!empty($p->jam_pulang)): ?>
-                                                    <span class="text-slate-300">|</span>
-                                                    <span>Plg: <strong class="text-slate-700">{{ date('H:i', strtotime($p->jam_pulang)) }}</strong></span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <!-- Koordinat & Lokasi -->
-                                    <td>
-                                        <div class="space-y-1 text-xs">
-                                            <?php if (!empty($p->lat_masuk) && !empty($p->lng_masuk)): ?>
-                                                <div class="flex items-center gap-1.5">
-                                                    <i class="bi bi-geo-alt-fill text-red-500"></i>
-                                                    <a href="https://maps.google.com/?q={{ $p->lat_masuk }},{{ $p->lng_masuk }}"
-                                                        target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 font-mono underline decoration-blue-200">
-                                                        {{ round($p->lat_masuk, 5) }}, {{ round($p->lng_masuk, 5) }}
-                                                    </a>
-                                                    <button type="button" class="text-slate-400 hover:text-blue-600 ml-0.5 border-none bg-transparent cursor-pointer btn-open-maps"
-                                                        title="Buka Google Maps"
-                                                        data-lat="{{ $p->lat_masuk }}" data-lng="{{ $p->lng_masuk }}">
-                                                        <i class="bi bi-box-arrow-up-right text-[10px]"></i>
-                                                    </button>
-                                                </div>
-                                            <?php else: ?>
-                                                <span class="text-slate-400">Koordinat tidak tersedia</span>
-                                            <?php endif; ?>
-
-                                            <div class="flex items-center gap-1 flex-wrap">
-                                                <?php if (!empty($p->gps_accuracy)): ?>
-                                                    <span class="badge-tw badge-info text-[10px] rounded-full px-2 py-0.2">
-                                                        Akurasi ±{{ round($p->gps_accuracy) }}m
-                                                    </span>
-                                                <?php endif; ?>
-
-                                                <?php if (!empty($p->is_mock_location) && $p->is_mock_location == 1): ?>
-                                                    <span class="badge-tw badge-danger text-[10px] rounded-full px-2 py-0.2 font-bold" title="Terdeteksi fake GPS / mock location">
-                                                        <i class="bi bi-exclamation-triangle-fill mr-1"></i>Fake GPS
-                                                    </span>
-                                                <?php endif; ?>
-
-                                                <?php if (!empty($p->keterangan)): ?>
-                                                    <span class="text-slate-500 text-[11px] block truncate max-w-[180px]" title="{{ $p->keterangan }}">
-                                                        Ket: {{ $p->keterangan }}
-                                                    </span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <!-- Device Info -->
-                                    <td>
-                                        <div class="text-xs space-y-0.5">
-                                            <?php if (!empty($p->device_info)): ?>
-                                                <div class="flex items-center gap-1.5 text-slate-600 truncate max-w-[180px]" title="{{ $p->device_info }}">
-                                                    <i class="bi bi-phone text-slate-400"></i>
-                                                    <span class="truncate">{{ $p->device_info }}</span>
-                                                </div>
-                                            <?php else: ?>
-                                                <span class="text-slate-400">-</span>
-                                            <?php endif; ?>
-
-                                            <?php if (!empty($p->ip_address)): ?>
-                                                <div class="text-[11px] text-slate-400 font-mono">
-                                                    IP: {{ $p->ip_address }}
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-
-                                    <!-- Foto Bukti -->
-                                    <td class="text-center">
-                                        <?php if ($fotoAbsen): ?>
-                                            <button type="button" class="btn-view-foto relative group cursor-pointer inline-block border-none bg-transparent p-0"
-                                                data-foto="{{ $fotoAbsen }}" data-nama="{{ $nama }}" title="Lihat foto">
-                                                <img src="{{ $fotoAbsen }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:scale-105 transition-transform" alt="Foto Absen" loading="lazy"
-                                                     onerror="this.classList.add('hidden');var f=this.parentElement.querySelector('.foto-thumb-fallback');if(f){f.classList.remove('hidden');}">
-                                                <span class="foto-thumb-fallback hidden w-10 h-10 rounded-lg bg-slate-50 border border-dashed border-slate-300 text-slate-400" title="Foto tidak tersedia">
-                                                    <span class="w-10 h-10 flex items-center justify-center"><i class="bi bi-image text-xs"></i></span>
-                                                </span>
-                                                <div class="absolute inset-0 bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                                                    <i class="bi bi-zoom-in text-xs"></i>
-                                                </div>
-                                            </button>
-                                        <?php else: ?>
-                                            <span class="text-slate-300 text-xs" title="Guru tidak melampirkan foto">-</span>
-                                        <?php endif; ?>
-                                    </td>
-
-                                    <!-- Action Buttons -->
-                                    <td class="text-right pr-6">
-                                        <div class="inline-flex items-center rounded-lg shadow-sm">
-                                            <button type="button" class="btn-tw btn-tw-sm btn-success rounded-r-none px-2.5 py-1 text-xs js-approve-dinas"
-                                                data-id="{{ (int) $p->id }}" title="Setujui Dinas">
-                                                <i class="bi bi-check-lg mr-1"></i>Setujui
-                                            </button>
-                                            <button type="button" class="btn-tw btn-tw-sm btn-danger rounded-l-none px-2.5 py-1 text-xs js-reject-dinas"
-                                                data-id="{{ (int) $p->id }}" data-nama="{{ $nama }}" title="Tolak Dinas">
-                                                <i class="bi bi-x-lg mr-1"></i>Tolak
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- TAB 2: RIWAYAT DINAS (HISTORY) -->
-        <div id="sectionHistory" class="hidden">
-            <?php if (empty($history)): ?>
-                <div class="text-center py-16 px-4">
-                    <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-3xl mx-auto mb-3">
-                        <i class="bi bi-inbox"></i>
-                    </div>
-                    <h5 class="text-base font-bold text-slate-700 mb-1">Belum Ada Riwayat</h5>
-                    <p class="text-xs text-slate-400 max-w-sm mx-auto">
-                        Riwayat verifikasi dinas luar yang telah diproses akan ditampilkan di sini.
-                    </p>
-                </div>
-            <?php else: ?>
-                <div class="overflow-x-auto">
-                    <table class="table-tw" id="tableHistory">
-                        <thead>
-                            <tr>
-                                <th class="text-center w-12">#</th>
-                                <th>Guru / Pegawai</th>
-                                <th>Tanggal & Waktu</th>
-                                <th>Koordinat & Lokasi</th>
-                                <th class="text-center w-24">Status</th>
-                                <th class="text-center w-24">Foto</th>
-                                <th class="text-right pr-6">Diproses Pada</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php 
-                            $noH = 1;
-                            foreach ($history as $h):
-                                $namaH = $h->nama_guru ?? $h->username ?? 'Guru';
-                                $avatarH = \App\Services\AvatarService::tampilan((string) ($h->foto ?? ''), (string) $namaH, '#64748b');
-                                $fotoAbsenH = $fotoUrl($h->foto_masuk ?? null) ?: $fotoUrl($h->foto_pulang ?? null);
-                                $isApproved = in_array($h->status_masuk, ['DINAS_APPROVED', 'DINAS']);
-                                $searchStringH = strtolower($namaH . ' ' . ($h->nip ?? '') . ' ' . date('d-m-Y', strtotime($h->tgl)));
-                            ?>
-                                <tr class="dinas-row" data-search="{{ $searchStringH }}">
-                                    <td class="text-center font-bold text-slate-400 text-xs num-tabular">{{ $noH++ }}</td>
-
-                                    <!-- Guru -->
-                                    <td>
-                                        <div class="flex items-center gap-3">
-                                            <img src="{{ $avatarH }}" class="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-sm flex-shrink-0" alt="Avatar" loading="lazy">
-                                            <div class="min-w-0">
-                                                <div class="font-bold text-slate-800 text-sm leading-tight truncate">{{ $namaH }}</div>
-                                                <div class="text-xs text-slate-400 mt-0.5">NIP: {{ $h->nip ?? '-' }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <!-- Tanggal -->
-                                    <td>
-                                        <div class="space-y-1">
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                                                <i class="bi bi-calendar-check text-slate-400"></i>
-                                                <span>{{ date('d M Y', strtotime($h->tgl)) }}</span>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 text-xs text-slate-500 num-tabular">
-                                                <span>Masuk: {{ !empty($h->jam_masuk) ? date('H:i', strtotime($h->jam_masuk)) : '-' }}</span>
-                                                <?php if (!empty($h->jam_pulang)): ?>
-                                                    <span class="text-slate-300">|</span>
-                                                    <span>Plg: {{ date('H:i', strtotime($h->jam_pulang)) }}</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <!-- Lokasi -->
-                                    <td>
-                                        <div class="text-xs space-y-1">
-                                            <?php if (!empty($h->lat_masuk) && !empty($h->lng_masuk)): ?>
-                                                <a href="https://maps.google.com/?q={{ $h->lat_masuk }},{{ $h->lng_masuk }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 font-mono flex items-center gap-1">
-                                                    <i class="bi bi-geo-alt-fill text-red-500"></i>
-                                                    {{ round($h->lat_masuk, 5) }}, {{ round($h->lng_masuk, 5) }}
-                                                </a>
-                                            <?php else: ?>
-                                                <span class="text-slate-400">-</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-
-                                    <!-- Status Badge -->
-                                    <td class="text-center">
-                                        <?php if ($isApproved): ?>
-                                            <span class="badge-tw badge-success rounded-full text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1">
-                                                <i class="bi bi-check-circle-fill"></i> Disetujui
+                            <td class="px-3 py-2.5">
+                                <div class="flex items-center gap-2.5">
+                                    <img :src="row.avatar" :alt="row.nama" loading="lazy"
+                                        x-on:error="$el.src = row.avatarFallback"
+                                        class="h-9 w-9 shrink-0 rounded-xl bg-slate-100 object-cover ring-1 ring-slate-200">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold leading-tight text-slate-800" :title="row.nama" x-text="row.nama"></p>
+                                        <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                                            <span class="truncate">NIP: <span x-text="row.nip || '—'"></span></span>
+                                            <span class="text-slate-300">•</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                                                <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"></span> Pending
                                             </span>
-                                        <?php else: ?>
-                                            <span class="badge-tw badge-danger rounded-full text-[10px] px-2.5 py-0.5 inline-flex items-center gap-1">
-                                                <i class="bi bi-x-circle-fill"></i> Ditolak
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
+                                        </p>
+                                    </div>
+                                </div>
+                            </td>
 
-                                    <!-- Foto -->
-                                    <td class="text-center">
-                                        <?php if ($fotoAbsenH): ?>
-                                            <button type="button" class="btn-view-foto relative group cursor-pointer inline-block border-none bg-transparent p-0"
-                                                data-foto="{{ $fotoAbsenH }}" data-nama="{{ $namaH }}" title="Lihat foto">
-                                                <img src="{{ $fotoAbsenH }}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shadow-sm" alt="Foto" loading="lazy"
-                                                     onerror="this.classList.add('hidden');var f=this.parentElement.querySelector('.foto-thumb-fallback');if(f){f.classList.remove('hidden');}">
-                                                <span class="foto-thumb-fallback hidden w-10 h-10 rounded-lg bg-slate-50 border border-dashed border-slate-300 text-slate-400" title="Foto tidak tersedia">
-                                                    <span class="w-10 h-10 flex items-center justify-center"><i class="bi bi-image text-xs"></i></span>
-                                                </span>
-                                            </button>
-                                        <?php else: ?>
-                                            <span class="text-slate-300 text-xs">-</span>
-                                        <?php endif; ?>
-                                    </td>
+                            <td class="whitespace-nowrap px-3 py-2.5">
+                                <p class="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                    <i class="bi bi-calendar-check text-blue-500"></i>
+                                    <span x-text="row.tanggal"></span>
+                                </p>
+                                <p class="mt-1 flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-slate-500">
+                                    <i class="bi bi-clock text-slate-400"></i>
+                                    <span>Masuk: <strong class="text-slate-700" x-text="row.jamMasuk || '—'"></strong></span>
+                                    <template x-if="row.jamPulang">
+                                        <span class="text-slate-300">|</span>
+                                    </template>
+                                    <template x-if="row.jamPulang">
+                                        <span>Plg: <strong class="text-slate-700" x-text="row.jamPulang"></strong></span>
+                                    </template>
+                                </p>
+                            </td>
 
-                                    <!-- Updated At -->
-                                    <td class="text-right pr-6 text-xs text-slate-400 num-tabular">
-                                        {{ !empty($h->updated_at) ? date('d/m/Y H:i', strtotime($h->updated_at)) : '-' }}
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+                            <td class="px-3 py-2.5">
+                                <template x-if="row.koordinat">
+                                    <div class="flex items-center gap-1.5">
+                                        <i class="bi bi-geo-alt-fill text-rose-500"></i>
+                                        <a :href="row.maps" target="_blank" rel="noopener"
+                                            class="font-mono text-[11px] font-semibold text-blue-600 no-underline underline decoration-blue-200 hover:text-blue-800"
+                                            :title="'Buka ' + row.koordinat + ' di Google Maps'"
+                                            x-text="row.koordinat"></a>
+                                    </div>
+                                </template>
+                                <span x-show="!row.koordinat" class="text-xs text-slate-400">Koordinat tidak tersedia</span>
+
+                                <div class="mt-1 flex flex-wrap items-center gap-1">
+                                    <span x-show="row.akurasi !== null"
+                                        class="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                                        Akurasi ±<span x-text="row.akurasi"></span>m
+                                    </span>
+                                    <span x-show="row.mock" title="Terdeteksi fake GPS / mock location"
+                                        class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Fake GPS
+                                    </span>
+                                </div>
+                                <p x-show="row.keterangan" class="mt-1 max-w-[220px] truncate text-[11px] text-slate-500"
+                                    :title="row.keterangan">
+                                    Ket: <span x-text="row.keterangan"></span>
+                                </p>
+                            </td>
+
+                            <td class="px-3 py-2.5">
+                                <p x-show="row.device" class="flex max-w-[180px] items-center gap-1.5 text-xs text-slate-600" :title="row.device">
+                                    <i class="bi bi-phone shrink-0 text-slate-400"></i>
+                                    <span class="truncate" x-text="row.device"></span>
+                                </p>
+                                <span x-show="!row.device" class="text-xs text-slate-400">—</span>
+                                <p x-show="row.ip" class="mt-0.5 font-mono text-[11px] text-slate-400">IP: <span x-text="row.ip"></span></p>
+                            </td>
+
+                            <td class="px-3 py-2.5 text-center">
+                                <template x-if="row.foto">
+                                    <button type="button" @click="bukaFoto(row)"
+                                        class="group relative inline-flex items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                        title="Lihat foto kehadiran">
+                                        <img :src="row.foto" alt="Foto absen" loading="lazy"
+                                            x-on:error="$el.classList.add('hidden'); $el.nextElementSibling.classList.remove('hidden'); $el.nextElementSibling.classList.add('flex')"
+                                            class="h-10 w-10 rounded-lg border border-slate-200 object-cover shadow-xs transition-transform group-hover:scale-105">
+                                        <span class="hidden h-10 w-10 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                                            <i class="bi bi-image text-xs"></i>
+                                        </span>
+                                    </button>
+                                </template>
+                                <span x-show="!row.foto" class="text-xs text-slate-300" title="Guru tidak melampirkan foto">—</span>
+                            </td>
+
+                            <td class="px-3 py-2.5 text-center">
+                                <div class="inline-flex items-center gap-1.5">
+                                    <button type="button" @click="setujui(row)" :disabled="memproses"
+                                        class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        title="Setujui dinas luar">
+                                        <i class="bi" :class="idProses === row.id && aksi === 'setuju' ? 'bi-arrow-repeat animate-spin' : 'bi-check-lg'"></i>
+                                        Setujui
+                                    </button>
+                                    <button type="button" @click="bukaTolak(row)" :disabled="memproses"
+                                        class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        title="Tolak dinas luar">
+                                        <i class="bi bi-x-lg"></i> Tolak
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
         </div>
 
-    </div>
+        {{-- ══════════ TAB RIWAYAT ══════════ --}}
+        <div x-show="tab === 'history'" x-cloak class="max-h-[62vh] overflow-auto" tabindex="0">
+            <table class="w-full text-[13px]">
+                <thead class="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                        <th class="w-10 px-3 py-3 text-center font-bold">#</th>
+                        <th class="min-w-[220px] px-3 py-3 text-left font-bold">Guru / Pegawai</th>
+                        <th class="min-w-[150px] px-3 py-3 text-left font-bold">Tanggal &amp; Waktu</th>
+                        <th class="min-w-[200px] px-3 py-3 text-left font-bold">Koordinat &amp; Lokasi</th>
+                        <th class="w-[120px] px-3 py-3 text-center font-bold">Status</th>
+                        <th class="w-20 px-3 py-3 text-center font-bold">Foto</th>
+                        <th class="w-[140px] px-3 py-3 text-right font-bold">Diproses Pada</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr x-show="barisRiwayat.length === 0">
+                        <td colspan="7" class="px-3 py-12 text-center">
+                            <span class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-400">
+                                <i class="bi bi-inbox"></i>
+                            </span>
+                            <p class="text-sm font-bold text-slate-700"
+                                x-text="semuaRiwayat.length === 0 ? 'Belum Ada Riwayat' : 'Tidak ada riwayat yang cocok'"></p>
+                            <p class="mt-1 text-xs text-slate-400"
+                                x-text="semuaRiwayat.length === 0 ? 'Riwayat verifikasi dinas luar yang telah diproses akan tampil di sini.' : 'Coba ubah kata kunci pencarian.'"></p>
+                        </td>
+                    </tr>
 
-</div><!-- /page wrapper -->
+                    <template x-for="(row, index) in barisRiwayat" :key="row.id">
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-3 py-2.5 text-center font-mono text-xs text-slate-400" x-text="index + 1"></td>
 
-<!-- Modal Preview Foto Absen -->
-<div id="modalFotoDinas" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true" style="display:none">
-    <div class="modal-box-tw w-full max-w-lg">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div class="modal-header-tw border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
-                        <i class="bi bi-camera"></i>
-                    </div>
-                    <div>
-                        <h5 class="font-bold text-slate-800 text-sm leading-tight" id="modalFotoTitle">Foto Kehadiran Dinas</h5>
-                        <span class="text-xs text-slate-400">Bukti potret saat presensi dinas luar</span>
-                    </div>
-                </div>
-                <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition" data-ui-dismiss="modal">
-                    <i class="bi bi-x-lg text-sm"></i>
-                </button>
-            </div>
-            <div class="modal-body-tw p-6 text-center bg-slate-50/50">
-                <img id="previewFotoImg" src="" class="max-h-96 w-auto mx-auto rounded-xl border border-slate-200 shadow-sm object-contain" alt="Foto Absen">
-                <div id="fotoFallbackDinas" class="hidden w-full max-w-xs mx-auto">
-                    <div class="h-52 rounded-2xl bg-white border border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 text-center px-4">
-                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xl"><i class="bi bi-image"></i></div>
-                        <p class="m-0 text-xs font-bold text-slate-600">Foto tidak tersedia</p>
-                        <p class="m-0 text-[10px] text-slate-400 leading-relaxed">Berkas foto mungkin sudah dihapus atau gagal dimuat dari server.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer-tw border-t border-slate-100 px-6 py-3 bg-slate-50 flex items-center justify-between">
-                <a id="btnBukaTabFoto" href="" target="_blank" class="btn-tw btn-light text-xs border">
-                    <i class="bi bi-box-arrow-up-right mr-1"></i> Buka Gambar Penuh
-                </a>
-                <button type="button" class="btn-tw btn-light text-xs" data-ui-dismiss="modal">Tutup</button>
-            </div>
+                            <td class="px-3 py-2.5">
+                                <div class="flex items-center gap-2.5">
+                                    <img :src="row.avatar" :alt="row.nama" loading="lazy"
+                                        x-on:error="$el.src = row.avatarFallback"
+                                        class="h-9 w-9 shrink-0 rounded-xl bg-slate-100 object-cover ring-1 ring-slate-200">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold leading-tight text-slate-800" :title="row.nama" x-text="row.nama"></p>
+                                        <p class="mt-0.5 truncate text-[11px] text-slate-400">NIP: <span x-text="row.nip || '—'"></span></p>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="whitespace-nowrap px-3 py-2.5">
+                                <p class="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                    <i class="bi bi-calendar-check text-slate-400"></i>
+                                    <span x-text="row.tanggal"></span>
+                                </p>
+                                <p class="mt-1 flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-slate-500">
+                                    <span>Masuk: <span x-text="row.jamMasuk || '—'"></span></span>
+                                    <template x-if="row.jamPulang">
+                                        <span class="text-slate-300">|</span>
+                                    </template>
+                                    <template x-if="row.jamPulang">
+                                        <span>Plg: <span x-text="row.jamPulang"></span></span>
+                                    </template>
+                                </p>
+                            </td>
+
+                            <td class="px-3 py-2.5">
+                                <template x-if="row.koordinat">
+                                    <a :href="row.maps" target="_blank" rel="noopener"
+                                        class="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-blue-600 no-underline hover:text-blue-800">
+                                        <i class="bi bi-geo-alt-fill text-rose-500"></i>
+                                        <span x-text="row.koordinat"></span>
+                                    </a>
+                                </template>
+                                <span x-show="!row.koordinat" class="text-xs text-slate-400">—</span>
+                            </td>
+
+                            <td class="px-3 py-2.5 text-center">
+                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold" :class="row.status.kelas">
+                                    <i class="bi text-[10px]" :class="row.status.ikon"></i>
+                                    <span x-text="row.status.label"></span>
+                                </span>
+                            </td>
+
+                            <td class="px-3 py-2.5 text-center">
+                                <template x-if="row.foto">
+                                    <button type="button" @click="bukaFoto(row)"
+                                        class="group relative inline-flex items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                        title="Lihat foto kehadiran">
+                                        <img :src="row.foto" alt="Foto absen" loading="lazy"
+                                            x-on:error="$el.classList.add('hidden'); $el.nextElementSibling.classList.remove('hidden'); $el.nextElementSibling.classList.add('flex')"
+                                            class="h-10 w-10 rounded-lg border border-slate-200 object-cover shadow-xs transition-transform group-hover:scale-105">
+                                        <span class="hidden h-10 w-10 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                                            <i class="bi bi-image text-xs"></i>
+                                        </span>
+                                    </button>
+                                </template>
+                                <span x-show="!row.foto" class="text-xs text-slate-300">—</span>
+                            </td>
+
+                            <td class="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] tabular-nums text-slate-400" x-text="row.diproses"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
         </div>
-    </div>
+
+        <x-slot:footer>
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <span x-text="tab === 'pending'
+                    ? 'Menampilkan ' + barisPending.length + ' dari ' + semuaPending.length + ' pengajuan'
+                    : 'Menampilkan ' + barisRiwayat.length + ' dari ' + semuaRiwayat.length + ' riwayat'"></span>
+                <span>Periode: {{ $labelBulanIni }}</span>
+            </div>
+        </x-slot:footer>
+    </x-ui.card>
 </div>
 
-<!-- Modal Tolak Dinas -->
-<div id="modalRejectDinas" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true" style="display:none">
-    <div class="modal-box-tw w-full max-w-lg">
-        <form id="rejectDinasForm" novalidate>
-            @csrf
-            <div class="modal-header-tw">
-                <h5><i class="bi bi-x-circle mr-2"></i>Tolak Dinas Luar</h5>
-                <button type="button" class="btn-close" data-ui-dismiss="modal" aria-label="Tutup"></button>
-            </div>
-            <div class="modal-body-tw">
-                <input type="hidden" id="rejectDinasId">
-                <div class="alert-tw alert-info mb-3">
-                    <i class="bi bi-info-circle-fill"></i>
-                    <div>Pengajuan milik <strong id="rejectDinasNama">–</strong> akan ditolak dan poinnya direset ke 0.</div>
-                </div>
-                <label class="form-label-tw" for="rejectDinasAlasan">Alasan penolakan <span class="text-red-500">*</span></label>
-                <input type="text" class="form-control-tw" id="rejectDinasAlasan" minlength="5" maxlength="500" required placeholder="Contoh: Surat tugas tidak dilampirkan / lokasi tidak sesuai">
-            </div>
-            <div class="modal-footer-tw">
-                <button type="button" class="btn-tw btn-tw-sm btn-secondary" data-ui-dismiss="modal">Batal</button>
-                <button type="submit" class="btn-tw btn-tw-sm btn-danger" id="btnSubmitRejectDinas"><i class="bi bi-x-lg mr-1"></i>Konfirmasi Tolak</button>
-            </div>
-        </form>
-    </div>
-</div>
+{{-- ══════════ MODAL: FOTO KEHADIRAN DINAS ══════════ --}}
+<x-ui.modal id="fotoDinasModal" title="Foto Kehadiran Dinas" icon="bi-camera" tone="blue" size="max-w-lg">
+    <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 p-5 text-center">
+        <p class="mb-3 text-xs text-slate-500">
+            Dinas luar: <span class="font-bold text-slate-700" x-text="foto.nama || '—'"></span>
+        </p>
 
+        <template x-if="foto.url && !foto.gagal">
+            <img :src="foto.url" alt="Foto kehadiran dinas" x-on:error="foto.gagal = true"
+                class="mx-auto max-h-96 w-auto rounded-xl border border-slate-200 bg-white object-contain shadow-xs">
+        </template>
+
+        <div x-show="!foto.url || foto.gagal" x-cloak
+            class="mx-auto flex h-52 max-w-xs flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 text-center">
+            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl text-slate-400">
+                <i class="bi bi-image"></i>
+            </span>
+            <p class="text-xs font-bold text-slate-600">Foto tidak tersedia</p>
+            <p class="text-[10px] leading-relaxed text-slate-400">Berkas foto mungkin sudah dihapus atau gagal dimuat dari server.</p>
+        </div>
+    </div>
+
+    <div class="flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+        <a :href="foto.url || '#'" :class="foto.url ? '' : 'pointer-events-none opacity-50'"
+            target="_blank" rel="noopener"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-100">
+            <i class="bi bi-box-arrow-up-right"></i> Buka Gambar Penuh
+        </a>
+        <button type="button" data-ui-dismiss="modal"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100">
+            Tutup
+        </button>
+    </div>
+</x-ui.modal>
+
+{{-- ══════════ MODAL: TOLAK DINAS LUAR ══════════ --}}
+<x-ui.modal id="tolakDinasModal" title="Tolak Dinas Luar" icon="bi-x-circle" tone="rose" size="max-w-lg">
+    <form x-ref="tolakForm" @submit.prevent="kirimTolak()">
+        <div class="space-y-4 p-5">
+            <div class="flex gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-xs text-blue-800">
+                <i class="bi bi-info-circle-fill mt-0.5 shrink-0"></i>
+                <p class="leading-relaxed">
+                    Pengajuan milik <strong x-text="tolak.nama || '—'"></strong> akan ditolak dan poinnya direset ke 0.
+                </p>
+            </div>
+
+            <div>
+                <label for="tolakAlasan" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    Alasan Penolakan <span class="text-rose-500">*</span>
+                </label>
+                <input type="text" id="tolakAlasan" x-model="tolak.alasan" x-ref="alasan"
+                    minlength="5" maxlength="500" required autocomplete="off"
+                    placeholder="Contoh: Surat tugas tidak dilampirkan / lokasi tidak sesuai"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20">
+                <p class="mt-1 text-[11px] text-slate-400">Wajib diisi 5–500 karakter agar guru memahami dasar penolakan.</p>
+            </div>
+        </div>
+
+        <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+            <button type="button" data-ui-dismiss="modal"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100">
+                Batal
+            </button>
+            <button type="submit" :disabled="memproses"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <i class="bi" :class="memproses ? 'bi-arrow-repeat animate-spin' : 'bi-x-lg'"></i>
+                Konfirmasi Tolak
+            </button>
+        </div>
+    </form>
+</x-ui.modal>
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
-$(document).ready(function() {
-    var currentDinasTab = 'pending';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('pendingDinas', (config) => ({
+        tab: 'pending',
+        cari: '',
+        memproses: false,
+        idProses: null,
+        aksi: '',
+        semuaPending: config.pending || [],
+        semuaRiwayat: config.riwayat || [],
+        csrf: config.csrf,
+        urls: config.urls,
+        foto: { url: '', nama: '', gagal: false },
+        tolak: { id: null, nama: '', alasan: '' },
 
-    function switchDinasTab(tab) {
-        currentDinasTab = (tab === 'history') ? 'history' : 'pending';
-        var isPending = currentDinasTab === 'pending';
-        $('#tabPendingBtn').toggleClass('active', isPending).toggleClass('text-slate-500', !isPending);
-        $('#tabHistoryBtn').toggleClass('active', !isPending).toggleClass('text-slate-500', isPending);
-        $('#sectionPending').toggleClass('hidden', !isPending);
-        $('#sectionHistory').toggleClass('hidden', isPending);
-        filterDinasTable();
-    }
+        cocok(row) {
+            const kunci = this.cari.trim().toLowerCase();
 
-    function filterDinasTable() {
-        var keyword = ($('#searchDinasInput').val() || '').toLowerCase().trim();
-        var targetTable = (currentDinasTab === 'pending') ? '#tablePending' : '#tableHistory';
-        var visible = 0;
+            return kunci === '' || (row.cari || '').includes(kunci);
+        },
 
-        $(targetTable + ' tbody tr.dinas-row').each(function() {
-            var searchData = $(this).attr('data-search') || '';
-            var show = !keyword || searchData.includes(keyword);
-            $(this).toggle(show);
-            if (show) visible++;
-        });
+        get barisPending() {
+            return this.semuaPending.filter((row) => this.cocok(row));
+        },
 
-        var emptyId = (currentDinasTab === 'pending') ? '#emptySearchPending' : '#emptySearchHistory';
-        $(emptyId).remove();
-        if (visible === 0 && keyword) {
-            $(targetTable).after('<div id="' + emptyId.substring(1) + '" class="text-center py-8 text-slate-400 text-sm">Tidak ada hasil untuk "' + $('<div>').text(keyword).html() + '".</div>');
-        }
-    }
+        get barisRiwayat() {
+            return this.semuaRiwayat.filter((row) => this.cocok(row));
+        },
 
-    function clearDinasSearch() {
-        $('#searchDinasInput').val('');
-        filterDinasTable();
-        $('#searchDinasInput').focus();
-    }
+        buka(id) {
+            this.$store.modals.open('#' + id);
+        },
 
-    function viewFotoModal(fotoUrl, nama) {
-        // Add timestamp to prevent browser caching (only if not already present)
-        if (fotoUrl && !fotoUrl.includes('?t=')) {
-            fotoUrl = fotoUrl + '?t=' + Date.now();
-        }
-        $('#modalFotoTitle').text('Foto Dinas: ' + nama);
+        tutup(id) {
+            this.$store.modals.close('#' + id);
+        },
 
-        var $img = $('#previewFotoImg');
-        var $fallback = $('#fotoFallbackDinas');
-        $img.off('error.foto').removeAttr('src').removeClass('hidden');
-        $fallback.addClass('hidden');
+        bukaFoto(row) {
+            this.foto = { url: row.foto || '', nama: row.nama, gagal: false };
+            this.buka('fotoDinasModal');
+        },
 
-        if (fotoUrl) {
-            // Foto bisa saja sudah terhapus di server: tampilkan keterangan,
-            // bukan ikon gambar rusak.
-            $img.on('error.foto', function () {
-                $(this).addClass('hidden');
-                $fallback.removeClass('hidden');
-            });
-            $img.attr('src', fotoUrl);
-        } else {
-            $img.addClass('hidden');
-            $fallback.removeClass('hidden');
-        }
+        bukaTolak(row) {
+            this.tolak = { id: row.id, nama: row.nama, alasan: '' };
+            this.buka('tolakDinasModal');
+            this.$nextTick(() => this.$refs.alasan?.focus());
+        },
 
-        $('#btnBukaTabFoto').attr('href', fotoUrl || '#');
-        AdminUI.modal.open('#modalFotoDinas');
-    }
+        async kirim(url, isi) {
+            try {
+                const respon = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(isi || {}),
+                });
+                const data = await respon.json().catch(() => ({}));
 
-    function setDinasLoading($btn, busy, html) {
-        if (busy) {
-            $btn.data('orig', $btn.html());
-            $btn.prop('disabled', true).html('<span class="spinner-tw spinner-tw-lite"></span> Memproses...');
-        } else {
-            $btn.prop('disabled', false).html($btn.data('orig') || html);
-        }
-    }
-
-    function approveDinas(id, btn) {
-        var $btn = btn ? $(btn) : $('.js-approve-dinas[data-id="' + id + '"]');
-        if ($btn.is(':disabled')) return;
-        Swal.fire({
-            title: 'Setujui Dinas Luar?',
-            text: 'Absensi akan diverifikasi sah sebagai Dinas Luar dan poin kehadiran akan diberikan.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Setujui',
-            cancelButtonText: 'Batal'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            setDinasLoading($btn, true);
-            var data = {};
-            data['{{ $csrfName }}'] = '{{ $csrfHash }}';
-
-            $.post('{{ url('admin/presensi/approve-dinas') }}/' + id, data, function (res) {
-                if (res.status) {
-                    Swal.fire({ title: 'Berhasil!', text: res.message || 'Permintaan dinas berhasil disetujui.', icon: 'success', timer: 1500, showConfirmButton: false })
-                        .then(function() { location.reload(); });
-                } else {
-                    Swal.fire('Gagal Menyetujui', res.message || 'Terjadi kesalahan sistem.', 'error');
-                    setDinasLoading($btn, false);
-                }
-            }, 'json').fail(function() {
-                Swal.fire('Error Sistem', 'Gagal menghubungi server.', 'error');
-                setDinasLoading($btn, false);
-            });
-        });
-    }
-
-    function openRejectDinas(id, nama) {
-        $('#rejectDinasId').val(id);
-        $('#rejectDinasNama').text(nama || '-');
-        $('#rejectDinasAlasan').val('');
-        AdminUI.modal.open('#modalRejectDinas');
-    }
-
-    function submitRejectDinas(e) {
-        e.preventDefault();
-        var form = $('#rejectDinasForm');
-        if (!form[0].checkValidity()) { form[0].reportValidity(); return false; }
-        var id = $('#rejectDinasId').val();
-        var btn = $('#btnSubmitRejectDinas');
-        var orig = btn.html();
-        btn.prop('disabled', true).html('<span class="spinner-tw"></span> Memproses...');
-        $.post('{{ url('admin/presensi/reject-dinas') }}/' + id, {
-            alasan: $('#rejectDinasAlasan').val(),
-            '{{ $csrfName }}': '{{ $csrfHash }}'
-        }, function (res) {
-            if (res.status) {
-                AdminUI.modal.close('#modalRejectDinas');
-                Swal.fire({ title: 'Dinas Ditolak', text: res.message || 'Permintaan dinas telah ditolak.', icon: 'success', timer: 1500, showConfirmButton: false })
-                    .then(function() { location.reload(); });
-            } else {
-                Swal.fire('Gagal Memproses', res.message || 'Terjadi kesalahan sistem.', 'error');
-                btn.prop('disabled', false).html(orig);
+                return {
+                    ok: respon.ok && data.status !== false,
+                    status: respon.status,
+                    pesan: data.message || 'Terjadi kesalahan pada server',
+                };
+            } catch (galat) {
+                return { ok: false, status: 0, pesan: 'Gagal menghubungi server' };
             }
-        }, 'json').fail(function() {
-            Swal.fire('Error Sistem', 'Gagal menghubungi server.', 'error');
-            btn.prop('disabled', false).html(orig);
-        });
-        return false;
-    }
+        },
 
-    // ── Delegated bindings (ganti onclick inline) ──
-    $('#dinasTabs').on('click', '[data-dtab]', function () { switchDinasTab($(this).data('dtab')); });
-    $('#searchDinasInput').on('keyup input', filterDinasTable);
-    $('#clearDinasSearch').on('click', clearDinasSearch);
-    $('#rejectDinasForm').on('submit', submitRejectDinas);
-    $(document).on('click', '.js-approve-dinas', function () { approveDinas($(this).data('id'), this); });
-    $(document).on('click', '.js-reject-dinas', function () { openRejectDinas($(this).data('id'), $(this).data('nama')); });
-    $(document).on('click', '.btn-view-foto', function () { viewFotoModal($(this).data('foto'), $(this).data('nama')); });
-    $(document).on('click', '.btn-open-maps', function () {
-        window.open('https://maps.google.com/?q=' + encodeURIComponent($(this).data('lat')) + ',' + encodeURIComponent($(this).data('lng')), '_blank', 'noopener');
-    });
+        konfirmasi(judul, teks, label, warna) {
+            return Swal.fire({
+                title: judul,
+                text: teks,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: warna || '#2563eb',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: label || 'Ya',
+                cancelButtonText: 'Batal',
+            }).then((hasil) => hasil.isConfirmed);
+        },
 
-    window.switchDinasTab = switchDinasTab;
-    window.filterDinasTable = filterDinasTable;
-    window.clearDinasSearch = clearDinasSearch;
-    window.viewFotoModal = viewFotoModal;
-    window.approveDinas = approveDinas;
-    window.openRejectDinas = openRejectDinas;
-    window.submitRejectDinas = submitRejectDinas;
+        berhasil(judul, pesan) {
+            Swal.fire({ icon: 'success', title: judul, text: pesan, timer: 1500, showConfirmButton: false })
+                .then(() => location.reload());
+        },
+
+        async setujui(row) {
+            if (this.memproses) {
+                return;
+            }
+
+            const lanjut = await this.konfirmasi(
+                'Setujui Dinas Luar?',
+                'Absensi ' + row.nama + ' akan diverifikasi sah sebagai Dinas Luar dan poin kehadiran diberikan.',
+                'Ya, Setujui',
+                '#059669',
+            );
+
+            if (!lanjut) {
+                return;
+            }
+
+            this.memproses = true;
+            this.idProses = row.id;
+            this.aksi = 'setuju';
+
+            try {
+                const hasil = await this.kirim(this.urls.approve + '/' + encodeURIComponent(row.id), {});
+
+                if (!hasil.ok) {
+                    Swal.fire('Gagal Menyetujui', hasil.pesan, 'error');
+
+                    return;
+                }
+
+                this.berhasil('Berhasil!', hasil.pesan);
+            } finally {
+                this.memproses = false;
+                this.idProses = null;
+                this.aksi = '';
+            }
+        },
+
+        async kirimTolak() {
+            if (this.memproses) {
+                return;
+            }
+
+            const alasan = this.tolak.alasan.trim();
+
+            if (alasan.length < 5) {
+                Swal.fire('Perhatian', 'Alasan penolakan wajib diisi minimal 5 karakter', 'warning');
+
+                return;
+            }
+
+            this.memproses = true;
+
+            try {
+                const hasil = await this.kirim(this.urls.reject + '/' + encodeURIComponent(this.tolak.id), { alasan });
+
+                if (!hasil.ok) {
+                    Swal.fire('Gagal Memproses', hasil.pesan, 'error');
+
+                    return;
+                }
+
+                this.tutup('tolakDinasModal');
+                this.berhasil('Dinas Ditolak', hasil.pesan);
+            } finally {
+                this.memproses = false;
+            }
+        },
+    }));
 });
 </script>
 @endsection

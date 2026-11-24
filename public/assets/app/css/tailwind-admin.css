@@ -1,87 +1,12 @@
 /* ================================================================
    TAILWIND ADMIN — Component Library
-   Digunakan bersama Tailwind CDN di layouts/main.php
+   ----------------------------------------------------------------
+   Kelas komponen lama (.btn-tw, .card-tw, .stat-card, .modal, ...)
+   yang masih dipakai halaman Blade. Token warna, reset, dan scrollbar
+   sudah pindah ke resources/css/app.css (@theme + base), sehingga file
+   ini hanya berisi komponen + override plugin (DataTables, Select2,
+   SweetAlert2, Toastr, Summernote, Dropify).
    ================================================================ */
-
-/* ================================================================
-   SEMANTIC THEME UTILITIES
-   ------------------------------------------------------------
-   Utility Tailwind untuk token semantik dari Theme::cssVars()
-   (--surface, --border, --text-*, --primary, --accent, ...).
-
-   Token ini hanya tersedia sebagai CSS variable runtime (diumpan
-   lewat {!! Theme::styleTag() !!}), sehingga Vite/Tailwind tidak
-   bisa mem-bake utility -->text-text-primary / bg-surface-muted
-   ke dalam build statis. Tanpa blok di bawah ini, utility tersebut
-   tidak punya aturan sama sekali dan elemen jatuh ke nilai default.
-
-   Blok ini sengaja memakai CSS variable (bukan hex tetap) agar
-   perubahan tema di Pengaturan langsung ikut ter-apply.
-   ================================================================ */
-
-.bg-surface        { background-color: var(--surface, #ffffff); }
-.bg-surface-hover  { background-color: var(--surface-hover, #f8fafc); }
-.bg-surface-muted  { background-color: var(--surface-muted, #f4f6fb); }
-.bg-surface-inverse { background-color: var(--surface-inverse, #0f172a); }
-
-.text-text-primary   { color: var(--text-primary, #0f1729); }
-.text-text-secondary { color: var(--text-secondary, #475569); }
-.text-text-muted     { color: var(--text-muted, #94a3b8); }
-.text-text-inverse   { color: var(--text-inverse, #ffffff); }
-.text-text-success   { color: var(--text-success, #047857); }
-.text-text-warning   { color: var(--text-warning, #c2410c); }
-.text-text-error     { color: var(--text-error, #dc2626); }
-.text-text-info      { color: var(--text-info, #1d4ed8); }
-
-.border-border        { border-color: var(--border, #e2e8f0); }
-.border-border-focus  { border-color: var(--border-focus, #3b82f6); }
-.border-border-muted  { border-color: var(--border-muted, #cbd5e1); }
-
-.bg-primary         { background-color: var(--primary, #e11d48); }
-.bg-primary-hover   { background-color: var(--primary-hover, #be123c); }
-.bg-primary-active  { background-color: var(--primary-active, #9f1239); }
-.bg-primary-subtle  { background-color: var(--primary-subtle, #fff1f2); }
-.bg-accent          { background-color: var(--accent, #4f46e5); }
-.bg-accent-subtle   { background-color: var(--accent-subtle, #eef2ff); }
-
-.text-primary    { color: var(--primary, #e11d48); }
-.text-accent     { color: var(--accent, #4f46e5); }
-
-/* ── Brand palette (alias primary) ── */
-.bg-brand-50      { background-color: var(--brand-50); }
-.bg-brand-100     { background-color: var(--brand-100); }
-.bg-brand-500     { background-color: var(--brand-500); }
-.bg-brand-600     { background-color: var(--brand-600); }
-.bg-brand-700     { background-color: var(--brand-700); }
-.text-brand-500   { color: var(--brand-500); }
-.text-brand-600   { color: var(--brand-600); }
-.text-brand-700   { color: var(--brand-700); }
-.border-brand-500 { border-color: var(--brand-500); }
-.border-brand-600 { border-color: var(--brand-600); }
-
-/* ── Overlay putih transparan (dipakai sidebar & hero) ──
-   Tailwind v4 hanya menghasilkan step opacity resmi (10/15/20/...),
-   sehingga nilai custom seperti /8 tidak ter-bake ke build statis. */
-.bg-white\/8  { background-color: rgb(255 255 255 / 0.08); }
-.bg-white\/12 { background-color: rgb(255 255 255 / 0.12); }
-.bg-white\/20 { background-color: rgb(255 255 255 / 0.20); }
-.hover\:bg-white\/8:hover  { background-color: rgb(255 255 255 / 0.08); }
-.hover\:bg-white\/12:hover { background-color: rgb(255 255 255 / 0.12); }
-.hover\:bg-white\/20:hover { background-color: rgb(255 255 255 / 0.20); }
-
-/* ── Opsionalitas teks (dipakai footer layout) ── */
-.text-text-secondary\/80 { color: rgb(from var(--text-secondary, #475569) r g b / 0.8); }
-
-/* ── Layout ── */
-.h-screen { height: 100vh; }
-
-/* ── Reset & Base ── */
-*, *::before, *::after { box-sizing: border-box; }
-body {
-    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-    background: #f4f6fb;
-    color: #1e293b;
-}
 
 /* ── Page Header ── */
 .content-header {
@@ -778,11 +703,6 @@ page { background: white; display: block; margin: 0 auto 0.5cm; }
 page[size="A4"][layout="potrait"] { width: 21cm; height: 29.7cm; }
 page[size="A4"] { width: 29.7cm; height: 21cm; }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ── Ruang ikon di dalam input: shorthand padding .form-control-tw /
    .form-select-tw mengalahkan .pl-* / .pr-* Tailwind (layered) —
@@ -794,3 +714,47 @@ page[size="A4"] { width: 29.7cm; height: 21cm; }
 .form-control-tw.pr-8, .form-select-tw.pr-8 { padding-right: 2rem; }
 .form-control-tw.pr-10, .form-select-tw.pr-10 { padding-right: 2.5rem; }
 .form-control-tw.pr-24, .form-select-tw.pr-24 { padding-right: 6rem; }
+
+/* ════════════════════════════════════════════════════════════════
+   SweetAlert2 — tema brand (dipindahkan dari <style> layout agar
+   seluruh komponen pihak ketiga punya satu sumber override).
+   ════════════════════════════════════════════════════════════════ */
+.swal2-popup {
+    border-radius: 22px !important;
+    padding: 1.5rem 1.5rem 1.25rem !important;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif !important;
+    box-shadow: 0 24px 64px rgba(15,23,42,.22) !important;
+}
+.swal2-title {
+    font-weight: 800 !important; color: #1e293b !important;
+    font-size: 1.15rem !important; letter-spacing: -.3px !important;
+    padding-top: .25em !important;
+}
+.swal2-html-container { color: #64748b !important; font-size: .875rem !important; line-height: 1.6 !important; }
+.swal2-icon { border-width: 2.5px !important; margin: .6em auto 1em !important; transform: scale(.92); }
+.swal2-icon.swal2-warning { border-color: #fed7aa !important; color: #f59e0b !important; }
+.swal2-icon.swal2-success { border-color: #a7f3d0 !important; color: #10b981 !important; }
+.swal2-icon.swal2-success [class^=swal2-success-line] { background-color: #10b981 !important; }
+.swal2-icon.swal2-success .swal2-success-ring { border-color: #a7f3d0 !important; }
+.swal2-icon.swal2-error { border-color: #fecaca !important; color: #ef4444 !important; }
+.swal2-icon.swal2-error [class^=swal2-x-mark-line] { background-color: #ef4444 !important; }
+.swal2-icon.swal2-info, .swal2-icon.swal2-question { border-color: var(--primary-200) !important; color: var(--primary-600) !important; }
+.swal2-actions { gap: 8px !important; margin-top: 1.1em !important; }
+.swal2-styled.swal2-confirm {
+    background: var(--primary-600) !important; border-radius: 9999px !important;
+    font-weight: 800 !important; padding: .65em 1.7em !important;
+    box-shadow: 0 6px 16px rgb(var(--primary-600-rgb) / .32) !important;
+}
+.swal2-styled.swal2-cancel {
+    background: #f1f5f9 !important; color: #64748b !important; border-radius: 9999px !important;
+    font-weight: 700 !important; padding: .65em 1.7em !important;
+}
+.swal2-styled:focus { box-shadow: 0 0 0 3px rgb(var(--primary-600-rgb) / .2) !important; }
+.swal2-input, .swal2-textarea {
+    border-radius: 14px !important; border: 1.5px solid #e2e8f0 !important;
+    font-size: .875rem !important; color: #1e293b !important;
+}
+.swal2-input:focus, .swal2-textarea:focus {
+    border-color: var(--primary-600) !important; box-shadow: 0 0 0 3px rgb(var(--primary-600-rgb) / .14) !important;
+}
+.swal2-validation-message { border-radius: 12px !important; font-size: .8rem !important; }

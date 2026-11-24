@@ -1,24 +1,5 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-    .kelas-row { transition: background .12s; }
-    .kelas-row:hover { background: #f8fafc; }
-    .avatar-kelas { width: 36px; height: 36px; border-radius: 12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; letter-spacing:.3px; }
-    .action-btn { width:32px; height:32px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; transition: all .14s; }
-    .action-btn:hover { transform: translateY(-1px); }
-    .filter-chip { transition: all .15s; }
-    .filter-chip.active { background:var(--primary-600); color:#fff; border-color:var(--primary-600); box-shadow:0 4px 12px -4px rgb(var(--primary-600-rgb) / .4); }
-    #table-kelas_wrapper .dataTables_filter { display:none; }
-    #table-kelas_wrapper .dataTables_length { display:none; }
-    #table-kelas_wrapper .dataTables_info { font-size:11px; color:#94a3b8; font-weight:600; padding-top: .8rem; }
-    #table-kelas_wrapper .dataTables_paginate { padding-top:.8rem; }
-    .table-sticky thead th { position:sticky; top:0; z-index:5; background:#f8fafc; }
-    .bulk-chip { animation: chipIn .2s ease; }
-    @keyframes chipIn { from { opacity:0; transform: scale(.9); } to { opacity:1; transform:scale(1);} }
-</style>
-@endsection
-
 @section('content')
 
 <?php
@@ -38,36 +19,14 @@ $tpTahun = e($tp_active->tahun ?? '-');
 $smtVal  = e($smt_active->smt ?? '-');
 ?>
 
-<div class="fade-in-up">
+<div class="fade-in-up" x-data="dataTable({ perPage: 12, sort: 1 })">
     <!-- ── Page Header ─────────────────────────────── -->
-    <div class="px-4 md:px-6 pt-6">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5 min-w-0">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-                    <i class="bi bi-building text-xl"></i>
-                </div>
-                <div class="min-w-0">
-                    <h1 class="text-[19px] md:text-xl font-extrabold text-slate-800 tracking-tight leading-none truncate">Data Kelas / Rombel</h1>
-                    <p class="text-xs text-slate-500 font-medium mt-1 flex flex-wrap items-center gap-1.5">
-                        <span class="inline-flex items-center gap-1"><i class="bi bi-calendar3 text-slate-400"></i> TP {{ $tpTahun }}</span>
-                        <span class="w-1 h-1 rounded-full bg-slate-300"></span>
-                        <span>Semester {{ $smtVal }}</span>
-                        <span class="hidden sm:inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {{ $totalKelas }} rombel aktif
-                        </span>
-                    </p>
-                </div>
-            </div>
-            <nav aria-label="breadcrumb" class="shrink-0">
-                <ol class="flex items-center gap-1.5 text-xs font-semibold bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-sm">
-                    <li><a href="{{ url('dashboard') }}" class="text-slate-500 hover:text-blue-600 transition-colors no-underline inline-flex items-center gap-1"><i class="bi bi-house-door"></i> Dashboard</a></li>
-                    <li class="text-slate-300">/</li>
-                    <li class="text-slate-400">Data Umum</li>
-                    <li class="text-slate-300">/</li>
-                    <li class="text-blue-600">Kelas</li>
-                </ol>
-            </nav>
-        </div>
+    <div class="px-4 pt-6 md:px-6">
+        <x-ui.page-header
+            title="Data Kelas / Rombel"
+            icon="bi-building"
+            :subtitle="'TP ' . $tpTahun . ' · Semester ' . $smtVal . ' · ' . $totalKelas . ' rombel aktif'"
+            :crumbs="['Data Umum', 'Kelas']" />
     </div>
 
     <!-- ── Main Card ─────────────────────────────── -->
@@ -105,35 +64,39 @@ $smtVal  = e($smt_active->smt ?? '-');
                 <div class="flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
                     <div class="flex items-center gap-2 flex-1 min-w-0">
                         <div class="relative flex-1 max-w-[360px]">
-                            <input id="kelasSearch" type="text" placeholder="Cari kelas, wali, atau jurusan..." class="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-400">
+                            <input id="kelasSearch" type="text" x-model="query" placeholder="Cari kelas, wali, atau jurusan..." class="w-full pl-9 pr-8 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-400">
                             <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <button type="button" id="clearKelasSearch" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 inline-flex items-center justify-center text-xs">&times;</button>
+                            <button type="button" id="clearKelasSearch" x-show="query.length > 0" x-cloak @click="query = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 inline-flex items-center justify-center text-xs">&times;</button>
                         </div>
-                        <span id="kelasCount" class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-600">{{ $totalKelas }} data</span>
+                        <span id="kelasCount" class="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-600" x-text="total + ' data'"></span>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
                         <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0"><i class="bi bi-funnel"></i> Filter:</div>
-                        <select id="filterLevel" class="px-3 py-1.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none">
+                        <select id="filterLevel" x-model="filters.tingkat" class="px-3 py-1.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none">
                             <option value="">Semua Tingkat</option>
                             <?php foreach (($level ?? []) as $lid => $lname): ?>
-                                <option value="{{ $lname }}">{{ $lname }}</option>
+                                <option value="{{ strtolower($lname) }}">{{ $lname }}</option>
                             <?php endforeach; ?>
                         </select>
-                        <select id="filterWali" class="px-3 py-1.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none">
+                        <select id="filterWali" x-model="filters.wali" class="px-3 py-1.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none">
                             <option value="">Semua Wali</option>
                             <option value="__empty__">Belum diatur</option>
                             <option value="__filled__">Sudah diatur</option>
                         </select>
-                        <button id="btnResetFilter" type="button" class="px-3 py-1.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors">Reset</button>
+                        <button id="btnResetFilter" type="button" @click="query = ''; filters.tingkat = ''; filters.wali = ''" class="px-3 py-1.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-xl hover:bg-slate-200 transition-colors">Reset</button>
                     </div>
                 </div>
                 <!-- Quick level chips -->
                 <?php if (!empty($level)): ?>
                 <div class="flex items-center gap-1.5 mt-3 flex-wrap">
                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Tingkat:</span>
-                    <button type="button" data-chip-level="" class="filter-chip active px-3 py-1 rounded-full text-xs font-bold bg-slate-100 border border-slate-200 text-slate-600">Semua</button>
+                    <button type="button" @click="filters.tingkat = ''"
+                        :class="filters.tingkat === '' ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'"
+                        class="rounded-full border px-3 py-1 text-xs font-bold transition-all">Semua</button>
                     <?php foreach ($level as $lid => $lname): ?>
-                        <button type="button" data-chip-level="{{ $lname }}" class="filter-chip px-3 py-1 rounded-full text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600">{{ $lname }}</button>
+                        <button type="button" @click="filters.tingkat = '{{ strtolower($lname) }}'"
+                            :class="filters.tingkat === '{{ strtolower($lname) }}' ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'"
+                            class="rounded-full border px-3 py-1 text-xs font-bold transition-all">{{ $lname }}</button>
                     <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
@@ -164,22 +127,20 @@ $smtVal  = e($smt_active->smt ?? '-');
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="overflow-auto">
-                        <table id="table-kelas" class="w-full text-sm text-left border-collapse min-w-[760px]">
-                            <thead class="table-sticky text-[11px] font-bold tracking-wider uppercase text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th class="py-3 px-3 text-center w-12">#</th>
-                                    <th class="py-3 px-4">Kelas</th>
-                                    <?php if (($setting->jenjang ?? '') == '3'): ?>
-                                        <th class="py-3 px-3">Jurusan</th>
-                                    <?php endif; ?>
-                                    <th class="py-3 px-3 text-center w-[110px]">Siswa</th>
-                                    <th class="py-3 px-4">Wali Kelas</th>
-                                    <th class="py-3 px-3 text-center w-[80px]">Import</th>
-                                    <th class="py-3 px-4 text-center w-[140px]">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-slate-700">
+                    <x-ui.table id="table-kelas" class="min-w-[760px]">
+                        <x-slot:head>
+                            <th class="w-12 px-3 py-3 text-center">#</th>
+                            <th scope="col" class="cursor-pointer select-none px-4 py-3" @click="sortBy(1)">
+                                Kelas <span class="text-blue-600" x-text="indicator(1)"></span>
+                            </th>
+                            <?php if (($setting->jenjang ?? '') == '3'): ?>
+                                <th class="px-3 py-3">Jurusan</th>
+                            <?php endif; ?>
+                            <th class="w-[110px] px-3 py-3 text-center">Siswa</th>
+                            <th class="px-4 py-3">Wali Kelas</th>
+                            <th class="w-[80px] px-3 py-3 text-center">Import</th>
+                            <th class="w-[140px] px-4 py-3 text-center">Aksi</th>
+                        </x-slot:head>
                                 <?php $no = 1; foreach ($kelas as $kls):
                                     $jml = intval($kls->jml_siswa ?? 0);
                                     // color for jumlah
@@ -197,11 +158,11 @@ $smtVal  = e($smt_active->smt ?? '-');
                                     $waliNama = trim($kls->nama_guru ?? '');
                                     $waliInitial = $waliNama ? strtoupper(substr($waliNama,0,1)) : '?';
                                 ?>
-                                <tr class="kelas-row group" data-nama="{{ strtolower($kls->nama_kelas ?? '') }}" data-jurusan="{{ strtolower($kls->nama_jurusan ?? '') }}" data-wali="{{ strtolower($waliNama) }}" data-level="{{ $kls->level_id ?? '' }}">
-                                    <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs">{{ $no++ }}</td>
+                                <tr class="group transition-colors hover:bg-slate-50" data-nama="{{ strtolower($kls->nama_kelas ?? '') }}" data-jurusan="{{ strtolower($kls->nama_jurusan ?? '') }}" data-wali="{{ strtolower($waliNama) }}" data-level="{{ $kls->level_id ?? '' }}" data-tingkat="{{ strtolower($level[$kls->level_id] ?? '') }}">
+                                    <td class="px-3 py-3.5 text-center text-xs font-bold text-slate-400" data-rownum>{{ $no++ }}</td>
                                     <td class="py-3.5 px-4">
                                         <div class="flex items-center gap-3">
-                                            <span class="avatar-kelas {{ $avatarBg }} text-white shadow-sm">{{ $initial }}</span>
+                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold tracking-wide {{ $avatarBg }} text-white shadow-sm">{{ $initial }}</span>
                                             <div class="min-w-0">
                                                 <div class="font-extrabold text-slate-800 leading-none truncate max-w-[160px]" title="{{ $kls->nama_kelas }}">{{ $kls->nama_kelas }}</div>
                                                 <div class="text-[11px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
@@ -240,37 +201,56 @@ $smtVal  = e($smt_active->smt ?? '-');
                                         <?php endif; ?>
                                     </td>
                                     <td class="py-3.5 px-3 text-center">
-                                        <a href="{{ url('datasiswa/add/' . $kls->id_kelas) }}" class="action-btn bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100 hover:border-blue-600 shadow-sm" title="Import siswa ke {{ $kls->nama_kelas }}">
+                                        <a href="{{ url('datasiswa/add/' . $kls->id_kelas) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border shadow-sm transition-all hover:-translate-y-px bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-100 hover:border-blue-600 shadow-sm" title="Import siswa ke {{ $kls->nama_kelas }}">
                                             <i class="bi bi-upload text-xs"></i>
                                         </a>
                                     </td>
                                     <td class="py-3.5 px-4">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <a href="{{ url('datakelas/detail/' . $kls->id_kelas) }}" class="action-btn bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white border border-sky-100 hover:border-sky-600 shadow-sm" title="Detail">
+                                            <a href="{{ url('datakelas/detail/' . $kls->id_kelas) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border shadow-sm transition-all hover:-translate-y-px bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white border border-sky-100 hover:border-sky-600 shadow-sm" title="Detail">
                                                 <i class="bi bi-eye text-xs"></i>
                                             </a>
-                                            <a href="{{ url('datakelas/edit/' . $kls->id_kelas) }}" class="action-btn bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white border border-amber-100 hover:border-amber-600 shadow-sm" title="Edit">
+                                            <a href="{{ url('datakelas/edit/' . $kls->id_kelas) }}" class="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border shadow-sm transition-all hover:-translate-y-px bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white border border-amber-100 hover:border-amber-600 shadow-sm" title="Edit">
                                                 <i class="bi bi-pencil-square text-xs"></i>
                                             </a>
-                                            <button data-id="{{ $kls->id_kelas }}" data-nama="{{ $kls->nama_kelas }}" type="button" class="hapuskelas action-btn bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 shadow-sm" title="Hapus">
+                                            <button data-id="{{ $kls->id_kelas }}" data-nama="{{ $kls->nama_kelas }}" type="button" class="hapuskelas inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-rose-100 bg-rose-50 text-rose-600 shadow-sm transition-all hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white" title="Hapus">
                                                 <i class="bi bi-trash3 text-xs"></i>
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    </x-ui.table>
+
+                    <p x-show="total === 0" x-cloak class="py-8 text-center text-sm text-slate-400">
+                        Tidak ada kelas yang cocok dengan pencarian atau filter.
+                    </p>
+
                     <!-- Table footer summary -->
-                    <div class="px-5 md:px-6 py-3 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div class="text-slate-500 font-medium">
-                            Menampilkan <span class="font-extrabold text-slate-700">{{ $totalKelas }} kelas</span> &middot; <span class="font-extrabold text-slate-700">{{ number_format($totalSiswa) }} siswa</span> &middot; Rata-rata <b class="text-slate-700">{{ $avgPerKelas }}</b> siswa/kelas
+                    <div class="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs sm:flex-row sm:items-center sm:justify-between md:px-6">
+                        <div class="font-medium text-slate-500">
+                            Menampilkan <span class="font-extrabold text-slate-700" x-text="from"></span>–<span class="font-extrabold text-slate-700" x-text="to"></span>
+                            dari <span class="font-extrabold text-slate-700" x-text="total"></span> kelas
+                            &middot; <span class="font-extrabold text-slate-700">{{ number_format($totalSiswa) }} siswa</span>
+                            &middot; Rata-rata <b class="text-slate-700">{{ $avgPerKelas }}</b> siswa/kelas
                         </div>
-                        <div class="flex items-center gap-2 text-[11px]">
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Terisi</span>
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> &lt;10</span>
-                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Kosong ({{ $kosong }})</span>
+                        <div class="flex items-center gap-3">
+                            <div class="hidden items-center gap-2 text-[11px] sm:flex">
+                                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Terisi</span>
+                                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-amber-500"></span> &lt;10</span>
+                                <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-rose-500"></span> Kosong ({{ $kosong }})</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" @click="prev()" :disabled="page <= 1"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                    <i class="bi bi-chevron-left"></i> Sebelumnya
+                                </button>
+                                <span class="px-1 font-bold text-slate-600" x-text="page + ' / ' + pages"></span>
+                                <button type="button" @click="next()" :disabled="page >= pages"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                    Berikutnya <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -289,7 +269,7 @@ $smtVal  = e($smt_active->smt ?? '-');
 
 <!-- ── Modal Bulk Create ─────────────────────── -->
 <div id="bulkModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-[560px] max-h-[90vh] flex flex-col">
+    <div class="flex max-h-[90vh] w-full max-w-[560px] flex-col">
         <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex items-center justify-between">
                 <h5 class="font-extrabold text-white text-sm flex items-center gap-2.5 mb-0">
@@ -376,89 +356,9 @@ $smtVal  = e($smt_active->smt ?? '-');
     let tempArrKelas = [];
 
     $(document).ready(function () {
-        const $table = $('#table-kelas');
-        let dt = null;
-        if ($table.length && $table.find('tbody tr').length > 0) {
-            dt = $table.DataTable({
-                paging: true,
-                pageLength: 12,
-                lengthChange: false,
-                order: [[1, 'asc']],
-                columnDefs: [
-                    { orderable: false, targets: [0, 5, 6] },
-                    { searchable: false, targets: [0, 5, 6] }
-                ],
-                language: typeof dt_lang_id !== 'undefined' ? dt_lang_id : {},
-                drawCallback: function() {
-                    const info = this.api().page.info();
-                    $('#kelasCount').text(info.recordsDisplay + ' data');
-                }
-            });
-
-            // Custom search
-            $('#kelasSearch').on('keyup', function() {
-                const v = this.value;
-                dt.search(v).draw();
-                $('#clearKelasSearch').toggleClass('hidden', !v);
-            });
-            $('#clearKelasSearch').on('click', function(){
-                $('#kelasSearch').val('').trigger('keyup').focus();
-            });
-
-            // Filter level
-            function applyFilters() {
-                const lvlText = $('#filterLevel').val();
-                const waliSel = $('#filterWali').val();
-                $.fn.dataTable.ext.search = [];
-                $.fn.dataTable.ext.search.push(function(settings, data, idx){
-                    if (settings.nTable.id !== 'table-kelas') return true;
-                    // data[1] = Kelas column text, data[3] = wali
-                    const rowNode = dt.row(idx).node();
-                    if (!rowNode) return true;
-                    const $row = $(rowNode);
-                    const nama = ($row.data('nama')||'').toString();
-                    const wali = ($row.data('wali')||'').toString();
-                    // level filter via text match in column 1 or 2
-                    if (lvlText && !data[1].toLowerCase().includes(lvlText.toLowerCase()) && !($row.data('level')||'').toString().includes(lvlText)) {
-                        // also check level select text
-                        if (!data[1].includes(lvlText)) return false;
-                    }
-                    if (waliSel === '__empty__' && wali.trim() !== '') return false;
-                    if (waliSel === '__filled__' && wali.trim() === '') return false;
-                    return true;
-                });
-                dt.draw();
-            }
-            $('#filterLevel, #filterWali').on('change', applyFilters);
-            $('#btnResetFilter').on('click', function(){
-                $('#filterLevel').val('');
-                $('#filterWali').val('');
-                $('.filter-chip').removeClass('active');
-                $('.filter-chip[data-chip-level=""]').addClass('active');
-                $.fn.dataTable.ext.search = [];
-                dt.search('').draw();
-                $('#kelasSearch').val('');
-                $('#clearKelasSearch').addClass('hidden');
-            });
-
-            // Chip levels
-            $(document).on('click', '.filter-chip', function(){
-                $('.filter-chip').removeClass('active');
-                $(this).addClass('active');
-                const lvlChip = $(this).data('chip-level');
-                $('#filterLevel').val(lvlChip);
-                $.fn.dataTable.ext.search = [];
-                if (lvlChip) {
-                    $.fn.dataTable.ext.search.push(function(s,d,i){
-                        if (s.nTable.id !== 'table-kelas') return true;
-                        return d[1].toLowerCase().includes(lvlChip.toLowerCase());
-                    });
-                }
-                dt.draw();
-            });
-        } else {
-            $('#kelasSearch, #filterLevel, #filterWali, #btnResetFilter').prop('disabled', true).addClass('opacity-50');
-        }
+        // Pencarian, filter tingkat/wali, chip tingkat, nomor urut, dan
+        // paginasi tabel ditangani komponen Alpine `dataTable`
+        // (resources/js/app.js) — tidak ada lagi DataTables di halaman ini.
 
         // Delete handler
         $(document).on('click', '.hapuskelas', function () {

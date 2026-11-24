@@ -21,353 +21,483 @@ $totalKelas = is_array($kelass ?? null) ? count($kelass) : 0;
 
 $inputClass = 'w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden';
 $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
+
+$opsiKelasAwal = [];
+if (($setting->jenjang ?? 0) == 1) {
+    $opsiKelasAwal = [1, 2, 3, 4, 5, 6];
+} elseif (($setting->jenjang ?? 0) == 2) {
+    $opsiKelasAwal = [7, 8, 9];
+} else {
+    $opsiKelasAwal = [10, 11, 12];
+}
+
+$pageConfig = [
+    'isAdmin'    => $isAdmin,
+    'hasPeriode' => $hasPeriode,
+    'csrf'       => csrf_token(),
+    'defaultFoto' => asset('assets/img/siswa_sm.png'),
+    'urls' => [
+        'list'        => url('datasiswa/list'),
+        'delete'      => url('datasiswa/delete'),
+        'create'      => url('datasiswa/create'),
+        'edit'        => url('datasiswa/edit'),
+        'add'         => url('datasiswa/add'),
+        'assignRfid'  => url('datasiswa/assign_rfid'),
+        'siswaByKelas' => url('datasiswa/siswa_by_kelas'),
+    ],
+];
 ?>
 
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
-                    <i class="bi bi-people-fill text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Data Siswa' }}</span>
-            </h3>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                <i class="bi bi-house-door mr-1"></i> Dashboard
-            </a>
-            <span class="sep">/</span>
-            <span class="text-slate-400">Data Umum</span>
-            <span class="sep">/</span>
-            <span class="active font-medium text-slate-800">{{ $judul ?? 'Siswa' }}</span>
-        </nav>
-    </div>
-</div>
+<div x-data="siswaPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
 
-<!-- Main Content Area -->
-<div class="content-area mt-4 space-y-5">
-
-    <?php if (!$hasPeriode): ?>
-        <div class="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 shadow-xs">
-            <i class="bi bi-exclamation-triangle-fill text-amber-500 text-lg mt-0.5 shrink-0"></i>
-            <div class="min-w-0">
-                <p class="text-sm font-bold mb-0.5">Tahun Pelajaran / Semester aktif belum diset</p>
-                <p class="text-xs mb-0">Daftar siswa dan filter kelas membutuhkan periode aktif. Atur TP/SMT terlebih dahulu agar data dapat ditampilkan.</p>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <!-- Ringkasan data -->
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-blue-100 transition-colors">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-slate-500 mb-0">Total siswa</p>
-                    <p id="stat-total" class="text-2xl font-bold text-slate-800 leading-none mt-1.5">{{ number_format((int) $stats['total'], 0, ',', '.') }}</p>
-                </div>
-                <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-people-fill"></i>
-                </span>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-2 mb-0">Seluruh siswa terdaftar</p>
-        </div>
-
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-emerald-100 transition-colors">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-slate-500 mb-0">Siswa aktif</p>
-                    <p id="stat-aktif" class="text-2xl font-bold text-emerald-700 leading-none mt-1.5">{{ number_format((int) $stats['aktif'], 0, ',', '.') }}</p>
-                </div>
-                <span class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-person-check-fill"></i>
-                </span>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-2 mb-0">Status buku induk aktif</p>
-        </div>
-
-        <div id="card-tanpa-kelas" class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer {{ $hasPeriode ? '' : 'opacity-60 pointer-events-none' }}" title="Klik untuk memfilter siswa yang belum ada kelas">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-slate-500 mb-0">Tanpa kelas</p>
-                    <p id="stat-tanpa-kelas" class="text-2xl font-bold text-amber-700 leading-none mt-1.5">{{ $hasPeriode ? number_format((int) $stats['tanpa_kelas'], 0, ',', '.') : '&mdash;' }}</p>
-                </div>
-                <span class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-mortarboard-fill"></i>
-                </span>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-2 mb-0">Belum punya kelas di TP aktif</p>
-        </div>
-
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-rose-100 transition-colors">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold text-slate-500 mb-0">Akun nonaktif</p>
-                    <p id="stat-akun-nonaktif" class="text-2xl font-bold text-rose-700 leading-none mt-1.5">{{ number_format((int) $stats['akun_nonaktif'], 0, ',', '.') }}</p>
-                </div>
-                <span class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-shield-slash-fill"></i>
-                </span>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-2 mb-0">Tidak dapat login ke aplikasi</p>
-        </div>
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Data Siswa'"
+            icon="bi-people-fill"
+            :crumbs="['Data Umum', $judul ?? 'Siswa']" />
     </div>
 
-    <!-- Main Card Data Siswa -->
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-        <!-- Card Header Toolbar -->
-        <div class="px-5 md:px-6 py-4 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-slate-50/50">
-            <div class="min-w-0">
-                <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-0.5">
-                    <i class="bi bi-person-lines-fill text-blue-600"></i>
-                    Daftar Peserta Didik
-                </h4>
-                <p class="text-xs text-slate-500 mb-0">Kelola identitas siswa, kelas aktif, NIS/NISN, dan status akun.</p>
-                <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                        <i class="bi bi-calendar3 text-slate-400"></i>
-                        TP {{ $tpLabel }} &middot; {{ $smtLabel }}
+    <!-- Main Content Area -->
+    <div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+        <?php if (!$hasPeriode): ?>
+            <div class="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 shadow-xs">
+                <i class="bi bi-exclamation-triangle-fill text-amber-500 text-lg mt-0.5 shrink-0"></i>
+                <div class="min-w-0">
+                    <p class="text-sm font-bold mb-0.5">Tahun Pelajaran / Semester aktif belum diset</p>
+                    <p class="text-xs mb-0">Daftar siswa dan filter kelas membutuhkan periode aktif. Atur TP/SMT terlebih dahulu agar data dapat ditampilkan.</p>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Ringkasan data -->
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-blue-100 transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold text-slate-500 mb-0">Total siswa</p>
+                        <p class="text-2xl font-bold text-slate-800 leading-none mt-1.5" x-text="format(stats.total)">{{ number_format((int) $stats['total'], 0, ',', '.') }}</p>
+                    </div>
+                    <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <i class="bi bi-people-fill"></i>
                     </span>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-semibold">
-                        <i class="bi bi-door-open text-blue-400"></i>
-                        {{ number_format($totalKelas, 0, ',', '.') }} kelas
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2 mb-0">Seluruh siswa terdaftar</p>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-emerald-100 transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold text-slate-500 mb-0">Siswa aktif</p>
+                        <p class="text-2xl font-bold text-emerald-700 leading-none mt-1.5" x-text="format(stats.aktif)">{{ number_format((int) $stats['aktif'], 0, ',', '.') }}</p>
+                    </div>
+                    <span class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                        <i class="bi bi-person-check-fill"></i>
                     </span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2 mb-0">Status buku induk aktif</p>
+            </div>
+
+            <button type="button" @click="filterTanpaKelas()" :disabled="!hasPeriode"
+                class="text-left bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-amber-300 hover:shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                title="Klik untuk memfilter siswa yang belum ada kelas">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold text-slate-500 mb-0">Tanpa kelas</p>
+                        <p class="text-2xl font-bold text-amber-700 leading-none mt-1.5">
+                            <span x-show="hasPeriode" x-text="format(stats.tanpa_kelas)">{{ number_format((int) $stats['tanpa_kelas'], 0, ',', '.') }}</span>
+                            <span x-show="!hasPeriode" x-cloak>&mdash;</span>
+                        </p>
+                    </div>
+                    <span class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2 mb-0">Belum punya kelas di TP aktif</p>
+            </button>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 hover:border-rose-100 transition-colors">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold text-slate-500 mb-0">Akun nonaktif</p>
+                        <p class="text-2xl font-bold text-rose-700 leading-none mt-1.5" x-text="format(stats.akun_nonaktif)">{{ number_format((int) $stats['akun_nonaktif'], 0, ',', '.') }}</p>
+                    </div>
+                    <span class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                        <i class="bi bi-shield-slash-fill"></i>
+                    </span>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2 mb-0">Tidak dapat login ke aplikasi</p>
+            </div>
+        </div>
+
+        <x-ui.card :body-class="'p-0'">
+            <!-- Card Header Toolbar -->
+            <div class="px-5 md:px-6 py-4 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-slate-50/50">
+                <div class="min-w-0">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2 mb-0.5">
+                        <i class="bi bi-person-lines-fill text-blue-600"></i>
+                        Daftar Peserta Didik
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-0">Kelola identitas siswa, kelas aktif, NIS/NISN, dan status akun.</p>
+                    <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                            <i class="bi bi-calendar3 text-slate-400"></i>
+                            TP {{ $tpLabel }} &middot; {{ $smtLabel }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-semibold">
+                            <i class="bi bi-door-open text-blue-400"></i>
+                            {{ number_format($totalKelas, 0, ',', '.') }} kelas
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full xl:w-auto">
+                    <div class="relative w-full sm:w-64">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="search" x-ref="search" x-model="query" @input.debounce.300ms="applyFilters()"
+                            placeholder="Cari nama, NIS, atau NISN..." aria-label="Cari siswa"
+                            class="w-full pl-8 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden">
+                        <button type="button" x-show="query.length > 0" x-cloak @click="clearSearch()"
+                            class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                            aria-label="Hapus pencarian">
+                            <i class="bi bi-x-circle-fill text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" @click="reload()"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-xs">
+                            <i class="bi bi-arrow-repeat"></i> Reload
+                        </button>
+                        <?php if ($isAdmin): ?>
+                            <a href="{{ url('datasiswa/update') }}"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-xs">
+                                <i class="bi bi-database-check text-emerald-600"></i> Update Data
+                            </a>
+                            <a href="{{ url('datasiswa/add') }}"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-xs">
+                                <i class="bi bi-upload"></i> Import
+                            </a>
+                            <button type="button" @click="openNfc()"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"
+                                title="Scan & Tautkan Kartu RFID/NFC ke Siswa">
+                                <i class="bi bi-broadcast"></i> Scan NFC Siswa
+                            </button>
+                            <button type="button" @click="openCreate()"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs shadow-blue-500/20">
+                                <i class="bi bi-plus-lg"></i> Tambah Siswa
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full xl:w-auto">
-                <div class="relative w-full sm:w-64">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input id="input-search" type="search" placeholder="Cari nama, NIS, atau NISN..." aria-label="Cari siswa"
-                        class="w-full pl-8 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden">
-                    <button id="btn-clear" type="button"
-                        class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
-                        aria-label="Hapus pencarian">
-                        <i class="bi bi-x-circle-fill text-xs"></i>
-                    </button>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" onclick="location.reload()"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-xs">
-                        <i class="bi bi-arrow-repeat"></i> Reload
-                    </button>
+            <!-- Filter & Bulk Actions -->
+            <div class="px-5 md:px-6 py-3.5 border-b border-slate-100 bg-white">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                            <label for="users_length">Tampilkan</label>
+                            <select id="users_length" x-model.number="perPage" @change="applyFilters()" aria-label="Jumlah data per halaman"
+                                class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>data</span>
+                        </div>
+
+                        <span class="hidden sm:inline-block w-px h-5 bg-slate-200 mx-0.5" aria-hidden="true"></span>
+
+                        <select x-model="statusFilter" @change="applyFilters()" aria-label="Filter status siswa"
+                            :class="statusFilter !== '0' ? 'border-blue-300 bg-blue-50/40 text-blue-700' : ''"
+                            class="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700 transition-colors">
+                            <option value="0">Semua Status</option>
+                            <option value="1">Aktif</option>
+                            <option value="2">Lulus</option>
+                            <option value="3">Pindah</option>
+                            <option value="4">Keluar</option>
+                            <option value="5">Akun Nonaktif</option>
+                        </select>
+
+                        <select x-model="kelasFilter" @change="applyFilters()" aria-label="Filter kelas"
+                            :class="kelasFilter !== '' ? 'border-blue-300 bg-blue-50/40 text-blue-700' : ''"
+                            class="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700 transition-colors">
+                            <option value="">Semua Kelas</option>
+                            <option value="tanpa">Tanpa Kelas (belum ada kelas)</option>
+                            <?php foreach (($kelass ?? []) as $id => $name): ?>
+                                <option value="{{ (int) $id }}">{{ $name }}</option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <button type="button" x-show="hasFilter()" x-cloak @click="resetFilters()"
+                            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors">
+                            <i class="bi bi-x-circle"></i> Reset filter
+                        </button>
+                    </div>
+
                     <?php if ($isAdmin): ?>
-                        <a href="{{ url('datasiswa/update') }}"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-xs">
-                            <i class="bi bi-database-check text-emerald-600"></i> Update Data
-                        </a>
-                        <a href="{{ url('datasiswa/add') }}"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors shadow-xs">
-                            <i class="bi bi-upload"></i> Import
-                        </a>
-                        <button type="button" id="btn-scan-nfc-modal" onclick="openQuickNfcModal()"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"
-                            title="Scan & Tautkan Kartu RFID/NFC ke Siswa">
-                            <i class="bi bi-broadcast"></i> Scan NFC Siswa
-                        </button>
-                        <button type="button" data-ui-toggle="modal" data-ui-target="#createSiswaModal"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-xs shadow-blue-500/20">
-                            <i class="bi bi-plus-lg"></i> Tambah Siswa
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span x-show="selected.length > 0" x-cloak
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
+                                <i class="bi bi-check2-circle"></i>
+                                <span x-text="selected.length">0</span> dipilih
+                            </span>
+                            <div class="relative" @click.outside="bulkOpen = false">
+                                <button type="button" @click="bulkOpen = !bulkOpen" :disabled="selected.length === 0"
+                                    :aria-expanded="bulkOpen ? 'true' : 'false'"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-2xs">
+                                    <i class="bi bi-check2-square"></i>
+                                    <span>Aksi Terpilih</span>
+                                    <i class="bi bi-chevron-down text-[10px] ml-1"></i>
+                                </button>
+                                <div x-show="bulkOpen" x-cloak
+                                    class="absolute right-0 mt-1 w-56 rounded-2xl border border-slate-100 shadow-xl py-2 bg-white text-xs z-50">
+                                    <button type="button" @click="bulkAction('pindah')"
+                                        class="w-full px-4 py-2 text-left hover:bg-amber-50 text-amber-700 font-medium flex items-center gap-2">
+                                        <i class="bi bi-box-arrow-right"></i> Set sebagai PINDAH
+                                    </button>
+                                    <button type="button" @click="bulkAction('keluar')"
+                                        class="w-full px-4 py-2 text-left hover:bg-slate-100 text-slate-700 font-medium flex items-center gap-2">
+                                        <i class="bi bi-door-closed"></i> Set sebagai KELUAR
+                                    </button>
+                                    <div class="my-1 border-t border-slate-100"></div>
+                                    <button type="button" @click="bulkAction('hapus')"
+                                        class="w-full px-4 py-2 text-left hover:bg-rose-50 text-rose-600 font-medium flex items-center gap-2">
+                                        <i class="bi bi-trash3"></i> Hapus Terpilih
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
-        </div>
 
-        <!-- Filter & Bulk Actions -->
-        <div class="px-5 md:px-6 py-3.5 border-b border-slate-100 bg-white">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <div class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                        <label for="users_length">Tampilkan</label>
-                        <select id="users_length" aria-label="Jumlah data per halaman"
-                            class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                        <span>data</span>
-                    </div>
-
-                    <span class="hidden sm:inline-block w-px h-5 bg-slate-200 mx-0.5" aria-hidden="true"></span>
-
-                    <select id="users-status" aria-label="Filter status siswa"
-                        class="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700 transition-colors">
-                        <option value="0">Semua Status</option>
-                        <option value="1">Aktif</option>
-                        <option value="2">Lulus</option>
-                        <option value="3">Pindah</option>
-                        <option value="4">Keluar</option>
-                        <option value="5">Akun Nonaktif</option>
-                    </select>
-
-                    <select id="users-kelas" aria-label="Filter kelas"
-                        class="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700 transition-colors">
-                        <option value="">Semua Kelas</option>
-                        <option value="tanpa">Tanpa Kelas (belum ada kelas)</option>
-                        <?php foreach (($kelass ?? []) as $id => $name): ?>
-                            <option value="{{ (int) $id }}">{{ $name }}</option>
-                        <?php endforeach; ?>
-                    </select>
-
-                    <button type="button" id="btn-reset-filter"
-                        class="hidden inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors">
-                        <i class="bi bi-x-circle"></i> Reset filter
-                    </button>
-                </div>
-
-                <?php if ($isAdmin): ?>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span id="selection-bar" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
-                            <i class="bi bi-check2-circle"></i>
-                            <span id="selection-count">0</span> dipilih
-                        </span>
-                        <div class="relative">
-                            <button id="dropdown-btn" type="button" data-ui-toggle="dropdown" aria-expanded="false" disabled
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-2xs">
-                                <i class="bi bi-check2-square"></i>
-                                <span>Aksi Terpilih</span>
-                                <i class="bi bi-chevron-down text-[10px] ml-1"></i>
-                            </button>
-                            <div id="dropdown-action" class="dropdown-menu border-0 rounded-2xl shadow-xl py-2 bg-white text-xs z-50">
-                                <a class="dropdown-item px-4 py-2 hover:bg-amber-50 text-amber-700 font-medium flex items-center gap-2" id="pindah" href="#">
-                                    <i class="bi bi-box-arrow-right"></i> Set sebagai PINDAH
-                                </a>
-                                <a class="dropdown-item px-4 py-2 hover:bg-slate-100 text-slate-700 font-medium flex items-center gap-2" id="keluar" href="#">
-                                    <i class="bi bi-door-closed"></i> Set sebagai KELUAR
-                                </a>
-                                <div class="dropdown-divider my-1 border-slate-100"></div>
-                                <a class="dropdown-item px-4 py-2 hover:bg-rose-50 text-rose-600 font-medium flex items-center gap-2" id="hapus" href="#">
-                                    <i class="bi bi-trash3"></i> Hapus Terpilih
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <div class="px-5 md:px-6 py-5">
-            <form id="bulk">
+            <div class="px-5 md:px-6 py-5">
                 <div class="relative overflow-x-auto rounded-xl">
-                    <table id="table-siswa" class="table-tw min-w-[880px]" aria-describedby="total-entri">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider border-b border-slate-200/80">
-                                <?php if ($isAdmin): ?>
-                                    <th class="py-3 px-3 text-center w-10">
-                                        <input class="select_all rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                            type="checkbox" aria-label="Pilih semua siswa pada halaman ini">
-                                    </th>
-                                <?php endif; ?>
-                                <th class="py-3 px-3 text-center w-12 font-bold">No</th>
-                                <th class="py-3 px-4 font-bold">Siswa</th>
-                                <th class="py-3 px-4 font-bold">NIS &amp; NISN</th>
-                                <th class="py-3 px-4 font-bold">Kelas</th>
-                                <th class="py-3 px-4 text-center font-bold">Status</th>
-                                <?php if ($isAdmin): ?>
-                                    <th class="py-3 px-4 text-center font-bold w-28">Aksi</th>
-                                <?php endif; ?>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-slate-100 text-slate-700">
-                            <?php for ($i = 0; $i < 5; $i++): ?>
-                                <tr class="animate-pulse">
-                                    <?php if ($isAdmin): ?>
-                                        <td class="py-4 px-3"><div class="h-4 w-4 bg-slate-100 rounded mx-auto"></div></td>
-                                    <?php endif; ?>
-                                    <td class="py-4 px-3"><div class="h-3 w-4 bg-slate-100 rounded mx-auto"></div></td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-10 h-10 rounded-xl bg-slate-100 shrink-0"></div>
-                                            <div class="space-y-2">
-                                                <div class="h-3 w-36 bg-slate-100 rounded"></div>
-                                                <div class="h-2.5 w-24 bg-slate-100 rounded"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4">
-                                        <div class="h-3 w-20 bg-slate-100 rounded"></div>
-                                        <div class="h-2.5 w-24 bg-slate-100 rounded mt-2"></div>
-                                    </td>
-                                    <td class="py-4 px-4"><div class="h-5 w-16 bg-slate-100 rounded-md"></div></td>
-                                    <td class="py-4 px-4"><div class="h-5 w-16 bg-slate-100 rounded-full mx-auto"></div></td>
-                                    <?php if ($isAdmin): ?>
-                                        <td class="py-4 px-4"><div class="h-8 w-8 bg-slate-100 rounded-lg mx-auto"></div></td>
-                                    <?php endif; ?>
-                                </tr>
-                            <?php endfor; ?>
-                        </tbody>
-                    </table>
+                    <x-ui.table aria-describedby="total-entri" class="min-w-[880px]">
+                        <x-slot:head>
+                            <?php if ($isAdmin): ?>
+                                <th class="py-3 px-3 text-center w-10">
+                                    <input type="checkbox" :checked="allSelected()"
+                                        x-effect="$el.indeterminate = selected.length > 0 && !allSelected()"
+                                        @change="toggleAll($event)" aria-label="Pilih semua siswa pada halaman ini"
+                                        class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                </th>
+                            <?php endif; ?>
+                            <th class="py-3 px-3 text-center w-12 font-bold">No</th>
+                            <th class="py-3 px-4 font-bold">Siswa</th>
+                            <th class="py-3 px-4 font-bold">NIS &amp; NISN</th>
+                            <th class="py-3 px-4 font-bold">Kelas</th>
+                            <th class="py-3 px-4 text-center font-bold">Status</th>
+                            <?php if ($isAdmin): ?>
+                                <th class="py-3 px-4 text-center font-bold w-28">Aksi</th>
+                            <?php endif; ?>
+                        </x-slot:head>
 
-                    <div id="loading" class="hidden absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-20">
+                        <template x-for="(row, idx) in rows" :key="row.id_siswa">
+                            <tr class="hover:bg-slate-50/70 transition-colors">
+                                <td x-show="isAdmin" class="text-center align-middle py-3 px-3">
+                                    <input type="checkbox" :checked="selected.includes(Number(row.id_siswa))"
+                                        @change="toggleOne($event, row.id_siswa)" :aria-label="'Pilih ' + row.nama"
+                                        class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                </td>
+                                <td class="text-center align-middle font-bold text-slate-400 py-3 px-3" x-text="rowNo(idx)"></td>
+                                <td class="align-middle py-3 px-4">
+                                    <div class="flex items-center gap-3">
+                                        <img :src="row.foto || defaultFoto" :alt="'Foto ' + row.nama" loading="lazy"
+                                            x-on:error="$event.target.onerror = null; $event.target.src = defaultFoto"
+                                            class="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-slate-50 shadow-xs shrink-0">
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate max-w-[240px]" :title="row.nama" x-text="row.nama || 'Tanpa nama'"></div>
+                                            <div x-show="rowMeta(row) !== ''" x-cloak class="mt-1 text-[11px] text-slate-500" x-text="rowMeta(row)"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="align-middle py-3 px-4">
+                                    <div class="text-[11px] text-slate-400 font-medium">
+                                        NIS <span class="font-bold text-slate-700 font-mono" x-text="row.nis || '-'"></span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 font-medium mt-0.5">
+                                        NISN <span class="font-bold text-slate-700 font-mono" x-text="row.nisn || '-'"></span>
+                                    </div>
+                                    <div x-show="row.nomor_rfid" x-cloak
+                                        class="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 font-mono bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md w-fit">
+                                        <i class="bi bi-broadcast text-emerald-600"></i><span x-text="row.nomor_rfid"></span>
+                                    </div>
+                                    <div x-show="!row.nomor_rfid" class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>Tanpa RFID
+                                    </div>
+                                </td>
+                                <td class="align-middle py-3 px-4">
+                                    <span x-show="row.nama_kelas"
+                                        class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100"
+                                        x-text="row.nama_kelas"></span>
+                                    <span x-show="!row.nama_kelas"
+                                        class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                                        <i class="bi bi-exclamation-circle mr-1"></i>Belum ada kelas
+                                    </span>
+                                </td>
+                                <td class="text-center align-middle py-3 px-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide whitespace-nowrap"
+                                        :class="statusMeta(row.status).cls">
+                                        <span class="w-1.5 h-1.5 rounded-full" :class="statusMeta(row.status).dot"></span>
+                                        <span x-text="statusMeta(row.status).label"></span>
+                                    </span>
+                                    <div x-show="String(row.active) === '0'" x-cloak class="mt-1">
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-100 text-[10px] font-semibold">
+                                            <i class="bi bi-shield-slash"></i>Login nonaktif
+                                        </span>
+                                    </div>
+                                    <div x-show="row.active === null || row.active === undefined" x-cloak class="mt-1">
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-semibold">
+                                            <i class="bi bi-person-x"></i>Tanpa akun
+                                        </span>
+                                    </div>
+                                </td>
+                                <td x-show="isAdmin" class="text-center align-middle py-3 px-4">
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <button type="button" @click="openNfc(row.id_siswa, row.id_kelas)"
+                                            :title="row.nomor_rfid ? 'RFID: ' + row.nomor_rfid + ' (Klik untuk ganti)' : 'Tap NFC untuk daftarkan kartu'"
+                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors shadow-xs"
+                                            :class="row.nomor_rfid ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'">
+                                            <i class="bi bi-broadcast text-xs"></i>
+                                        </button>
+                                        <a :href="editUrl(row.id_siswa)" :aria-label="'Edit data ' + row.nama" title="Edit data siswa"
+                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs">
+                                            <i class="bi bi-pencil-square text-xs"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+
+                        <tr x-show="!loading && rows.length === 0">
+                            <td :colspan="isAdmin ? 7 : 5" class="px-4 py-14 text-center">
+                                <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-2xl">
+                                    <i class="bi" :class="errorMessage ? 'bi-exclamation-triangle' : (hasFilter() ? 'bi-search' : 'bi-inbox')"></i>
+                                </div>
+                                <p class="text-sm font-bold text-slate-700 mb-1" x-text="emptyTitle()"></p>
+                                <p class="text-xs text-slate-400 max-w-sm mx-auto mb-4" x-text="emptyDetail()"></p>
+                                <button type="button" x-show="hasFilter()" x-cloak @click="resetFilters()"
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reset filter
+                                </button>
+                                <?php if ($isAdmin): ?>
+                                    <a x-show="!hasFilter()" x-cloak href="{{ url('datasiswa/add') }}"
+                                        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 shadow-xs shadow-blue-500/20">
+                                        <i class="bi bi-plus-lg"></i> Tambah / Import Siswa
+                                    </a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+
+                        <template x-if="loading && rows.length === 0">
+                            <tr>
+                                <td :colspan="isAdmin ? 7 : 5" class="px-4 py-14 text-center">
+                                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 text-xs font-semibold">
+                                        <span class="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                                        <span>Memuat data siswa...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </x-ui.table>
+
+                    <div x-show="loading && rows.length > 0" x-cloak
+                        class="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-20">
                         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 shadow-lg text-slate-600 text-xs font-semibold">
                             <span class="inline-block w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
                             <span>Memuat data siswa...</span>
                         </div>
                     </div>
                 </div>
-            </form>
 
-            <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="text-xs font-medium text-slate-500" id="total-entri" aria-live="polite">
-                    Menampilkan 0 entri
+                <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="text-xs font-medium text-slate-500" id="total-entri" aria-live="polite" x-text="summaryText()"></div>
+                    <nav aria-label="Navigasi halaman siswa" class="min-w-0 overflow-x-auto">
+                        <ul class="flex items-center gap-1 mb-0" x-show="pages > 0" x-cloak>
+                            <li>
+                                <button type="button" @click="goPage(page - 1)" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                            </li>
+                            <template x-for="p in pageList()" :key="p">
+                                <li>
+                                    <button type="button" @click="goPage(p)"
+                                        :aria-current="p === page ? 'page' : null"
+                                        class="inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-lg border text-xs font-semibold transition-colors"
+                                        :class="p === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                        x-text="p"></button>
+                                </li>
+                            </template>
+                            <li>
+                                <button type="button" @click="goPage(page + 1)" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xs">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
-                <nav aria-label="Navigasi halaman siswa" class="min-w-0 overflow-x-auto">
-                    <ul class="pagination flex items-center gap-1 mb-0 hidden" id="pagination"></ul>
-                </nav>
             </div>
-        </div>
+        </x-ui.card>
     </div>
-</div>
 
-<?php if ($isAdmin): ?>
-    <!-- Modal Tambah Siswa -->
-    <div id="createSiswaModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-3 sm:p-4" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
-        <div class="modal-box-tw w-full max-w-2xl">
-            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+    <?php if ($isAdmin): ?>
+        <!-- Modal Tambah Siswa -->
+        <div x-show="createOpen" x-cloak role="dialog" aria-modal="true" aria-labelledby="createModalLabel"
+            @keydown.escape.window="createOpen = false"
+            class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4">
+            <div class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50/30 flex items-center justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm shrink-0">
                             <i class="bi bi-person-plus"></i>
                         </span>
                         <div class="min-w-0">
-                            <h5 class="font-bold text-slate-800 text-base mb-0.5" id="createModalLabel">Tambah Siswa Baru</h5>
+                            <h2 class="font-bold text-slate-800 text-base mb-0.5" id="createModalLabel">Tambah Siswa Baru</h2>
                             <p class="text-[11px] text-slate-500 mb-0">Data akun login dibuat otomatis setelah siswa disimpan.</p>
                         </div>
                     </div>
-                    <button type="button" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center transition-colors shrink-0"
-                        data-ui-dismiss="modal" aria-label="Tutup">
+                    <button type="button" @click="createOpen = false"
+                        class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 inline-flex items-center justify-center transition-colors shrink-0"
+                        aria-label="Tutup">
                         <i class="bi bi-x-lg text-sm"></i>
                     </button>
                 </div>
 
-                <form id="formsiswa" class="flex flex-col min-h-0">
+                <form x-ref="formSiswa" @submit.prevent="createSiswa()" class="flex flex-col min-h-0">
                     <div class="p-5 sm:p-6 space-y-5 overflow-y-auto">
                         <section>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Identitas Siswa</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="sm:col-span-2">
                                     <label for="nama_siswa" class="{{ $labelClass }}">Nama Lengkap <span class="text-rose-500">*</span></label>
-                                    <input id="nama_siswa" type="text" class="{{ $inputClass }}" name="nama_siswa"
+                                    <input id="nama_siswa" name="nama_siswa" type="text" class="{{ $inputClass }}" x-model="form.nama_siswa"
                                         placeholder="Contoh: Maria Goreti Lopes" autocomplete="off" maxlength="100" required>
+                                    <p x-show="errors.nama_siswa" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.nama_siswa"></p>
                                 </div>
                                 <div>
                                     <label for="nis" class="{{ $labelClass }}">NIS <span class="text-rose-500">*</span></label>
-                                    <input id="nis" type="number" inputmode="numeric" class="{{ $inputClass }}" name="nis"
+                                    <input id="nis" name="nis" type="number" inputmode="numeric" class="{{ $inputClass }}" x-model="form.nis"
                                         placeholder="Nomor Induk Siswa" autocomplete="off" minlength="4" maxlength="20" required>
+                                    <p x-show="errors.nis" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.nis"></p>
                                 </div>
                                 <div>
                                     <label for="nisn" class="{{ $labelClass }}">NISN <span class="text-rose-500">*</span></label>
-                                    <input id="nisn" type="number" inputmode="numeric" class="{{ $inputClass }}" name="nisn"
+                                    <input id="nisn" name="nisn" type="number" inputmode="numeric" class="{{ $inputClass }}" x-model="form.nisn"
                                         placeholder="NISN Nasional" autocomplete="off" minlength="9" maxlength="20" required>
+                                    <p x-show="errors.nisn" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.nisn"></p>
                                 </div>
                                 <div>
                                     <label for="jenis_kelamin" class="{{ $labelClass }}">Jenis Kelamin</label>
-                                    <select id="jenis_kelamin" name="jenis_kelamin" class="{{ $inputClass }}">
+                                    <select id="jenis_kelamin" name="jenis_kelamin" x-model="form.jenis_kelamin" class="{{ $inputClass }}">
                                         <option value="">Belum dipilih</option>
                                         <option value="L">Laki-laki</option>
                                         <option value="P">Perempuan</option>
@@ -375,7 +505,7 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                                 </div>
                                 <div>
                                     <label for="agama" class="{{ $labelClass }}">Agama</label>
-                                    <select id="agama" name="agama" class="{{ $inputClass }}">
+                                    <select id="agama" name="agama" x-model="form.agama" class="{{ $inputClass }}">
                                         <option value="">Belum dipilih</option>
                                         <?php foreach (["Islam", "Katolik", "Protestan", "Hindu", "Budha", "Konghucu"] as $agama): ?>
                                             <option value="{{ $agama }}">{{ $agama }}</option>
@@ -390,25 +520,17 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label for="kelas_awal" class="{{ $labelClass }}">Kelas Awal</label>
-                                    <select id="kelas_awal" name="kelas_awal" class="{{ $inputClass }}">
+                                    <select id="kelas_awal" name="kelas_awal" x-model="form.kelas_awal" class="{{ $inputClass }}">
                                         <option value="">Belum dipilih</option>
-                                        <?php
-                                        $opsis = [];
-                                        if (($setting->jenjang ?? 0) == 1) {
-                                            $opsis = [1, 2, 3, 4, 5, 6];
-                                        } elseif (($setting->jenjang ?? 0) == 2) {
-                                            $opsis = [7, 8, 9];
-                                        } else {
-                                            $opsis = [10, 11, 12];
-                                        }
-                                        foreach ($opsis as $kls): ?>
+                                        <?php foreach ($opsiKelasAwal as $kls): ?>
                                             <option value="{{ $kls }}">{{ $kls }}</option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div>
                                     <label for="tahunmasuk" class="{{ $labelClass }}">Tanggal Diterima <span class="text-rose-500">*</span></label>
-                                    <input type="date" name="tahun_masuk" id="tahunmasuk" class="{{ $inputClass }}" required>
+                                    <input type="date" id="tahunmasuk" name="tahun_masuk" class="{{ $inputClass }}" x-model="form.tahun_masuk" required>
+                                    <p x-show="errors.tahun_masuk" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.tahun_masuk"></p>
                                 </div>
                             </div>
                         </section>
@@ -418,9 +540,9 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             <div>
                                 <label for="modal_nomor_rfid" class="{{ $labelClass }}">Nomor Kartu RFID</label>
                                 <div class="relative">
-                                    <input id="modal_nomor_rfid" type="text" class="{{ $inputClass }} pr-24 font-mono uppercase" name="nomor_rfid"
-                                        placeholder="Contoh: 04A1B2C3" autocomplete="off" maxlength="64">
-                                    <button type="button" onclick="scanNfcToField('#modal_nomor_rfid')"
+                                    <input id="modal_nomor_rfid" name="nomor_rfid" type="text" class="{{ $inputClass }} pr-24 font-mono uppercase"
+                                        x-model="form.nomor_rfid" placeholder="Contoh: 04A1B2C3" autocomplete="off" maxlength="64">
+                                    <button type="button" @click="scanField()"
                                         class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1 transition-all"
                                         title="Tempelkan kartu RFID ke HP">
                                         <i class="bi bi-broadcast"></i> Tap NFC
@@ -435,68 +557,76 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label for="username" class="{{ $labelClass }}">Username <span class="text-rose-500">*</span></label>
-                                    <input id="username" type="text" class="{{ $inputClass }}" name="username"
+                                    <input id="username" name="username" type="text" class="{{ $inputClass }}" x-model="form.username"
                                         placeholder="Username untuk login" autocomplete="off" maxlength="30" required>
                                     <p class="text-[10px] text-slate-400 mt-1 mb-0">Hanya huruf, angka, titik, garis bawah, atau strip.</p>
+                                    <p x-show="errors.username" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.username"></p>
                                 </div>
                                 <div>
                                     <label for="password" class="{{ $labelClass }}">Password <span class="text-rose-500">*</span></label>
                                     <div class="relative">
-                                        <input id="password" type="password" class="{{ $inputClass }} pr-10" name="password"
-                                            placeholder="Minimal 6 karakter" autocomplete="new-password" minlength="6" maxlength="72" required>
-                                        <button type="button" id="togglePassword"
+                                        <input id="password" name="password" :type="showPassword ? 'text' : 'password'" class="{{ $inputClass }} pr-10"
+                                            x-model="form.password" placeholder="Minimal 6 karakter" autocomplete="new-password"
+                                            minlength="6" maxlength="72" required>
+                                        <button type="button" @click="showPassword = !showPassword"
                                             class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600"
-                                            aria-label="Tampilkan password">
-                                            <i class="bi bi-eye"></i>
+                                            :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+                                            <i class="bi" :class="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
                                         </button>
                                     </div>
                                     <p class="text-[10px] text-slate-400 mt-1 mb-0">Simpan password ini untuk diberikan kepada siswa.</p>
+                                    <p x-show="errors.password" x-cloak class="mt-1 text-[11px] font-medium text-rose-600" x-text="errors.password"></p>
                                 </div>
                             </div>
                         </section>
                     </div>
 
                     <div class="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2 shrink-0">
-                        <button type="button" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors" data-ui-dismiss="modal">Batal</button>
-                        <button type="reset" class="px-4 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors">Reset</button>
-                        <button type="submit" id="btn-save-siswa"
+                        <button type="button" @click="createOpen = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Batal</button>
+                        <button type="reset"
+                            class="px-4 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors">Reset</button>
+                        <button type="submit" :disabled="saving"
                             class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-xs shadow-blue-500/20">
-                            <i class="bi bi-save"></i> Simpan
+                            <span x-show="saving" x-cloak class="inline-block w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></span>
+                            <i x-show="!saving" class="bi bi-save"></i>
+                            <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- Modal Registrasi Cepat Kartu RFID / NFC Siswa -->
-    <div id="quickNfcModal" class="modal hidden fixed inset-0 items-center justify-center bg-slate-900/60 p-3 sm:p-4" style="z-index: 1060;" tabindex="-1" aria-labelledby="quickNfcLabel" aria-hidden="true" onclick="if(event.target === this) closeQuickNfcModal()">
-        <div class="modal-box-tw w-full max-w-lg">
-            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <!-- Modal Registrasi Cepat Kartu RFID / NFC Siswa -->
+        <div x-show="nfcOpen" x-cloak role="dialog" aria-modal="true" aria-labelledby="quickNfcLabel"
+            @keydown.escape.window="closeNfc()"
+            class="fixed inset-0 z-[105] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4">
+            <div class="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <!-- Header -->
                 <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 shrink-0">
                     <div class="flex items-center gap-3 min-w-0">
-                        <span class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0 backdrop-blur-xs">
+                        <span class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center text-xl shrink-0">
                             <i class="bi bi-broadcast"></i>
                         </span>
                         <div class="min-w-0">
-                            <h5 class="font-bold text-white text-base mb-0.5" id="quickNfcLabel">Scan & Tautkan Kartu NFC Siswa</h5>
+                            <h2 class="font-bold text-white text-base mb-0.5" id="quickNfcLabel">Scan &amp; Tautkan Kartu NFC Siswa</h2>
                             <p class="text-[11px] text-emerald-100 mb-0">Tempelkan kartu RFID ke HP untuk menyimpan langsung ke database.</p>
                         </div>
                     </div>
-                    <button type="button" class="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors shrink-0"
-                        onclick="closeQuickNfcModal()" data-ui-dismiss="modal" aria-label="Tutup">
+                    <button type="button" @click="closeNfc()"
+                        class="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 inline-flex items-center justify-center transition-colors shrink-0"
+                        aria-label="Tutup">
                         <i class="bi bi-x-lg text-sm"></i>
                     </button>
                 </div>
 
-                <!-- Body (Scrollable, Clean Spacing) -->
+                <!-- Body -->
                 <div class="p-5 sm:p-6 space-y-3.5 overflow-y-auto max-h-[75vh]">
-                    <!-- Filter Kelas & Pemilihan Siswa -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Filter Kelas</label>
-                            <select id="nfc-filter-kelas" onchange="onNfcFilterKelasChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all">
+                            <label for="nfc-filter-kelas" class="block text-xs font-semibold text-slate-700 mb-1">Filter Kelas</label>
+                            <select id="nfc-filter-kelas" x-model="nfcKelasFilter" @change="loadNfcList(nfcKelasFilter)"
+                                class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all">
                                 <option value="">Semua Kelas</option>
                                 <?php foreach (($kelass ?? []) as $id => $name): ?>
                                     <option value="{{ (int) $id }}">{{ $name }}</option>
@@ -504,598 +634,428 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Siswa Target <span class="text-rose-500">*</span></label>
-                            <select id="nfc-select-siswa" onchange="onNfcSelectSiswaChange(this.value)" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium transition-all">
-                                <option value="">-- Memuat Siswa --</option>
+                            <label for="nfc-select-siswa" class="block text-xs font-semibold text-slate-700 mb-1">Pilih Siswa Target <span class="text-rose-500">*</span></label>
+                            <select id="nfc-select-siswa" x-model="nfcSelectedId"
+                                class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden font-medium transition-all">
+                                <option value="" x-text="nfcLoading ? '-- Memuat Siswa --' : '-- Pilih Siswa --'">-- Pilih Siswa --</option>
+                                <template x-for="s in nfcList" :key="s.id_siswa">
+                                    <option :value="String(s.id_siswa)" x-text="nfcLabel(s)"></option>
+                                </template>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Kartu Preview Siswa Terpilih (Sleek Compact) -->
-                    <div id="nfc-siswa-card" class="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex items-center gap-3 transition-all">
-                        <img id="nfc-siswa-foto" src="{{ asset('assets/img/siswa_sm.png') }}" alt="Foto" class="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-white shadow-xs shrink-0">
+                    <!-- Kartu Preview Siswa Terpilih -->
+                    <div class="p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex items-center gap-3 transition-all">
+                        <img :src="nfcSelected ? (nfcSelected.foto || defaultFoto) : defaultFoto" alt="Foto siswa terpilih"
+                            x-on:error="$event.target.onerror = null; $event.target.src = defaultFoto"
+                            class="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-white shadow-xs shrink-0">
                         <div class="min-w-0 flex-1">
-                            <h5 id="nfc-siswa-nama" class="font-bold text-slate-800 text-sm leading-tight truncate">Pilih siswa terlebih dahulu</h5>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight truncate" x-text="nfcSelected ? nfcSelected.nama : 'Pilih siswa terlebih dahulu'"></h3>
                             <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
-                                <span id="nfc-siswa-nis">NIS: -</span>
+                                <span x-text="nfcSelected ? 'NIS: ' + (nfcSelected.nis || '-') : 'NIS: -'"></span>
                                 <span>&bull;</span>
-                                <span id="nfc-siswa-kelas" class="font-semibold text-emerald-700">-</span>
+                                <span class="font-semibold text-emerald-700" x-text="nfcSelected ? (nfcSelected.nama_kelas || 'Kelas -') : '-'"></span>
                             </div>
                             <div class="mt-1 flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400">Status:</span>
-                                <span id="nfc-siswa-rfid-status" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-600">
-                                    Belum Ada RFID
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold"
+                                    :class="nfcSelected && nfcSelected.nomor_rfid ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/80 text-slate-600'">
+                                    <i x-show="nfcSelected && nfcSelected.nomor_rfid" class="bi bi-check-circle-fill text-emerald-600"></i>
+                                    <span x-text="nfcSelected && nfcSelected.nomor_rfid ? 'RFID: ' + nfcSelected.nomor_rfid : 'Belum Ada RFID'"></span>
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Sensor NFC & Tap Area (Modern & Minimalist) -->
+                    <!-- Sensor NFC & Tap Area -->
                     <div class="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-4 text-center relative overflow-hidden transition-all">
                         <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl shadow-md shadow-emerald-500/20 animate-pulse">
                             <i class="bi bi-broadcast"></i>
                         </div>
-                        <p id="nfc-modal-status-text" class="text-xs text-slate-600 max-w-sm mx-auto my-2">
-                            Tempelkan kartu RFID siswa ke <strong>bagian belakang HP Android</strong> Anda.
-                        </p>
+                        <p class="text-xs text-slate-600 max-w-sm mx-auto my-2" x-text="nfcStatus"></p>
 
                         <!-- Input Manual / USB Reader fallback -->
                         <div class="max-w-sm mx-auto mt-2">
                             <div class="relative">
-                                <input type="text" id="nfc-manual-rfid-input" placeholder="Atau scan via USB Reader / ketik UID" class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden shadow-2xs" autocomplete="off">
+                                <input type="text" x-ref="nfcManual" x-model="nfcManual" @keydown.enter.prevent="manualSave()"
+                                    placeholder="Atau scan via USB Reader / ketik UID"
+                                    class="w-full pl-8 pr-16 py-1.5 text-xs bg-white border border-slate-300 rounded-xl font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-hidden shadow-2xs"
+                                    autocomplete="off">
                                 <i class="bi bi-upc-scan absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                <button type="button" onclick="submitManualRfid()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                <button type="button" @click="manualSave()" :disabled="nfcSaving"
+                                    class="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition-colors">
                                     Simpan
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Checkbox Auto Advance & Counter (Minimalist bar) -->
+                    <!-- Auto advance & counter -->
                     <div class="flex items-center justify-between text-xs px-1">
                         <label for="nfc-auto-next" class="flex items-center gap-2 cursor-pointer select-none font-semibold text-slate-700">
-                            <input type="checkbox" id="nfc-auto-next" checked class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+                            <input type="checkbox" id="nfc-auto-next" x-model="nfcAutoNext"
+                                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
                             <span>Otomatis lanjut ke siswa berikutnya</span>
                         </label>
-                        <span id="nfc-session-count" class="text-emerald-600 font-bold">0 tersimpan</span>
+                        <span class="text-emerald-600 font-bold" x-text="nfcSessionCount + ' tersimpan'"></span>
                     </div>
 
                     <!-- Log Aktivitas Scan Terbaru -->
-                    <div id="nfc-scan-history-wrap">
-                        <div id="nfc-scan-history" class="space-y-1 max-h-24 overflow-y-auto pr-1 text-xs"></div>
+                    <div x-show="nfcHistory.length > 0" x-cloak>
+                        <div class="space-y-1 max-h-24 overflow-y-auto pr-1 text-xs">
+                            <template x-for="(log, i) in nfcHistory" :key="i">
+                                <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between text-[11px]">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold">
+                                            <i class="bi bi-check-lg"></i>
+                                        </span>
+                                        <div class="truncate">
+                                            <span class="font-bold text-slate-800" x-text="log.nama"></span>
+                                            <span class="text-slate-400 text-[10px]">&bull; RFID: <strong class="font-mono text-emerald-700" x-text="log.rfid"></strong></span>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 shrink-0" x-text="log.time"></span>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Footer -->
                 <div class="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-                    <button type="button" id="btn-hapus-rfid-siswa" onclick="hapusRfidSiswaTerpilih()" class="hidden px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors">
+                    <button type="button" @click="removeRfid()" x-show="nfcSelected && nfcSelected.nomor_rfid" x-cloak
+                        class="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors">
                         <i class="bi bi-trash3 mr-1"></i> Lepas Kartu Siswa Ini
                     </button>
                     <div class="ml-auto">
-                        <button type="button" onclick="closeQuickNfcModal()" data-ui-dismiss="modal" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
+                        <button type="button" @click="closeNfc()"
+                            class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors">Selesai</button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
+    <?php endif; ?>
+</div>
 
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/app/js/jquery.twbsPagination.js') }}"></script>
 <script>
-    // Global fallback handler untuk modal Scan NFC Siswa agar selalu responsif seketika
-    window.openQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
-        const modalEl = document.getElementById('quickNfcModal');
-        if (modalEl) {
-            modalEl.classList.remove('hidden');
-            modalEl.classList.add('is-open', 'show');
-            modalEl.style.display = 'flex';
-            if (window.AdminUI && window.AdminUI.modal) {
-                window.AdminUI.modal.open(modalEl);
-            }
-        }
-        if (typeof window._initQuickNfcModal === 'function') {
-            window._initQuickNfcModal(preselectIdSiswa, preselectIdKelas);
-        }
-    };
-    window.closeQuickNfcModal = function () {
-        const modalEl = document.getElementById('quickNfcModal');
-        if (modalEl) {
-            modalEl.classList.add('hidden');
-            modalEl.classList.remove('is-open', 'show', 'active');
-            modalEl.style.display = 'none';
-            if (window.AdminUI && window.AdminUI.modal) {
-                window.AdminUI.modal.close(modalEl);
-            }
-        }
-        if (typeof window._cleanupQuickNfcModal === 'function') {
-            window._cleanupQuickNfcModal();
-        }
-    };
+document.addEventListener('alpine:init', () => {
+    Alpine.data('siswaPage', () => ({
+        isAdmin: false,
+        hasPeriode: false,
+        urls: {},
+        csrf: '',
+        defaultFoto: '',
 
-    $(function () {
-        const IS_ADMIN    = {{ $isAdmin ? 'true' : 'false' }};
-        const HAS_PERIODE = {{ $hasPeriode ? 'true' : 'false' }};
-        const URL_LIST    = '{{ url('datasiswa/list') }}';
-        const URL_DELETE  = '{{ url('datasiswa/delete') }}';
-        const URL_CREATE  = '{{ url('datasiswa/create') }}';
-        const URL_ADD     = '{{ url('datasiswa/add') }}';
-        const URL_EDIT    = '{{ route('datasiswa.edit', ['id' => '__ID__']) }}';
-        const URL_ASSIGN_RFID = '{{ url('datasiswa/assign_rfid') }}';
-        const URL_SISWA_BY_KELAS = '{{ url('datasiswa/siswa_by_kelas') }}';
-        const DEFAULT_FOTO = '{{ asset('assets/img/siswa_sm.png') }}';
+        rows: [],
+        stats: { total: 0, aktif: 0, tanpa_kelas: 0, akun_nonaktif: 0 },
+        loading: false,
+        errorMessage: '',
+        page: 1,
+        perPage: 10,
+        total: 0,
+        pages: 0,
+        query: '',
+        statusFilter: '0',
+        kelasFilter: '',
+        requestSeq: 0,
 
-        let currentPage = 1;
-        let perPage = 10;
-        let query = null;
-        let statusFilter = '0';
-        let kelasFilter = '';
-        let searchTimer = null;
-        let requestSeq = 0;
+        selected: [],
+        bulkOpen: false,
 
-        const $pagination = $('#pagination');
-        const $tbody = $('#table-body');
-        const $loading = $('#loading');
-        const $resetFilter = $('#btn-reset-filter');
+        createOpen: false,
+        saving: false,
+        showPassword: false,
+        errors: {},
+        form: {
+            nama_siswa: '',
+            nis: '',
+            nisn: '',
+            jenis_kelamin: '',
+            agama: '',
+            kelas_awal: '',
+            tahun_masuk: '',
+            nomor_rfid: '',
+            username: '',
+            password: '',
+        },
 
-        const paginationOpts = {
-            visiblePages: 5,
-            initiateStartPageClick: false,
-            first: '<i class="bi bi-chevron-double-left"></i>',
-            prev: '<i class="bi bi-chevron-left"></i>',
-            next: '<i class="bi bi-chevron-right"></i>',
-            last: '<i class="bi bi-chevron-double-right"></i>',
-            onPageClick: function (event, page) {
-                currentPage = page;
-                loadSiswa();
-            }
-        };
+        nfcOpen: false,
+        nfcList: [],
+        nfcLoading: false,
+        nfcSelectedId: '',
+        nfcKelasFilter: '',
+        nfcSessionCount: 0,
+        nfcAutoNext: true,
+        nfcManual: '',
+        nfcSaving: false,
+        nfcStatus: 'Tempelkan kartu RFID siswa ke bagian belakang HP Android Anda.',
+        nfcHistory: [],
+        nfcReader: null,
+        nfcController: null,
+        fieldReader: null,
+        fieldController: null,
 
-        function escapeHtml(value) {
-            return String(value ?? '').replace(/[&<>"']/g, function (ch) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-            });
-        }
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.isAdmin = !!cfg.isAdmin;
+            this.hasPeriode = !!cfg.hasPeriode;
+            this.urls = cfg.urls || {};
+            this.csrf = cfg.csrf || '';
+            this.defaultFoto = cfg.defaultFoto || '';
 
-        function formatNumber(value) {
-            return Number(value || 0).toLocaleString('id-ID');
-        }
-
-        function hasActiveFilter() {
-            return (query !== null && query !== '') || statusFilter !== '0' || kelasFilter !== '';
-        }
-
-        function updateFilterUi() {
-            $resetFilter.toggleClass('hidden', !hasActiveFilter());
-            $('#btn-clear').toggleClass('hidden', !(query !== null && query !== ''));
-            $('#users-status').toggleClass('border-blue-300 bg-blue-50/40 text-blue-700', statusFilter !== '0');
-            $('#users-kelas').toggleClass('border-blue-300 bg-blue-50/40 text-blue-700', kelasFilter !== '');
-        }
-
-        function setStats(stats) {
-            const values = {
-                'stat-total': stats.total,
-                'stat-aktif': stats.aktif,
-                'stat-tanpa-kelas': HAS_PERIODE ? stats.tanpa_kelas : null,
-                'stat-akun-nonaktif': stats.akun_nonaktif
-            };
-            Object.keys(values).forEach(function (id) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                const value = values[id];
-                el.textContent = value === null || value === undefined ? '—' : formatNumber(value);
-            });
-        }
-
-        function updateBulkState() {
-            const total = $('.check').length;
-            const checked = $('.check:checked').length;
-
-            $('.select_all')
-                .prop('checked', total > 0 && checked === total)
-                .prop('indeterminate', checked > 0 && checked < total);
-
-            $('#dropdown-btn').prop('disabled', checked === 0);
-            $('#selection-count').text(checked);
-            $('#selection-bar').toggleClass('hidden', checked === 0);
-
-            if (checked === 0) {
-                $('#dropdown-action').removeClass('show');
-                $('#dropdown-btn').attr('aria-expanded', 'false');
-            }
-        }
-
-        function renderEmpty(title, detail, showReset) {
-            const cols = IS_ADMIN ? 7 : 5;
-            const action = showReset
-                ? '<button type="button" class="js-reset-filter inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors"><i class="bi bi-arrow-counterclockwise"></i> Reset filter</button>'
-                : (IS_ADMIN
-                    ? '<a href="' + URL_ADD + '" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 shadow-xs shadow-blue-500/20"><i class="bi bi-plus-lg"></i> Tambah / Import Siswa</a>'
-                    : '');
-
-            $tbody.html(
-                '<tr><td colspan="' + cols + '" class="px-4 py-14 text-center">' +
-                    '<div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-2xl">' +
-                        '<i class="bi ' + (showReset ? 'bi-search' : 'bi-inbox') + '"></i>' +
-                    '</div>' +
-                    '<p class="text-sm font-bold text-slate-700 mb-1">' + escapeHtml(title) + '</p>' +
-                    '<p class="text-xs text-slate-400 max-w-sm mx-auto mb-4">' + escapeHtml(detail) + '</p>' +
-                    action +
-                '</td></tr>'
-            );
-
-            $('#total-entri').text(title);
-        }
-
-        function renderPagination(totalPages) {
-            if ($pagination.data('twbs-pagination')) {
-                $pagination.twbsPagination('destroy');
-            }
-
-            if (totalPages > 0) {
-                $pagination.twbsPagination($.extend({}, paginationOpts, {
-                    startPage: currentPage,
-                    totalPages: totalPages
-                }));
-                $pagination.removeClass('hidden');
+            if (this.hasPeriode) {
+                this.load();
             } else {
-                $pagination.addClass('hidden');
+                this.errorMessage = 'Tahun Pelajaran / Semester aktif belum diset.';
             }
-        }
+        },
 
-        function previewData(data) {
-            const lists = Array.isArray(data.lists) ? data.lists : [];
+        get nfcSelected() {
+            return this.nfcList.find((s) => String(s.id_siswa) === String(this.nfcSelectedId)) || null;
+        },
 
-            if (!lists.length) {
-                const filtered = hasActiveFilter();
-                renderEmpty(
-                    filtered ? 'Tidak ada siswa yang cocok' : 'Belum ada data siswa',
-                    filtered
-                        ? 'Ubah kata kunci, status, atau kelas lalu coba lagi.'
-                        : (IS_ADMIN ? 'Tambahkan siswa baru atau import dari file Excel untuk mulai mengelola data.' : 'Data siswa belum tersedia.'),
-                    filtered
-                );
-                return;
-            }
+        format(value) {
+            return Number(value || 0).toLocaleString('id-ID');
+        },
 
-            const statusMap = {
+        hasFilter() {
+            return this.query.trim() !== '' || this.statusFilter !== '0' || this.kelasFilter !== '';
+        },
+
+        rowNo(idx) {
+            return (this.page - 1) * this.perPage + idx + 1;
+        },
+
+        rowMeta(row) {
+            const parts = [];
+            const jk = String(row.jenis_kelamin || '').toUpperCase();
+            if (jk === 'L') parts.push('Laki-laki');
+            if (jk === 'P') parts.push('Perempuan');
+            if (row.agama) parts.push(row.agama);
+            if (row.username) parts.push('@' + row.username);
+            return parts.join(' \u00b7 ');
+        },
+
+        statusMeta(status) {
+            const map = {
                 '1': { label: 'Aktif', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500' },
                 '2': { label: 'Lulus', cls: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500' },
                 '3': { label: 'Pindah', cls: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' },
-                '4': { label: 'Keluar', cls: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-500' }
+                '4': { label: 'Keluar', cls: 'bg-rose-50 text-rose-700 border-rose-100', dot: 'bg-rose-500' },
             };
+            return map[String(status || '')] || {
+                label: 'Belum terdaftar',
+                cls: 'bg-slate-50 text-slate-500 border-slate-200',
+                dot: 'bg-slate-400',
+            };
+        },
 
-            const startNo = perPage * (currentPage - 1);
+        emptyTitle() {
+            if (this.errorMessage) return this.errorMessage;
+            return this.hasFilter() ? 'Tidak ada siswa yang cocok' : 'Belum ada data siswa';
+        },
 
-            const rows = lists.map(function (siswa, idx) {
-                const no = startNo + idx + 1;
-                const idSiswa = parseInt(siswa.id_siswa, 10) || 0;
-                const nama = escapeHtml(siswa.nama || 'Tanpa nama');
-                const foto = escapeHtml(siswa.foto || DEFAULT_FOTO);
-                const nis = escapeHtml(siswa.nis || '-');
-                const nisn = escapeHtml(siswa.nisn || '-');
-                const username = escapeHtml(siswa.username || '');
+        emptyDetail() {
+            if (this.errorMessage) return 'Periksa pengaturan periode atau coba muat ulang halaman ini.';
+            if (this.hasFilter()) return 'Ubah kata kunci, status, atau kelas lalu coba lagi.';
+            return this.isAdmin
+                ? 'Tambahkan siswa baru atau import dari file Excel untuk mulai mengelola data.'
+                : 'Data siswa belum tersedia.';
+        },
 
-                const jkRaw = String(siswa.jenis_kelamin || '').toUpperCase();
-                const jk = jkRaw === 'L' ? 'Laki-laki' : (jkRaw === 'P' ? 'Perempuan' : '');
-                const agama = siswa.agama ? '<span>' + escapeHtml(siswa.agama) + '</span>' : '';
-                const metaParts = [];
-                if (jk) metaParts.push('<span>' + jk + '</span>');
-                if (agama) metaParts.push(agama);
-                if (username) metaParts.push('<span class="font-mono">@' + username + '</span>');
-                const meta = metaParts.join('<span class="text-slate-300">&bull;</span>');
+        summaryText() {
+            if (!this.rows.length) return 'Menampilkan 0 entri';
+            const from = (this.page - 1) * this.perPage + 1;
+            const to = from + this.rows.length - 1;
+            return 'Menampilkan ' + from + '\u2013' + to + ' dari ' + this.format(this.total) + ' siswa';
+        },
 
-                const kelas = siswa.nama_kelas
-                    ? '<span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100">' + escapeHtml(siswa.nama_kelas) + '</span>'
-                    : '<span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100"><i class="bi bi-exclamation-circle mr-1"></i>Belum ada kelas</span>';
+        pageList() {
+            const total = this.pages;
+            if (total <= 0) return [];
+            const windowSize = 5;
+            let start = Math.max(1, this.page - Math.floor(windowSize / 2));
+            const end = Math.min(total, start + windowSize - 1);
+            start = Math.max(1, end - windowSize + 1);
+            const list = [];
+            for (let p = start; p <= end; p++) list.push(p);
+            return list;
+        },
 
-                const statusKey = String(siswa.status ?? '');
-                const st = statusMap[statusKey] || {
-                    label: 'Belum terdaftar',
-                    cls: 'bg-slate-50 text-slate-500 border-slate-200',
-                    dot: 'bg-slate-400'
-                };
+        editUrl(id) {
+            return String(this.urls.edit || '').replace(/\/$/, '') + '/' + id;
+        },
 
-                let akunChip = '';
-                if (String(siswa.active) === '0') {
-                    akunChip = '<div class="mt-1"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-100 text-[10px] font-semibold"><i class="bi bi-shield-slash"></i>Login nonaktif</span></div>';
-                } else if (siswa.active === null || siswa.active === undefined) {
-                    akunChip = '<div class="mt-1"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-semibold"><i class="bi bi-person-x"></i>Tanpa akun</span></div>';
-                }
-
-                const rfidVal = escapeHtml(siswa.nomor_rfid || '');
-                const rfidBadge = rfidVal
-                    ? '<div class="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 font-mono bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md inline-flex" title="Nomor Kartu RFID: ' + rfidVal + '"><i class="bi bi-broadcast text-emerald-600"></i>' + rfidVal + '</div>'
-                    : '<div class="text-[10px] text-slate-400 mt-1 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>Tanpa RFID</div>';
-
-                const checkbox = IS_ADMIN
-                    ? '<td class="text-center align-middle py-3 px-3">' +
-                        '<input name="checked[]" class="check rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="' + idSiswa + '" type="checkbox" aria-label="Pilih ' + nama + '">' +
-                      '</td>'
-                    : '';
-
-                const aksi = IS_ADMIN
-                    ? '<td class="text-center align-middle py-3 px-4">' +
-                        '<div class="flex items-center justify-center gap-1.5">' +
-                            '<button type="button" class="btn-tap-nfc-row inline-flex items-center justify-center w-8 h-8 rounded-lg ' + (rfidVal ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200') + ' transition-colors shadow-xs" data-id="' + idSiswa + '" data-nama="' + nama + '" data-rfid="' + rfidVal + '" data-nis="' + nis + '" data-kelas="' + escapeHtml(siswa.nama_kelas || '-') + '" data-kelas-id="' + (siswa.id_kelas || '') + '" data-foto="' + foto + '" onclick="openQuickNfcModal(' + idSiswa + ', \'' + (siswa.id_kelas || '') + '\')" title="' + (rfidVal ? 'RFID: ' + rfidVal + ' (Klik untuk ganti)' : 'Tap NFC untuk daftarkan kartu') + '">' +
-                                '<i class="bi bi-broadcast text-xs"></i>' +
-                            '</button>' +
-                            '<a class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-colors shadow-xs" href="' + URL_EDIT.replace('__ID__', idSiswa) + '" title="Edit data siswa" aria-label="Edit data ' + nama + '">' +
-                                '<i class="bi bi-pencil-square text-xs"></i>' +
-                            '</a>' +
-                        '</div>' +
-                      '</td>'
-                    : '';
-
-                return '<tr class="hover:bg-slate-50/70 transition-colors">' +
-                    checkbox +
-                    '<td class="text-center align-middle font-bold text-slate-400 py-3 px-3">' + no + '</td>' +
-                    '<td class="align-middle py-3 px-4">' +
-                        '<div class="flex items-center gap-3">' +
-                            '<img src="' + foto + '" alt="Foto ' + nama + '" loading="lazy" ' +
-                                'class="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-slate-50 shadow-xs shrink-0" ' +
-                                'onerror="this.onerror=null;this.src=\'' + DEFAULT_FOTO.replace(/'/g, "\\'") + '\'">' +
-                            '<div class="min-w-0">' +
-                                '<div class="font-bold text-slate-800 text-sm truncate max-w-[240px]" title="' + nama + '">' + nama + '</div>' +
-                                (meta ? '<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">' + meta + '</div>' : '') +
-                            '</div>' +
-                        '</div>' +
-                    '</td>' +
-                    '<td class="align-middle py-3 px-4">' +
-                        '<div class="text-[11px] text-slate-400 font-medium">NIS <span class="font-bold text-slate-700 font-mono">' + nis + '</span></div>' +
-                        '<div class="text-[11px] text-slate-400 font-medium mt-0.5">NISN <span class="font-bold text-slate-700 font-mono">' + nisn + '</span></div>' +
-                        rfidBadge +
-                    '</td>' +
-                    '<td class="align-middle py-3 px-4">' + kelas + '</td>' +
-                    '<td class="text-center align-middle py-3 px-4">' +
-                        '<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ' + st.cls + '">' +
-                            '<span class="w-1.5 h-1.5 rounded-full ' + st.dot + '"></span>' + st.label +
-                        '</span>' +
-                        akunChip +
-                    '</td>' +
-                    aksi +
-                '</tr>';
-            }).join('');
-
-            $tbody.html(rows);
-
-            const from = startNo + 1;
-            const to = startNo + lists.length;
-            $('#total-entri').text('Menampilkan ' + from + '–' + to + ' dari ' + formatNumber(data.total) + ' siswa');
-
-            updateBulkState();
-        }
-
-        function loadSiswa() {
-            if (!HAS_PERIODE) {
-                renderEmpty('Periode aktif belum diset', 'Atur Tahun Pelajaran dan Semester aktif terlebih dahulu agar daftar siswa dapat dimuat.', false);
-                $pagination.addClass('hidden');
+        async load() {
+            if (!this.hasPeriode) {
+                this.rows = [];
                 return;
             }
 
-            const seq = ++requestSeq;
-            $loading.removeClass('hidden');
-            $('#table-siswa').attr('aria-busy', 'true');
+            const seq = ++this.requestSeq;
+            this.loading = true;
+            this.errorMessage = '';
+            this.selected = [];
+            this.bulkOpen = false;
 
-            const payload = {
-                page: currentPage,
-                limit: perPage,
-                search: query || '',
-                status: statusFilter,
-                kelas: kelasFilter
-            };
-            payload[CSRF_NAME] = CSRF_HASH;
+            const body = new URLSearchParams({
+                page: String(this.page),
+                limit: String(this.perPage),
+                search: this.query.trim(),
+                status: this.statusFilter,
+                kelas: this.kelasFilter,
+            });
+            body.append('_token', this.csrf);
 
-            $.ajax({
-                url: URL_LIST,
-                type: 'POST',
-                dataType: 'json',
-                data: payload,
-                success: function (data) {
-                    if (seq !== requestSeq) return;
+            try {
+                const response = await fetch(this.urls.list, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
 
-                    if (!data || data.status === false) {
-                        renderEmpty('Gagal memuat data', (data && data.message) || 'Silakan coba lagi.', true);
-                        $pagination.addClass('hidden');
-                        return;
-                    }
+                if (seq !== this.requestSeq) return;
 
-                    if (data.message) {
-                        renderEmpty('Data belum dapat ditampilkan', data.message, false);
-                        $pagination.addClass('hidden');
-                        return;
-                    }
+                if (response.status === 401) throw new Error('Sesi Anda berakhir. Silakan login kembali.');
+                if (response.status === 403) throw new Error('Anda tidak memiliki akses ke daftar siswa.');
+                if (!response.ok) throw new Error('Gagal memuat data siswa. Periksa koneksi lalu coba lagi.');
 
-                    if (data.stats) setStats(data.stats);
+                const data = await response.json();
+                if (seq !== this.requestSeq) return;
 
-                    const totalPages = Number(data.pages) || 0;
-                    if (totalPages > 0 && currentPage > totalPages) {
-                        currentPage = totalPages;
-                        loadSiswa();
-                        return;
-                    }
-
-                    renderPagination(totalPages);
-                    previewData(data);
-                },
-                error: function (xhr) {
-                    if (seq !== requestSeq) return;
-
-                    let message = 'Gagal memuat data siswa. Periksa koneksi lalu coba lagi.';
-                    if (xhr.status === 401) message = 'Sesi Anda berakhir. Silakan login kembali.';
-                    else if (xhr.status === 403) message = 'Anda tidak memiliki akses ke daftar siswa.';
-
-                    renderEmpty('Terjadi kesalahan', message, true);
-                    $pagination.addClass('hidden');
-                },
-                complete: function () {
-                    if (seq !== requestSeq) return;
-                    $loading.addClass('hidden');
-                    $('#table-siswa').attr('aria-busy', 'false');
+                if (!data || data.status === false) {
+                    this.rows = [];
+                    this.pages = 0;
+                    this.total = 0;
+                    this.errorMessage = (data && data.message) || 'Gagal memuat data.';
+                    return;
                 }
-            });
-        }
 
-        function resetFilters() {
-            query = null;
-            statusFilter = '0';
-            kelasFilter = '';
-            currentPage = 1;
-            $('#input-search').val('');
-            $('#users-status').val('0');
-            $('#users-kelas').val('');
-            updateFilterUi();
-            loadSiswa();
-        }
-
-        function submitBulk(action) {
-            const checked = $('.check:checked').length;
-            if (checked === 0) return;
-
-            $('#dropdown-action').removeClass('show');
-            $('#dropdown-btn').attr('aria-expanded', 'false');
-
-            Swal.fire({
-                title: 'Memproses...',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: function () { Swal.showLoading(); }
-            });
-
-            const payload = $('#bulk').serialize() + '&aksi=' + encodeURIComponent(action) + '&' + encodeURIComponent(CSRF_NAME) + '=' + encodeURIComponent(CSRF_HASH);
-
-            $.ajax({
-                url: URL_DELETE,
-                type: 'POST',
-                dataType: 'json',
-                data: payload,
-                success: function (response) {
-                    if (response && response.status) {
-                        $('.select_all').prop('checked', false).prop('indeterminate', false);
-                        updateBulkState();
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: response.message || 'Data berhasil diperbarui.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                        loadSiswa();
-                    } else {
-                        Swal.fire('Gagal', (response && response.message) || 'Data gagal diproses.', 'error');
-                    }
-                },
-                error: function (xhr) {
-                    const message = xhr.status === 403
-                        ? 'Anda tidak memiliki akses untuk mengubah data siswa.'
-                        : 'Terjadi kesalahan pada server. Coba lagi.';
-                    Swal.fire('Gagal', message, 'error');
-                },
-                complete: function () {
-                    updateBulkState();
+                if (data.message) {
+                    this.rows = [];
+                    this.pages = 0;
+                    this.total = 0;
+                    this.errorMessage = data.message;
+                    return;
                 }
-            });
-        }
 
-        // Filter & pencarian
-        $('#users_length').on('change', function () {
-            perPage = parseInt(this.value, 10) || 10;
-            currentPage = 1;
-            loadSiswa();
-        });
+                if (data.stats) this.stats = data.stats;
 
-        $('#users-status').on('change', function () {
-            statusFilter = this.value;
-            currentPage = 1;
-            updateFilterUi();
-            loadSiswa();
-        });
+                this.total = Number(data.total) || 0;
+                this.pages = Number(data.pages) || 0;
 
-        $('#users-kelas').on('change', function () {
-            kelasFilter = this.value;
-            currentPage = 1;
-            updateFilterUi();
-            loadSiswa();
-        });
+                if (this.pages > 0 && this.page > this.pages) {
+                    this.page = this.pages;
+                    this.loading = false;
+                    this.load();
+                    return;
+                }
 
-        // Kartu statistik "Tanpa kelas" memfilter daftar langsung.
-        $('#card-tanpa-kelas').on('click', function () {
-            kelasFilter = 'tanpa';
-            $('#users-kelas').val('tanpa');
-            currentPage = 1;
-            updateFilterUi();
-            loadSiswa();
-        });
+                this.rows = Array.isArray(data.lists) ? data.lists : [];
+            } catch (error) {
+                if (seq !== this.requestSeq) return;
+                this.rows = [];
+                this.pages = 0;
+                this.total = 0;
+                this.errorMessage = error.message || 'Terjadi kesalahan saat memuat data siswa.';
+            } finally {
+                if (seq === this.requestSeq) this.loading = false;
+            }
+        },
 
-        $('#input-search').on('input', function () {
-            const value = $(this).val();
-            query = value.trim() === '' ? null : value.trim();
-            updateFilterUi();
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(function () {
-                currentPage = 1;
-                loadSiswa();
-            }, 300);
-        });
+        reload() {
+            this.load();
+        },
 
-        $('#btn-clear').on('click', function () {
-            query = null;
-            $('#input-search').val('').trigger('focus');
-            currentPage = 1;
-            updateFilterUi();
-            loadSiswa();
-        });
+        applyFilters() {
+            this.page = 1;
+            this.load();
+        },
 
-        $resetFilter.on('click', resetFilters);
+        clearSearch() {
+            this.query = '';
+            this.applyFilters();
+            this.$nextTick(() => this.$refs.search?.focus());
+        },
 
-        $(document).on('click', '.js-reset-filter', resetFilters);
+        resetFilters() {
+            this.query = '';
+            this.statusFilter = '0';
+            this.kelasFilter = '';
+            this.applyFilters();
+        },
 
-        // Seleksi & aksi massal
-        $(document).on('change', '.select_all', function () {
-            $('.check').prop('checked', this.checked);
-            updateBulkState();
-        });
+        filterTanpaKelas() {
+            if (!this.hasPeriode) return;
+            this.kelasFilter = 'tanpa';
+            this.applyFilters();
+        },
 
-        $(document).on('change', '.check', updateBulkState);
+        goPage(target) {
+            if (target < 1 || target > this.pages || target === this.page) return;
+            this.page = target;
+            this.load();
+        },
 
-        $('#dropdown-action a').on('click', function (e) {
-            e.preventDefault();
-            const action = this.id;
-            const checked = $('.check:checked').length;
-            if (checked === 0) return;
+        allSelected() {
+            return this.rows.length > 0 && this.rows.every((row) => this.selected.includes(Number(row.id_siswa)));
+        },
 
+        toggleAll(event) {
+            this.selected = event.target.checked
+                ? this.rows.map((row) => Number(row.id_siswa))
+                : [];
+        },
+
+        toggleOne(event, id) {
+            const value = Number(id);
+            if (event.target.checked) {
+                if (!this.selected.includes(value)) this.selected.push(value);
+            } else {
+                this.selected = this.selected.filter((item) => item !== value);
+            }
+        },
+
+        async bulkAction(action) {
+            if (this.selected.length === 0) return;
+            this.bulkOpen = false;
+
+            const count = this.selected.length;
             const config = {
                 hapus: {
                     title: 'Hapus siswa terpilih?',
-                    html: '<b>' + checked + ' siswa</b> akan dihapus permanen dari data siswa, kelas, dan buku induk. Tindakan ini tidak dapat dibatalkan.',
+                    html: '<b>' + count + ' siswa</b> akan dihapus permanen dari data siswa, kelas, dan buku induk. Tindakan ini tidak dapat dibatalkan.',
                     icon: 'warning',
                     confirm: 'Ya, Hapus',
-                    color: '#e11d48'
+                    color: '#e11d48',
                 },
                 pindah: {
                     title: 'Tandai sebagai PINDAH?',
-                    html: 'Status <b>' + checked + ' siswa</b> terpilih akan diubah menjadi <b>Pindah</b>.',
+                    html: 'Status <b>' + count + ' siswa</b> terpilih akan diubah menjadi <b>Pindah</b>.',
                     icon: 'question',
                     confirm: 'Ya, Lanjutkan',
-                    color: '#d97706'
+                    color: '#d97706',
                 },
                 keluar: {
                     title: 'Tandai sebagai KELUAR?',
-                    html: 'Status <b>' + checked + ' siswa</b> terpilih akan diubah menjadi <b>Keluar</b>.',
+                    html: 'Status <b>' + count + ' siswa</b> terpilih akan diubah menjadi <b>Keluar</b>.',
                     icon: 'question',
                     confirm: 'Ya, Lanjutkan',
-                    color: '#475569'
-                }
+                    color: '#475569',
+                },
             }[action];
 
             if (!config) return;
 
-            Swal.fire({
+            const result = await Swal.fire({
                 title: config.title,
                 html: config.html,
                 icon: config.icon,
@@ -1104,552 +1064,467 @@ $labelClass = 'block text-xs font-semibold text-slate-700 mb-1.5';
                 cancelButtonColor: '#64748b',
                 confirmButtonText: config.confirm,
                 cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then(function (result) {
-                if (result.isConfirmed) submitBulk(action);
+                reverseButtons: true,
             });
-        });
 
-        // Form tambah siswa
-        $('#formsiswa').on('submit', function (e) {
-            e.preventDefault();
+            if (!result.isConfirmed) return;
 
-            const $btn = $('#btn-save-siswa');
-            const original = $btn.html();
-
-            $btn.prop('disabled', true).html(
-                '<span class="inline-block w-3.5 h-3.5 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></span> Menyimpan...'
-            );
-
-            $.ajax({
-                url: URL_CREATE,
-                type: 'POST',
-                dataType: 'json',
-                data: $(this).serialize() + '&' + CSRF_NAME + '=' + CSRF_HASH,
-                success: function (response) {
-                    if (response && response.insert) {
-                        AdminUI.modal.close(document.getElementById('createSiswaModal'));
-                        $('#formsiswa')[0].reset();
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: response.text || 'Siswa berhasil ditambahkan.',
-                            timer: 1600,
-                            showConfirmButton: false
-                        });
-                        currentPage = 1;
-                        loadSiswa();
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal menyimpan',
-                            html: (response && response.text) || 'Periksa kembali data siswa.'
-                        });
-                    }
-                },
-                error: function (xhr) {
-                    const message = xhr.status === 403
-                        ? 'Anda tidak memiliki akses untuk menambah siswa.'
-                        : 'Terjadi kesalahan pada server. Coba lagi.';
-                    Swal.fire('Gagal', message, 'error');
-                },
-                complete: function () {
-                    $btn.prop('disabled', false).html(original);
-                }
+            Swal.fire({
+                title: 'Memproses...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => Swal.showLoading(),
             });
-        });
 
-        $('#formsiswa').on('reset', function () {
-            setTimeout(function () {
-                $('#password').attr('type', 'password');
-                $('#togglePassword i').removeClass('bi-eye-slash').addClass('bi-eye');
-                $('#togglePassword').attr('aria-label', 'Tampilkan password');
-            }, 0);
-        });
+            const body = new FormData();
+            this.selected.forEach((id) => body.append('checked[]', id));
+            body.append('aksi', action);
+            body.append('_token', this.csrf);
 
-        $('#togglePassword').on('click', function () {
-            const $input = $('#password');
-            const show = $input.attr('type') === 'password';
-            $input.attr('type', show ? 'text' : 'password');
-            $(this).find('i').toggleClass('bi-eye', !show).toggleClass('bi-eye-slash', show);
-            $(this).attr('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
-        });
-
-        $('#createSiswaModal').on('app:modal-shown', function () {
-            setTimeout(function () { $('#nama_siswa').trigger('focus'); }, 60);
-        });
-
-        // ── NFC INTEGRATION (Web NFC untuk Input & Quick Modal) ──
-        let modalNfcReader = null;
-        let modalNfcController = null;
-        let modalNfcActive = false;
-        let nfcSiswaList = [];
-        let nfcSessionCount = 0;
-
-        window.scanNfcToField = async function (fieldSelector) {
-            if (!('NDEFReader' in window)) {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Web NFC',
-                    html: `<div class="text-left text-xs space-y-1.5 text-slate-600">
-                        <p>Fitur Tap NFC langsung di browser membutuhkan:</p>
-                        <ul class="list-disc pl-4 space-y-1">
-                            <li>Smartphone <strong>Android</strong> ber-NFC.</li>
-                            <li>Browser <strong>Google Chrome</strong> Android.</li>
-                            <li>Akses melalui protokol <strong>HTTPS</strong>.</li>
-                        </ul>
-                        <p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual atau menggunakan USB RFID reader.</p>
-                    </div>`,
-                    confirmButtonText: 'Tutup'
+            try {
+                const response = await fetch(this.urls.delete, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
                 });
+
+                if (response.status === 403) throw new Error('Anda tidak memiliki akses untuk mengubah data siswa.');
+                if (!response.ok) throw new Error('Terjadi kesalahan pada server. Coba lagi.');
+
+                const data = await response.json();
+                if (data && data.status) {
+                    this.selected = [];
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: data.message || 'Data berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+                    this.load();
+                } else {
+                    Swal.fire('Gagal', (data && data.message) || 'Data gagal diproses.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan pada server. Coba lagi.', 'error');
+            }
+        },
+
+        openCreate() {
+            this.createOpen = true;
+            this.errors = {};
+            this.showPassword = false;
+            this.$nextTick(() => document.getElementById('nama_siswa')?.focus());
+        },
+
+        resetCreateForm() {
+            this.form = {
+                nama_siswa: '',
+                nis: '',
+                nisn: '',
+                jenis_kelamin: '',
+                agama: '',
+                kelas_awal: '',
+                tahun_masuk: '',
+                nomor_rfid: '',
+                username: '',
+                password: '',
+            };
+            this.errors = {};
+            this.showPassword = false;
+        },
+
+        async createSiswa() {
+            const formEl = this.$refs.formSiswa;
+            if (formEl && !formEl.reportValidity()) return;
+
+            this.saving = true;
+            this.errors = {};
+
+            const body = new URLSearchParams(new FormData(formEl));
+            body.append('_token', this.csrf);
+
+            try {
+                const response = await fetch(this.urls.create, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+
+                if (response.status === 403) throw new Error('Anda tidak memiliki akses untuk menambah siswa.');
+                if (!response.ok) throw new Error('Terjadi kesalahan pada server. Coba lagi.');
+
+                const data = await response.json();
+
+                if (data && data.insert) {
+                    this.createOpen = false;
+                    const rfid = this.form.nomor_rfid;
+                    this.resetCreateForm();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: data.text || 'Siswa berhasil ditambahkan.',
+                        timer: 1600,
+                        showConfirmButton: false,
+                    });
+                    this.page = 1;
+                    this.load();
+                    if (rfid) this.nfcKelasFilter = '';
+                } else {
+                    this.errors = (data && data.error) || {};
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal menyimpan',
+                        text: (data && data.text) || 'Periksa kembali data siswa.',
+                    });
+                }
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Terjadi kesalahan pada server. Coba lagi.', 'error');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async scanField() {
+            if (!('NDEFReader' in window)) {
+                this.nfcUnsupported();
                 return;
             }
 
             try {
-                const ndef = new NDEFReader();
-                await ndef.scan();
+                if (this.fieldController) this.fieldController.abort();
+                this.fieldController = new AbortController();
+                this.fieldReader = new NDEFReader();
+                await this.fieldReader.scan({ signal: this.fieldController.signal });
+
                 Swal.fire({
                     title: 'Tempelkan Kartu NFC',
                     text: 'Dekatkan kartu RFID siswa ke bagian belakang HP Anda sekarang...',
                     showCancelButton: true,
                     cancelButtonText: 'Batal',
                     allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    didOpen: () => Swal.showLoading(),
                 });
 
-                ndef.onreading = (event) => {
-                    const rawSerial = event.serialNumber || '';
-                    if (rawSerial) {
-                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                        const clean = rawSerial.replace(/[: -]/g, '').toUpperCase();
-                        $(fieldSelector).val(clean).trigger('input');
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Kartu Terbaca!',
-                            text: 'UID Kartu: ' + clean,
-                            timer: 1800,
-                            showConfirmButton: false
-                        });
-                    }
+                this.fieldReader.onreading = (event) => {
+                    const clean = String(event.serialNumber || '').replace(/[: -]/g, '').toUpperCase();
+                    if (!clean) return;
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    this.form.nomor_rfid = clean;
+                    this.fieldController?.abort();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Kartu Terbaca!',
+                        text: 'UID Kartu: ' + clean,
+                        timer: 1800,
+                        showConfirmButton: false,
+                    });
                 };
-            } catch (err) {
-                Swal.fire('Gagal', err.message || 'Tidak dapat membaca NFC.', 'error');
+            } catch (error) {
+                Swal.fire('Gagal', error.message || 'Tidak dapat membaca NFC.', 'error');
             }
-        };
+        },
 
-        window._initQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
+        nfcUnsupported() {
+            Swal.fire({
+                icon: 'info',
+                title: 'Web NFC',
+                html: '<div class="text-left text-xs space-y-1.5 text-slate-600">'
+                    + '<p>Fitur Tap NFC langsung di browser membutuhkan:</p>'
+                    + '<ul class="list-disc pl-4 space-y-1">'
+                    + '<li>Smartphone <strong>Android</strong> ber-NFC.</li>'
+                    + '<li>Browser <strong>Google Chrome</strong> Android.</li>'
+                    + '<li>Akses melalui protokol <strong>HTTPS</strong>.</li>'
+                    + '</ul>'
+                    + '<p class="mt-2 text-slate-500">Anda juga dapat mengetikkan UID kartu secara manual atau menggunakan USB RFID reader.</p>'
+                    + '</div>',
+                confirmButtonText: 'Tutup',
+            });
+        },
+
+        openNfc(preselectId = null, preselectKelas = null) {
+            this.nfcOpen = true;
+            this.nfcStatus = 'Tempelkan kartu RFID siswa ke bagian belakang HP Android Anda.';
+            this.nfcManual = '';
+
             let filterKelas = '';
-            if (preselectIdKelas) {
-                filterKelas = String(preselectIdKelas);
+            if (preselectKelas) {
+                filterKelas = String(preselectKelas);
             } else {
-                const currentKelas = $('#users-kelas').val() || '';
-                filterKelas = (currentKelas === 'tanpa' ? '' : currentKelas);
+                filterKelas = this.kelasFilter === 'tanpa' ? '' : this.kelasFilter;
             }
-            $('#nfc-filter-kelas').val(filterKelas);
-            loadSiswaForNfc(filterKelas, preselectIdSiswa);
-            startModalNfcScan();
-        };
+            this.nfcKelasFilter = filterKelas;
+            this.nfcSelectedId = preselectId ? String(preselectId) : '';
 
-        window._cleanupQuickNfcModal = function () {
-            stopModalNfcScan();
-            loadSiswa();
-        };
+            this.loadNfcList(filterKelas, preselectId);
+            this.startNfcScan();
 
-        window.openQuickNfcModal = function (preselectIdSiswa = null, preselectIdKelas = null) {
-            const modalEl = document.getElementById('quickNfcModal');
-            if (modalEl) {
-                modalEl.classList.remove('hidden');
-                modalEl.classList.add('is-open', 'show');
-                modalEl.style.display = 'flex';
-                if (window.AdminUI && window.AdminUI.modal) {
-                    window.AdminUI.modal.open(modalEl);
+            this.$nextTick(() => {
+                setTimeout(() => this.$refs.nfcManual?.focus(), 150);
+            });
+        },
+
+        closeNfc() {
+            this.stopNfcScan();
+            this.nfcOpen = false;
+            this.load();
+        },
+
+        nfcLabel(s) {
+            const base = (s.nama || '-') + ' (' + (s.nis || '-') + ')';
+            return base + (s.nomor_rfid ? ' [\u2713 ' + s.nomor_rfid + ']' : ' [Belum ada RFID]');
+        },
+
+        async loadNfcList(idKelas = '', selectId = null) {
+            this.nfcLoading = true;
+            try {
+                const url = String(this.urls.siswaByKelas || '').replace(/\/$/, '') + (idKelas ? '/' + idKelas : '');
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await response.json();
+                this.nfcList = (data && Array.isArray(data.lists)) ? data.lists : [];
+
+                if (selectId && this.nfcList.some((s) => String(s.id_siswa) === String(selectId))) {
+                    this.nfcSelectedId = String(selectId);
+                    return;
                 }
-            }
-            window._initQuickNfcModal(preselectIdSiswa, preselectIdKelas);
-            setTimeout(function () {
-                const inputEl = document.getElementById('nfc-manual-rfid-input');
-                if (inputEl) inputEl.focus();
-            }, 150);
-        };
 
-        window.closeQuickNfcModal = function () {
-            const modalEl = document.getElementById('quickNfcModal');
-            if (modalEl) {
-                modalEl.classList.add('hidden');
-                modalEl.classList.remove('is-open', 'show', 'active');
-                modalEl.style.display = 'none';
-                if (window.AdminUI && window.AdminUI.modal) {
-                    window.AdminUI.modal.close(modalEl);
+                if (selectId && idKelas) {
+                    // Siswa yang dipilih tidak ada di kelas tersebut: muat semua kelas.
+                    this.nfcKelasFilter = '';
+                    this.nfcLoading = false;
+                    return this.loadNfcList('', selectId);
                 }
-            }
-            window._cleanupQuickNfcModal();
-        };
 
-        async function startModalNfcScan() {
+                const target = this.nfcList.find((s) => !s.nomor_rfid) || this.nfcList[0] || null;
+                this.nfcSelectedId = target ? String(target.id_siswa) : '';
+            } catch (error) {
+                this.nfcList = [];
+                this.nfcSelectedId = '';
+                this.nfcStatus = 'Gagal memuat daftar siswa. Periksa koneksi lalu coba lagi.';
+            } finally {
+                this.nfcLoading = false;
+            }
+        },
+
+        async startNfcScan() {
             if (!('NDEFReader' in window)) {
-                $('#nfc-modal-status-text').html(
-                    '<span class="text-slate-600 font-medium">Mode Reader USB / Input Manual aktif. Tempelkan kartu pada USB RFID Reader atau ketik UID di bawah.</span>'
-                );
+                this.nfcStatus = 'Mode Reader USB / Input Manual aktif. Tempelkan kartu pada USB RFID Reader atau ketik UID di bawah.';
                 return;
             }
 
             try {
-                if (modalNfcController) {
-                    modalNfcController.abort();
-                }
-                modalNfcController = new AbortController();
-                modalNfcReader = new NDEFReader();
-                await modalNfcReader.scan({ signal: modalNfcController.signal });
-                modalNfcActive = true;
+                this.stopNfcScan();
+                this.nfcController = new AbortController();
+                this.nfcReader = new NDEFReader();
+                await this.nfcReader.scan({ signal: this.nfcController.signal });
 
-                $('#nfc-modal-status-text').html(
-                    '<span class="text-emerald-700 font-semibold">Sensor NFC HP Aktif! Tempelkan kartu RFID siswa ke belakang HP...</span>'
-                );
+                this.nfcStatus = 'Sensor NFC HP aktif. Tempelkan kartu RFID siswa ke belakang HP...';
 
-                modalNfcReader.onreading = (event) => {
-                    const rawSerial = event.serialNumber;
-                    if (!rawSerial) return;
+                this.nfcReader.onreading = (event) => {
+                    const cleanUid = String(event.serialNumber || '').replace(/[: -]/g, '').toUpperCase();
+                    if (!cleanUid) return;
 
-                    const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
-                    if (selectedId <= 0) {
+                    if (!this.nfcSelectedId) {
                         if (navigator.vibrate) navigator.vibrate(200);
                         Swal.fire({
                             icon: 'warning',
                             title: 'Pilih Siswa',
                             text: 'Pilih siswa target terlebih dahulu sebelum menempelkan kartu.',
                             timer: 2000,
-                            showConfirmButton: false
+                            showConfirmButton: false,
                         });
                         return;
                     }
 
-                    const cleanUid = rawSerial.replace(/[: -]/g, '').toUpperCase();
                     if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
-
-                    saveRfidToDatabase(selectedId, cleanUid);
+                    this.saveRfid(this.nfcSelectedId, cleanUid);
                 };
 
-                modalNfcReader.onreadingerror = () => {
+                this.nfcReader.onreadingerror = () => {
                     if (navigator.vibrate) navigator.vibrate(200);
-                    $('#nfc-modal-status-text').html(
-                        '<span class="text-rose-600 font-semibold">Gagal membaca kartu. Pastikan kartu tetap menempel sejenak.</span>'
-                    );
+                    this.nfcStatus = 'Gagal membaca kartu. Pastikan kartu tetap menempel sejenak.';
                     setTimeout(() => {
-                        if (modalNfcActive) {
-                            $('#nfc-modal-status-text').html(
-                                '<span class="text-emerald-700 font-semibold">Sensor NFC HP Aktif! Tempelkan kartu RFID siswa ke belakang HP...</span>'
-                            );
+                        if (this.nfcOpen && this.nfcController) {
+                            this.nfcStatus = 'Sensor NFC HP aktif. Tempelkan kartu RFID siswa ke belakang HP...';
                         }
                     }, 1800);
                 };
-
-            } catch (err) {
-                console.warn('Modal NFC Error:', err);
-                modalNfcActive = false;
-                $('#nfc-modal-status-text').html(
-                    '<span class="text-slate-500">NFC belum aktif (' + (err.message || err.name) + '). Pastikan sensor NFC diaktifkan di Pengaturan HP Anda.</span>'
-                );
+            } catch (error) {
+                this.nfcStatus = 'NFC belum aktif (' + (error.message || error.name) + '). Pastikan sensor NFC diaktifkan di Pengaturan HP Anda.';
             }
-        }
+        },
 
-        function stopModalNfcScan() {
-            if (modalNfcController) {
-                modalNfcController.abort();
-                modalNfcController = null;
+        stopNfcScan() {
+            if (this.nfcController) {
+                this.nfcController.abort();
+                this.nfcController = null;
             }
-            modalNfcActive = false;
-        }
+            this.nfcReader = null;
+        },
 
-        function loadSiswaForNfc(idKelas = '', selectId = null) {
-            $('#nfc-select-siswa').html('<option value="">-- Memuat Siswa --</option>');
-            $.ajax({
-                url: URL_SISWA_BY_KELAS + (idKelas ? '/' + idKelas : ''),
-                type: 'GET',
-                dataType: 'json',
-                success: function (res) {
-                    nfcSiswaList = (res && res.lists) ? res.lists : [];
-                    let options = '<option value="">-- Pilih Siswa (' + nfcSiswaList.length + ' siswa) --</option>';
-                    let preselectFound = false;
+        beep() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch (error) { /* audio opsional */ }
+        },
 
-                    nfcSiswaList.forEach(function (s) {
-                        const hasRfid = !!s.nomor_rfid;
-                        const label = s.nama + ' (' + (s.nis || '-') + ')' + (hasRfid ? ' [✓ ' + s.nomor_rfid + ']' : ' [Belum ada RFID]');
-                        const isSel = selectId && parseInt(s.id_siswa, 10) === parseInt(selectId, 10);
-                        if (isSel) preselectFound = true;
-                        options += '<option value="' + s.id_siswa + '" ' + (isSel ? 'selected' : '') + '>' + escapeHtml(label) + '</option>';
-                    });
-
-                    $('#nfc-select-siswa').html(options);
-
-                    if (selectId && !preselectFound && idKelas) {
-                        $('#nfc-filter-kelas').val('');
-                        loadSiswaForNfc('', selectId);
-                        return;
-                    }
-
-                    if (selectId && preselectFound) {
-                        $('#nfc-select-siswa').val(selectId);
-                        onNfcSelectSiswaChange(selectId);
-                    } else if (nfcSiswaList.length) {
-                        const firstWithoutRfid = nfcSiswaList.find(s => !s.nomor_rfid);
-                        const target = firstWithoutRfid || nfcSiswaList[0];
-                        $('#nfc-select-siswa').val(target.id_siswa);
-                        onNfcSelectSiswaChange(target.id_siswa);
-                    } else {
-                        onNfcSelectSiswaChange('');
-                    }
-                },
-                error: function () {
-                    $('#nfc-select-siswa').html('<option value="">Gagal memuat siswa</option>');
-                }
-            });
-        }
-
-        window.onNfcFilterKelasChange = function (idKelas) {
-            loadSiswaForNfc(idKelas);
-        };
-
-        window.onNfcSelectSiswaChange = function (idSiswa) {
-            const sid = parseInt(idSiswa, 10) || 0;
-            const siswa = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === sid);
-
-            if (!siswa) {
-                $('#nfc-siswa-nama').text('Pilih siswa terlebih dahulu');
-                $('#nfc-siswa-nis').text('NIS: -');
-                $('#nfc-siswa-kelas').text('-');
-                $('#nfc-siswa-foto').attr('src', DEFAULT_FOTO);
-                $('#nfc-siswa-rfid-status').removeClass('bg-emerald-100 text-emerald-800').addClass('bg-slate-200/80 text-slate-600').text('Belum Ada RFID');
-                $('#btn-hapus-rfid-siswa').addClass('hidden');
-                return;
-            }
-
-            $('#nfc-siswa-nama').text(siswa.nama);
-            $('#nfc-siswa-nis').text('NIS: ' + (siswa.nis || '-') + ' / NISN: ' + (siswa.nisn || '-'));
-            $('#nfc-siswa-kelas').text(siswa.nama_kelas || 'Kelas -');
-            $('#nfc-siswa-foto').attr('src', siswa.foto || DEFAULT_FOTO);
-
-            if (siswa.nomor_rfid) {
-                $('#nfc-siswa-rfid-status')
-                    .removeClass('bg-slate-200/80 text-slate-600')
-                    .addClass('bg-emerald-100 text-emerald-800')
-                    .html('<i class="bi bi-check-circle-fill text-emerald-600"></i> RFID: ' + escapeHtml(siswa.nomor_rfid));
-                $('#btn-hapus-rfid-siswa').removeClass('hidden');
-            } else {
-                $('#nfc-siswa-rfid-status')
-                    .removeClass('bg-emerald-100 text-emerald-800')
-                    .addClass('bg-slate-200/80 text-slate-600')
-                    .text('Belum Ada RFID');
-                $('#btn-hapus-rfid-siswa').addClass('hidden');
-            }
-        };
-
-        function saveRfidToDatabase(idSiswa, rfidNumber) {
-            if (!idSiswa) return;
+        async saveRfid(idSiswa, rfidNumber) {
+            const id = Number(idSiswa);
             const cleanUid = String(rfidNumber || '').replace(/[: -]/g, '').toUpperCase();
-            if (!cleanUid) return;
+            if (!id || !cleanUid || this.nfcSaving) return;
 
-            $('#nfc-modal-status-text').html(
-                '<span class="text-blue-700 font-semibold inline-flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span> Menyimpan kartu ' + cleanUid + ' ke database...</span>'
-            );
+            this.nfcSaving = true;
+            this.nfcStatus = 'Menyimpan kartu ' + cleanUid + ' ke database...';
 
-            const payload = {
-                id_siswa: idSiswa,
-                nomor_rfid: cleanUid
-            };
-            payload[CSRF_NAME] = CSRF_HASH;
+            const body = new FormData();
+            body.append('id_siswa', id);
+            body.append('nomor_rfid', cleanUid);
+            body.append('_token', this.csrf);
 
-            $.ajax({
-                url: URL_ASSIGN_RFID,
-                type: 'POST',
-                dataType: 'json',
-                data: payload,
-                success: function (res) {
-                    if (res && res.status) {
-                        nfcSessionCount++;
-                        $('#nfc-session-count').text(nfcSessionCount + ' tersimpan');
+            try {
+                const response = await fetch(this.urls.assignRfid, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+                const data = await response.json();
 
-                        try {
-                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                            const osc = ctx.createOscillator();
-                            const gain = ctx.createGain();
-                            osc.type = 'sine';
-                            osc.frequency.setValueAtTime(880, ctx.currentTime);
-                            osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
-                            gain.gain.setValueAtTime(0.2, ctx.currentTime);
-                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                            osc.connect(gain);
-                            gain.connect(ctx.destination);
-                            osc.start();
-                            osc.stop(ctx.currentTime + 0.2);
-                        } catch(e) {}
+                if (data && data.status) {
+                    this.nfcSessionCount++;
+                    this.beep();
 
-                        const currentItem = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === parseInt(idSiswa, 10));
-                        if (currentItem) {
-                            currentItem.nomor_rfid = cleanUid;
-                        }
+                    const item = this.nfcList.find((s) => Number(s.id_siswa) === id);
+                    if (item) item.nomor_rfid = cleanUid;
 
-                        const timeStr = (new Date()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                        const logItem = `
-                            <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between text-[11px]">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold"><i class="bi bi-check-lg"></i></span>
-                                    <div class="truncate">
-                                        <span class="font-bold text-slate-800">${escapeHtml(res.nama || 'Siswa')}</span>
-                                        <span class="text-slate-400 text-[10px]">&bull; RFID: <strong class="font-mono text-emerald-700">${cleanUid}</strong></span>
-                                    </div>
-                                </div>
-                                <span class="text-[10px] text-slate-400 shrink-0">${timeStr}</span>
-                            </div>
-                        `;
-                        if ($('#nfc-scan-history p.italic').length) {
-                            $('#nfc-scan-history').empty();
-                        }
-                        $('#nfc-scan-history').prepend(logItem);
+                    this.nfcHistory.unshift({
+                        nama: data.nama || (item ? item.nama : 'Siswa'),
+                        rfid: cleanUid,
+                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    });
+                    this.nfcHistory = this.nfcHistory.slice(0, 8);
 
-                        $('#nfc-siswa-rfid-status')
-                            .removeClass('bg-slate-200/80 text-slate-600')
-                            .addClass('bg-emerald-100 text-emerald-800')
-                            .html('<i class="bi bi-check-circle-fill text-emerald-600"></i> RFID: ' + cleanUid);
-                        $('#btn-hapus-rfid-siswa').removeClass('hidden');
-
-                        if ($('#nfc-auto-next').is(':checked')) {
-                            const currentIndex = nfcSiswaList.findIndex(s => parseInt(s.id_siswa, 10) === parseInt(idSiswa, 10));
-                            let nextStudent = null;
-                            for (let i = currentIndex + 1; i < nfcSiswaList.length; i++) {
-                                if (!nfcSiswaList[i].nomor_rfid) {
-                                    nextStudent = nfcSiswaList[i];
-                                    break;
-                                }
-                            }
-                            if (!nextStudent) {
-                                for (let i = 0; i < currentIndex; i++) {
-                                    if (!nfcSiswaList[i].nomor_rfid) {
-                                        nextStudent = nfcSiswaList[i];
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (nextStudent) {
-                                $('#nfc-select-siswa').val(nextStudent.id_siswa);
-                                onNfcSelectSiswaChange(nextStudent.id_siswa);
-                                $('#nfc-modal-status-text').html(
-                                    '<span class="text-emerald-700 font-bold">✓ Tersimpan! Siap scan kartu untuk: ' + escapeHtml(nextStudent.nama) + '</span>'
-                                );
-                            } else {
-                                $('#nfc-modal-status-text').html(
-                                    '<span class="text-emerald-700 font-bold">✓ Kartu ' + cleanUid + ' tersimpan! Semua siswa di kelas ini sudah memiliki kartu RFID.</span>'
-                                );
-                            }
-                        } else {
-                            $('#nfc-modal-status-text').html(
-                                '<span class="text-emerald-700 font-bold">✓ Kartu ' + cleanUid + ' berhasil disimpan!</span>'
-                            );
-                        }
-
-                        loadSiswa();
-
+                    const next = this.nfcAutoNext ? this.findNextWithoutRfid(id) : null;
+                    if (next) {
+                        this.nfcSelectedId = String(next.id_siswa);
+                        this.nfcStatus = 'Tersimpan! Siap scan kartu untuk: ' + next.nama;
+                    } else if (this.nfcAutoNext) {
+                        this.nfcStatus = 'Kartu ' + cleanUid + ' tersimpan! Semua siswa di kelas ini sudah memiliki kartu RFID.';
                     } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal Menyimpan Kartu',
-                            text: res.message || 'Terjadi kesalahan saat menyimpan nomor RFID.'
-                        });
-                        $('#nfc-modal-status-text').html(
-                            '<span class="text-rose-600 font-semibold">' + (res.message || 'Gagal menyimpan kartu.') + '</span>'
-                        );
+                        this.nfcStatus = 'Kartu ' + cleanUid + ' berhasil disimpan!';
                     }
-                },
-                error: function(xhr) {
-                    let msg = 'Terjadi kesalahan server.';
-                    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
-                    Swal.fire('Error', msg, 'error');
-                    $('#nfc-modal-status-text').html('<span class="text-rose-600">' + msg + '</span>');
-                }
-            });
-        }
 
-        window.submitManualRfid = function () {
-            const rawVal = $('#nfc-manual-rfid-input').val().trim();
-            if (!rawVal) {
+                    this.load();
+                } else {
+                    const message = (data && data.message) || 'Terjadi kesalahan saat menyimpan nomor RFID.';
+                    this.nfcStatus = message;
+                    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan Kartu', text: message });
+                }
+            } catch (error) {
+                this.nfcStatus = error.message || 'Terjadi kesalahan server.';
+                Swal.fire('Error', this.nfcStatus, 'error');
+            } finally {
+                this.nfcSaving = false;
+            }
+        },
+
+        findNextWithoutRfid(currentId) {
+            const index = this.nfcList.findIndex((s) => Number(s.id_siswa) === Number(currentId));
+            if (index < 0) return null;
+
+            for (let i = index + 1; i < this.nfcList.length; i++) {
+                if (!this.nfcList[i].nomor_rfid) return this.nfcList[i];
+            }
+            for (let i = 0; i < index; i++) {
+                if (!this.nfcList[i].nomor_rfid) return this.nfcList[i];
+            }
+            return null;
+        },
+
+        manualSave() {
+            const uid = String(this.nfcManual || '').trim();
+            if (!uid) {
                 Swal.fire('Peringatan', 'Ketik nomor UID kartu terlebih dahulu.', 'warning');
                 return;
             }
-            const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
-            if (selectedId <= 0) {
+            if (!this.nfcSelectedId) {
                 Swal.fire('Peringatan', 'Pilih siswa target terlebih dahulu.', 'warning');
                 return;
             }
-            saveRfidToDatabase(selectedId, rawVal);
-            $('#nfc-manual-rfid-input').val('');
-        };
+            this.saveRfid(this.nfcSelectedId, uid);
+            this.nfcManual = '';
+        },
 
-        $('#nfc-manual-rfid-input').on('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitManualRfid();
-            }
-        });
+        async removeRfid() {
+            if (!this.nfcSelectedId) return;
+            const siswa = this.nfcSelected;
+            const nama = siswa ? siswa.nama : 'siswa ini';
 
-        window.hapusRfidSiswaTerpilih = function () {
-            const selectedId = parseInt($('#nfc-select-siswa').val(), 10) || 0;
-            if (selectedId <= 0) return;
-            const currentItem = nfcSiswaList.find(s => parseInt(s.id_siswa, 10) === selectedId);
-            const namaSiswa = currentItem ? currentItem.nama : 'siswa ini';
-
-            Swal.fire({
+            const result = await Swal.fire({
                 title: 'Lepas Kartu RFID?',
-                text: 'Nomor kartu RFID ' + namaSiswa + ' akan dihapus dari sistem.',
+                text: 'Nomor kartu RFID ' + nama + ' akan dihapus dari sistem.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#e11d48',
                 confirmButtonText: 'Ya, Lepas',
-                cancelButtonText: 'Batal'
-            }).then((res) => {
-                if (!res.isConfirmed) return;
-                const payload = { id_siswa: selectedId, nomor_rfid: '' };
-                payload[CSRF_NAME] = CSRF_HASH;
-
-                $.ajax({
-                    url: URL_ASSIGN_RFID,
-                    type: 'POST',
-                    dataType: 'json',
-                    data: payload,
-                    success: function (r) {
-                        if (r && r.status) {
-                            if (currentItem) currentItem.nomor_rfid = '';
-                            onNfcSelectSiswaChange(selectedId);
-                            loadSiswa();
-                            Swal.fire('Berhasil', 'Kartu RFID telah dilepas.', 'success');
-                        } else {
-                            Swal.fire('Gagal', (r && r.message) || 'Gagal melepas kartu.', 'error');
-                        }
-                    }
-                });
+                cancelButtonText: 'Batal',
             });
-        };
+            if (!result.isConfirmed) return;
 
-        $(document).on('click', '.btn-tap-nfc-row', function (e) {
-            e.preventDefault();
-            const idSiswa = $(this).data('id');
-            const idKelas = $(this).data('kelas-id') || '';
-            openQuickNfcModal(idSiswa, idKelas);
-        });
+            const body = new FormData();
+            body.append('id_siswa', this.nfcSelectedId);
+            body.append('nomor_rfid', '');
+            body.append('_token', this.csrf);
 
-        $('#btn-scan-nfc-modal').on('click', function (e) {
-            e.preventDefault();
-            openQuickNfcModal();
-        });
+            try {
+                const response = await fetch(this.urls.assignRfid, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+                const data = await response.json();
 
-        // Muat data awal
-        updateFilterUi();
-        if (HAS_PERIODE) {
-            loadSiswa();
-        } else {
-            renderEmpty('Periode aktif belum diset', 'Atur Tahun Pelajaran dan Semester aktif terlebih dahulu agar daftar siswa dapat dimuat.', false);
-        }
-    });
+                if (data && data.status) {
+                    if (siswa) siswa.nomor_rfid = '';
+                    this.nfcStatus = 'Kartu RFID telah dilepas.';
+                    this.load();
+                    Swal.fire('Berhasil', 'Kartu RFID telah dilepas.', 'success');
+                } else {
+                    Swal.fire('Gagal', (data && data.message) || 'Gagal melepas kartu.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Gagal', 'Terjadi kesalahan pada server. Coba lagi.', 'error');
+            }
+        },
+    }));
+});
 </script>
 @endsection

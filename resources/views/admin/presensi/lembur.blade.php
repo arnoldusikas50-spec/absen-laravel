@@ -1,463 +1,561 @@
 @extends('layouts.main')
 @section('title', 'Lembur / Overtime')
 
-@section('styles')
-<style>
-    .num-tabular { font-variant-numeric: tabular-nums; }
-    /* ── Icon box centering ──────────────────────────────────────────
-       Bootstrap Icons menggunakan <i> yang secara default bersifat
-       inline dengan vertical-align: -0.125em (untuk alignment teks).
-       Di dalam container flex [items-center justify-center], nilai itu
-       justru membuat ikon TIDAK tepat tengah secara visual.
-       Solusi: set vertical-align: 0 dan line-height: 1 pada semua <i>
-       dalam container ikon kotak (class .ic-box). ─────────────────── */
-    .ic-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .ic-box i,
-    .ic-box .bi {
-        vertical-align: 0;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-/* ── Filter chips (pola izin) ── */
-.filter-chip {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.3rem 0.75rem; border-radius: 9999px;
-    font-size: 0.75rem; font-weight: 600; cursor: pointer;
-    border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
-    transition: all 0.15s ease; white-space: nowrap; user-select: none;
-}
-.filter-chip:hover  { border-color: var(--primary-600); color: var(--primary-600); background: var(--primary-50); }
-.filter-chip.active { background: var(--primary-600); color: #fff; border-color: var(--primary-600); }
-.filter-chip.active .chip-count { background: rgba(255,255,255,0.25); color: #fff; }
-.chip-count {
-    background: #f1f5f9; color: #475569;
-    font-size: 0.68rem; font-weight: 800;
-    padding: 0.05rem 0.4rem; border-radius: 9999px;
-    min-width: 18px; text-align: center;
-}
-    .filter-chip .dot { width: 8px; height: 8px; border-radius: 9999px; display: inline-block; }
-/* ── Row hover (pola izin) ── */
-#pendingTable tbody tr:hover td, #rekapTable tbody tr:hover td, #riwayatTable tbody tr:hover td { background: #f8fafc; }
-    .empty-state { text-align: center; padding: 2rem 1rem; color: #94a3b8; }
-    .empty-state i { font-size: 2rem; display: block; margin-bottom: .5rem; }
-    @media (max-width: 640px) {
-        .content-area { padding: 0.5rem 0.75rem 1.25rem; }
-        .card-tw-body { padding: 0.875rem; }
-    }
-</style>
-@endsection
-
 @section('content')
 <?php
 $namaBulan = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
 $curYear = (int) date('Y');
 $labelPeriode = ($namaBulan[(int) $bulan] ?? $bulan) . ' ' . $tahun;
-$fmtJam = fn($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
+$fmtJam = fn ($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
+
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'approve' => url('admin/presensi/lembur/approve'),
+        'reject' => url('admin/presensi/lembur/reject'),
+    ],
+];
 ?>
 
-<div class="fade-in-up p-4 md:p-6 space-y-6">
+<div x-data="lemburPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
 
-    <!-- ───────────── PAGE HEADER (pola izin) ───────────── -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-clock-fill"></i> Verifikasi Pengajuan Guru
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Kelola &amp; Verifikasi Lembur</h1>
-            <p class="text-xs text-slate-500 mt-1">
-                Persetujuan pengajuan lembur guru &middot; Tarif <strong>{{ (int) $pointPerJam }} poin/jam</strong>
-                (diatur di <a href="{{ url('admin/presensi/setting') }}" class="underline">Pengaturan Presensi</a>)
-            </p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <button type="button" onclick="location.reload()" title="Muat ulang"
-                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors">
-                <i class="bi bi-arrow-clockwise"></i>
-            </button>
-            <a href="{{ url('admin/presensi') }}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </a>
-        </div>
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            title="Kelola & Verifikasi Lembur"
+            icon="bi-clock-fill"
+            tone="amber"
+            :subtitle="'Persetujuan pengajuan lembur guru · Tarif ' . (int) $pointPerJam . ' poin/jam (diatur di Pengaturan Presensi)'"
+            :crumbs="['Presensi', 'Lembur']">
+            <x-slot:actions>
+                <button type="button" @click="reload()" title="Muat ulang"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <a href="{{ url('admin/presensi') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+            </x-slot:actions>
+        </x-ui.page-header>
     </div>
 
-<div class="content-area">
-    <?php if (!empty($pending)): ?>
-    <div class="alert-tw alert-warning mb-4">
-        <i class="bi bi-exclamation-triangle-fill mt-0.5"></i>
-        <div>Ada <strong>{{ count($pending) }} pengajuan ({{ $fmtJam($summary['jam_pending'] ?? 0) }} jam)</strong> menunggu persetujuan. Menyetujui akan menambah poin ke saldo guru (+{{ (int) $pointPerJam }} poin/jam).</div>
-    </div>
-    <?php endif; ?>
+    <div class="mt-4 space-y-4 px-4 pb-6 md:px-6">
 
-    <!-- Ringkasan -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-amber-50 text-amber-500 shrink-0"><i class="bi bi-hourglass-split text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Menunggu</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ count($pending) }} <span class="text-xs font-normal text-slate-400">pengajuan</span></div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 shrink-0"><i class="bi bi-clock text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Jam Menunggu</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_pending'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shrink-0"><i class="bi bi-check-circle text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Jam Disetujui</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">{{ $fmtJam($summary['jam_disetujui'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span></div>
-            </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex items-center gap-3">
-            <span class="ic-box w-10 h-10 rounded-xl bg-blue-50 text-blue-600 shrink-0"><i class="bi bi-star text-lg"></i></span>
-            <div>
-                <div class="text-xs text-slate-500 font-semibold">Poin Bulan Ini</div>
-                <div class="text-lg font-extrabold text-slate-900 num-tabular">+{{ number_format((int) round(($summary['jam_disetujui'] ?? 0) * (int) $pointPerJam)) }}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pending Approvals -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-4">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-amber-50 text-amber-500 shrink-0">
-                    <i class="bi bi-hourglass-split text-sm"></i>
-                </span>
-                <h2 class="text-sm font-extrabold text-slate-900">Perlu Persetujuan ({{ count($pending) }})</h2>
-            </div>
-        </div>
-        <div class="p-0">
-            <?php if (empty($pending)): ?>
-                <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-check-circle text-5xl block mx-auto mb-3 opacity-20"></i>
-                    <p class="font-medium text-slate-600">Tidak ada pengajuan menunggu</p>
-                    <p class="text-xs mt-1">Semua pengajuan lembur sudah diproses.</p>
+        @if (! empty($pending))
+            <div class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <i class="bi bi-exclamation-triangle-fill mt-0.5 text-amber-500"></i>
+                <div class="text-sm text-amber-800">
+                    Ada <strong>{{ count($pending) }} pengajuan ({{ $fmtJam($summary['jam_pending'] ?? 0) }} jam)</strong>
+                    menunggu persetujuan. Menyetujui akan menambah poin ke saldo guru (+{{ (int) $pointPerJam }} poin/jam).
                 </div>
-            <?php else: ?>
-                <div class="table-responsive-tw">
-                    <table class="table-tw" id="pendingTable">
-                        <thead>
-                            <tr>
-                                <th class="pl-4">#</th>
-                                <th>Guru</th>
-                                <th>Tanggal</th>
-                                <th>Jam</th>
-                                <th class="text-center">Total</th>
-                                <th class="text-center">Estimasi Poin</th>
-                                <th>Keterangan</th>
-                                <th>Diajukan</th>
-                                <th class="text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php $no = 1; ?>
-                            <?php foreach ($pending as $p):
-                                $poinEst = (int) round((float) $p->total_jam * (int) $pointPerJam);
-                            ?>
-                            <tr data-id="{{ (int) $p->id }}">
-                                <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
-                                <td>
+            </div>
+        @endif
+
+        {{-- Ringkasan --}}
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+                    <i class="bi bi-hourglass-split text-lg"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-slate-500">Menunggu</div>
+                    <div class="text-lg font-extrabold text-slate-900 tabular-nums">
+                        {{ count($pending) }} <span class="text-xs font-normal text-slate-400">pengajuan</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <i class="bi bi-clock text-lg"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-slate-500">Jam Menunggu</div>
+                    <div class="text-lg font-extrabold text-slate-900 tabular-nums">
+                        {{ $fmtJam($summary['jam_pending'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <i class="bi bi-check-circle text-lg"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-slate-500">Jam Disetujui</div>
+                    <div class="text-lg font-extrabold text-slate-900 tabular-nums">
+                        {{ $fmtJam($summary['jam_disetujui'] ?? 0) }} <span class="text-xs font-normal text-slate-400">jam</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <i class="bi bi-star text-lg"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold text-slate-500">Poin Bulan Ini</div>
+                    <div class="text-lg font-extrabold text-slate-900 tabular-nums">
+                        +{{ number_format((int) ($summary['poin_bulan'] ?? 0)) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Pending --}}
+        <div x-data="dataTable({ perPage: 10 })">
+            <x-ui.card title="Perlu Persetujuan ({{ count($pending) }})" icon="bi-hourglass-split" tone="amber" bodyClass="p-0">
+                @if (empty($pending))
+                    <div class="p-5">
+                        <x-ui.empty icon="bi-check-circle" title="Tidak ada pengajuan menunggu"
+                            description="Semua pengajuan lembur sudah diproses." />
+                    </div>
+                @else
+                    <x-ui.table>
+                        <x-slot:head>
+                            <th class="w-12 px-3 py-3">#</th>
+                            <th class="px-4 py-3">Guru</th>
+                            <th class="px-4 py-3">Tanggal</th>
+                            <th class="px-4 py-3">Jam</th>
+                            <th class="px-3 py-3 text-center">Total</th>
+                            <th class="px-3 py-3 text-center">Estimasi Poin</th>
+                            <th class="px-4 py-3">Keterangan</th>
+                            <th class="px-4 py-3">Diajukan</th>
+                            <th class="w-44 px-3 py-3 text-center">Aksi</th>
+                        </x-slot:head>
+
+                        @foreach ($pending as $p)
+                            @php $poinEst = (int) round((float) $p->total_jam * (int) $pointPerJam); @endphp
+                            <tr class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-3 py-2.5">
+                                    <span data-rownum class="text-xs font-bold text-slate-400">{{ $loop->iteration }}</span>
+                                </td>
+                                <td class="px-4 py-2.5">
                                     <div class="font-bold text-slate-800">{{ $p->nama_guru ?? 'Guru #' . $p->user_id }}</div>
-                                    <?php if (!empty($p->nip)): ?><div class="text-xs text-slate-400 num-tabular">{{ $p->nip }}</div><?php endif; ?>
+                                    @if (! empty($p->nip))
+                                        <div class="font-mono text-[11px] text-slate-400">{{ $p->nip }}</div>
+                                    @endif
                                 </td>
-                                <td class="whitespace-nowrap">{{ date('d/m/Y', strtotime($p->tgl)) }}<div class="text-xs text-slate-400">{{ date('l', strtotime($p->tgl)) }}</div></td>
-                                <td class="whitespace-nowrap num-tabular">{{ substr((string) $p->jam_mulai, 0, 5) }}–{{ substr((string) $p->jam_selesai, 0, 5) }}</td>
-                                <td class="text-center font-bold num-tabular">{{ $fmtJam($p->total_jam) }} jam</td>
-                                <td class="text-center font-bold text-blue-600 num-tabular">+{{ number_format($poinEst) }}</td>
-                                <td style="max-width:220px"><span class="text-sm text-slate-500" title="{{ $p->keterangan ?? '-' }}">{{ $p->keterangan ? mb_strimwidth($p->keterangan, 0, 80, '…') : '-' }}</span></td>
-                                <td class="text-xs text-slate-400 whitespace-nowrap" title="{{ $p->created_at ?? '' }}">{{ !empty($p->created_at) ? date('d/m/Y H:i', strtotime($p->created_at)) : '-' }}</td>
-                                <td class="text-center whitespace-nowrap">
-                                    <button type="button" class="btn-tw btn-tw-sm btn-success btn-approve" data-id="{{ (int) $p->id }}" data-poin="{{ $poinEst }}" data-nama="{{ $p->nama_guru ?? '' }}" title="Setujui (+{{ $poinEst }} poin)">
-                                        <i class="bi bi-check-lg"></i> Setujui
-                                    </button>
-                                    <button type="button" class="btn-tw btn-tw-sm btn-outline-danger btn-reject" data-id="{{ (int) $p->id }}" data-nama="{{ $p->nama_guru ?? '' }}" title="Tolak dengan alasan">
-                                        <i class="bi bi-x-lg"></i> Tolak
-                                    </button>
+                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                    {{ date('d/m/Y', strtotime($p->tgl)) }}
+                                    <div class="text-xs text-slate-400">{{ date('l', strtotime($p->tgl)) }}</div>
+                                </td>
+                                <td class="px-4 py-2.5 whitespace-nowrap tabular-nums">
+                                    {{ substr((string) $p->jam_mulai, 0, 5) }}–{{ substr((string) $p->jam_selesai, 0, 5) }}
+                                </td>
+                                <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ $fmtJam($p->total_jam) }} jam</td>
+                                <td class="px-3 py-2.5 text-center font-bold text-blue-600 tabular-nums">+{{ number_format($poinEst) }}</td>
+                                <td class="max-w-[220px] px-4 py-2.5">
+                                    <span class="text-xs text-slate-500" title="{{ $p->keterangan ?? '-' }}">
+                                        {{ $p->keterangan ? mb_strimwidth($p->keterangan, 0, 80, '…') : '-' }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2.5 text-xs whitespace-nowrap text-slate-400" title="{{ $p->created_at ?? '' }}">
+                                    {{ ! empty($p->created_at) ? date('d/m/Y H:i', strtotime($p->created_at)) : '-' }}
+                                </td>
+                                <td class="px-3 py-2.5">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button type="button" title="Setujui (+{{ $poinEst }} poin)"
+                                            :disabled="busyId === {{ (int) $p->id }}"
+                                            @click="approve({{ (int) $p->id }}, {{ (int) $poinEst }}, {{ Js::from($p->nama_guru ?? 'guru') }})"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+                                            <i class="bi" :class="busyId === {{ (int) $p->id }} ? 'bi-arrow-repeat animate-spin' : 'bi-check-lg'"></i>
+                                            Setujui
+                                        </button>
+                                        <button type="button" title="Tolak dengan alasan"
+                                            @click="openReject({{ (int) $p->id }}, {{ Js::from($p->nama_guru ?? 'guru') }})"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 transition-colors hover:bg-rose-100">
+                                            <i class="bi bi-x-lg"></i> Tolak
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
+                        @endforeach
+                    </x-ui.table>
 
-    <!-- Rekap Bulanan -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden mb-4">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                    <i class="bi bi-bar-chart text-sm"></i>
-                </span>
-                <h2 class="text-sm font-extrabold text-slate-900">Rekap Lembur — {{ $labelPeriode }}</h2>
-            </div>
-            <form method="get" class="flex items-center gap-2 ml-0 md:ml-auto flex-wrap">
-                <select name="bulan" class="form-select-tw form-select-sm" style="width:130px" aria-label="Bulan">
-                    <?php foreach ($namaBulan as $num => $nm): ?>
-                    <option value="{{ str_pad($num, 2, '0', STR_PAD_LEFT) }}" {{ (int) $bulan === $num ? 'selected' : '' }}>{{ $nm }}</option>
-                    <?php endforeach; ?>
-                </select>
-                <select name="tahun" class="form-select-tw form-select-sm" style="width:100px" aria-label="Tahun">
-                    <?php for ($t = $curYear + 1; $t >= attendance_tahun_tertua(); $t--): ?>
-                    <option value="{{ $t }}" {{ (int) $tahun === $t ? 'selected' : '' }}>{{ $t }}</option>
-                    <?php endfor; ?>
-                </select>
-                <button type="submit" class="btn-tw btn-tw-sm btn-primary"><i class="bi bi-search"></i> Tampilkan</button>
-            </form>
+                    <div class="flex flex-col justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center">
+                        <div class="text-xs font-medium text-slate-500" aria-live="polite"
+                            x-text="total === 0 ? 'Tidak ada pengajuan' : 'Menampilkan ' + from + '–' + to + ' dari ' + total + ' pengajuan'">
+                        </div>
+                        <div class="flex items-center gap-2" x-show="pages > 1" x-cloak>
+                            <button type="button" @click="prev()" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="text-xs font-semibold text-slate-500" x-text="'Halaman ' + page + ' / ' + pages"></span>
+                            <button type="button" @click="next()" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </x-ui.card>
         </div>
-        <div class="p-0">
-            <?php if ($rekap): ?>
-                <div class="table-responsive-tw">
-                    <table class="table-tw" id="rekapTable">
-                        <thead>
-                            <tr>
-                                <th class="pl-4">#</th>
-                                <th>Guru</th>
-                                <th class="text-center">Pengajuan</th>
-                                <th class="text-center">Jam Diajukan</th>
-                                <th class="text-center text-emerald-600">Disetujui</th>
-                                <th class="text-center text-amber-500">Menunggu</th>
-                                <th class="text-center text-red-400">Ditolak</th>
-                                <th class="text-center text-blue-600">Poin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php $no = 1; ?>
-                            <?php foreach ($rekap as $r): ?>
-                            <tr>
-                                <td class="pl-4 text-slate-400 num-tabular">{{ $no++ }}</td>
-                                <td>
+
+        {{-- Rekap bulanan --}}
+        <div x-data="dataTable({ perPage: 10, sort: 3, dir: 'desc' })">
+            <x-ui.card title="Rekap Lembur — {{ $labelPeriode }}" icon="bi-bar-chart" tone="emerald" bodyClass="p-0">
+                <x-slot:actions>
+                    <form method="get" class="flex flex-wrap items-center gap-2">
+                        <label for="lembur-bulan" class="sr-only">Bulan</label>
+                        <select id="lembur-bulan" name="bulan" @change="$el.form.submit()"
+                            class="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            @foreach ($namaBulan as $num => $nm)
+                                <option value="{{ str_pad($num, 2, '0', STR_PAD_LEFT) }}" @selected((int) $bulan === $num)>{{ $nm }}</option>
+                            @endforeach
+                        </select>
+                        <label for="lembur-tahun" class="sr-only">Tahun</label>
+                        <select id="lembur-tahun" name="tahun" @change="$el.form.submit()"
+                            class="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            @for ($t = $curYear + 1; $t >= attendance_tahun_tertua(); $t--)
+                                <option value="{{ $t }}" @selected((int) $tahun === $t)>{{ $t }}</option>
+                            @endfor
+                        </select>
+                        <button type="submit"
+                            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700">
+                            <i class="bi bi-search"></i> Tampilkan
+                        </button>
+                    </form>
+                </x-slot:actions>
+
+                @if ($rekap)
+                    <x-ui.table>
+                        <x-slot:head>
+                            <th class="w-12 px-3 py-3">#</th>
+                            <th class="px-4 py-3">Guru</th>
+                            <th class="px-3 py-3 text-center">Pengajuan</th>
+                            <th class="px-3 py-3 text-center">Jam Diajukan</th>
+                            <th class="px-3 py-3 text-center text-emerald-600">Disetujui</th>
+                            <th class="px-3 py-3 text-center text-amber-500">Menunggu</th>
+                            <th class="px-3 py-3 text-center text-rose-400">Ditolak</th>
+                            <th class="px-3 py-3 text-center text-blue-600">Poin</th>
+                        </x-slot:head>
+
+                        @foreach ($rekap as $r)
+                            <tr class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-3 py-2.5">
+                                    <span data-rownum class="text-xs font-bold text-slate-400">{{ $loop->iteration }}</span>
+                                </td>
+                                <td class="px-4 py-2.5">
                                     <div class="font-bold text-slate-800">{{ $r->nama_guru ?? 'User #' . $r->user_id }}</div>
-                                    <?php if (!empty($r->nip)): ?><div class="text-xs text-slate-400 num-tabular">{{ $r->nip }}</div><?php endif; ?>
+                                    @if (! empty($r->nip))
+                                        <div class="font-mono text-[11px] text-slate-400">{{ $r->nip }}</div>
+                                    @endif
                                 </td>
-                                <td class="text-center num-tabular">{{ (int) $r->total_lembur }}x</td>
-                                <td class="text-center font-bold num-tabular">{{ $fmtJam($r->total_jam) }} jam</td>
-                                <td class="text-center font-bold text-emerald-600 num-tabular">{{ (int) ($r->lembur_disetujui ?? 0) }}x &middot; {{ $fmtJam($r->jam_disetujui ?? 0) }} jam</td>
-                                <td class="text-center text-amber-500 num-tabular">{{ $fmtJam($r->jam_pending ?? 0) }} jam ({{ (int) ($r->lembur_pending ?? 0) }}x)</td>
-                                <td class="text-center text-red-400 num-tabular">{{ (int) ($r->lembur_ditolak ?? 0) }}x</td>
-                                <td class="text-center font-bold text-blue-600 num-tabular">+{{ number_format((int) round((float) ($r->jam_disetujui ?? 0) * (int) $pointPerJam)) }}</td>
+                                <td class="px-3 py-2.5 text-center tabular-nums">{{ (int) $r->total_lembur }}×</td>
+                                <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ $fmtJam($r->total_jam) }} jam</td>
+                                <td class="px-3 py-2.5 text-center font-bold text-emerald-600 tabular-nums">
+                                    {{ (int) ($r->lembur_disetujui ?? 0) }}× &middot; {{ $fmtJam($r->jam_disetujui ?? 0) }} jam
+                                </td>
+                                <td class="px-3 py-2.5 text-center text-amber-500 tabular-nums">
+                                    {{ $fmtJam($r->jam_pending ?? 0) }} jam ({{ (int) ($r->lembur_pending ?? 0) }}×)
+                                </td>
+                                <td class="px-3 py-2.5 text-center text-rose-400 tabular-nums">{{ (int) ($r->lembur_ditolak ?? 0) }}×</td>
+                                <td class="px-3 py-2.5 text-center font-bold text-blue-600 tabular-nums">
+                                    +{{ number_format((int) round((float) ($r->jam_disetujui ?? 0) * (int) $pointPerJam)) }}
+                                </td>
                             </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php else: ?>
-                <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
-                    <p class="font-medium text-slate-600">Belum ada data lembur</p>
-                    <p class="text-xs mt-1">Tidak ada pengajuan pada {{ $labelPeriode }}.</p>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
+                        @endforeach
+                    </x-ui.table>
 
-    <!-- Riwayat Pengajuan -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-3 p-5 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <span class="ic-box w-8 h-8 rounded-xl bg-slate-100 text-slate-500 shrink-0">
-                    <i class="bi bi-clock-history text-sm"></i>
-                </span>
-                <h2 class="text-sm font-extrabold text-slate-900">Riwayat Pengajuan — {{ $labelPeriode }}</h2>
-            </div>
-            <?php if (!empty($riwayat)): ?>
-            <div class="flex gap-2 flex-wrap items-center ml-auto" role="group" aria-label="Filter status riwayat">
-                <button type="button" class="filter-chip active" data-rstatus="">Semua</button>
-                <button type="button" class="filter-chip" data-rstatus="PENDING"><span class="dot" style="background:#d97706"></span>Pending</button>
-                <button type="button" class="filter-chip" data-rstatus="APPROVED"><span class="dot" style="background:#16a34a"></span>Disetujui</button>
-                <button type="button" class="filter-chip" data-rstatus="REJECTED"><span class="dot" style="background:#dc2626"></span>Ditolak</button>
-            </div>
-            <?php endif; ?>
+                    <div class="flex flex-col justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center">
+                        <div class="text-xs font-medium text-slate-500" aria-live="polite"
+                            x-text="'Menampilkan ' + from + '–' + to + ' dari ' + total + ' guru'"></div>
+                        <div class="flex items-center gap-2" x-show="pages > 1" x-cloak>
+                            <button type="button" @click="prev()" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="text-xs font-semibold text-slate-500" x-text="'Halaman ' + page + ' / ' + pages"></span>
+                            <button type="button" @click="next()" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-5">
+                        <x-ui.empty icon="bi-inbox" title="Belum ada data lembur"
+                            :description="'Tidak ada pengajuan pada ' . $labelPeriode . '.'" />
+                    </div>
+                @endif
+            </x-ui.card>
         </div>
-        <div class="p-0">
-            <?php if (empty($riwayat)): ?>
-                <div class="text-center py-16 text-slate-400">
-                    <i class="bi bi-inbox text-5xl block mx-auto mb-3 opacity-20"></i>
-                    <p class="font-medium text-slate-600">Belum ada riwayat</p>
-                </div>
-            <?php else: ?>
-                <div class="table-responsive-tw">
-                    <table class="table-tw" id="riwayatTable" style="font-size:.8rem">
-                        <thead>
-                            <tr>
-                                <th class="pl-4">Tanggal</th>
-                                <th>Guru</th>
-                                <th>Jam</th>
-                                <th class="text-center">Total</th>
-                                <th class="text-center">Status</th>
-                                <th>Catatan Admin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($riwayat as $h):
-                                $sb = $h->status === 'APPROVED' ? 'badge-success' : ($h->status === 'REJECTED' ? 'badge-danger' : 'badge-warning');
-                            ?>
-                            <tr data-rstatus="{{ $h->status }}">
-                                <td class="pl-4 whitespace-nowrap">{{ date('d/m/Y', strtotime($h->tgl)) }}</td>
-                                <td class="font-bold text-slate-800">{{ $h->nama_guru ?? 'Guru #' . $h->user_id }}</td>
-                                <td class="whitespace-nowrap num-tabular">{{ substr((string) $h->jam_mulai, 0, 5) }}–{{ substr((string) $h->jam_selesai, 0, 5) }}</td>
-                                <td class="text-center font-bold num-tabular">{{ $fmtJam($h->total_jam) }} jam</td>
-                                <td class="text-center"><span class="badge-tw {{ $sb }} rounded-full">{{ $h->status }}</span></td>
-                                <td class="text-sm text-slate-500" style="max-width:260px">
-                                    <?php if ($h->status === 'REJECTED'): ?>
-                                        {{ !empty($h->catatan_admin) ? $h->catatan_admin : 'Ditolak (tanpa catatan)' }}
-                                    <?php else: ?>
+
+        {{-- Riwayat --}}
+        <div x-data="dataTable({ perPage: 15, filters: { status: '' } })">
+            <x-ui.card title="Riwayat Pengajuan — {{ $labelPeriode }}" icon="bi-clock-history" tone="slate" bodyClass="p-0">
+                @if (! empty($riwayat))
+                    <x-slot:actions>
+                        <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter status riwayat">
+                            <button type="button" @click="filters.status = ''"
+                                :class="filters.status === '' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                                Semua
+                            </button>
+                            <button type="button" @click="filters.status = 'PENDING'"
+                                :class="filters.status === 'PENDING' ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                                <span class="h-2 w-2 rounded-full bg-amber-500"></span> Pending
+                            </button>
+                            <button type="button" @click="filters.status = 'APPROVED'"
+                                :class="filters.status === 'APPROVED' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                                <span class="h-2 w-2 rounded-full bg-emerald-600"></span> Disetujui
+                            </button>
+                            <button type="button" @click="filters.status = 'REJECTED'"
+                                :class="filters.status === 'REJECTED' ? 'border-rose-600 bg-rose-600 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors">
+                                <span class="h-2 w-2 rounded-full bg-rose-600"></span> Ditolak
+                            </button>
+                        </div>
+                    </x-slot:actions>
+                @endif
+
+                @if (empty($riwayat))
+                    <div class="p-5">
+                        <x-ui.empty icon="bi-inbox" title="Belum ada riwayat"
+                            :description="'Belum ada pengajuan lembur pada ' . $labelPeriode . '.'" />
+                    </div>
+                @else
+                    <x-ui.table class="text-[13px]">
+                        <x-slot:head>
+                            <th class="px-4 py-3">Tanggal</th>
+                            <th class="px-4 py-3">Guru</th>
+                            <th class="px-4 py-3">Jam</th>
+                            <th class="px-3 py-3 text-center">Total</th>
+                            <th class="px-3 py-3 text-center">Status</th>
+                            <th class="px-4 py-3">Catatan Admin</th>
+                        </x-slot:head>
+
+                        @foreach ($riwayat as $h)
+                            <tr class="transition-colors hover:bg-slate-50/60" data-status="{{ $h->status }}">
+                                <td class="px-4 py-2.5 whitespace-nowrap">{{ date('d/m/Y', strtotime($h->tgl)) }}</td>
+                                <td class="px-4 py-2.5 font-bold text-slate-800">{{ $h->nama_guru ?? 'Guru #' . $h->user_id }}</td>
+                                <td class="px-4 py-2.5 whitespace-nowrap tabular-nums">
+                                    {{ substr((string) $h->jam_mulai, 0, 5) }}–{{ substr((string) $h->jam_selesai, 0, 5) }}
+                                </td>
+                                <td class="px-3 py-2.5 text-center font-bold tabular-nums">{{ $fmtJam($h->total_jam) }} jam</td>
+                                <td class="px-3 py-2.5 text-center">
+                                    <span @class([
+                                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold',
+                                        'border-emerald-200 bg-emerald-50 text-emerald-700' => $h->status === 'APPROVED',
+                                        'border-rose-200 bg-rose-50 text-rose-700' => $h->status === 'REJECTED',
+                                        'border-amber-200 bg-amber-50 text-amber-700' => $h->status !== 'APPROVED' && $h->status !== 'REJECTED',
+                                    ])>{{ $h->status }}</span>
+                                </td>
+                                <td class="max-w-[260px] px-4 py-2.5 text-xs text-slate-500">
+                                    @if ($h->status === 'REJECTED')
+                                        {{ ! empty($h->catatan_admin) ? $h->catatan_admin : 'Ditolak (tanpa catatan)' }}
+                                    @else
                                         <span class="text-slate-300">–</span>
-                                    <?php endif; ?>
+                                    @endif
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+                        @endforeach
+                    </x-ui.table>
+
+                    <div class="flex flex-col justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center">
+                        <div class="text-xs font-medium text-slate-500" aria-live="polite"
+                            x-text="total === 0 ? 'Tidak ada riwayat dengan status ini' : 'Menampilkan ' + from + '–' + to + ' dari ' + total + ' riwayat'">
+                        </div>
+                        <div class="flex items-center gap-2" x-show="pages > 1" x-cloak>
+                            <button type="button" @click="prev()" :disabled="page <= 1" aria-label="Halaman sebelumnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <span class="text-xs font-semibold text-slate-500" x-text="'Halaman ' + page + ' / ' + pages"></span>
+                            <button type="button" @click="next()" :disabled="page >= pages" aria-label="Halaman berikutnya"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </x-ui.card>
         </div>
     </div>
-</div>
 
-<!-- Modal Tolak -->
-</div>
-<div id="rejectModal" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-lg">
-        <form id="rejectForm" onsubmit="return submitReject(event)" novalidate>
-            @csrf
-            <div class="modal-header-tw">
-                <h5><i class="bi bi-x-circle mr-2"></i>Tolak Pengajuan Lembur</h5>
-                <button type="button" class="btn-close" data-ui-dismiss="modal" aria-label="Tutup"></button>
-            </div>
-            <div class="modal-body-tw">
-                <input type="hidden" id="reject_id">
-                <p class="text-sm text-slate-500 mb-3">Pengajuan milik <strong id="reject_nama" class="text-slate-800">–</strong> akan ditolak. Alasan tercatat dan dapat dilihat guru.</p>
-                <div class="flex items-center justify-between mb-1">
-                    <label class="form-label-tw mb-0" for="reject_alasan">Alasan penolakan <span class="text-red-500">*</span></label>
-                    <span class="text-xs text-slate-400" id="reject_counter">0/500</span>
+    {{-- Modal tolak --}}
+    <x-ui.modal id="rejectModal" title="Tolak Pengajuan Lembur" icon="bi-x-circle" tone="rose" size="max-w-lg">
+        <form @submit.prevent="saveReject()" novalidate>
+            <div class="space-y-3 p-5">
+                <p class="text-sm text-slate-500">
+                    Pengajuan milik <strong class="text-slate-800" x-text="rejectNama || '–'"></strong>
+                    akan ditolak. Alasan tercatat dan dapat dilihat guru.
+                </p>
+
+                <div class="flex items-center justify-between">
+                    <label for="reject_alasan" class="text-xs font-bold text-slate-600">
+                        Alasan penolakan <span class="text-rose-500">*</span>
+                    </label>
+                    <span class="text-[11px] text-slate-400" x-text="alasan.length + '/500'">0/500</span>
                 </div>
-                <input type="text" class="form-control-tw" id="reject_alasan" minlength="5" maxlength="500" required placeholder="Contoh: Kebutuhan dinas tidak mendesak / bukti kurang">
+
+                <input type="text" id="reject_alasan" x-ref="alasan" x-model="alasan" minlength="5" maxlength="500" required
+                    placeholder="Contoh: Kebutuhan dinas tidak mendesak / bukti kurang"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-hidden transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+
+                <p x-show="alasan.length > 0 && alasan.trim().length < 5" x-cloak class="text-[11px] font-semibold text-rose-600">
+                    Alasan minimal 5 karakter.
+                </p>
             </div>
-            <div class="modal-footer-tw">
-                <button type="button" class="btn-tw btn-tw-sm btn-secondary" data-ui-dismiss="modal">Batal</button>
-                <button type="submit" class="btn-tw btn-tw-sm btn-danger" id="btnSubmitReject"><i class="bi bi-x-circle"></i> Konfirmasi Tolak</button>
+
+            <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+                <button type="button" @click="$store.modals.close('#rejectModal')"
+                    class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100">
+                    Batal
+                </button>
+                <button type="submit" :disabled="rejectBusy"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                    <i class="bi" :class="rejectBusy ? 'bi-arrow-repeat animate-spin' : 'bi-x-circle'"></i>
+                    <span x-text="rejectBusy ? 'Memproses...' : 'Konfirmasi Tolak'">Konfirmasi Tolak</span>
+                </button>
             </div>
         </form>
-    </div>
+    </x-ui.modal>
 </div>
 @endsection
 
 @section('scripts')
-<?php $csrfName = '_token'; $csrfHash = csrf_token(); ?>
 <script>
-$(document).ready(function () {
-    var CSRF = { '{{ $csrfName }}': '{{ $csrfHash }}' };
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('lemburPage', () => ({
+            csrf: '',
+            urls: {},
+            busyId: null,
+            rejectBusy: false,
+            rejectId: null,
+            rejectNama: '',
+            alasan: '',
 
-    $('#reject_alasan').on('input', function () {
-        $('#reject_counter').text(this.value.length + '/500');
-    });
+            init() {
+                const config = JSON.parse(this.$el.dataset.config || '{}');
+                this.csrf = config.csrf || '';
+                this.urls = config.urls || {};
+            },
 
-    function initTable(sel, opts) {
-        if (!window.jQuery || !$.fn.DataTable || !$(sel).length) return null;
-        if ($.fn.DataTable.isDataTable(sel)) return $(sel).DataTable();
-        return $(sel).DataTable(Object.assign({ language: window.dt_lang_id || {} }, opts || {}));
-    }
-    var rekapDT = initTable('#rekapTable', { pageLength: 10, lengthMenu: [10, 25, 50], order: [[3, 'desc']] });
-    var riwayatDT = initTable('#riwayatTable', { pageLength: 15, lengthMenu: [15, 30, 50], order: [[0, 'desc']] });
+            reload() {
+                window.location.reload();
+            },
 
-    // Filter riwayat
-    $(document).on('click', '[data-rstatus]', function (e) {
-        e.preventDefault();
-        var st = $(this).data('rstatus') || '';
-        $('[data-rstatus]').removeClass('active');
-        $(this).addClass('active');
-        if (riwayatDT) {
-            riwayatDT.column(4).search(st ? '^' + st + '$' : '', true, false).draw();
-        } else {
-            $('#riwayatTable tbody tr').each(function () {
-                $(this).toggle(!st || $(this).data('rstatus') === st);
-            });
-        }
-    });
+            async request(url, payload) {
+                const body = new FormData();
+                body.append('_token', this.csrf);
+                Object.entries(payload).forEach(([key, value]) => body.append(key, value ?? ''));
 
-    // Setujui
-    $(document).on('click', '.btn-approve', function () {
-        var btn = $(this);
-        var id = btn.data('id');
-        var poin = btn.data('poin');
-        var nama = btn.data('nama') || 'guru';
-        if (btn.is(':disabled')) return;
-        Swal.fire({
-            title: 'Setujui Lembur?',
-            html: 'Pengajuan milik <strong>' + $('<div>').text(nama).html() + '</strong> akan disetujui.<br>Poin <strong>+' + poin + '</strong> masuk ke saldo guru.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#16a34a',
-            confirmButtonText: 'Ya, Setujui',
-            cancelButtonText: 'Batal'
-        }).then(function (r) {
-            if (!r.isConfirmed) return;
-            btn.prop('disabled', true).html('<span class="spinner-tw"></span> Memproses...');
-            $.post('{{ url('admin/presensi/lembur/approve') }}/' + id, CSRF, function (res) {
-                if (res.status) {
-                    Swal.fire({ icon: 'success', title: 'Disetujui', text: res.message, timer: 1500, showConfirmButton: false })
-                        .then(function () { location.reload(); });
-                } else {
-                    Swal.fire('Gagal', res.message, 'error');
-                    btn.prop('disabled', false).html('<i class="bi bi-check-lg"></i> Setujui');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body,
+                });
+
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    data = null;
                 }
-            }, 'json').fail(function () {
-                Swal.fire('Error', 'Terjadi kesalahan sistem', 'error');
-                btn.prop('disabled', false).html('<i class="bi bi-check-lg"></i> Setujui');
-            });
-        });
-    });
 
-    // Tolak -> modal alasan
-    $(document).on('click', '.btn-reject', function () {
-        $('#reject_id').val($(this).data('id'));
-        $('#reject_nama').text($(this).data('nama') || '-');
-        $('#reject_alasan').val('');
-        $('#reject_counter').text('0/500');
-        $('#rejectModal').appModal('show');
-        setTimeout(function () { $('#reject_alasan').trigger('focus'); }, 50);
-    });
+                if (!data || data.status !== true) {
+                    throw new Error((data && data.message) || 'Terjadi kesalahan sistem');
+                }
 
-    window.submitReject = function (e) {
-        e.preventDefault();
-        var form = $('#rejectForm');
-        if (!form[0].checkValidity()) { form[0].reportValidity(); return false; }
-        var id = $('#reject_id').val();
-        var btn = $('#btnSubmitReject');
-        var orig = btn.html();
-        btn.prop('disabled', true).html('<span class="spinner-tw"></span> Memproses...');
-        $.post('{{ url('admin/presensi/lembur/reject') }}/' + id, {
-            alasan: $('#reject_alasan').val(),
-            '{{ $csrfName }}': '{{ $csrfHash }}'
-        }, function (res) {
-            if (res.status) {
-                $('#rejectModal').appModal('hide');
-                Swal.fire({ icon: 'success', title: 'Ditolak', text: res.message, timer: 1500, showConfirmButton: false })
-                    .then(function () { location.reload(); });
-            } else {
-                Swal.fire('Gagal', res.message, 'error');
-                btn.prop('disabled', false).html(orig);
-            }
-        }, 'json').fail(function () {
-            Swal.fire('Error', 'Terjadi kesalahan sistem', 'error');
-            btn.prop('disabled', false).html(orig);
-        });
-        return false;
-    };
-});
+                return data;
+            },
+
+            async approve(id, poin, nama) {
+                if (this.busyId !== null) {
+                    return;
+                }
+
+                const confirm = await Swal.fire({
+                    title: 'Setujui Lembur?',
+                    html: `Pengajuan milik <strong>${this.escape(nama)}</strong> akan disetujui.<br>Poin <strong>+${poin}</strong> masuk ke saldo guru.`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#16a34a',
+                    confirmButtonText: 'Ya, Setujui',
+                    cancelButtonText: 'Batal',
+                });
+
+                if (!confirm.isConfirmed) {
+                    return;
+                }
+
+                this.busyId = id;
+
+                try {
+                    const res = await this.request(`${this.urls.approve}/${id}`, {});
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Disetujui',
+                        text: res.message,
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+
+                    window.location.reload();
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                } finally {
+                    this.busyId = null;
+                }
+            },
+
+            openReject(id, nama) {
+                this.rejectId = id;
+                this.rejectNama = nama || '';
+                this.alasan = '';
+                this.$store.modals.open('#rejectModal');
+                this.$nextTick(() => this.$refs.alasan?.focus());
+            },
+
+            async saveReject() {
+                const alasan = this.alasan.trim();
+
+                if (alasan.length < 5 || alasan.length > 500) {
+                    Swal.fire('Perhatian', 'Alasan penolakan wajib diisi (5–500 karakter).', 'warning');
+                    return;
+                }
+
+                if (this.rejectBusy) {
+                    return;
+                }
+
+                this.rejectBusy = true;
+
+                try {
+                    const res = await this.request(`${this.urls.reject}/${this.rejectId}`, { alasan });
+
+                    this.$store.modals.close('#rejectModal');
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Ditolak',
+                        text: res.message,
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+
+                    window.location.reload();
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                } finally {
+                    this.rejectBusy = false;
+                }
+            },
+
+            escape(value) {
+                const div = document.createElement('div');
+                div.textContent = value ?? '';
+                return div.innerHTML;
+            },
+        }));
+    });
 </script>
 @endsection

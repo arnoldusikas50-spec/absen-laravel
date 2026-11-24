@@ -1,361 +1,446 @@
 @extends('layouts.main')
 
 @section('content')
-<!-- Content Header (pola kartu/dapodik/izin) -->
-<div class="fade-in-up p-4 md:p-6 space-y-6">
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-person-gear"></i> Akun Administrator
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'Administrator' }} — {{ trim(($users->first_name ?? '') . ' ' . ($users->last_name ?? '')) ?: ($users->username ?? '') }}</h1>
-            <p class="text-xs text-slate-500 mt-1">{{ $subjudul ?? 'Edit Data Admin' }} · username <span class="font-mono font-bold text-slate-700">{{ $users->username ?? '-' }}</span></p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/users') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
-                <i class="bi bi-arrow-left"></i> Kembali
-            </a>
-        </div>
+
+@php
+    $rawFoto = trim((string) ($users->foto ?? ''));
+    $fotoPath = '';
+    if ($rawFoto !== '' && ! str_contains($rawFoto, '..')) {
+        $cleanPath = ltrim($rawFoto, '/');
+        if (is_file(public_path($cleanPath))) {
+            $fotoPath = $cleanPath;
+        } elseif (is_file(public_path('uploads/profiles/'.$cleanPath))) {
+            $fotoPath = 'uploads/profiles/'.$cleanPath;
+        }
+    }
+
+    $displayName = trim(($users->first_name ?? '').' '.($users->last_name ?? '')) ?: ($users->username ?? '');
+    $initial = mb_strtoupper(mb_substr((string) ($users->first_name ?? $users->username ?? 'A'), 0, 1));
+
+    $adminConfig = [
+        'csrf' => csrf_token(),
+        'ids' => [
+            'user' => (int) $users->id,
+            'current' => (int) $user->id,
+        ],
+        'foto' => $fotoPath !== '' ? url($fotoPath) : '',
+        'initial' => $initial,
+        'urls' => [
+            'info' => url('useradmin/edit_info'),
+            'password' => url('useradmin/change_password'),
+            'upload' => url('useradmin/uploadfile/'.(int) $users->id),
+            'delete' => url('useradmin/deletefile'),
+            'logout' => url('auth/logout'),
+        ],
+    ];
+@endphp
+
+<div x-data="adminEdit()"
+    data-config="{{ json_encode($adminConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
+
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="($judul ?? 'Administrator') . ' — ' . $displayName"
+            icon="bi-person-gear"
+            :subtitle="($subjudul ?? 'Edit Data Admin') . ' · username ' . ($users->username ?? '-')"
+            :crumbs="['Manajemen Admin', $subjudul ?? 'Edit Data Admin']">
+            <x-slot:actions>
+                <a href="{{ url('useradmin') }}"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+            </x-slot:actions>
+        </x-ui.page-header>
     </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-            <?php if ($is_admin): ?>
-                <div class="">
-                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                        <div class="flex items-center gap-2 p-5 border-b border-slate-100">
-                            <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                <i class="bi bi-person-badge text-sm"></i>
-                            </span>
-                            <h2 class="text-sm font-extrabold text-slate-900">{{ $subjudul }}</h2>
-                        </div>
-                        <div class="p-5">
-                            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                                <?php if ((int) $user->id === (int) $users->id || $is_admin): ?>
-                                    <div class="md:col-span-5">
-                                        <?php
-                                        $rawFoto = trim((string) ($users->foto ?? ''));
-                                        $fotoPath = '';
-                                        if ($rawFoto !== '' && !str_contains($rawFoto, '..')) {
-                                            $cleanPath = ltrim($rawFoto, '/');
-                                            if (file_exists(public_path() . '/' . $cleanPath) && is_file(public_path() . '/' . $cleanPath)) {
-                                                $fotoPath = $cleanPath;
-                                            } elseif (file_exists(public_path() . '/' . 'uploads/profiles/' . $cleanPath) && is_file(public_path() . '/' . 'uploads/profiles/' . $cleanPath)) {
-                                                $fotoPath = 'uploads/profiles/' . $cleanPath;
-                                            }
-                                        }
-                                        $defaultPhotoUrl = ($fotoPath !== '') ? url($fotoPath) : asset('assets/img/admin.png');
-                                        ?>
-                                        <form action="" method="post" enctype="multipart/form-data" id="set-foto">
-@csrf
-<input type="hidden" name="id_user" value="{{ $users->id }}">
-                                        <div class="mb-4">
-                                            <label class="form-label-tw" for="foto">Foto Profil</label>
-                                            <input type="file" id="foto" name="foto" class="dropify"
-                                                data-max-file-size="5M" data-allowed-file-extensions="jpg jpeg png webp gif"
-                                                data-default-file="{{ $defaultPhotoUrl }}" />
-                                            <p class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
-                                                <i class="bi bi-info-circle"></i> Format: JPG, PNG, WEBP, GIF. Maksimal 5MB.
-                                            </p>
-                                        </div>
-                                        </form>
-                                    </div>
-                                <?php endif; ?>
-                                <div class="md:col-span-7">
-                                    <form action="{{ url('useradmin/edit_info') }}" method="post" id="user_info">
-@csrf
-<input type="hidden" name="id" value="{{ $users->id }}">
-                                    <div class="mb-4">
-                                        <label class="form-label-tw" for="first_name">First Name <span class="text-red-500">*</span></label>
-                                        <input type="text" id="first_name" name="first_name" maxlength="50" required class="form-control-tw"
-                                            value="{{ $users->first_name ?? '' }}">
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label-tw" for="last_name">Last Name</label>
-                                        <input type="text" id="last_name" name="last_name" maxlength="50" class="form-control-tw"
-                                            value="{{ $users->last_name ?? '' }}">
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label-tw" for="email">Email</label>
-                                        <input type="email" id="email" name="email" maxlength="100" class="form-control-tw" value="{{ $users->email ?? '' }}">
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label-tw" for="jabatan">Jabatan</label>
-                                        <input type="text" id="jabatan" name="jabatan" maxlength="50" placeholder="Jabatan" class="form-control-tw"
-                                            value="{{ $users->jabatan ?? '' }}">
-                                    </div>
-                                    <div class="flex justify-end gap-2">
-                                        <button type="reset" class="btn-tw btn-light"><i
-                                                class="bi bi-arrow-counterclockwise"></i> Reset</button>
-                                        <button type="submit" id="btn-info" class="btn-tw btn-primary"><i
-                                                class="bi bi-save mr-1"></i> Simpan</button>
-                                    </div>
-                                    </form>
-                                </div>
+    <!-- Main Content Area -->
+    <div class="mt-4 grid grid-cols-1 items-start gap-5 px-4 pb-6 md:px-6 xl:grid-cols-2">
+
+        <!-- Kartu data admin -->
+        <x-ui.card title="Data Admin" icon="bi-person-badge" :subtitle="$subjudul ?? 'Edit Data Admin'">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-12">
+                <div class="md:col-span-5">
+                    <p class="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-700">Foto Profil</p>
+
+                    <div class="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div class="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+                            <img x-show="photoUrl !== ''" :src="photoUrl" alt="Foto profil {{ $displayName }}"
+                                class="h-full w-full object-cover">
+                            <span x-show="photoUrl === ''" x-cloak
+                                class="text-3xl font-extrabold text-slate-300">{{ $initial }}</span>
+
+                            <div x-show="uploading" x-cloak
+                                class="absolute inset-0 flex items-center justify-center bg-slate-900/50">
+                                <span class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
                             </div>
                         </div>
+
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700"
+                                :class="uploading ? 'pointer-events-none opacity-60' : ''">
+                                <i class="bi bi-upload"></i> Ganti Foto
+                                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                                    class="sr-only" @change="uploadPhoto($event)" :disabled="uploading">
+                            </label>
+                            <button type="button" x-show="photoUrl !== ''" x-cloak @click="deletePhoto()"
+                                :disabled="uploading"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60">
+                                <i class="bi bi-trash3"></i> Hapus
+                            </button>
+                        </div>
+
+                        <p class="text-center text-[11px] leading-relaxed text-slate-400">
+                            <i class="bi bi-info-circle"></i> JPG, PNG, WEBP, atau GIF. Maksimal 2MB.
+                        </p>
                     </div>
                 </div>
-            <?php endif; ?>
-            <?php if ((int) $user->id === (int) $users->id || $is_admin): ?>
-                <div class="">
-                    <form action="{{ url('useradmin/change_password') }}" method="post" id="change_password">
-@csrf
-<input type="hidden" name="id" value="{{ $users->id }}">
-<input type="hidden" name="username" value="{{ $users->username }}">
-                    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                        <div class="flex items-center gap-2 p-5 border-b border-slate-100">
-                            <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                                <i class="bi bi-key text-sm"></i>
-                            </span>
-                            <h2 class="text-sm font-extrabold text-slate-900">Edit Data Login</h2>
+
+                <div class="md:col-span-7">
+                    <form x-ref="infoForm" @submit.prevent="submitInfo()" novalidate class="space-y-4">
+                        @csrf
+                        <input type="hidden" name="id" value="{{ $users->id }}">
+
+                        <div>
+                            <label for="first_name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">First Name <span class="text-rose-500">*</span></label>
+                            <input type="text" id="first_name" name="first_name" maxlength="50" required
+                                value="{{ $users->first_name ?? '' }}" autocomplete="given-name"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
-                        <div class="p-5">
-                            <div class="mb-4">
-                                <label class="form-label-tw" for="username">Username</label>
-                                <input type="text" id="username" name="username" maxlength="30" class="form-control-tw font-mono" value="{{ $users->username ?? '' }}">
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label-tw" for="old">Password Lama</label>
-                                <input type="password" id="old" placeholder="Password Lama" name="old" autocomplete="current-password" class="form-control-tw">
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label-tw" for="new">Password Baru</label>
-                                <input type="password" id="new" placeholder="Password Baru (min. 6)" name="new" minlength="6" maxlength="72" autocomplete="new-password" class="form-control-tw">
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label-tw" for="new_confirm">Konfirmasi Password</label>
-                                <input type="password" id="new_confirm" placeholder="Konfirmasi Password Baru" name="new_confirm" autocomplete="new-password" class="form-control-tw">
-                            </div>
-                            <div class="flex justify-end gap-2">
-                                <button type="reset" class="btn-tw btn-light"><i
-                                        class="bi bi-arrow-counterclockwise"></i>
-                                    Reset</button>
-                                <button type="submit" id="btn-pass" class="btn-tw btn-primary"><i
-                                        class="bi bi-key mr-1"></i> Ganti Password</button>
-                            </div>
+
+                        <div>
+                            <label for="last_name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Last Name</label>
+                            <input type="text" id="last_name" name="last_name" maxlength="50"
+                                value="{{ $users->last_name ?? '' }}" autocomplete="family-name"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         </div>
-                    </div>
+
+                        <div>
+                            <label for="email" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Email</label>
+                            <input type="email" id="email" name="email" maxlength="100"
+                                value="{{ $users->email ?? '' }}" autocomplete="email"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div>
+                            <label for="jabatan" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Jabatan</label>
+                            <input type="text" id="jabatan" name="jabatan" maxlength="50" placeholder="Jabatan"
+                                value="{{ $users->jabatan ?? '' }}"
+                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-1">
+                            <button type="reset"
+                                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                            <button type="submit" :disabled="savingInfo"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                                <span x-show="savingInfo" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                                <i x-show="!savingInfo" class="bi bi-save"></i> Simpan
+                            </button>
+                        </div>
                     </form>
                 </div>
-            <?php endif; ?>
-        </div>
+            </div>
+        </x-ui.card>
 
+        <!-- Kartu data login -->
+        <x-ui.card title="Edit Data Login" icon="bi-key" tone="amber"
+            subtitle="Ubah username atau ganti password akun administrator">
+            <form x-ref="loginForm" @submit.prevent="submitPassword()" novalidate class="space-y-4">
+                @csrf
+                <input type="hidden" name="id" value="{{ $users->id }}">
+
+                <div>
+                    <label for="username" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Username</label>
+                    <input type="text" id="username" name="username" maxlength="30" required
+                        value="{{ $users->username ?? '' }}" autocomplete="username" spellcheck="false"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 font-mono text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    <p class="mt-1 text-[11px] text-slate-400">Hanya huruf, angka, titik, garis bawah, dan tanda hubung (min. 4).</p>
+                </div>
+
+                <div>
+                    <label for="old" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Password Lama</label>
+                    <input type="password" id="old" name="old" placeholder="Kosongkan bila hanya ingin mengganti username"
+                        autocomplete="current-password"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="new" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Password Baru</label>
+                        <input type="password" id="new" name="new" placeholder="Min. 6 karakter" minlength="6" maxlength="72"
+                            autocomplete="new-password"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                    <div>
+                        <label for="new_confirm" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">Konfirmasi Password</label>
+                        <input type="password" id="new_confirm" name="new_confirm" placeholder="Ulangi password baru"
+                            autocomplete="new-password"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-1">
+                    <button type="reset"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </button>
+                    <button type="submit" :disabled="savingPassword"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-amber-500/20 transition-colors hover:bg-amber-600 disabled:opacity-60">
+                        <span x-show="savingPassword" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                        <i x-show="!savingPassword" class="bi bi-key"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </x-ui.card>
+    </div>
 </div>
+
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/plugins/dropify/js/dropify.min.js') }}"></script>
-<script src="{{ asset('assets/app/js/ajax_request.js') }}" type="text/javascript"></script>
-
 <script>
-$(document).ready(function () {
-    // CSRF_NAME & CSRF_HASH sudah global dari layouts/main.php — jangan dideklarasikan ulang.
-    const idUser = '{{ (int) $users->id }}';
-    const curUser = '{{ (int) $user->id }}';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('adminEdit', () => ({
+        csrf: '',
+        urls: {},
+        idUser: 0,
+        isSelf: false,
 
-    function spinBtn($btn, busy, label) {
-        if (busy) {
-            $btn.prop('disabled', true).html('<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full"></span> Memproses...');
-        } else {
-            $btn.prop('disabled', false).html(label);
-        }
-    }
-    function errList(errors, keys) {
-        if (!errors) return 'Periksa kembali inputan Anda.';
-        const out = [];
-        (keys || Object.keys(errors)).forEach(k => {
-            if (errors[k] != null && errors[k] !== '') out.push('<li>' + errors[k] + '</li>');
-        });
-        return out.length ? '<ul style="list-style:none;margin:0;padding:0">' + out.join('') + '</ul>' : 'Periksa kembali inputan Anda.';
-    }
+        photoUrl: '',
+        uploading: false,
+        savingInfo: false,
+        savingPassword: false,
 
-    if ($.fn.dropify) {
-        var drEvent = $('.dropify').dropify({
-            messages: {
-                'default': 'Seret foto ke sini atau klik',
-                'replace': 'Seret atau klik untuk mengganti foto',
-                'remove': 'Hapus',
-                'error': 'Ukuran atau format tidak valid.'
-            },
-            error: {
-                'fileSize': 'Ukuran file terlalu besar (maks @{{ value }}).',
-                'imageFormat': 'Format gambar tidak diizinkan (@{{ value }} saja).'
+        init() {
+            const cfg = JSON.parse(this.$el.dataset.config || '{}');
+            this.csrf = cfg.csrf || '';
+            this.urls = cfg.urls || {};
+            this.idUser = Number(cfg.ids?.user || 0);
+            this.isSelf = Number(cfg.ids?.current || 0) === this.idUser;
+            this.photoUrl = cfg.foto || '';
+        },
+
+        errorHtml(errors) {
+            if (!errors || typeof errors !== 'object') return '';
+            return Object.values(errors)
+                .flat()
+                .filter((message) => message != null && message !== '')
+                .join('<br>');
+        },
+
+        async post(url, payload) {
+            const headers = {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': this.csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+            const isFormData = payload instanceof FormData;
+            if (!isFormData) {
+                headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
             }
-        });
 
-        drEvent.on('dropify.afterClear', function (event, element) {
-            deleteImage();
-        });
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: payload,
+            });
 
-        drEvent.on('dropify.errors', function () {
-            Swal.fire('Error', 'File rusak atau tidak memenuhi syarat (JPG/PNG/WEBP, maks 5MB).', 'warning');
-        });
-    }
+            return response.json();
+        },
 
-    $("#foto").change(function () {
-        var input = $(this)[0];
-        if (input.files && input.files[0]) {
-            if (input.files[0].size > 5 * 1024 * 1024) {
-                Swal.fire('Terlalu Besar', 'Ukuran foto maksimal 5MB.', 'warning');
-                $(this).val('');
+        async uploadPhoto(event) {
+            const input = event.target;
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!allowed.includes(file.type)) {
+                Swal.fire('Format Tidak Diizinkan', 'Gunakan foto berformat JPG, PNG, WEBP, atau GIF.', 'warning');
+                input.value = '';
                 return;
             }
-            var form = new FormData($('#set-foto')[0]);
-            uploadAttach(appUrl + 'useradmin/uploadfile/' + idUser, form);
-        }
-    });
+            if (file.size > 2 * 1024 * 1024) {
+                Swal.fire('Terlalu Besar', 'Ukuran foto maksimal 2MB.', 'warning');
+                input.value = '';
+                return;
+            }
 
-    function uploadAttach(action, data) {
-        $.ajax({
-            type: "POST",
-            enctype: 'multipart/form-data',
-            url: action,
-            data: data,
-            processData: false,
-            contentType: false,
-            cache: false,
-            timeout: 600000,
-            success: function (res) {
-                if (res && res.status) {
-                    Swal.fire('Berhasil', (res && res.message) || 'Foto profil diperbarui.', 'success');
-                    if (res.src) {
-                        $('#foto').attr('data-default-file', res.src);
+            const body = new FormData();
+            body.append('_token', this.csrf);
+            body.append('foto', file);
+
+            this.uploading = true;
+            try {
+                const result = await this.post(this.urls.upload, body);
+
+                if (result && result.status) {
+                    if (result.src) {
+                        this.photoUrl = result.src;
                     }
-                } else {
-                    Swal.fire('Gagal', (res && res.message) || (res && res.msg) || 'Gagal mengunggah foto.', 'error');
-                }
-            },
-            error: function () {
-                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-            }
-        });
-    }
-
-    function deleteImage() {
-        var src = $('#foto').attr('data-default-file') || '';
-        var form = new FormData($('#set-foto')[0]);
-        form.append('src', src);
-        form.append('id_user', idUser);
-        $.ajax({
-            data: form,
-            type: "POST",
-            url: appUrl + "useradmin/deletefile",
-            processData: false,
-            contentType: false,
-            cache: false,
-            dataType: 'json',
-            success: function (res) {
-                if (!(res && res.status)) {
-                    Swal.fire('Gagal', (res && res.message) || (res && res.msg) || 'Gagal menghapus foto.', 'error');
-                } else {
-                    $('#foto').attr('data-default-file', '');
-                    Swal.fire('Berhasil', (res && res.message) || 'Foto profil berhasil dihapus.', 'success');
-                }
-            },
-            error: function () {
-                Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-            }
-        });
-    }
-
-    $('form#change_password').on('submit', async function (e) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-
-        let btn = $('#btn-pass');
-        const origLabel = btn.html();
-        spinBtn(btn, true);
-
-        const url = $(this).attr('action'); //useradmin/change_password
-        let formData = new FormData($(this)[0]);
-
-        Swal.fire({
-            text: "Silahkan tunggu....",
-            allowEscapeKey: false,
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        await ajaxPost(url, formData, function (error, response) {
-            if (error) {
-                Swal.fire({ title: "Error", text: error, icon: "error" });
-            } else {
-                if (response && response.status) {
                     Swal.fire({
-                        title: "Sukses",
-                        text: response.msg || 'Password diperbarui.',
-                        icon: "success"
-                    }).then(result => {
-                        if (result.isConfirmed || result.value) {
-                            if (idUser === curUser) {
-                                window.location.href = appUrl + 'auth/logout';
-                            } else {
-                                window.location.reload();
-                            }
-                        }
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: result.message || 'Foto profil diperbarui.',
+                        showConfirmButton: false,
+                        timer: 2000,
                     });
-                } else {
-                    Swal.fire({
-                        title: "ERROR",
-                        html: errList(response && response.errors, ['username', 'old', 'new', 'new_confirm']),
-                        icon: "error",
-                        showCancelButton: false,
-                    });
+                    return;
                 }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: (result && (result.message || result.msg)) || 'Foto gagal diunggah — coba lagi.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.uploading = false;
+                input.value = '';
             }
-        });
+        },
 
-        spinBtn(btn, false, origLabel);
-    });
+        async deletePhoto() {
+            if (this.uploading || this.photoUrl === '') return;
 
-    $('form#user_info').on('submit', async function (e) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
+            const konfirmasi = await Swal.fire({
+                title: 'Hapus Foto Profil?',
+                text: 'Foto profil akan dihapus dari akun ini.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Hapus',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+            });
+            if (!konfirmasi.isConfirmed) return;
 
-        let btn = $('#btn-info');
-        const origLabel = btn.html();
-        spinBtn(btn, true);
+            const body = new FormData();
+            body.append('_token', this.csrf);
+            body.append('id_user', this.idUser);
+            body.append('src', this.photoUrl.split('?')[0]);
 
-        const url = $(this).attr('action'); //useradmin/edit_info
-        let formData = new FormData($(this)[0]);
+            this.uploading = true;
+            try {
+                const result = await this.post(this.urls.delete, body);
 
-        Swal.fire({
-            text: "Silahkan tunggu....",
-            allowEscapeKey: false,
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        await ajaxPost(url, formData, function (error, response) {
-            spinBtn(btn, false, origLabel);
-            if (error) {
-                Swal.fire({ title: "Error", text: error, icon: "error" });
-            } else {
-                if (response && response.status) {
+                if (result && result.status) {
+                    this.photoUrl = '';
                     Swal.fire({
-                        title: "Sukses",
-                        text: "Data Admin berhasil diupdate",
-                        icon: "success"
-                    }).then(result => {
-                        if (result.isConfirmed || result.value) {
-                            window.location.reload();
-                        }
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: result.message || 'Foto profil berhasil dihapus.',
+                        showConfirmButton: false,
+                        timer: 2000,
                     });
-                } else {
-                    Swal.fire({
-                        title: "ERROR",
-                        html: errList(response && response.errors, ['first_name']),
-                        icon: "error",
-                        showCancelButton: false,
-                    });
+                    return;
                 }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: (result && (result.message || result.msg)) || 'Foto gagal dihapus — coba lagi.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.uploading = false;
             }
-        });
-    });
+        },
+
+        async submitInfo() {
+            if (this.savingInfo) return;
+
+            const form = this.$refs.infoForm;
+            if (!form.reportValidity()) return;
+
+            this.savingInfo = true;
+            try {
+                const result = await this.post(this.urls.info, new FormData(form));
+
+                if (result && result.status) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: 'Data admin berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+                    window.location.reload();
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    html: this.errorHtml(result && result.errors) || 'Data admin gagal disimpan — periksa isian lalu coba lagi.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.savingInfo = false;
+            }
+        },
+
+        async submitPassword() {
+            if (this.savingPassword) return;
+
+            const form = this.$refs.loginForm;
+            if (!form.reportValidity()) return;
+
+            const data = new FormData(form);
+            const username = String(data.get('username') || '').trim();
+            if (username.length < 4) {
+                Swal.fire('Gagal', 'Username minimal 4 karakter.', 'warning');
+                return;
+            }
+
+            this.savingPassword = true;
+            try {
+                const result = await this.post(this.urls.password, data);
+
+                if (result && result.status) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Sukses',
+                        text: result.msg || 'Data login berhasil diperbarui.',
+                    });
+                    if (this.isSelf) {
+                        window.location.href = this.urls.logout;
+                        return;
+                    }
+                    window.location.reload();
+                    return;
+                }
+
+                const detail = this.errorHtml(result && result.errors);
+                if (detail !== '') {
+                    Swal.fire({ icon: 'error', title: 'ERROR', html: detail });
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: (result && (result.msg || result.message)) || 'Data login gagal diperbarui.',
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+            } finally {
+                this.savingPassword = false;
+            }
+        },
+    }));
 });
 </script>
 @endsection

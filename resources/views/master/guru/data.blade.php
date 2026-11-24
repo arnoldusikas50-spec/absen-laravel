@@ -15,30 +15,15 @@ $guruNonaktif = $totalGuru - $guruAktif;
 ?>
 
 <!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
-                    <i class="bi bi-person-video3 text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Data Guru' }}</span>
-            </h3>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                <i class="bi bi-house-door mr-1"></i> Dashboard
-            </a>
-            <span class="sep">/</span>
-            <span class="text-slate-400">Data Umum</span>
-            <span class="sep">/</span>
-            <span class="active font-medium text-slate-800">{{ $judul ?? 'Guru' }}</span>
-        </nav>
-    </div>
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <x-ui.page-header
+        :title="$judul ?? 'Data Guru'"
+        icon="bi-person-video3"
+        :crumbs="['Data Umum', $judul ?? 'Guru']" />
 </div>
 
 <!-- Main Content Area -->
-<div class="content-area mt-4 space-y-6">
+<div class="mt-4 space-y-6 px-4 pb-6 md:px-6" x-data="dataTable({ perPage: 10, sort: 1 })">
 
     <div class="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
         <!-- Card Header Toolbar -->
@@ -66,16 +51,16 @@ $guruNonaktif = $totalGuru - $guruAktif;
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="search" id="filterGuruInput" placeholder="Cari nama, NIP, atau jabatan..."
+                    <input type="search" id="filterGuruInput" x-ref="search" x-model="query" placeholder="Cari nama, NIP, atau jabatan..."
                         aria-label="Cari guru"
                         class="w-full sm:w-64 pl-8 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-hidden">
-                    <button type="button" id="clearGuruSearch"
-                        class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
-                        aria-label="Hapus pencarian">
+                    <button type="button" id="clearGuruSearch" x-show="query.length > 0" x-cloak
+                        class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        aria-label="Hapus pencarian" @click="query = ''; $refs.search?.focus()">
                         <i class="bi bi-x-circle-fill text-xs"></i>
                     </button>
                 </div>
-                <select id="filterStatus" aria-label="Filter status guru"
+                <select id="filterStatus" x-model="filters.status" aria-label="Filter status guru"
                     class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-hidden font-medium text-slate-700">
                     <option value="">Semua Status</option>
                     <option value="1">Aktif</option>
@@ -100,20 +85,18 @@ $guruNonaktif = $totalGuru - $guruAktif;
 
         <div class="p-6">
             <?php if ($totalGuru > 0): ?>
-                <div class="overflow-x-auto">
-                    <table id="tableGuru" class="table-tw min-w-[980px]">
-                        <thead>
-                            <tr>
-                                <th width="56" class="text-center">No</th>
-                                <th>Nama Guru</th>
-                                <th>NIP / RFID</th>
-                                <th>Jabatan</th>
-                                <th>Mapel &amp; Ekstra</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-center" width="160">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                <x-ui.table id="tableGuru" class="min-w-[980px]">
+                    <x-slot:head>
+                        <th class="w-14 px-3 py-3 text-center">No</th>
+                        <th scope="col" class="cursor-pointer select-none px-4 py-3" @click="sortBy(1)">
+                            Nama Guru <span class="text-blue-600" x-text="indicator(1)"></span>
+                        </th>
+                        <th class="px-4 py-3">NIP / RFID</th>
+                        <th class="px-4 py-3">Jabatan</th>
+                        <th class="px-4 py-3">Mapel &amp; Ekstra</th>
+                        <th class="w-28 px-3 py-3 text-center">Status</th>
+                        <th class="w-40 px-3 py-3 text-center">Aksi</th>
+                    </x-slot:head>
                             <?php $no = 1; foreach ($gurus as $guru):
                                 $mapels_guru = $guru->mapel_kelas ?? [];
                                 $ekstras_guru = $guru->ekstra_kelas ?? [];
@@ -139,7 +122,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                 };
                                 ?>
                                 <tr data-status="{{ $isActive ? '1' : '0' }}">
-                                    <td class="text-center font-bold text-slate-400" data-order="{{ $no }}">{{ $no++ }}</td>
+                                    <td class="text-center font-bold text-slate-400" data-rownum data-order="{{ $no }}">{{ $no++ }}</td>
 
                                     <td data-order="{{ $guru->nama_guru }}">
                                         <div class="flex items-center gap-3 min-w-[230px]">
@@ -181,6 +164,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                             <?php elseif ($isAdmin): ?>
                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-medium cursor-pointer hover:bg-emerald-50 hover:text-emerald-600 btn-tap-nfc-guru-row"
                                                     data-id="{{ $guru->id_guru }}" data-nama="{{ $guru->nama_guru }}"
+                                                    @click="window.openNfcSingleGuru($el.dataset.id, $el.dataset.nama)"
                                                     title="Klik untuk tap kartu NFC guru ini">
                                                     <i class="bi bi-broadcast"></i> Belum ada RFID
                                                 </span>
@@ -273,6 +257,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                                 <button type="button"
                                                     class="btn-tap-nfc-guru-row inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-colors"
                                                     data-id="{{ $guru->id_guru }}" data-nama="{{ $guru->nama_guru }}"
+                                                    @click="window.openNfcSingleGuru($el.dataset.id, $el.dataset.nama)"
                                                     title="Tap kartu NFC untuk guru ini">
                                                     <i class="bi bi-broadcast text-xs"></i>
                                                 </button>
@@ -288,9 +273,31 @@ $guruNonaktif = $totalGuru - $guruAktif;
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                </x-ui.table>
+
+                {{-- Ringkasan + paginasi (Alpine, pengganti DataTables). --}}
+                <div class="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-xs sm:flex-row sm:items-center sm:justify-between">
+                    <p class="font-medium text-slate-500">
+                        Menampilkan
+                        <span class="font-bold text-slate-700" x-text="from"></span>–<span class="font-bold text-slate-700" x-text="to"></span>
+                        dari <span class="font-bold text-slate-700" x-text="total"></span> guru
+                    </p>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" @click="prev()" :disabled="page <= 1"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            <i class="bi bi-chevron-left"></i> Sebelumnya
+                        </button>
+                        <span class="px-1 font-bold text-slate-600" x-text="page + ' / ' + pages"></span>
+                        <button type="button" @click="next()" :disabled="page >= pages"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                            Berikutnya <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
+
+                <p x-show="total === 0" x-cloak class="py-8 text-center text-sm text-slate-400">
+                    Tidak ada guru yang cocok dengan pencarian atau filter.
+                </p>
             <?php else: ?>
                 <div class="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center text-2xl">
@@ -312,7 +319,7 @@ $guruNonaktif = $totalGuru - $guruAktif;
 {{-- ─── MODAL REGISTRASI CEPAT NFC GURU ─── --}}
 @if ($isAdmin)
 <div id="quickNfcGuruModal" class="modal hidden fixed inset-0 items-center justify-center bg-slate-900/60 p-3 sm:p-4" style="z-index: 1060;" tabindex="-1" aria-labelledby="quickNfcGuruLabel" aria-hidden="true" onclick="if(event.target === this) closeNfcGuruModal()">
-    <div class="modal-box-tw w-full max-w-lg">
+    <div class="flex max-h-[92vh] w-full max-w-lg flex-col">
         <div class="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <!-- Header -->
             <div class="px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 shrink-0">
@@ -431,63 +438,9 @@ $guruNonaktif = $totalGuru - $guruAktif;
 
 @section('scripts')
 <script>
-    $(document).ready(function () {
-        if (!$('#tableGuru').length) return;
-
-        const tableGuru = $('#tableGuru').DataTable({
-            order: [[1, 'asc']],
-            pageLength: 10,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'Semua']],
-            language: dt_lang_id,
-            dom: "<'flex flex-wrap items-center justify-between gap-3 mb-4'l>rt<'flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4'<'text-xs text-slate-500'i><'dt-pagination'p>>",
-            columnDefs: [
-                { targets: [0, 4, 6], orderable: false },
-                { targets: [0, 6], searchable: false }
-            ]
-        });
-
-        // Nomor urut mengikuti hasil filter/urutan yang sedang tampil.
-        tableGuru.on('draw.dt', function () {
-            tableGuru.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
-                cell.textContent = i + 1;
-            });
-        }).draw();
-
-        let searchTimer;
-        $('#filterGuruInput').on('input', function () {
-            const value = this.value;
-            $('#clearGuruSearch').toggleClass('hidden', value === '');
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(function () {
-                tableGuru.search(value).draw();
-            }, 200);
-        });
-
-        $('#clearGuruSearch').on('click', function () {
-            $('#filterGuruInput').val('').trigger('focus');
-            $(this).addClass('hidden');
-            tableGuru.search('').draw();
-        });
-
-        let statusFilter = '';
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'tableGuru' || statusFilter === '') return true;
-            const row = settings.aoData[dataIndex] ? settings.aoData[dataIndex].nTr : null;
-            return row ? row.getAttribute('data-status') === statusFilter : true;
-        });
-
-        $('#filterStatus').on('change', function () {
-            statusFilter = this.value;
-            tableGuru.draw();
-        });
-
-        // Tombol NFC inline per baris
-        $(document).on('click', '.btn-tap-nfc-guru-row', function () {
-            const idGuru = $(this).data('id');
-            const namaGuru = $(this).data('nama');
-            openNfcSingleGuru(idGuru, namaGuru);
-        });
-    });
+    // Pencarian, filter status, urutan kolom, nomor urut, dan paginasi
+    // tabel ditangani komponen Alpine `dataTable` (resources/js/app.js).
+    // Tombol NFC per baris memakai @click Alpine langsung di markup.
 
     function hapus(idGuru, trigger) {
         const namaGuru = trigger && trigger.dataset ? trigger.dataset.nama : '';

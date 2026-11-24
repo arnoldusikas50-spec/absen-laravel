@@ -34,754 +34,643 @@ if (!empty($settingData->ba_waktu) && $settingData->ba_waktu !== '0000-00-00 00:
         $bankSoalDateTime = $bankSoalDateObj->format('Y-m-d\TH:i');
     }
 }
+
+$satuanOptionList = $satuan[$settingData->jenjang ?? '1'] ?? [];
+
+// Kolom media yang ikut dikirim saat menyimpan pengaturan. Nilainya berasal
+// dari unggahan di halaman ini atau dari database, semuanya path relatif.
+$mediaFields = [
+    'logo_kanan', 'logo_kiri', 'kodescan', 'kopsekolah', 'kartu_bg_depan',
+    'kartu_bg_belakang', 'stampel', 'ttdproktor', 'tanda_tangan',
+    'banner1', 'banner2', 'banner3',
+];
+
+$mediaValues = [];
+foreach ($mediaFields as $field) {
+    $mediaValues[$field] = (string) ($settingData->{$field} ?? '');
+}
+
+$uploadInputs = [
+    ['field' => 'stampel', 'label' => 'Cap / Stampel Sekolah'],
+    ['field' => 'tanda_tangan', 'label' => 'TTD Kepala Sekolah'],
+    ['field' => 'logo_kiri', 'label' => 'Logo Kiri / Aplikasi'],
+    ['field' => 'logo_kanan', 'label' => 'Logo Kanan'],
+    ['field' => 'kopsekolah', 'label' => 'Kop Sekolah'],
+    ['field' => 'kartu_bg_depan', 'label' => 'Latar Kartu Siswa Depan (PNG)'],
+    ['field' => 'kartu_bg_belakang', 'label' => 'Latar Kartu Siswa Belakang (PNG)'],
+];
+
+$uploadCards = array_map(function ($item) use ($mediaValues) {
+    return [
+        'field' => $item['field'],
+        'label' => $item['label'],
+        'relative' => $mediaValues[$item['field']],
+        'src' => $mediaValues[$item['field']] !== '' ? url($mediaValues[$item['field']]) : '',
+    ];
+}, $uploadInputs);
+
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'urls' => [
+        'save' => url('setting/saveSetting'),
+        'upload' => url('setting/uploadFile'),
+        'delete' => url('setting/deleteFile'),
+    ],
+    'satuan' => $satuan,
+    'media' => $mediaValues,
+    'uploads' => $uploadCards,
+];
+
+$labelClass = 'mb-1.5 block text-xs font-semibold text-slate-700';
+$inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-700 transition-all outline-hidden focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20';
+$bintang = '<span class="text-red-500">*</span>';
 ?>
-<style>
-    .dropify-wrapper .dropify-message p {
-        font-size: 0.85rem;
-        line-height: 1.3;
-    }
 
-    .dropify-wrapper .dropify-message span.file-icon {
-        font-size: 2.5rem;
-    }
-</style>
+<div x-data="settingPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
 
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs shrink-0">
-                    <i class="bi bi-database-gear text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Halaman' }}</span>
-            </h3>
-        </div>
-        <nav class="breadcrumb-tw">
-            <a href="{{ url('dashboard') }}" class="no-underline text-slate-500 hover:text-blue-600">
-                <i class="bi bi-house-door mr-1"></i> Dashboard
-            </a>
-            <span class="sep">/</span>
-            <span class="active font-medium text-slate-800">{{ $subjudul ?? 'Data' }}</span>
-        </nav>
+    <!-- Content Header -->
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Pengaturan'"
+            icon="bi-database-gear"
+            tone="emerald"
+            :subtitle="$subjudul ?? 'Profil Sekolah & Kebijakan Presensi'"
+            :crumbs="['Pengaturan', $subjudul ?? 'Data']" />
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+        <form id="savesetting" @submit.prevent="save($event)">
+            @csrf
+
+            <x-ui.card title="Pengaturan Profil Sekolah" icon="bi-sliders2" tone="blue"
+                subtitle="Kelola identitas sekolah, kontak, serta pengaturan ujian dalam satu tempat.">
+
+                <div class="mb-4 flex gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-blue-900">
+                    <i class="bi bi-info-circle mt-0.5 text-blue-600"></i>
+                    <div class="space-y-1">
+                        <p class="font-bold">Panduan Pengisian Profil</p>
+                        <ul class="ml-4 list-disc space-y-0.5">
+                            <li>Isi seluruh kolom bertanda bintang (<span class="text-red-500">*</span>) untuk memastikan data profil lengkap.</li>
+                            <li>Pastikan jenjang dan satuan pendidikan sesuai agar tampilan rapor dan fitur absensi by ikasmedia menyesuaikan otomatis.</li>
+                            <li>Unggah logo dan dokumen pendukung dalam format JPG/PNG maksimal 2MB agar tampil tajam pada laporan.</li>
+                            <li>Aktifkan token siswa hanya saat dibutuhkan untuk sesi ujian.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+
+                    <x-ui.card title="Identitas Sekolah" icon="bi-building" tone="blue" body-class="space-y-4 p-5">
+                        <div>
+                            <label for="set-nama-aplikasi" class="{{ $labelClass }}">Nama Aplikasi {!! $bintang !!}</label>
+                            <input type="text" id="set-nama-aplikasi" name="nama_aplikasi" class="{{ $inputClass }}"
+                                value="{{ $settingData->nama_aplikasi ?? '' }}" required>
+                        </div>
+                        <div>
+                            <label for="set-nama-sekolah" class="{{ $labelClass }}">Nama Sekolah {!! $bintang !!}</label>
+                            <input type="text" id="set-nama-sekolah" name="nama_sekolah" class="{{ $inputClass }}"
+                                value="{{ $settingData->sekolah ?? '' }}" required>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-nss" class="{{ $labelClass }}">NSS/NSM</label>
+                                <input type="text" id="set-nss" name="nss" class="{{ $inputClass }}"
+                                    value="{{ $settingData->nss ?? '' }}" pattern="[0-9]{10,12}"
+                                    title="NSS/NSM harus berupa angka 10-12 digit">
+                            </div>
+                            <div>
+                                <label for="set-npsn" class="{{ $labelClass }}">NPSN</label>
+                                <input type="text" id="set-npsn" name="npsn" class="{{ $inputClass }}"
+                                    value="{{ $settingData->npsn ?? '' }}" pattern="[0-9]{8}"
+                                    title="NPSN harus berupa 8 digit angka">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="jenjang" class="{{ $labelClass }}">Jenjang {!! $bintang !!}</label>
+                                <select id="jenjang" name="jenjang" class="{{ $inputClass }}" @change="onJenjangChange($event)" required>
+                                    <option value="" disabled {{ empty($settingData->jenjang) ? 'selected' : '' }}>Pilih Jenjang</option>
+                                    @foreach ($jenjangOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected((string) ($settingData->jenjang ?? '') === (string) $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="satuan-pend" class="{{ $labelClass }}">Satuan Pendidikan {!! $bintang !!}</label>
+                                <select id="satuan-pend" name="satuan_pendidikan" class="{{ $inputClass }}" x-ref="satuanSelect" required>
+                                    <option value="" disabled {{ empty($settingData->satuan_pendidikan) ? 'selected' : '' }}>Pilih Satuan Pendidikan</option>
+                                    @foreach ($satuanOptionList as $idx => $label)
+                                        <option value="{{ $idx + 1 }}" @selected((string) ($settingData->satuan_pendidikan ?? '') === (string) ($idx + 1))>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </x-ui.card>
+
+                    <x-ui.card title="Alamat & Wilayah" icon="bi-geo-alt" tone="violet" body-class="space-y-4 p-5">
+                        <div>
+                            <label for="set-alamat" class="{{ $labelClass }}">Alamat {!! $bintang !!}</label>
+                            <textarea id="set-alamat" name="alamat" rows="4" class="{{ $inputClass }}"
+                                placeholder="Masukkan alamat lengkap" required>{{ $settingData->alamat ?? '' }}</textarea>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-desa" class="{{ $labelClass }}">Desa/Kelurahan {!! $bintang !!}</label>
+                                <input type="text" id="set-desa" name="desa" class="{{ $inputClass }}"
+                                    value="{{ $settingData->desa ?? '' }}" required>
+                            </div>
+                            <div>
+                                <label for="set-kec" class="{{ $labelClass }}">Kecamatan {!! $bintang !!}</label>
+                                <input type="text" id="set-kec" name="kec" class="{{ $inputClass }}"
+                                    value="{{ $settingData->kecamatan ?? '' }}" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-kota" class="{{ $labelClass }}">Kabupaten/Kota {!! $bintang !!}</label>
+                                <input type="text" id="set-kota" name="kota" class="{{ $inputClass }}"
+                                    value="{{ $settingData->kota ?? '' }}" required>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="set-kode-pos" class="{{ $labelClass }}">Kode Pos</label>
+                                    <input type="text" id="set-kode-pos" name="kode_pos" class="{{ $inputClass }}"
+                                        value="{{ $settingData->kode_pos ?? '' }}" pattern="[0-9]{5}"
+                                        title="Kode pos terdiri dari 5 digit angka">
+                                </div>
+                                <div>
+                                    <label for="set-provinsi" class="{{ $labelClass }}">Provinsi {!! $bintang !!}</label>
+                                    <input type="text" id="set-provinsi" name="provinsi" class="{{ $inputClass }}"
+                                        value="{{ $settingData->provinsi ?? '' }}" required>
+                                </div>
+                            </div>
+                        </div>
+                    </x-ui.card>
+
+                    <x-ui.card title="Kontak Sekolah" icon="bi-telephone" tone="emerald" body-class="space-y-4 p-5">
+                        <div>
+                            <label for="set-web" class="{{ $labelClass }}">Website</label>
+                            <input type="url" id="set-web" name="web" class="{{ $inputClass }}"
+                                value="{{ $settingData->web ?? ($settingData->website ?? '') }}"
+                                placeholder="https://contoh-sekolah.sch.id">
+                        </div>
+                        <div>
+                            <label for="set-email" class="{{ $labelClass }}">Email</label>
+                            <input type="email" id="set-email" name="email" class="{{ $inputClass }}"
+                                value="{{ $settingData->email ?? '' }}"
+                                placeholder="kontak@sekolah.sch.id">
+                        </div>
+                        <div>
+                            <label for="set-tlp" class="{{ $labelClass }}">Nomor Telepon</label>
+                            <div class="flex items-stretch">
+                                <span class="inline-flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-slate-100 px-3 text-xs font-semibold text-slate-500">+62</span>
+                                <input type="tel" id="set-tlp" name="tlp" class="{{ $inputClass }} rounded-l-none"
+                                    value="{{ $settingData->telp ?? '' }}" pattern="[0-9]{6,15}"
+                                    title="Masukkan nomor telepon tanpa spasi atau tanda hubung">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="set-fax" class="{{ $labelClass }}">Faksimili</label>
+                            <input type="text" id="set-fax" name="fax" class="{{ $inputClass }}"
+                                value="{{ $settingData->fax ?? '' }}">
+                        </div>
+                    </x-ui.card>
+
+                    <x-ui.card title="Konfigurasi Notifikasi" icon="bi-chat-dots" tone="blue" body-class="space-y-4 p-5">
+                        <div class="flex gap-2.5 rounded-xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-xs text-sky-900">
+                            <i class="bi bi-info-circle mt-0.5 text-sky-600"></i>
+                            <p>Notifikasi ini digunakan untuk mengirim rekap absensi harian otomatis.</p>
+                        </div>
+
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-blue-600">Telegram</h3>
+                        <div>
+                            <label for="set-telegram-token" class="{{ $labelClass }}">Bot Token</label>
+                            <input type="text" id="set-telegram-token" name="telegram_bot_token" class="{{ $inputClass }}"
+                                value="{{ $settingData->telegram_bot_token ?? '' }}"
+                                placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ">
+                        </div>
+                        <div>
+                            <label for="set-telegram-chat" class="{{ $labelClass }}">Chat ID Tujuan</label>
+                            <input type="text" id="set-telegram-chat" name="telegram_chat_id" class="{{ $inputClass }}"
+                                value="{{ $settingData->telegram_chat_id ?? '' }}"
+                                placeholder="-100xxxxxxx atau ID User">
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-600">WhatsApp (Fonnte/Wablas)</h3>
+                        <div>
+                            <label for="set-wa-token" class="{{ $labelClass }}">WA API Token</label>
+                            <input type="text" id="set-wa-token" name="wa_token" class="{{ $inputClass }}"
+                                value="{{ $settingData->wa_token ?? '' }}"
+                                placeholder="Token API WhatsApp Gateway">
+                        </div>
+                        <div>
+                            <label for="set-wa-target" class="{{ $labelClass }}">Nomor WA Tujuan</label>
+                            <input type="text" id="set-wa-target" name="wa_target_number" class="{{ $inputClass }}"
+                                value="{{ $settingData->wa_target_number ?? '' }}"
+                                placeholder="0812345xxxxx">
+                        </div>
+                        <div>
+                            <label for="set-wa-gateway" class="{{ $labelClass }}">Gateway URL (Opsional)</label>
+                            <input type="url" id="set-wa-gateway" name="wa_gateway_url" class="{{ $inputClass }}"
+                                value="{{ $settingData->wa_gateway_url ?? 'https://api.fonnte.com/send' }}"
+                                placeholder="https://api.fonnte.com/send">
+                        </div>
+
+                        <hr class="border-slate-100">
+
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-rose-500">Integrasi MikroTik (Hotspot)</h3>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div class="sm:col-span-2">
+                                <label for="set-mikrotik-host" class="{{ $labelClass }}">IP Address MikroTik</label>
+                                <input type="text" id="set-mikrotik-host" name="mikrotik_host" class="{{ $inputClass }}"
+                                    value="{{ $settingData->mikrotik_host ?? '' }}"
+                                    placeholder="192.168.88.1">
+                            </div>
+                            <div>
+                                <label for="set-mikrotik-port" class="{{ $labelClass }}">Port API</label>
+                                <input type="number" id="set-mikrotik-port" name="mikrotik_port" class="{{ $inputClass }}"
+                                    value="{{ $settingData->mikrotik_port ?? '8728' }}"
+                                    placeholder="8728">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-mikrotik-user" class="{{ $labelClass }}">User API</label>
+                                <input type="text" id="set-mikrotik-user" name="mikrotik_user" class="{{ $inputClass }}"
+                                    value="{{ $settingData->mikrotik_user ?? '' }}">
+                            </div>
+                            <div>
+                                <label for="set-mikrotik-pass" class="{{ $labelClass }}">Password API</label>
+                                <input type="password" id="set-mikrotik-pass" name="mikrotik_pass" class="{{ $inputClass }}"
+                                    value="{{ $settingData->mikrotik_pass ?? '' }}">
+                            </div>
+                        </div>
+                    </x-ui.card>
+
+                    <x-ui.card title="Penanggung Jawab & Pengaturan" icon="bi-person-badge" tone="amber"
+                        body-class="space-y-4 p-5">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-kepsek" class="{{ $labelClass }}">Kepala Sekolah {!! $bintang !!}</label>
+                                <input type="text" id="set-kepsek" name="kepsek" class="{{ $inputClass }}"
+                                    value="{{ $settingData->kepsek ?? '' }}" required>
+                            </div>
+                            <div>
+                                <label for="set-nip" class="{{ $labelClass }}">NIP Kepala Sekolah</label>
+                                <input type="text" id="set-nip" name="nip" class="{{ $inputClass }}"
+                                    value="{{ $settingData->nip ?? '' }}" pattern="[0-9]{8,20}"
+                                    title="Masukkan 8-20 digit angka">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="set-proktor" class="{{ $labelClass }}">Proktor {!! $bintang !!}</label>
+                                <input type="text" id="set-proktor" name="proktor" class="{{ $inputClass }}"
+                                    value="{{ $settingData->proktor ?? '' }}" required>
+                            </div>
+                            <div>
+                                <label for="set-nip-proktor" class="{{ $labelClass }}">NIP Proktor</label>
+                                <input type="text" id="set-nip-proktor" name="nip_proktor" class="{{ $inputClass }}"
+                                    value="{{ $settingData->nip_proktor ?? '' }}" pattern="[0-9]{8,20}"
+                                    title="Masukkan 8-20 digit angka">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="ba_aktif" class="{{ $labelClass }}">Status Bank Soal</label>
+                            <select id="ba_aktif" name="ba_aktif" class="{{ $inputClass }}" required>
+                                <option value="" disabled {{ empty($settingData->ba_aktif) ? 'selected' : '' }}>Pilih Status</option>
+                                @foreach ($bankSoalOptions as $key => $label)
+                                    <option value="{{ $key }}" @selected((string) ($settingData->ba_aktif ?? '') === (string) $key)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="set-ba-waktu" class="{{ $labelClass }}">Waktu Bank Soal</label>
+                            <input type="datetime-local" id="set-ba-waktu" name="ba_waktu" class="{{ $inputClass }}"
+                                value="{{ $bankSoalDateTime }}">
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="tkn_siswa" class="{{ $labelClass }}">Tampilkan Token di Siswa</label>
+                                <select id="tkn_siswa" name="tkn_siswa" class="{{ $inputClass }}" required>
+                                    <option value="" disabled {{ empty($settingData->tkn_siswa) ? 'selected' : '' }}>Pilih Status</option>
+                                    @foreach ($tokenOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected((string) ($settingData->tkn_siswa ?? '') === (string) $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="mode_app" class="{{ $labelClass }}">Mode Aplikasi</label>
+                                <select id="mode_app" name="mode_app" class="{{ $inputClass }}" required>
+                                    <option value="" disabled {{ empty($settingData->mode_app) ? 'selected' : '' }}>Pilih Mode</option>
+                                    @foreach ($modeOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected((string) ($settingData->mode_app ?? '') === (string) $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="set-api-key" class="{{ $labelClass }}">API Key (OpenAI / Gemini)</label>
+                            <input type="text" id="set-api-key" name="api_key" class="{{ $inputClass }}"
+                                value="{{ $settingData->api_key ?? '' }}"
+                                placeholder="Paste API Key disini...">
+                            <p class="mt-1 text-[11px] text-slate-400">Kunci API diperlukan untuk fitur generate soal otomatis menggunakan AI.</p>
+                        </div>
+                    </x-ui.card>
+                </div>
+
+                <div class="mt-5 flex justify-end">
+                    <button type="submit" :disabled="saving"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700 disabled:opacity-60">
+                        <span x-show="saving" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                        <i x-show="!saving" class="bi bi-save"></i> Simpan Pengaturan
+                    </button>
+                </div>
+            </x-ui.card>
+        </form>
+
+        <x-ui.card title="Identitas Visual & Dokumen Pendukung" icon="bi-images" tone="violet"
+            subtitle="Format file JPG/PNG maksimal 2MB">
+
+            <div class="mb-4 flex gap-2.5 rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
+                <i class="bi bi-images mt-0.5 text-amber-600"></i>
+                <div class="space-y-1">
+                    <p class="font-bold">Panduan Upload</p>
+                    <ul class="ml-4 list-disc space-y-0.5">
+                        <li>Gunakan resolusi tinggi agar logo dan banner tampil tajam pada laporan.</li>
+                        <li>Banner disarankan berukuran 1020x250 piksel dengan rasio 4:1.</li>
+                        <li>Format transparan (PNG) ideal untuk tanda tangan digital dan cap sekolah.</li>
+                        <li>Latar kartu siswa disarankan rasio 54:85,6 (mis. 640 × 1016 px) — dipakai desain "Kartu Pelajar (Portrait)".</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <template x-for="item in uploads" :key="item.field">
+                    <div class="flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+                        <p class="mb-2 text-xs font-semibold text-slate-700" x-text="item.label"></p>
+                        <div class="mb-3 flex h-28 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white">
+                            <img x-show="item.preview" :src="item.preview" :alt="item.label"
+                                class="h-full w-full object-contain p-1">
+                            <span x-show="!item.preview" class="text-[11px] text-slate-400">Belum ada file</span>
+                        </div>
+                        <input type="file" accept="image/jpeg,image/png" :disabled="item.busy"
+                            @change="upload(item, $event)"
+                            class="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-violet-50 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-60">
+                        <div class="mt-2 flex items-center justify-between gap-2">
+                            <span class="text-[11px] text-slate-400">JPG/PNG maks. 2MB</span>
+                            <button type="button" @click="remove(item)" x-show="item.src" :disabled="item.busy"
+                                class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60">
+                                <i class="bi bi-trash3"></i> Hapus
+                            </button>
+                        </div>
+                        <p x-show="item.busy" x-cloak class="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-violet-600">
+                            <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-violet-300 border-t-transparent"></span>
+                            Mengunggah...
+                        </p>
+                    </div>
+                </template>
+            </div>
+
+        </x-ui.card>
     </div>
 </div>
-
-<div class="content-area">
-<div class="card-tw">
-            <div class="card-tw-body">
-                <div class="mb-6">
-                    <h5 class="mb-1 font-weight-bold">Pengaturan Profil Sekolah</h5>
-                    <div class="text-slate-400">Kelola identitas sekolah, kontak, serta pengaturan ujian dalam satu tempat.
-                    </div>
-                </div>
-
-                <div class="callout callout-info shadow-sm border border-info mb-6">
-                    <h5 class="mb-2 font-weight-bold"><i class="bi bi-info-circle mr-2"></i>Panduan Pengisian Profil
-                    </h5>
-                    <ul class="pl-4 mb-0">
-                        <li>Isi seluruh kolom bertanda bintang (<span class="text-red-500">*</span>) untuk memastikan
-                            data profil lengkap.
-                        <li>Pastikan jenjang dan satuan pendidikan sesuai agar tampilan rapor dan fitur absensi by ikasmedia menyesuaikan
-                            otomatis.
-                        <li>Unggah logo dan dokumen pendukung dalam format JPG/PNG maksimal 2MB agar tampil tajam pada
-                            laporan.
-                        <li>Aktifkan token siswa hanya saat dibutuhkan untuk sesi ujian.
-                    </ul>
-                </div>
-
-                <form action="" method="post" id="savesetting">
-@csrf
-                <div class="flex flex-wrap gap-4">
-                    <div class="">
-                        <div class="card-tw">
-                            <div class="card-tw-header"
-                                style="background: linear-gradient(135deg, #f6f9ff 0%, #dbe7ff 100%); color: #111;">
-                                <h6 class="mb-0">Identitas Sekolah</h6>
-                            </div>
-                            <div class="card-tw-body">
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Nama Aplikasi <span
-                                            class="text-red-500">*</span></label>
-                                    <input type="text" name="nama_aplikasi" class="form-control-tw"
-                                        value="{!! e($settingData->nama_aplikasi ?? '') !!}" required>
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Nama Sekolah <span
-                                            class="text-red-500">*</span></label>
-                                    <input type="text" name="nama_sekolah" class="form-control-tw"
-                                        value="{!! e($settingData->sekolah ?? '') !!}" required>
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">NSS/NSM</label>
-                                        <input type="text" name="nss" class="form-control-tw"
-                                            value="{!! e($settingData->nss ?? '') !!}" pattern="[0-9]{10,12}"
-                                            title="NSS/NSM harus berupa angka 10-12 digit">
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">NPSN</label>
-                                        <input type="text" name="npsn" class="form-control-tw"
-                                            value="{!! e($settingData->npsn ?? '') !!}" pattern="[0-9]{8}"
-                                            title="NPSN harus berupa 8 digit angka">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Jenjang <span
-                                                class="text-red-500">*</span></label>
-                                        <select id="jenjang" class="form-control-tw" name="jenjang" required>
-                                            <option value="" disabled {{ empty($settingData->jenjang) ? 'selected' : '' }}>Pilih Jenjang</option>
-                                            <?php foreach ($jenjangOptions as $key => $label): ?>
-                                                <option value="{{ $key }}" {{ ((string) ($settingData->jenjang ?? '')) === (string) $key ? 'selected' : '' }}>
-                                                    {{ $label }}
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Satuan Pendidikan <span
-                                                class="text-red-500">*</span></label>
-                                        <select id="satuan-pend" class="form-control-tw" name="satuan_pendidikan"
-                                            required>
-                                            <option value="" disabled {{ empty($settingData->satuan_pendidikan) ? 'selected' : '' }}>Pilih Satuan Pendidikan</option>
-                                            <?php
-                                            // Handle dynamically based on jenjang if needed, but for now loop based on current logic
-                                            // Ideally this is dynamic via JS, but we need initial render
-                                            $satuanOptionList = $satuan[$settingData->jenjang ?? '1'] ?? [];
-                                            foreach ($satuanOptionList as $idx => $label):
-                                                $optionValue = $idx + 1;
-                                                ?>
-                                                <option value="{{ $optionValue }}" {{ ((string) ($settingData->satuan_pendidikan ?? '')) === (string) $optionValue ? 'selected' : '' }}>
-                                                    {{ $label }}
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="">
-                        <div class="card-tw">
-                            <div class="card-tw-header"
-                                style="background: linear-gradient(135deg, #eef1ff 0%, #d8dcff 100%); color: #111;">
-                                <h6 class="mb-0">Alamat & Wilayah</h6>
-                            </div>
-                            <div class="card-tw-body">
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Alamat <span
-                                            class="text-red-500">*</span></label>
-                                    <textarea class="form-control-tw" name="alamat" rows="4"
-                                        placeholder="Masukkan alamat lengkap"
-                                        required>{!! e($settingData->alamat ?? '') !!}</textarea>
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Desa/Kelurahan <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="desa" class="form-control-tw"
-                                            value="{!! e($settingData->desa ?? '') !!}" required>
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Kecamatan <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="kec" class="form-control-tw"
-                                            value="{!! e($settingData->kecamatan ?? '') !!}" required>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Kabupaten/Kota <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="kota" class="form-control-tw"
-                                            value="{!! e($settingData->kota ?? '') !!}" required>
-                                    </div>
-                                    <div class="mb-6 col-md-3">
-                                        <label class="font-weight-semibold">Kode Pos</label>
-                                        <input type="text" name="kode_pos" class="form-control-tw"
-                                            value="{!! e($settingData->kode_pos ?? '') !!}" pattern="[0-9]{5}"
-                                            title="Kode pos terdiri dari 5 digit angka">
-                                    </div>
-                                    <div class="mb-6 col-md-3">
-                                        <label class="font-weight-semibold">Provinsi <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="provinsi" class="form-control-tw"
-                                            value="{!! e($settingData->provinsi ?? '') !!}" required>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="">
-                        <div class="card-tw">
-                            <div class="card-tw-header"
-                                style="background: linear-gradient(135deg, #eefbf3 0%, #d6f2e2 100%); color: #111;">
-                                <h6 class="mb-0">Kontak Sekolah</h6>
-                            </div>
-                            <div class="card-tw-body">
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Website</label>
-                                    <input type="url" name="web" class="form-control-tw"
-                                        value="{!! e($settingData->web ?? ($settingData->website ?? '')) !!}"
-                                        placeholder="https://contoh-sekolah.sch.id">
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Email</label>
-                                    <input type="email" name="email" class="form-control-tw"
-                                        value="{!! e($settingData->email ?? '') !!}"
-                                        placeholder="kontak@sekolah.sch.id">
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Nomor Telepon</label>
-                                    <div class="input-group-tw">
-                                        <div class="input-group-tw">
-                                            <span class="input-group-tw">+62</span>
-                                        </div>
-                                        <input type="tel" name="tlp" class="form-control-tw"
-                                            value="{!! e($settingData->telp ?? '') !!}" pattern="[0-9]{6,15}"
-                                            title="Masukkan nomor telepon tanpa spasi atau tanda hubung">
-                                    </div>
-                                </div>
-                                <div class="mb-6 mb-0">
-                                    <label class="font-weight-semibold">Faksimili</label>
-                                    <input type="text" name="fax" class="form-control-tw"
-                                        value="{!! e($settingData->fax ?? '') !!}">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="">
-                        <div class="card-tw">
-                            <div class="card-tw-header"
-                                style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); color: #111;">
-                                <h6 class="mb-0"><i class="bi bi-chat-dots mr-2"></i>Konfigurasi Notifikasi</h6>
-                            </div>
-                            <div class="card-tw-body">
-                                <div class="alert-tw alert-info">
-                                    <i class="bi bi-info-circle text-blue-600 mr-1"></i> Notifikasi ini digunakan untuk
-                                    mengirim rekap absensi harian otomatis.
-                                </div>
-                                <h6 class="font-bold mb-6 text-blue-600">Telegram</h6>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Bot Token</label>
-                                    <input type="text" name="telegram_bot_token" class="form-control-tw"
-                                        value="{!! e($settingData->telegram_bot_token ?? '') !!}"
-                                        placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ">
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Chat ID Tujuan</label>
-                                    <input type="text" name="telegram_chat_id" class="form-control-tw"
-                                        value="{!! e($settingData->telegram_chat_id ?? '') !!}"
-                                        placeholder="-100xxxxxxx atau ID User">
-                                </div>
-                                <hr>
-                                <h6 class="font-bold mb-6 text-emerald-600">WhatsApp (Fonnte/Wablas)</h6>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">WA API Token</label>
-                                    <input type="text" name="wa_token" class="form-control-tw"
-                                        value="{!! e($settingData->wa_token ?? '') !!}"
-                                        placeholder="Token API WhatsApp Gateway">
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Nomor WA Tujuan</label>
-                                    <input type="text" name="wa_target_number" class="form-control-tw"
-                                        value="{!! e($settingData->wa_target_number ?? '') !!}"
-                                        placeholder="0812345xxxxx">
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Gateway URL (Opsional)</label>
-                                    <input type="url" name="wa_gateway_url" class="form-control-tw"
-                                        value="{!! e($settingData->wa_gateway_url ?? 'https://api.fonnte.com/send') !!}"
-                                        placeholder="https://api.fonnte.com/send">
-                                </div>
-                                <hr>
-                                <h6 class="font-bold mb-6 text-red-500">Integrasi MikroTik (Hotspot)</h6>
-                                <div class="grid grid-cols-1 gap-2">
-                                    <div class="col-8">
-                                        <div class="mb-6">
-                                            <label class="font-weight-semibold">IP Address MikroTik</label>
-                                            <input type="text" name="mikrotik_host" class="form-control-tw"
-                                                value="{!! e($settingData->mikrotik_host ?? '') !!}"
-                                                placeholder="192.168.88.1">
-                                        </div>
-                                    </div>
-                                    <div class="">
-                                        <div class="mb-6">
-                                            <label class="font-weight-semibold">Port API</label>
-                                            <input type="number" name="mikrotik_port"
-                                                class="form-control-tw"
-                                                value="{!! e($settingData->mikrotik_port ?? '8728') !!}"
-                                                placeholder="8728">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-2">
-                                    <div class="">
-                                        <div class="mb-6">
-                                            <label class="font-weight-semibold">User API</label>
-                                            <input type="text" name="mikrotik_user" class="form-control-tw"
-                                                value="{!! e($settingData->mikrotik_user ?? '') !!}">
-                                        </div>
-                                    </div>
-                                    <div class="">
-                                        <div class="mb-6">
-                                            <label class="font-weight-semibold">Password API</label>
-                                            <input type="password" name="mikrotik_pass"
-                                                class="form-control-tw"
-                                                value="{!! e($settingData->mikrotik_pass ?? '') !!}">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="">
-                        <div class="card-tw">
-                            <div class="card-tw-header"
-                                style="background: linear-gradient(135deg, #fff4e4 0%, #ffe3c3 100%); color: #111;">
-                                <h6 class="mb-0">Penanggung Jawab & Pengaturan</h6>
-                            </div>
-                            <div class="card-tw-body">
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Kepala Sekolah <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="kepsek" class="form-control-tw"
-                                            value="{!! e($settingData->kepsek ?? '') !!}" required>
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">NIP Kepala Sekolah</label>
-                                        <input type="text" name="nip" class="form-control-tw"
-                                            value="{!! e($settingData->nip ?? '') !!}" pattern="[0-9]{8,20}"
-                                            title="Masukkan 8-20 digit angka">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Proktor <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" name="proktor" class="form-control-tw"
-                                            value="{!! e($settingData->proktor ?? '') !!}" required>
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">NIP Proktor</label>
-                                        <input type="text" name="nip_proktor" class="form-control-tw"
-                                            value="{!! e($settingData->nip_proktor ?? '') !!}" pattern="[0-9]{8,20}"
-                                            title="Masukkan 8-20 digit angka">
-                                    </div>
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Status Bank Soal</label>
-                                    <select id="ba_aktif" class="form-control-tw" name="ba_aktif" required>
-                                        <option value="" disabled {{ empty($settingData->ba_aktif) ? 'selected' : '' }}>
-                                            Pilih Status</option>
-                                        <?php foreach ($bankSoalOptions as $key => $label): ?>
-                                            <option value="{{ $key }}" {{ ((string) ($settingData->ba_aktif ?? '')) === (string) $key ? 'selected' : '' }}>
-                                                {{ $label }}
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">Waktu Bank Soal</label>
-                                    <input type="datetime-local" name="ba_waktu" class="form-control-tw"
-                                        value="{!! e($bankSoalDateTime) !!}">
-                                </div>
-                                <div class="grid grid-cols-1 gap-3">
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Tampilkan Token di Siswa</label>
-                                        <select id="tkn_siswa" class="form-control-tw" name="tkn_siswa" required>
-                                            <option value="" disabled {{ empty($settingData->tkn_siswa) ? 'selected' : '' }}>Pilih Status</option>
-                                            <?php foreach ($tokenOptions as $key => $label): ?>
-                                                <option value="{{ $key }}" {{ ((string) ($settingData->tkn_siswa ?? '')) === (string) $key ? 'selected' : '' }}>
-                                                    {{ $label }}
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="mb-6 col-md-6">
-                                        <label class="font-weight-semibold">Mode Aplikasi</label>
-                                        <select id="mode_app" class="form-control-tw" name="mode_app" required>
-                                            <option value="" disabled {{ empty($settingData->mode_app) ? 'selected' : '' }}>Pilih Mode</option>
-                                            <?php foreach ($modeOptions as $key => $label): ?>
-                                                <option value="{{ $key }}" {{ ((string) ($settingData->mode_app ?? '')) === (string) $key ? 'selected' : '' }}>
-                                                    {{ $label }}
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="mb-6">
-                                    <label class="font-weight-semibold">API Key (OpenAI / Gemini)</label>
-                                    <input type="text" name="api_key" class="form-control-tw"
-                                        value="{!! e($settingData->api_key ?? '') !!}"
-                                        placeholder="Paste API Key disini...">
-                                    <span class="text-sm text-slate-400">Kunci API diperlukan untuk fitur generate soal otomatis
-                                        menggunakan AI.</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="w-full">
-                        <button type="submit" class="btn-tw btn-tw-sm btn-primary" onclick="submitSetting()"><i
-                                class="bi bi-save mr-1"></i>Simpan Pengaturan</button>
-                    </div>
-                </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="card-tw">
-            <div class="card-tw-header"
-                style="background: linear-gradient(135deg, #f6f9ff 0%, #e6f2ff 100%); color: #111;">
-                <h6 class="mb-0">Identitas Visual & Dokumen Pendukung</h6>
-                <span class="text-slate-400 text-sm">Format file JPG/PNG maksimal 2MB</span>
-            </div>
-            <div class="card-tw-body">
-                <div class="callout callout-warning shadow-sm border border-warning mb-6">
-                    <h6 class="font-weight-bold mb-2"><i class="bi bi-images mr-2"></i>Panduan Upload</h6>
-                    <ul class="pl-4 mb-0">
-                        <li>Gunakan resolusi tinggi agar logo dan banner tampil tajam pada laporan.
-                        <li>Banner disarankan berukuran 1020x250 piksel dengan rasio 4:1.
-                        <li>Format transparan (PNG) ideal untuk tanda tangan digital dan cap sekolah.
-                        <li>Latar kartu siswa disarankan rasio 54:85,6 (mis. 640 × 1016 px) — dipakai desain "Kartu Pelajar (Portrait)".
-                    </ul>
-                </div>
-
-                <div class="flex flex-wrap gap-4">
-                    <?php
-                    $uploadInputs = [
-                        ['id' => 'set-stampel', 'input_id' => 'stampel', 'label' => 'Cap / Stampel Sekolah', 'field' => 'stampel'],
-                        ['id' => 'set-tandatangan', 'input_id' => 'tanda-tangan', 'label' => 'TTD Kepala Sekolah', 'field' => 'tanda_tangan'],
-                        ['id' => 'set-logo-kiri', 'input_id' => 'logo-kiri', 'label' => 'Logo Kiri / Aplikasi', 'field' => 'logo_kiri'],
-                        ['id' => 'set-logo-kanan', 'input_id' => 'logo-kanan', 'label' => 'Logo Kanan', 'field' => 'logo_kanan'],
-                        ['id' => 'set-kopsekolah', 'input_id' => 'kopsekolah', 'label' => 'Kop Sekolah', 'field' => 'kopsekolah'],
-                        ['id' => 'set-kartu-bg-depan', 'input_id' => 'kartu-bg-depan', 'label' => 'Latar Kartu Siswa Depan (PNG)', 'field' => 'kartu_bg_depan'],
-                        ['id' => 'set-kartu-bg-belakang', 'input_id' => 'kartu-bg-belakang', 'label' => 'Latar Kartu Siswa Belakang (PNG)', 'field' => 'kartu_bg_belakang'],
-                    ];
-
-                    foreach ($uploadInputs as $item):
-                        $val = !empty($settingData->{$item['field']}) ? url($settingData->{$item['field']}) : '';
-                        ?>
-                        <div class="flex-1">
-                            <form action="" method="post" enctype="multipart/form-data" id="{{ $item['id'] }}">
-@csrf
-                            <label class="font-weight-semibold" for="{{ $item['input_id'] }}">
-                                {{ $item['label'] }}
-                            </label>
-                            <input type="file" id="{{ $item['input_id'] }}" name="logo" class="dropify"
-                                data-max-file-size-preview="2M" data-allowed-file-extensions="jpg jpeg png"
-                                data-default-file="{{ $val }}" />
-                            </form>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-    </div>
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/plugins/dropify/js/dropify.min.js') }}"></script>
 <script>
-    const mediaMappings = {
-        'logo-kanan': 'logo_kanan',
-        'logo-kiri': 'logo_kiri',
-        'stampel': 'stampel',
-        'tanda-tangan': 'tanda_tangan',
-        'ttdproktor': 'ttdproktor',
-        'kodescan': 'kodescan',
-        'kopsekolah': 'kopsekolah',
-        'kartu-bg-depan': 'kartu_bg_depan',
-        'kartu-bg-belakang': 'kartu_bg_belakang',
-        'banner1': 'banner1',
-        'banner2': 'banner2',
-        'banner3': 'banner3'
-    };
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('settingPage', () => ({
+            csrf: '',
+            urls: {},
+            satuanMap: {},
+            media: {},
+            uploads: [],
+            saving: false,
 
-    const baseUrl = '{{ url('/') . '/' }}';
-    const baseUrlNormalized = baseUrl.replace(/\/+$/, '');
-    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            init() {
+                const cfg = JSON.parse(this.$el.dataset.config || '{}');
+                this.csrf = cfg.csrf || '';
+                this.urls = cfg.urls || {};
+                this.satuanMap = cfg.satuan || {};
+                this.media = cfg.media || {};
+                this.uploads = (cfg.uploads || []).map((item) => ({
+                    field: item.field,
+                    label: item.label,
+                    relative: item.relative || '',
+                    src: item.src || '',
+                    preview: item.src || '',
+                    objectUrl: '',
+                    busy: false,
+                }));
+            },
 
-    let csrf = {
-        name: '_token',
-        hash: '{{ csrf_token() }}'
-    };
+            onJenjangChange(event) {
+                const select = this.$refs.satuanSelect;
+                if (!select) return;
 
-    const syncAjaxCsrf = () => {
-        const payload = {};
-        payload[csrf.name] = csrf.hash;
-        $.ajaxSetup({ data: payload });
-    };
+                const list = this.satuanMap[event.target.value] || [];
 
-    const updateCsrfFromResponse = (response) => {
-        if (response && response.csrfName && response.csrfHash) {
-            csrf = {
-                name: response.csrfName,
-                hash: response.csrfHash
-            };
-            syncAjaxCsrf();
-        }
-    };
-
-    const appendCsrfToFormData = (formData) => {
-        if (formData instanceof FormData && csrf?.name && csrf?.hash) {
-            formData.append(csrf.name, csrf.hash);
-        }
-    };
-
-    syncAjaxCsrf();
-
-    const toRelativePath = (url) => {
-        if (!url) {
-            return '';
-        }
-        // Simplified Logic: if url starts with appUrl, strip it
-        if (url.startsWith(baseUrl)) {
-            return url.substring(baseUrl.length);
-        }
-        return url;
-    };
-
-    let skipDropifyClear = false;
-
-    // Logos object for submit
-    const logos = {
-        logo_kanan: @json($settingData->logo_kanan ?? ''),
-        logo_kiri: @json($settingData->logo_kiri ?? ''),
-        kodescan: @json($settingData->kodescan ?? ''),
-        kopsekolah: @json($settingData->kopsekolah ?? ''),
-        kartu_bg_depan: @json($settingData->kartu_bg_depan ?? ''),
-        kartu_bg_belakang: @json($settingData->kartu_bg_belakang ?? ''),
-        stampel: @json($settingData->stampel ?? ''),
-        ttdproktor: @json($settingData->ttdproktor ?? ''),
-        tanda_tangan: @json($settingData->tanda_tangan ?? ''),
-        banner1: @json($settingData->banner1 ?? ''),
-        banner2: @json($settingData->banner2 ?? ''),
-        banner3: @json($settingData->banner3 ?? '')
-    };
-
-    const satuanPend = {!! json_script($satuan) !!};
-
-    function submitSetting() {
-        $('#savesetting').submit();
-    }
-
-    $(document).ready(function () {
-        // ajaxcsrf(); // Already using syncAjaxCsrf
-
-        // Attach submit handler FIRST to ensure it works even if plugins fail
-        $('#savesetting').on('submit', function (e) {
-            e.preventDefault();
-
-            const hasInput = $('.required').toArray().every(function (input) {
-                return $(input).val().trim() !== '';
-            });
-
-            if (!hasInput) {
-                Swal.fire({
-                    title: 'Error',
-                    text: 'Isi semua kolom yang bertanda bintang (*)',
-                    icon: 'error'
+                select.innerHTML = '<option value="" disabled selected>Pilih Satuan Pendidikan</option>';
+                list.forEach((label, index) => {
+                    const option = document.createElement('option');
+                    option.value = String(index + 1);
+                    option.textContent = label;
+                    select.appendChild(option);
                 });
-                return;
-            }
+            },
 
-            Swal.fire({
-                text: 'Menyimpan...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
+            async postForm(url, formData) {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                });
 
-            $.ajax({
-                url: baseUrl + 'setting/saveSetting',
-                type: 'POST',
-                data: $(this).serialize() + '&' + $.param(logos),
-                success: function (response) {
-                    if (response.status) {
-                        Swal.fire({
+                return response.json();
+            },
+
+            async save(event) {
+                if (this.saving) return;
+
+                this.saving = true;
+                Swal.fire({
+                    text: 'Menyimpan...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                });
+
+                try {
+                    const formData = new FormData(event.target);
+                    // Path media (logo, cap, TTD, latar kartu) ikut disimpan bersama
+                    // form pengaturan; nilainya dari unggahan di halaman ini atau DB.
+                    Object.entries(this.media).forEach(([field, value]) => {
+                        formData.append(field, value || '');
+                    });
+
+                    const result = await this.postForm(this.urls.save, formData);
+
+                    if (result && result.status) {
+                        await Swal.fire({
                             title: 'Sukses',
-                            text: response.message || 'Pengaturan berhasil disimpan',
+                            text: result.message || 'Pengaturan berhasil disimpan',
                             icon: 'success',
-                            confirmButtonColor: '#3085d6'
-                        }).then(() => {
-                            window.location.reload();
+                            confirmButtonColor: '#3085d6',
+                        });
+                        window.location.reload();
+
+                        return;
+                    }
+
+                    // Pesan server menyebut bagian mana yang tidak tersimpan
+                    // (mis. pengaturan notifikasi), bukan sekadar "kesalahan".
+                    Swal.fire('Gagal', result?.message || 'Terjadi kesalahan saat menyimpan', 'error');
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Gagal menyimpan pengaturan' });
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            setPreview(item, file) {
+                if (item.objectUrl) {
+                    URL.revokeObjectURL(item.objectUrl);
+                    item.objectUrl = '';
+                }
+
+                if (!file) {
+                    item.preview = item.src;
+                    return '';
+                }
+
+                item.objectUrl = URL.createObjectURL(file);
+                item.preview = item.objectUrl;
+
+                return item.objectUrl;
+            },
+
+            async upload(item, event) {
+                const input = event.target;
+                const file = input.files?.[0] || null;
+
+                if (!file || item.busy) return;
+
+                if (file.size > 2 * 1024 * 1024) {
+                    input.value = '';
+                    Swal.fire('Gagal', 'Ukuran file maksimum adalah 2MB', 'error');
+                    return;
+                }
+
+                const objectUrl = this.setPreview(item, file);
+                item.busy = true;
+
+                const formData = new FormData();
+                formData.append('logo', file, file.name);
+
+                try {
+                    const result = await this.postForm(this.urls.upload + '/' + item.field, formData);
+
+                    if (result && result.status) {
+                        item.src = result.src || '';
+                        item.relative = result.relative_path || '';
+                        item.preview = item.src;
+                        this.media[item.field] = item.relative;
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: 'File berhasil diunggah',
+                            timer: 1500,
+                            showConfirmButton: false,
                         });
                     } else {
-                        // Pesan server menyebut bagian mana yang tidak tersimpan
-                        // (mis. pengaturan notifikasi), bukan sekadar "kesalahan".
-                        Swal.fire('Gagal', response.message || 'Terjadi kesalahan saat menyimpan', 'error');
+                        item.preview = item.src;
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: result?.message || 'Gagal mengunggah file',
+                        });
                     }
-                },
-                error: function (xhr) {
-                    let errorMsg = 'Gagal menyimpan pengaturan';
-                    try {
-                        const err = JSON.parse(xhr.responseText);
-                        errorMsg = err.Message || errorMsg;
-                    } catch (error) {
-                        // console.error('Error parsing response:', xhr.responseText);
+                } catch (error) {
+                    item.preview = item.src;
+                    console.error(error);
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+                } finally {
+                    if (objectUrl) {
+                        URL.revokeObjectURL(objectUrl);
                     }
-                    Swal.fire({
-                        title: 'Error',
-                        text: errorMsg,
-                        icon: 'error'
-                    });
+                    item.objectUrl = '';
+                    input.value = '';
+                    item.busy = false;
                 }
-            });
-        });
+            },
 
-        $('#jenjang').on('change', function () {
-            const jenjangVal = $(this).val();
-            const options = ['<option value="" disabled selected>Pilih Satuan Pendidikan</option>'];
+            async remove(item) {
+                if (item.busy || !item.src) return;
 
-            if (satuanPend[jenjangVal]) {
-                satuanPend[jenjangVal].forEach(function (label, index) {
-                    options.push(`<option value="${index + 1}">${label}</option>`);
+                const konfirmasi = await Swal.fire({
+                    title: 'Hapus File?',
+                    text: 'File ini akan dihapus dari pengaturan sekolah',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#e11d48',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, Hapus!',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
                 });
-            }
 
-            $('#satuan-pend').html(options.join(''));
-        });
+                if (!konfirmasi.isConfirmed) return;
 
-        // Initialize Dropify if available
-        if ($.fn.dropify) {
-            const drEvent = $('.dropify').dropify({
-                messages: {
-                    default: 'Seret logo ke sini atau klik',
-                    replace: 'Seret atau klik untuk mengganti logo',
-                    remove: 'Hapus',
-                    error: 'Oops, ada kesalahan!'
-                },
-                error: {
-                    fileSize: 'Ukuran file terlalu besar (maks 2MB).',
-                    imageFormat: 'Format gambar tidak diizinkan (hanya JPG/PNG).'
-                }
-            });
+                item.busy = true;
 
-            drEvent.on('dropify.afterClear', function (event, element) {
-                if (skipDropifyClear) {
-                    skipDropifyClear = false;
-                    return;
-                }
-                const inputId = element.element.id;
-                const fieldKey = mediaMappings[inputId] || null;
-                const $input = $(event.currentTarget);
-                const defaultFile = $input.attr('data-default-file') || '';
+                const body = new FormData();
+                body.append('_token', this.csrf);
+                body.append('src', item.relative);
+                body.append('field', item.field);
 
-                if (fieldKey) {
-                    logos[fieldKey] = '';
-                    if (defaultFile) {
-                        deleteImage(defaultFile, fieldKey);
+                try {
+                    const result = await this.postForm(this.urls.delete, body);
+
+                    if (result && result.status) {
+                        this.setPreview(item, null);
+                        item.src = '';
+                        item.relative = '';
+                        item.preview = '';
+                        this.media[item.field] = '';
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Terhapus!',
+                            text: result.message || 'File berhasil dihapus',
+                            timer: 1500,
+                            showConfirmButton: false,
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: result?.message || 'File gagal dihapus',
+                        });
                     }
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Terjadi kesalahan pada server.' });
+                } finally {
+                    item.busy = false;
                 }
-
-                $input.attr('data-default-file', '');
-            });
-
-            drEvent.on('dropify.errors', function () {
-                showWarningToast('File tidak valid atau terlalu besar');
-            });
-
-            $('.dropify').on('change', function () {
-                const input = this;
-                const inputId = input.id;
-                const fieldKey = mediaMappings[inputId] || null;
-
-                if (!fieldKey || !(input.files && input.files[0])) {
-                    return;
-                }
-
-                if (input.files[0].size > 2 * 1024 * 1024) {
-                    showDangerToast('Ukuran file maksimum adalah 2MB');
-                    $(input).val('');
-                    return;
-                }
-
-                const form = new FormData();
-                form.append('logo', input.files[0], input.files[0].name);
-                appendCsrfToFormData(form);
-                uploadAttach(baseUrl + `setting/uploadFile/${fieldKey}`, form, fieldKey, inputId);
-            });
-        }
+            },
+        }));
     });
-
-    function uploadAttach(action, data, fieldKey, inputId) {
-        $.ajax({
-            type: 'POST',
-            enctype: 'multipart/form-data',
-            url: action,
-            dataType: 'json',
-            data: data,
-            processData: false,
-            contentType: false,
-            cache: false,
-            timeout: 600000,
-            success: function (response) {
-                updateCsrfFromResponse(response);
-                if (response && response.status) {
-                    const fileUrl = response.src || '';
-                    const relativePath = response.relative_path || '';
-
-                    logos[fieldKey] = relativePath;
-
-                    const $input = $(`#${inputId}`);
-                    if (fileUrl) {
-                        $input.attr('data-default-file', fileUrl);
-                    }
-                    // Re-init dropify to update preview
-                    const dropifyInstance = $input.data('dropify');
-                    if (dropifyInstance) {
-                        skipDropifyClear = true;
-                        dropifyInstance.resetPreview();
-                        dropifyInstance.settings.defaultFile = fileUrl;
-                        dropifyInstance.destroy(); // needed to reset
-                        dropifyInstance.init();
-                        skipDropifyClear = false;
-                    }
-
-                    showSuccessToast('File berhasil diunggah');
-                } else {
-                    // Server sekarang mengirim "message" yang menjelaskan apa yang
-                    // sebenarnya gagal (file tidak berpindah / DB tidak sinkron).
-                    const message = response?.message || response?.src || 'Gagal mengunggah file';
-                    showDangerToast(message);
-                }
-            },
-            error: function (xhr) {
-                const resp = xhr.responseJSON || {};
-                const errMessage = resp?.src || resp?.message || 'Gagal mengunggah file';
-                showDangerToast(errMessage);
-            }
-        });
-    }
-
-    function deleteImage(src, fieldKey) {
-        if (!fieldKey || !src) return;
-
-        const payload = { src: src, field: fieldKey };
-        // CSRF handled by global setup or append
-        // For simple object data, setup is enough, but updateCsrfFromResponse updates the global 'csrf' object
-        payload[csrf.name] = csrf.hash;
-
-        $.ajax({
-            type: 'POST',
-            url: baseUrl + 'setting/deleteFile',
-            data: payload,
-            cache: false,
-            success: function (response) {
-                updateCsrfFromResponse(response);
-                console.log('File deleted:', response);
-            },
-            error: function (xhr) {
-                console.error('Delete error:', xhr.responseText);
-            }
-        });
-    }
 </script>
 @endsection
