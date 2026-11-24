@@ -305,8 +305,10 @@ $pageConfig = [
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-document.addEventListener('alpine:init', () => {
-    Alpine.data('qrEventPage', () => ({
+// Didaftarkan sebagai fungsi global agar tetap tersedia walau Alpine sudah berjalan
+// lebih dulu (mis. saat skrip ini dieksekusi setelah alpine:init).
+window.qrEventPage = function () {
+    return {
         config: { csrf: '', urls: {}, defaults: {}, states: {} },
 
         form: { nama_acara: '', tanggal: '', jam_mulai: '', jam_selesai: '', lokasi: '', mode: 'rotating', interval_detik: '60' },
@@ -540,7 +542,7 @@ document.addEventListener('alpine:init', () => {
                 const data = result.data || {};
 
                 this.renderQr(data.url);
-                this.qrCountdown = 'Token berganti dalam ±' + (data.expires_in != null ? data.expires_in : '-') + ' dtk';
+                this.qrCountdown = 'Token berganti dalam ~' + (data.expires_in != null ? data.expires_in : '-') + ' dtk';
 
                 const refresh = Number(data.refresh_ms) || 0;
 
@@ -598,14 +600,27 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
-            w.document.write('<!doctype html><html><head><title>QR Presensi</title></head><body style="text-align:center;padding:20px"><h3></h3><div id="qr-print"></div></body></html>');
-            w.document.title = this.qrTitle || 'QR Presensi';
-            w.document.querySelector('h3').textContent = this.qrTitle || '';
-            w.document.getElementById('qr-print').innerHTML = box.innerHTML;
-            w.document.close();
+            const doc = w.document;
+            const judul = doc.createElement('h3');
+            const isi = doc.createElement('div');
+
+            doc.title = this.qrTitle || 'QR Presensi';
+
+            judul.textContent = this.qrTitle || 'QR Presensi';
+            judul.style.margin = '0 0 12px';
+            judul.style.fontFamily = 'sans-serif';
+
+            isi.id = 'qr-print';
+            isi.innerHTML = box.innerHTML;
+
+            doc.body.style.textAlign = 'center';
+            doc.body.style.padding = '20px';
+            doc.body.append(judul, isi);
+
+            w.focus();
             w.print();
         },
-    }));
-});
+    };
+};
 </script>
 @endsection

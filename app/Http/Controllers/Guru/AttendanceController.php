@@ -2415,7 +2415,8 @@ class AttendanceController extends BaseController
                         ->whereRaw('u.id NOT IN (SELECT user_id FROM users_groups WHERE group_id = 3)')
                         ->where('u.active', 1)
                         ->groupBy('u.id', 'u.first_name', 'u.last_name', 'u.username', 'u.foto', 'mg.nama_guru', 'mg.foto')
-                        ->get();
+                        ->get()
+                        ->all();
 
                     // Hitung alpha per kandidat menggunakan AttendancePenaltyService
                     $candIds = array_values(array_filter(array_map(static fn ($c) => (int) ($c->user_id ?? 0), $candidates)));

@@ -1,264 +1,266 @@
 @extends('layouts.main')
 
 @section('content')
-<div class="content-header fade-in-up">
-    <div class="page-header">
-        <div class="min-w-0">
-            <h3 class="mb-0 font-bold text-slate-800 flex items-center gap-2.5">
-                <span class="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl shadow-sm">
-                    <i class="bi bi-activity text-xl"></i>
-                </span>
-                <span>{{ $judul ?? 'Status Notifikasi' }}</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">
-                Kegagalan pengiriman yang sebelumnya hanya tersimpan di file log server.
-            </p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/notif-config') }}" class="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold no-underline hover:bg-violet-700">
-                <i class="bi bi-sliders2 mr-1"></i> Channel Notifikasi
+
+<?php
+$badgeSiap = 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700';
+$badgeMasalah = 'inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-700';
+$badgeNetral = 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600';
+$badgeMati = 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500';
+$badgeAktif = 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700';
+$badgeNonaktif = 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500';
+?>
+
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <x-ui.page-header
+        :title="$judul ?? 'Status Notifikasi'"
+        icon="bi-activity"
+        tone="violet"
+        subtitle="Kegagalan pengiriman yang sebelumnya hanya tersimpan di file log server."
+        :crumbs="['Presensi', 'Status Notifikasi']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/notif-config') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white no-underline shadow-xs shadow-violet-500/20 transition-colors hover:bg-violet-700">
+                <i class="bi bi-sliders2"></i> Channel Notifikasi
             </a>
-            <a href="{{ url('admin/presensi/whatsapp') }}" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50">
-                <i class="bi bi-whatsapp mr-1"></i> WhatsApp
+            <a href="{{ url('admin/presensi/whatsapp') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-whatsapp"></i> WhatsApp
             </a>
-            <a href="{{ url('admin/presensi/telegram') }}" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold no-underline hover:bg-slate-50">
-                <i class="bi bi-telegram mr-1"></i> Telegram
+            <a href="{{ url('admin/presensi/telegram') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-telegram"></i> Telegram
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 </div>
 
-<div class="content-area space-y-6">
-    <!-- Kanal -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- WhatsApp -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="bi bi-whatsapp text-emerald-600"></i>
-                <p class="font-bold text-slate-800 text-sm m-0">Kanal WhatsApp</p>
-                <?php if (($waMode ?? '') === 'openwa'): ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">mode: openwa</span>
-                <?php elseif (($waMode ?? '') === 'fonnte'): ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">mode: fonnte</span>
-                <?php else: ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">mode: nonaktif</span>
-                <?php endif; ?>
-                <?php if (!empty($wa['ok'])): ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Siap</span>
-                <?php elseif (($waMode ?? '') === 'off'): ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Tidak aktif</span>
-                <?php else: ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Bermasalah</span>
-                <?php endif; ?>
-            </div>
+<div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
 
-            <?php if (($waMode ?? '') === 'off'): ?>
-                <p class="text-xs text-slate-500 m-0">Kanal WhatsApp dimatikan di Pengaturan → Notifikasi.</p>
-            <?php elseif (empty($wa['ok'])): ?>
-                <p class="text-xs text-red-600 m-0">{{ $wa['error'] ?? 'Tidak diketahui' }}</p>
-            <?php else: ?>
-                <p class="text-[11px] text-slate-500 m-0">
-                    {{ count(array_filter($wa['sessions'] ?? [], static fn($s) => ($s['status'] ?? '') === 'ready')) }}
+    <!-- Status kanal -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <x-ui.card title="Kanal WhatsApp" icon="bi-whatsapp" tone="emerald" bodyClass="p-4">
+            <x-slot:actions>
+                @if (($waMode ?? '') === 'openwa')
+                    <span class="{{ $badgeNetral }}">mode: openwa</span>
+                @elseif (($waMode ?? '') === 'fonnte')
+                    <span class="{{ $badgeNetral }}">mode: fonnte</span>
+                @else
+                    <span class="{{ $badgeMati }}">mode: nonaktif</span>
+                @endif
+
+                @if (! empty($wa['ok']))
+                    <span class="{{ $badgeSiap }}">Siap</span>
+                @elseif (($waMode ?? '') === 'off')
+                    <span class="{{ $badgeMati }}">Tidak aktif</span>
+                @else
+                    <span class="{{ $badgeMasalah }}">Bermasalah</span>
+                @endif
+            </x-slot:actions>
+
+            @if (($waMode ?? '') === 'off')
+                <p class="text-xs text-slate-500">Kanal WhatsApp dimatikan di Pengaturan → Notifikasi.</p>
+            @elseif (empty($wa['ok']))
+                <p class="text-xs text-rose-600">{{ $wa['error'] ?? 'Tidak diketahui' }}</p>
+            @else
+                <p class="text-[11px] text-slate-500">
+                    {{ count(array_filter($wa['sessions'] ?? [], static fn ($s) => ($s['status'] ?? '') === 'ready')) }}
                     sesi siap dari {{ count($wa['sessions'] ?? []) }} total.
                 </p>
-                <?php foreach (($wa['sessions'] ?? []) as $s): ?>
-                    <?php if (($s['status'] ?? '') !== 'ready'): ?>
-                    <p class="text-[11px] text-amber-700 mt-1 mb-0">
-                        Sesi <b>{{ $s['name'] ?: substr((string) ($s['id'] ?? ''), 0, 8) }}</b>
-                        berstatus <code>{{ $s['status'] ?? '' }}</code>
-                        <?php if (!empty($s['restriction'])): ?>
-                        — dibatasi WhatsApp ({{ $s['restriction']['kind'] ?? '' }})
-                        <?php endif; ?>
-                    </p>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
+                @foreach (($wa['sessions'] ?? []) as $s)
+                    @if (($s['status'] ?? '') !== 'ready')
+                        <p class="mt-1 text-[11px] text-amber-700">
+                            Sesi <b>{{ $s['name'] ?: substr((string) ($s['id'] ?? ''), 0, 8) }}</b>
+                            berstatus <code>{{ $s['status'] ?? '' }}</code>
+                            @if (! empty($s['restriction']))
+                                — dibatasi WhatsApp ({{ $s['restriction']['kind'] ?? '' }})
+                            @endif
+                        </p>
+                    @endif
+                @endforeach
+            @endif
+        </x-ui.card>
 
-        <!-- Telegram -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="bi bi-telegram text-sky-600"></i>
-                <p class="font-bold text-slate-800 text-sm m-0">Kanal Telegram</p>
-                <?php if (!empty($tg['ok'])): ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Siap</span>
-                <?php else: ?>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Bermasalah</span>
-                <?php endif; ?>
-            </div>
+        <x-ui.card title="Kanal Telegram" icon="bi-telegram" tone="blue" bodyClass="p-4">
+            <x-slot:actions>
+                @if (! empty($tg['ok']))
+                    <span class="{{ $badgeSiap }}">Siap</span>
+                @else
+                    <span class="{{ $badgeMasalah }}">Bermasalah</span>
+                @endif
+            </x-slot:actions>
 
-            <?php if (empty($tg['ok'])): ?>
-                <p class="text-xs text-red-600 m-0">{{ $tg['error'] ?? 'Tidak diketahui' }}</p>
-            <?php else: ?>
-                <p class="text-[11px] text-slate-500 m-0">
+            @if (empty($tg['ok']))
+                <p class="text-xs text-rose-600">{{ $tg['error'] ?? 'Tidak diketahui' }}</p>
+            @else
+                <p class="text-[11px] text-slate-500">
                     Antrean tertunda: <b>{{ (int) ($tg['pending'] ?? 0) }}</b>
                 </p>
-                <?php if (!empty($tg['last_error'])): ?>
-                <p class="text-[11px] text-red-600 mt-1 mb-0">Error terakhir: {{ $tg['last_error'] }}</p>
-                <?php endif; ?>
-            <?php endif; ?>
-        </div>
+                @if (! empty($tg['last_error']))
+                    <p class="mt-1 text-[11px] text-rose-600">Error terakhir: {{ $tg['last_error'] }}</p>
+                @endif
+            @endif
+        </x-ui.card>
     </div>
 
-    <!-- Channel per jenis (dari Pengaturan → Channel Notifikasi) -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-            <p class="font-bold text-slate-800 text-sm m-0">
-                <i class="bi bi-sliders2 text-slate-500 mr-1"></i> Channel aktif per jenis
-            </p>
-            <a href="{{ url('admin/presensi/notif-config') }}" class="text-[11px] font-bold text-violet-600 no-underline hover:underline">Ubah →</a>
-        </div>
+    <!-- Channel per jenis -->
+    <x-ui.card title="Channel aktif per jenis" icon="bi-sliders2" tone="violet" bodyClass="p-0">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/notif-config') }}"
+                class="text-[11px] font-bold text-violet-600 no-underline transition-colors hover:underline">Ubah →</a>
+        </x-slot:actions>
+
         <div class="overflow-x-auto">
-            <table class="w-full" style="border-collapse:collapse;font-size:.8rem;">
-                <thead style="background:#f8fafc;">
-                    <tr>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Jenis</th>
-                        <?php foreach (['tg_grup', 'wa_grup', 'tg_personal', 'wa_personal'] as $ch): ?>
-                        <th class="text-center px-2 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">{{ $chLabels[$ch] ?? $ch }}</th>
-                        <?php endforeach; ?>
+            <table class="w-full border-collapse text-left text-[0.8rem]">
+                <caption class="sr-only">Channel notifikasi yang aktif untuk setiap jenis notifikasi</caption>
+                <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <tr class="border-b-2 border-slate-200/80">
+                        <th scope="col" class="px-4 py-2.5">Jenis</th>
+                        @foreach (['tg_grup', 'wa_grup', 'tg_personal', 'wa_personal'] as $ch)
+                            <th scope="col" class="px-2 py-2.5 text-center">{{ $chLabels[$ch] ?? $ch }}</th>
+                        @endforeach
                     </tr>
                 </thead>
-                <tbody>
-                    <?php foreach (($chJenis ?? []) as $jenis => $meta):
-                        $cfg = ($chConfig ?? [])[$jenis] ?? null;
-                        $grupMati = ((int) ($cfg->tg_grup ?? 1) !== 1) && ((int) ($cfg->wa_grup ?? 1) !== 1);
-                    ?>
-                    <tr class="border-t border-slate-100" {{ $grupMati ? 'style="background:#fffbeb;"' : '' }}>
-                        <td class="px-4 py-2 text-slate-700">
-                            {{ $meta['label'] ?? $jenis }}
-                            <?php if ($grupMati): ?>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 ml-1">cron dilewati (Skip)</span>
-                            <?php endif; ?>
-                        </td>
-                        <?php foreach (['tg_grup', 'wa_grup', 'tg_personal', 'wa_personal'] as $ch):
-                            $nyala = ((int) ($cfg->$ch ?? 1) === 1);
-                            $takBerlaku = ! ($meta['personal'] ?? true) && in_array($ch, ['tg_personal', 'wa_personal'], true);
-                        ?>
-                        <td class="text-center px-2 py-2">
-                            <?php if ($takBerlaku): ?>
-                            <span class="text-slate-300">—</span>
-                            <?php elseif ($nyala): ?>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>
-                            <?php else: ?>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Mati</span>
-                            <?php endif; ?>
-                        </td>
-                        <?php endforeach; ?>
-                    </tr>
-                    <?php endforeach; ?>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (($chJenis ?? []) as $jenis => $meta)
+                        @php
+                            $cfg = ($chConfig ?? [])[$jenis] ?? null;
+                            $grupMati = ((int) ($cfg->tg_grup ?? 1) !== 1) && ((int) ($cfg->wa_grup ?? 1) !== 1);
+                        @endphp
+                        <tr class="transition-colors hover:bg-slate-50/60 {{ $grupMati ? 'bg-amber-50/60' : '' }}">
+                            <td class="px-4 py-2 text-slate-700">
+                                {{ $meta['label'] ?? $jenis }}
+                                @if ($grupMati)
+                                    <span class="ml-1 inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">cron dilewati (Skip)</span>
+                                @endif
+                            </td>
+                            @foreach (['tg_grup', 'wa_grup', 'tg_personal', 'wa_personal'] as $ch)
+                                @php
+                                    $nyala = ((int) ($cfg->$ch ?? 1) === 1);
+                                    $takBerlaku = ! ($meta['personal'] ?? true) && in_array($ch, ['tg_personal', 'wa_personal'], true);
+                                @endphp
+                                <td class="px-2 py-2 text-center">
+                                    @if ($takBerlaku)
+                                        <span class="text-slate-300">—</span>
+                                    @elseif ($nyala)
+                                        <span class="{{ $badgeAktif }}">Aktif</span>
+                                    @else
+                                        <span class="{{ $badgeNonaktif }}">Mati</span>
+                                    @endif
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
                 </tbody>
             </table>
         </div>
-        <div class="px-4 py-2.5 border-t border-slate-100">
-            <p class="text-[11px] text-slate-400 m-0">
+
+        <x-slot:footer>
+            <p class="text-[11px] text-slate-400">
                 Baris berlabel <b>Skip</b> berarti kedua channel grupnya mati — cron mencatat
                 <i>dilewati</i> (HTTP 200), bukan gagal. Ini bukan error gateway.
             </p>
-        </div>
-    </div>
+        </x-slot:footer>
+    </x-ui.card>
 
-    <!-- Pengiriman cron -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <p class="font-bold text-slate-800 text-sm m-0">
-                <i class="bi bi-clock-history text-slate-500 mr-1"></i> Riwayat pengiriman cron
-            </p>
-            <?php if (!empty($cronGagal)): ?>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
-                    {{ (int) $cronGagal }} belum berhasil
-                </span>
-            <?php endif; ?>
-        </div>
+    <!-- Riwayat pengiriman cron -->
+    <x-ui.card title="Riwayat pengiriman cron" icon="bi-clock-history" tone="slate" bodyClass="p-0">
+        <x-slot:actions>
+            @if (! empty($cronGagal))
+                <span class="{{ $badgeMasalah }}">{{ (int) $cronGagal }} belum berhasil</span>
+            @endif
+        </x-slot:actions>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm" style="border-collapse:collapse;font-size:.8rem;">
-                <thead style="background:#f8fafc;">
-                    <tr>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Jenis</th>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Periode</th>
-                        <th class="text-center px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Status</th>
-                        <th class="text-center px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Percobaan</th>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($cron)): ?>
-                    <tr><td colspan="5" class="text-center text-slate-400 py-6 text-xs">
-                        Belum ada riwayat. Baris muncul setelah endpoint cron pertama kali mengirim.
-                    </td></tr>
-                    <?php else: ?>
-                    <?php foreach ($cron as $r): ?>
-                    <tr class="border-t border-slate-100">
-                        <td class="px-4 py-2 font-mono text-slate-700">{{ $r->jenis }}</td>
-                        <td class="px-4 py-2 font-mono text-slate-500">{{ $r->periode }}</td>
-                        <td class="text-center px-4 py-2">
-                            <?php if ((int) $r->terkirim === 1): ?>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Terkirim</span>
-                            <?php else: ?>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Gagal</span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-center px-4 py-2 text-slate-500">{{ (int) $r->percobaan }}</td>
-                        <td class="px-4 py-2 text-slate-500">
-                            {!! $r->catatan ? e(mb_strimwidth((string) $r->catatan, 0, 70, '…')) : '—' !!}
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <div class="px-4 py-2.5 border-t border-slate-100">
-            <p class="text-[11px] text-slate-400 m-0">
+        @if (empty($cron))
+            <div class="p-5">
+                <x-ui.empty icon="bi-clock-history" title="Belum ada riwayat"
+                    description="Baris muncul setelah endpoint cron pertama kali mengirim." />
+            </div>
+        @else
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-left text-[0.8rem]">
+                    <caption class="sr-only">Riwayat pengiriman notifikasi oleh cron</caption>
+                    <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <tr class="border-b-2 border-slate-200/80">
+                            <th scope="col" class="px-4 py-2.5">Jenis</th>
+                            <th scope="col" class="px-4 py-2.5">Periode</th>
+                            <th scope="col" class="px-4 py-2.5 text-center">Status</th>
+                            <th scope="col" class="px-4 py-2.5 text-center">Percobaan</th>
+                            <th scope="col" class="px-4 py-2.5">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($cron as $r)
+                            <tr class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-4 py-2 font-mono text-slate-700">{{ $r->jenis }}</td>
+                                <td class="px-4 py-2 font-mono text-slate-500">{{ $r->periode }}</td>
+                                <td class="px-4 py-2 text-center">
+                                    @if ((int) $r->terkirim === 1)
+                                        <span class="{{ $badgeSiap }}">Terkirim</span>
+                                    @else
+                                        <span class="{{ $badgeMasalah }}">Gagal</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-center text-slate-500">{{ (int) $r->percobaan }}</td>
+                                <td class="px-4 py-2 text-slate-500">
+                                    {!! $r->catatan ? e(mb_strimwidth((string) $r->catatan, 0, 70, '…')) : '—' !!}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        <x-slot:footer>
+            <p class="text-[11px] text-slate-400">
                 Hanya pengiriman yang <b>berhasil</b> yang mengunci periode. Yang gagal boleh dicoba lagi —
                 perbaiki dulu, lalu panggil endpoint cron-nya lagi (tambahkan <code>&amp;force=1</code> bila memang
                 ingin mengirim ulang yang sudah terkirim).
             </p>
-        </div>
-    </div>
+        </x-slot:footer>
+    </x-ui.card>
 
-    <!-- DM guru tercepat -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100">
-            <p class="font-bold text-slate-800 text-sm m-0">
-                <i class="bi bi-person-check text-slate-500 mr-1"></i> DM guru tercepat yang gagal terkirim
-            </p>
-        </div>
+    <!-- DM guru tercepat gagal -->
+    <x-ui.card title="DM guru tercepat yang gagal terkirim" icon="bi-person-check" tone="amber" bodyClass="p-0">
+        @if (empty($dmGagal))
+            <div class="p-5">
+                <x-ui.empty icon="bi-person-check" title="Tidak ada DM guru tercepat yang gagal terkirim"
+                    description="Penyebab paling umum: guru belum menautkan akun Telegram maupun WhatsApp." />
+            </div>
+        @else
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-left text-[0.8rem]">
+                    <caption class="sr-only">DM guru tercepat yang gagal terkirim</caption>
+                    <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <tr class="border-b-2 border-slate-200/80">
+                            <th scope="col" class="px-4 py-2.5">Tanggal</th>
+                            <th scope="col" class="px-4 py-2.5">Guru</th>
+                            <th scope="col" class="px-4 py-2.5">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($dmGagal as $r)
+                            <tr class="transition-colors hover:bg-slate-50/60">
+                                <td class="px-4 py-2 font-mono text-slate-500">{{ $r->tgl }}</td>
+                                <td class="px-4 py-2 text-slate-700">{{ $r->nama_guru }}</td>
+                                <td class="px-4 py-2 text-slate-500">
+                                    {!! $r->catatan ? e($r->catatan) : 'DM tidak diterima gateway' !!}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm" style="border-collapse:collapse;font-size:.8rem;">
-                <thead style="background:#f8fafc;">
-                    <tr>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Tanggal</th>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Guru</th>
-                        <th class="text-left px-4 py-2.5 text-slate-500 font-bold uppercase" style="font-size:.68rem;">Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($dmGagal)): ?>
-                    <tr><td colspan="3" class="text-center text-slate-400 py-6 text-xs">
-                        Tidak ada DM guru tercepat yang gagal terkirim.
-                    </td></tr>
-                    <?php else: ?>
-                    <?php foreach ($dmGagal as $r): ?>
-                    <tr class="border-t border-slate-100">
-                        <td class="px-4 py-2 font-mono text-slate-500">{{ $r->tgl }}</td>
-                        <td class="px-4 py-2 text-slate-700">{{ $r->nama_guru }}</td>
-                        <td class="px-4 py-2 text-slate-500">
-                            {!! $r->catatan ? e($r->catatan) : 'DM tidak diterima gateway' !!}
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <div class="px-4 py-2.5 border-t border-slate-100">
-            <p class="text-[11px] text-slate-400 m-0">
+        <x-slot:footer>
+            <p class="text-[11px] text-slate-400">
                 Penyebab paling umum: guru belum menautkan akun Telegram maupun WhatsApp.
                 Hubungi guru tersebut agar mengisinya di halaman Profil.
             </p>
-        </div>
-    </div>
+        </x-slot:footer>
+    </x-ui.card>
 </div>
+
 @endsection
