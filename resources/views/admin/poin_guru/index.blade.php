@@ -1,361 +1,262 @@
 @extends('layouts.main')
 
 @section('content')
-<style>
-    :root {
-        --rank-1: #FFD700;
-        --rank-2: #C0C0C0;
-        --rank-3: #CD7F32;
-        --premium-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
+@php
+    // array_column() tidak menerimanya, gunakan API Collection.
+    $avg_point = collect($teachers)->avg('poin_tahunan') ?? 0;
+    $top_teacher = collect($teachers)->first();
 
-    .hero-card {
-        background: var(--premium-gradient);
-        color: white;
-        border: none;
-        border-radius: 1.5rem;
-        box-shadow: 0 10px 25px -5px rgba(118, 75, 162, 0.3);
-        margin-bottom: 2rem;
-        overflow: hidden;
-        position: relative;
-    }
+    $rankClasses = [
+        'bg-[#FFD700] text-[#856404] shadow-[0_0_10px_rgba(255,215,0,0.5)]',
+        'bg-[#C0C0C0] text-[#383d41]',
+        'bg-[#CD7F32] text-white',
+        'bg-slate-100 text-slate-500',
+    ];
+@endphp
 
-    .hero-card::after {
-        content: "";
-        position: absolute;
-        top: -20%;
-        right: -10%;
-        width: 300px;
-        height: 300px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
-        z-index: 0;
-    }
+<div class="space-y-4 px-4 pb-8 pt-4 md:px-6 md:pt-6">
 
-    .stat-card {
-        border: none;
-        border-radius: 1rem;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-    }
-
-    .ranking-table {
-        border-collapse: separate;
-        border-spacing: 0 10px;
-    }
-
-    .ranking-table tr {
-        background: white;
-        transition: all 0.2s ease;
-        border-radius: 10px;
-    }
-
-    .ranking-table tr:hover {
-        transform: scale(1.01);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        z-index: 10;
-        position: relative;
-    }
-
-    .ranking-table td {
-        border: none;
-        padding: 1.2rem 1rem;
-        vertical-align: middle;
-    }
-
-    .ranking-table td:first-child { border-radius: 10px 0 0 10px; }
-    .ranking-table td:last-child { border-radius: 0 10px 10px 0; }
-
-    .rank-badge {
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        font-weight: 800;
-        font-size: 0.9rem;
-    }
-
-    .rank-1 { background: var(--rank-1); color: #856404; box-shadow: 0 0 10px rgba(255,215,0,0.5); }
-    .rank-2 { background: var(--rank-2); color: #383d41; }
-    .rank-3 { background: var(--rank-3); color: #fff; }
-    .rank-normal { background: #f8f9fa; color: #6c757d; }
-
-    .teacher-avatar {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
-        object-fit: cover;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-    }
-
-    .initials-avatar {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
-        background: #e9ecef;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: #495057;
-        text-transform: uppercase;
-    }
-
-    .score-badge {
-        font-size: 1.1rem;
-        font-weight: 800;
-        padding: 0.5rem 1rem;
-        border-radius: 50rem;
-    }
-
-    .btn-recalc {
-        background: rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: white;
-        backdrop-filter: blur(5px);
-        transition: all 0.3s;
-    }
-
-    .btn-recalc:hover {
-        background: white;
-        color: #764ba2;
-        transform: translateY(-2px);
-    }
-</style>
-
-<div class="content-area">
     <!-- Hero Section -->
-    <div class="hero-card rounded-2xl overflow-hidden mb-6">
-        <div class="card-tw-body" style="z-index: 1;">
-            <div class="flex flex-wrap gap-4">
-                <div class="">
-                    <h1 class="display-5 font-bold mb-2">Disiplin Guru {{ $currentYear }}</h1>
-                    <p class="lead opacity-75 mb-0">Sistem Pemeringkatan Disiplin dan Dedikasi Otomatis Berdasarkan Data Kehadiran.</p>
-                </div>
-                <div class="">
-                    <a href="{{ url('admin/poinguru/recalculate') }}" 
-                       class="btn-tw btn-tw-lg btn-recalc px-6" 
-                       onclick="return confirm('Proses ini akan menghitung ulang semua poin dari data absensi tahun ini berdasarkan konfigurasi terbaru. Lanjutkan?')">
-                        <i class="bi bi-arrow-repeat mr-2"></i> Update Data Poin
-                    </a>
-                </div>
+    <div x-data class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#667eea] to-[#764ba2] p-6 text-white shadow-lg shadow-purple-900/20 md:p-8">
+        <div class="pointer-events-none absolute -right-10 -top-20 h-[300px] w-[300px] rounded-full bg-white/10"></div>
+        <div class="relative z-10 flex flex-wrap items-center justify-between gap-4">
+            <div class="min-w-0">
+                <h1 class="text-2xl font-extrabold tracking-tight text-white md:text-3xl">Disiplin Guru {{ $currentYear }}</h1>
+                <p class="mt-1.5 max-w-2xl text-sm text-white/75">Sistem Pemeringkatan Disiplin dan Dedikasi Otomatis Berdasarkan Data Kehadiran.</p>
             </div>
+            <a href="{{ url('admin/poinguru/recalculate') }}"
+                @click="if (!confirm('Proses ini akan menghitung ulang semua poin dari data absensi tahun ini berdasarkan konfigurasi terbaru. Lanjutkan?')) $event.preventDefault()"
+                class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/30 bg-white/20 px-5 py-2.5 text-xs font-bold text-white no-underline backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white hover:text-[#764ba2]">
+                <i class="bi bi-arrow-repeat"></i> Update Data Poin
+            </a>
         </div>
     </div>
 
-    <?php if (session('message')): ?>
-        <div class="alert-tw alert-info">
-            <i class="bi bi-check-circle-fill mr-3 text-2xl"></i>
+    @if (session('message'))
+        <div class="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900" role="status">
+            <i class="bi bi-check-circle-fill mt-0.5 shrink-0 text-2xl text-sky-600"></i>
             <div>{{ session('message') }}</div>
         </div>
-    <?php endif; ?>
+    @endif
 
     <!-- Stats Row -->
-    <?php 
-        // array_column() tidak menerimanya, gunakan API Collection.
-        $avg_point = collect($teachers)->avg('poin_tahunan') ?? 0;
-        $top_teacher = collect($teachers)->first();
-    ?>
-    <div class="flex flex-wrap gap-4">
-        <div class="">
-            <div class="stat-card shadow-sm h-full">
-                <div class="card-tw-body">
-                    <div class="flex items-center">
-                        <div class="bg-blue-50 p-3 rounded-lg mr-3">
-                            <i class="bi bi-people text-3xl text-blue-600"></i>
-                        </div>
-                        <div>
-                            <h6 class="text-slate-400 text-sm mb-1">Total Guru Terdata</h6>
-                            <h3 class="font-bold mb-0">{{ count($teachers) }}</h3>
-                        </div>
-                    </div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-ui.card bodyClass="p-4">
+            <div class="flex items-center gap-3">
+                <span class="flex shrink-0 items-center justify-center rounded-xl bg-blue-50 p-3 text-3xl text-blue-600">
+                    <i class="bi bi-people"></i>
+                </span>
+                <div class="min-w-0">
+                    <h6 class="mb-1 text-sm text-slate-400">Total Guru Terdata</h6>
+                    <h3 class="m-0 text-xl font-bold text-slate-800">{{ count($teachers) }}</h3>
                 </div>
             </div>
-        </div>
-        <div class="">
-            <div class="stat-card shadow-sm h-full border-l-4 border-emerald-500">
-                <div class="card-tw-body">
-                    <div class="flex items-center">
-                        <div class="bg-emerald-50 p-3 rounded-lg mr-3">
-                            <i class="bi bi-trophy text-3xl text-emerald-600"></i>
-                        </div>
-                        <div class="overflow-hidden">
-                            <h6 class="text-slate-400 text-sm mb-1">Peringkat 1</h6>
-                            <h5 class="font-bold mb-0 truncate">{!! $top_teacher ? e($top_teacher->nama_guru) : '-' !!}</h5>
-                        </div>
-                    </div>
+        </x-ui.card>
+
+        <x-ui.card bodyClass="p-4" style="border-left-width: 4px; border-left-color: #10b981">
+            <div class="flex items-center gap-3">
+                <span class="flex shrink-0 items-center justify-center rounded-xl bg-emerald-50 p-3 text-3xl text-emerald-600">
+                    <i class="bi bi-trophy"></i>
+                </span>
+                <div class="min-w-0 overflow-hidden">
+                    <h6 class="mb-1 text-sm text-slate-400">Peringkat 1</h6>
+                    <h5 class="m-0 truncate text-base font-bold text-slate-800">{!! $top_teacher ? e($top_teacher->nama_guru) : '-' !!}</h5>
                 </div>
             </div>
-        </div>
-        <div class="">
-            <div class="stat-card shadow-sm h-full">
-                <div class="card-tw-body">
-                    <div class="flex items-center">
-                        <div class="bg-cyan-50 p-3 rounded-lg mr-3">
-                            <i class="bi bi-graph-up text-3xl text-cyan-600"></i>
-                        </div>
-                        <div>
-                            <h6 class="text-slate-400 text-sm mb-1">Rata-rata Poin</h6>
-                            <h3 class="font-bold mb-0">{{ number_format($avg_point, 1) }}</h3>
-                        </div>
-                    </div>
+        </x-ui.card>
+
+        <x-ui.card bodyClass="p-4">
+            <div class="flex items-center gap-3">
+                <span class="flex shrink-0 items-center justify-center rounded-xl bg-cyan-50 p-3 text-3xl text-cyan-600">
+                    <i class="bi bi-graph-up"></i>
+                </span>
+                <div class="min-w-0">
+                    <h6 class="mb-1 text-sm text-slate-400">Rata-rata Poin</h6>
+                    <h3 class="m-0 text-xl font-bold text-slate-800">{{ number_format($avg_point, 1) }}</h3>
                 </div>
             </div>
-        </div>
-        <div class="">
-            <div class="stat-card shadow-sm h-full border-l-4 border-amber-400">
-                <div class="card-tw-body">
-                    <div class="flex items-center">
-                        <div class="bg-amber-50 p-3 rounded-lg mr-3">
-                            <i class="bi bi-coin text-3xl text-amber-500"></i>
-                        </div>
-                        <div>
-                            <h6 class="text-slate-400 text-sm mb-1">Total Poin {{ $currentYear }}</h6>
-                            <h3 class="font-bold mb-0">{{ number_format($annualTotalPoin) }}</h3>
-                        </div>
-                    </div>
+        </x-ui.card>
+
+        <x-ui.card bodyClass="p-4" style="border-left-width: 4px; border-left-color: #fbbf24">
+            <div class="flex items-center gap-3">
+                <span class="flex shrink-0 items-center justify-center rounded-xl bg-amber-50 p-3 text-3xl text-amber-500">
+                    <i class="bi bi-coin"></i>
+                </span>
+                <div class="min-w-0">
+                    <h6 class="mb-1 text-sm text-slate-400">Total Poin {{ $currentYear }}</h6>
+                    <h3 class="m-0 text-xl font-bold text-slate-800">{{ number_format($annualTotalPoin) }}</h3>
                 </div>
             </div>
-        </div>
+        </x-ui.card>
     </div>
 
     <!-- Ranking Table Card -->
-    <div class="card-tw"><div class="card-tw-header">
-                <h5 class="font-bold mb-0"><i class="bi bi-list-stars mr-2 text-blue-600"></i>Daftar Peringkat Guru</h5>
-                <span class="badge-tw badge-secondary">
-                    <i class="bi bi-calendar-event mr-1"></i> Data Tahun {{ $currentYear }}
-                </span>
-            </div>
-        </div>
-        <div class="p-0">
-            <div class="table-responsive-tw"><table class="table-tw" id="table-points">
-                    <thead>
-                        <tr class="text-slate-400 text-sm">
-                            <th class="border-0">RANK</th>
-                            <th class="border-0">GURU</th>
-                            <th class="border-0">IDENTITAS</th>
-                            <th class="border-0 text-right">POIN DISIPLIN</th>
-                            <th class="border-0 text-center">ACTION</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($teachers as $i => $guru): ?>
-                            <?php 
-                                $rankClass = '';
-                                if ($i == 0) $rankClass = 'rank-1';
-                                elseif ($i == 1) $rankClass = 'rank-2';
-                                elseif ($i == 2) $rankClass = 'rank-3';
-                                else $rankClass = 'rank-normal';
-                                
-                                $photo = $guru->foto ?: $guru->user_foto;
-                                $initials = substr($guru->nama_guru, 0, 1) . (strpos($guru->nama_guru, ' ') ? substr($guru->nama_guru, strpos($guru->nama_guru, ' ') + 1, 1) : '');
-                                $fotoUrl = '';
-                                if ($photo) {
-                                    if (strpos($photo, 'uploads/') === false) $photo = 'uploads/profile_guru/' . $photo;
-                                    if (file_exists(public_path() . '/' . $photo)) $fotoUrl = url($photo);
-                                }
-                            ?>
-                            <tr>
-                                <td width="80">
-                                    <div class="rank-badge {{ $rankClass }}">
-                                        {{ $i + 1 }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="flex items-center">
-                                        <?php if ($fotoUrl): ?>
-                                            <img src="{{ $fotoUrl }}" class="teacher-avatar mr-3" alt="Avatar">
-                                        <?php else: ?>
-                                            <div class="initials-avatar mr-3">{{ $initials }}</div>
-                                        <?php endif; ?>
-                                        <div>
-                                            <h6 class="font-bold mb-0 uppercase">{{ $guru->nama_guru }}</h6>
-                                            <span class="text-slate-400 text-sm uppercase">Guru Tetap</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="text-sm font-bold text-slate-400">{{ $guru->nip ?: '-' }}</div>
-                                    <div class="extra-text-sm text-slate-400 opacity-75">NIP / ID User</div>
-                                </td>
-                                <td class="text-right">
-                                    <span class="score-badge {{ $guru->poin_tahunan < 0 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600' }}">
-                                        {{ $guru->poin_tahunan > 0 ? '+' : '' }}{{ number_format($guru->poin_tahunan, 1) }}
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ url('admin/poinguru/detail/' . $guru->id_guru) }}" class="btn-tw btn-tw-sm btn-light">
-                                        <i class="bi bi-eye text-blue-600 mr-1"></i> Detail
-                                    </a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <x-ui.card title="Daftar Peringkat Guru" icon="bi-list-stars" tone="blue" bodyClass="p-0"
+        x-data="{
+            query: '',
+            page: 1,
+            perPage: 25,
+            total: {{ count($teachers) }},
+            pages: 1,
+            start: 0,
+            end: 0,
+            apply() {
+                const q = this.query.toLowerCase().trim();
+                const all = this.$refs.rows ? Array.from(this.$refs.rows.querySelectorAll('[data-search]')) : [];
+                const matched = all.filter((row) => q === '' || row.dataset.search.includes(q));
+                this.total = matched.length;
+                this.pages = Math.max(1, Math.ceil(matched.length / this.perPage));
+                if (this.page > this.pages) this.page = this.pages;
+                const from = (this.page - 1) * this.perPage;
+                const to = from + this.perPage;
+                all.forEach((row) => row.classList.add('hidden'));
+                matched.slice(from, to).forEach((row) => row.classList.remove('hidden'));
+                this.start = matched.length === 0 ? 0 : from + 1;
+                this.end = Math.min(to, matched.length);
+            },
+            search() {
+                this.page = 1;
+                this.apply();
+            },
+            go(target) {
+                if (target < 1 || target > this.pages) return;
+                this.page = target;
+                this.apply();
+            }
+        }"
+        x-init="apply()">
+        <x-slot:meta>
+            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+                <i class="bi bi-calendar-event"></i> Data Tahun {{ $currentYear }}
+            </span>
+        </x-slot:meta>
 
-    <!-- Formula Reference (text-sm Footer) -->
-    <div class="mt-6 p-4 bg-white rounded-xl shadow-sm border-0">
-        <h6 class="font-bold mb-6 flex items-center text-slate-400 text-sm">
-            <i class="bi bi-info-circle mr-2"></i> SISTEM POIN TERINTEGRASI — POIN HISTORY
-        </h6>
+        <x-slot:toolbar>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="relative w-full sm:w-64">
+                    <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400"></i>
+                    <input type="search" x-model="query" @input.debounce.200ms="search()" placeholder="Cari Guru:" aria-label="Cari guru"
+                        autocomplete="off"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs font-semibold text-slate-800 transition-colors focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
+                    <span>
+                        Menampilkan <span x-text="start"></span> sampai <span x-text="end"></span> dari <span x-text="total"></span> guru
+                    </span>
+                    <div class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                        <button type="button" @click="go(page - 1)" :disabled="page <= 1" title="Halaman sebelumnya"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-blue-600 disabled:opacity-40">
+                            <i class="bi bi-chevron-left text-[10px]"></i>
+                        </button>
+                        <span class="px-1 tabular-nums"><span x-text="page"></span> / <span x-text="pages"></span></span>
+                        <button type="button" @click="go(page + 1)" :disabled="page >= pages" title="Halaman berikutnya"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-blue-600 disabled:opacity-40">
+                            <i class="bi bi-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </x-slot:toolbar>
+
+        @if (empty($teachers))
+            <div class="p-5">
+                <x-ui.empty icon="bi-people" title="Belum ada guru terdata"
+                    description="Belum ada data guru pada tahun ini." />
+            </div>
+        @else
+        <div x-ref="rows">
+            <x-ui.table id="table-points">
+                <x-slot:head>
+                    <th class="px-4 py-3 text-left" width="80">Rank</th>
+                    <th class="px-4 py-3 text-left">Guru</th>
+                    <th class="px-4 py-3 text-left">Identitas</th>
+                    <th class="px-4 py-3 text-right">Poin Disiplin</th>
+                    <th class="px-4 py-3 text-center" width="120">Action</th>
+                </x-slot:head>
+
+                @foreach ($teachers as $i => $guru)
+                    @php
+                        $rankClass = $rankClasses[$i] ?? $rankClasses[3];
+
+                        $photo = $guru->foto ?: $guru->user_foto;
+                        $initials = substr($guru->nama_guru, 0, 1) . (strpos($guru->nama_guru, ' ') ? substr($guru->nama_guru, strpos($guru->nama_guru, ' ') + 1, 1) : '');
+                        $fotoUrl = '';
+                        if ($photo) {
+                            if (strpos($photo, 'uploads/') === false) $photo = 'uploads/profile_guru/' . $photo;
+                            if (file_exists(public_path() . '/' . $photo)) $fotoUrl = url($photo);
+                        }
+                    @endphp
+                    <tr data-search="{{ strtolower(trim(($guru->nama_guru ?? '') . ' ' . ($guru->nip ?? ''))) }}"
+                        class="transition-colors hover:bg-slate-50/70 {{ $i >= 25 ? 'hidden' : '' }}">
+                        <td class="px-4 py-3" width="80">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-full text-sm font-extrabold {{ $rankClass }}">
+                                {{ $i + 1 }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                @if ($fotoUrl)
+                                    <img src="{{ $fotoUrl }}" class="h-11 w-11 shrink-0 rounded-xl object-cover shadow-sm" alt="Avatar {{ $guru->nama_guru }}">
+                                @else
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-bold uppercase text-slate-600">{{ $initials }}</div>
+                                @endif
+                                <div class="min-w-0">
+                                    <h6 class="m-0 truncate font-bold uppercase text-slate-800">{{ $guru->nama_guru }}</h6>
+                                    <span class="text-sm uppercase text-slate-400">Guru Tetap</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm font-bold text-slate-400">{{ $guru->nip ?: '-' }}</div>
+                            <div class="text-[11px] text-slate-400 opacity-75">NIP / ID User</div>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <span class="rounded-full px-4 py-2 text-lg font-extrabold {{ $guru->poin_tahunan < 0 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600' }}">
+                                {{ $guru->poin_tahunan > 0 ? '+' : '' }}{{ number_format($guru->poin_tahunan, 1) }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="{{ url('admin/poinguru/detail/' . $guru->id_guru) }}"
+                                class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                                <i class="bi bi-eye text-blue-600"></i> Detail
+                            </a>
+                        </td>
+                    </tr>
+                @endforeach
+            </x-ui.table>
+        </div>
+
+        <div class="px-5 py-8 text-center text-xs text-slate-400" x-show="total === 0" x-cloak>
+            <i class="bi bi-search me-1"></i> Tidak ada guru yang cocok dengan pencarian.
+        </div>
+        @endif
+    </x-ui.card>
+
+    <!-- Formula Reference -->
+    <x-ui.card title="Sistem Poin Terintegrasi — Poin History" icon="bi-info-circle" tone="slate">
         <div class="grid grid-cols-1 gap-4">
-            <div class="">
-                <div class="flex items-start">
-                    <i class="bi bi-check-circle text-emerald-600 mr-2 mt-1"></i>
-                    <div>
-                        <div class="font-bold text-slate-800">Sumber Data</div>
-                        <div>Semua poin bersumber dari <code>poin_history</code>, diisi real-time saat check-in/out dan cron.</div>
-                    </div>
+            <div class="flex items-start gap-2">
+                <i class="bi bi-check-circle mt-1 text-emerald-600"></i>
+                <div>
+                    <div class="font-bold text-slate-800">Sumber Data</div>
+                    <div class="text-slate-600">Semua poin bersumber dari <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">poin_history</code>, diisi real-time saat check-in/out dan cron.</div>
                 </div>
             </div>
-            <div class="">
-                <div class="flex items-start">
-                    <i class="bi bi-arrow-repeat text-blue-600 mr-2 mt-1"></i>
-                    <div>
-                        <div class="font-bold text-slate-800">Jenis Poin</div>
-                        <div>HADIR (+progresif), TELAT (-5), PENALTI (-2), REWARD (+3), ALPA (-10), BONUS (skor disiplin), REDEEM, CLAIMED, REFUND</div>
-                    </div>
+            <div class="flex items-start gap-2">
+                <i class="bi bi-arrow-repeat mt-1 text-blue-600"></i>
+                <div>
+                    <div class="font-bold text-slate-800">Jenis Poin</div>
+                    <div class="text-slate-600">HADIR (+progresif), TELAT (-5), PENALTI (-2), REWARD (+3), ALPA (-10), BONUS (skor disiplin), REDEEM, CLAIMED, REFUND</div>
                 </div>
             </div>
-            <div class="">
-                <div class="flex items-start">
-                    <i class="bi bi-database text-slate-500 mr-2 mt-1"></i>
-                    <div>
-                        <div class="font-bold text-slate-800">Sinkronisasi</div>
-                        <div>Tombol "Update Data Poin" menjalankan seed ulang + menyetel <code>poin_tahunan</code> dari total <code>poin_history</code> tahun berjalan.</div>
-                    </div>
+            <div class="flex items-start gap-2">
+                <i class="bi bi-database mt-1 text-slate-500"></i>
+                <div>
+                    <div class="font-bold text-slate-800">Sinkronisasi</div>
+                    <div class="text-slate-600">Tombol "Update Data Poin" menjalankan seed ulang + menyetel <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">poin_tahunan</code> dari total <code class="rounded bg-slate-100 px-1 py-0.5 text-[11px]">poin_history</code> tahun berjalan.</div>
                 </div>
             </div>
         </div>
-    </div>
+    </x-ui.card>
+</div>
 @endsection
-
-@section('scripts')
-<script>
-    $(document).ready(function() {
-        if ($.fn.DataTable) {
-            $('#table-points').DataTable({
-                "ordering": false, // Keep the ranking provided by the controller
-                "pageLength": 25,
-                "language": {
-                    "search": "Cari Guru:",
-                    "lengthMenu": "Tampilkan _MENU_ entri",
-                    "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ guru"
-                }
-            });
-        }
-    });
-</script>
-@endsection
-
