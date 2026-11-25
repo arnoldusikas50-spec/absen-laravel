@@ -2158,18 +2158,26 @@ class AttendanceController extends BaseController
                 // Auto-normalize lembur (pulang_akhir_menit) jika kurang dari 1 jam (60 menit)
                 if ($todayAttendance && ! empty($todayAttendance->jam_pulang) && ! empty($todayAttendance->pulang_akhir_menit)) {
                     $jadwalPulang = $todayAttendance->jadwal_pulang ?? ($setting->jam_pulang ?? '15:00:00');
-                    $dayOfWeek = date('N', strtotime($todayAttendance->tgl));
+                    // tgl ber-cast 'date' (Carbon): jangan digabung apa adanya dengan
+                    // jam jadwal, karena hasilnya "2026-11-24 00:00:00 14:00:00" dan
+                    // strtotime() gagal (0). Dulu itu membuat lembur = epoch/60
+                    // (~29 juta menit) dan skor guru meledak menjadi jutaan.
+                    $tglAbsen = $todayAttendance->tgl instanceof \DateTimeInterface
+                        ? $todayAttendance->tgl->format('Y-m-d')
+                        : substr((string) $todayAttendance->tgl, 0, 10);
+                    $dayOfWeek = (int) date('N', strtotime($tglAbsen));
                     if (Schema::hasTable('absensi_jadwal_kerja')) {
                         $jadwal = $db->table('absensi_jadwal_kerja')->where('hari', $dayOfWeek)->first();
                         if ($jadwal && ! empty($jadwal->jam_pulang)) {
                             $jadwalPulang = $jadwal->jam_pulang;
                         }
                     }
-                    $tsThreshold = strtotime($todayAttendance->tgl.' '.$jadwalPulang);
-                    $tsPulang = strtotime($todayAttendance->jam_pulang);
-                    if ($tsPulang > $tsThreshold) {
+                    $tsThreshold = strtotime($tglAbsen.' '.$jadwalPulang);
+                    $tsPulang = strtotime((string) $todayAttendance->jam_pulang);
+                    if ($tsThreshold !== false && $tsPulang !== false && $tsPulang > $tsThreshold) {
                         $diffMin = (int) floor(($tsPulang - $tsThreshold) / 60);
                         $correctLembur = ($diffMin >= 60) ? ($diffMin - 60) : 0;
+                        $correctLembur = max(0, min($correctLembur, AttendancePolicy::MAKS_LEMBUR_MENIT));
                         if ((int) $todayAttendance->pulang_akhir_menit !== $correctLembur) {
                             $todayAttendance->pulang_akhir_menit = $correctLembur;
                             $db->table('absensi_harian')->where('id', $todayAttendance->id)->update(['pulang_akhir_menit' => $correctLembur]);

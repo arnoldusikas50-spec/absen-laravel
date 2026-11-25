@@ -48,6 +48,13 @@ final class AttendancePolicy
     public const DEFAULT_JAM_PULANG = '14:00:00';
 
     /**
+     * Batas atas menit lembur per hari yang masih dianggap masuk akal (8 jam).
+     * Nilai kolom di luar batas ini (mis. 29.925.141 akibat jam jadwal gagal
+     * dibaca) tidak boleh lagi menggandakan skor seorang guru.
+     */
+    public const MAKS_LEMBUR_MENIT = 480;
+
+    /**
      * Berapa hari admin boleh meninjau baris PENDING_VERIFICATION sebelum hari
      * itu dianggap ALPHA. Selama jendela ini barisnya bukan hadir DAN bukan
      * alpha: tidak masuk denda/surat teguran, tidak masuk kartu Hadir.
@@ -581,7 +588,7 @@ final class AttendancePolicy
         $termAwal = $ada('datang_awal_menit')
             ? "COALESCE(SUM({$alias}.datang_awal_menit), 0) * 0.05" : '0';
         $termAkhir = $ada('pulang_akhir_menit')
-            ? "COALESCE(SUM({$alias}.pulang_akhir_menit), 0) * 0.05" : '0';
+            ? "COALESCE(SUM(LEAST(GREATEST({$alias}.pulang_akhir_menit, 0), ".self::MAKS_LEMBUR_MENIT.')), 0) * 0.05' : '0';
         $termPulang = self::sqlTermBelumPulang($alias);
 
         return "({$termOntime} - {$termLate} - {$termTelat} - {$termCepat}"

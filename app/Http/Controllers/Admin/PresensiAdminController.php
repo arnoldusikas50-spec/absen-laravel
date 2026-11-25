@@ -5240,6 +5240,17 @@ class PresensiAdminController extends BaseController
         $threshold = strtotime($tanggal.' '.$jamPulangLimit);
         $pulangTime = strtotime($tanggal.' '.$jamPulang);
 
+        // Jadwal/jam yang tidak terbaca (strtotime false = 0) tidak boleh dihitung
+        // sebagai selisih epoch, karena hasilnya lembur ~29 juta menit dan skor
+        // guru meledak. Anggap tidak ada penilaian pulang pada baris ini.
+        if ($threshold === false || $pulangTime === false) {
+            $update['status_pulang'] = 'ONTIME';
+            $update['pulang_cepat_menit'] = 0;
+            $update['pulang_akhir_menit'] = 0;
+
+            return;
+        }
+
         if ($pulangTime < $threshold) {
             $update['status_pulang'] = 'EARLY';
             $diff = $threshold - $pulangTime;
@@ -5289,6 +5300,7 @@ class PresensiAdminController extends BaseController
             if ($pulangTime > $threshold) {
                 $diffMinutes = (int) floor(($pulangTime - $threshold) / 60);
                 $pulangAkhirMenit = ($diffMinutes >= 60) ? ($diffMinutes - 60) : 0;
+                $pulangAkhirMenit = max(0, min($pulangAkhirMenit, AttendancePolicy::MAKS_LEMBUR_MENIT));
                 $update['pulang_akhir_menit'] = $pulangAkhirMenit;
                 if ($pulangAkhirMenit > 0) {
                     $rewardPoints = $this->calculateProgressiveRewardPoints($pulangAkhirMenit, $setting);

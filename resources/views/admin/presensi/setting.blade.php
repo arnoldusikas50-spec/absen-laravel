@@ -161,232 +161,172 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- Card 1: Identitas Pokok Sekolah -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
-                                            <i class="bi bi-building text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Identitas Lembaga &amp; Aplikasi</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Nama resmi sekolah dan jenjang satuan pendidikan</p>
-                                        </div>
-                                    </div>
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Wajib</span>
+                            <x-ui.card title="Identitas Lembaga &amp; Aplikasi" icon="bi-building" tone="blue" subtitle="Nama resmi sekolah dan jenjang satuan pendidikan" bodyClass="p-6 space-y-4">
+                                <x-slot:actions>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700">Wajib</span>
+                                </x-slot:actions>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Aplikasi <span class="text-red-500">*</span></label>
+                                    <input type="text" name="nama_aplikasi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nama_aplikasi ?? 'absensi by ikasmedia' }}" required>
                                 </div>
-                                <div class="p-6 space-y-4">
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sekolah / Madrasah <span class="text-red-500">*</span></label>
+                                    <input type="text" name="nama_sekolah" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->sekolah ?? '' }}" required>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Aplikasi <span class="text-red-500">*</span></label>
-                                        <input type="text" name="nama_aplikasi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nama_aplikasi ?? 'absensi by ikasmedia' }}" required>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NPSN</label>
+                                        <input type="text" name="npsn" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->npsn ?? '' }}" pattern="[0-9]{8}" title="8 digit angka" placeholder="Contoh: 12345678">
                                     </div>
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sekolah / Madrasah <span class="text-red-500">*</span></label>
-                                        <input type="text" name="nama_sekolah" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->sekolah ?? '' }}" required>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NSS / NSM</label>
+                                        <input type="text" name="nss" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nss ?? '' }}" placeholder="Nomor statistik sekolah">
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NPSN</label>
-                                            <input type="text" name="npsn" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->npsn ?? '' }}" pattern="[0-9]{8}" title="8 digit angka" placeholder="Contoh: 12345678">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NSS / NSM</label>
-                                            <input type="text" name="nss" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nss ?? '' }}" placeholder="Nomor statistik sekolah">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Sekolah</label>
-                                            <input type="text" name="kode_sekolah" x-model="teguran.kode" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH }}" maxlength="50" placeholder="SMAN2.AT">
-                                            <span class="text-xs text-slate-400 mt-1 block">Dipakai pada nomor surat teguran.</span>
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jenjang <span class="text-red-500">*</span></label>
-                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="jenjang" x-model="jenjang" required>
-                                                <option value="1">SD / MI</option>
-                                                <option value="2">SMP / MTs</option>
-                                                <option value="3">SMA / MA / SMK</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Satuan Pendidikan <span class="text-red-500">*</span></label>
-                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="satuan_pendidikan" x-model="satuan" required>
-                                                <template x-for="s in satuanOpsi" :key="s.value">
-                                                    <option :value="s.value" x-text="s.label"></option>
-                                                </template>
-                                            </select>
-                                        </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Sekolah</label>
+                                        <input type="text" name="kode_sekolah" x-model="teguran.kode" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_sekolah ?? \App\Libraries\SuratNomor::DEFAULT_KODE_SEKOLAH }}" maxlength="50" placeholder="SMAN2.AT">
+                                        <span class="text-xs text-slate-400 mt-1 block">Dipakai pada nomor surat teguran.</span>
                                     </div>
                                 </div>
-                            </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jenjang <span class="text-red-500">*</span></label>
+                                        <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="jenjang" x-model="jenjang" required>
+                                            <option value="1">SD / MI</option>
+                                            <option value="2">SMP / MTs</option>
+                                            <option value="3">SMA / MA / SMK</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Satuan Pendidikan <span class="text-red-500">*</span></label>
+                                        <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="satuan_pendidikan" x-model="satuan" required>
+                                            <template x-for="s in satuanOpsi" :key="s.value">
+                                                <option :value="s.value" x-text="s.label"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </div>
+                            </x-ui.card>
 
                             <!-- Card 2: Alamat & Wilayah -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
-                                            <i class="bi bi-geo-alt text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Alamat &amp; Domisili</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Lokasi geografis fisik instansi</p>
-                                        </div>
-                                    </div>
+                            <x-ui.card title="Alamat &amp; Domisili" icon="bi-geo-alt" tone="blue" subtitle="Lokasi geografis fisik instansi" bodyClass="p-6 space-y-4">
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alamat Lengkap Jalan <span class="text-red-500">*</span></label>
+                                    <textarea name="alamat" rows="2" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="Nama jalan, nomor, RT/RW" required>{{ $setting->alamat ?? '' }}</textarea>
                                 </div>
-                                <div class="p-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alamat Lengkap Jalan <span class="text-red-500">*</span></label>
-                                        <textarea name="alamat" rows="2" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" placeholder="Nama jalan, nomor, RT/RW" required>{{ $setting->alamat ?? '' }}</textarea>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Desa / Kelurahan <span class="text-red-500">*</span></label>
+                                        <input type="text" name="desa" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->desa ?? '' }}" required>
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Desa / Kelurahan <span class="text-red-500">*</span></label>
-                                            <input type="text" name="desa" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->desa ?? '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kecamatan <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kec" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kecamatan ?? '' }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kabupaten / Kota <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kota" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kota ?? '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Provinsi <span class="text-red-500">*</span></label>
-                                            <input type="text" name="provinsi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->provinsi ?? '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Pos</label>
-                                            <input type="text" name="kode_pos" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_pos ?? '' }}" placeholder="5 digit">
-                                        </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kecamatan <span class="text-red-500">*</span></label>
+                                        <input type="text" name="kec" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kecamatan ?? '' }}" required>
                                     </div>
                                 </div>
-                            </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kabupaten / Kota <span class="text-red-500">*</span></label>
+                                        <input type="text" name="kota" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kota ?? '' }}" required>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Provinsi <span class="text-red-500">*</span></label>
+                                        <input type="text" name="provinsi" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->provinsi ?? '' }}" required>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kode Pos</label>
+                                        <input type="text" name="kode_pos" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kode_pos ?? '' }}" placeholder="5 digit">
+                                    </div>
+                                </div>
+                            </x-ui.card>
 
                             <!-- Card 3: Kontak Resmi -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
-                                            <i class="bi bi-telephone text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Kontak Resmi Lembaga</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Saluran telepon, email, dan situs web sekolah</p>
-                                        </div>
+                            <x-ui.card title="Kontak Resmi Lembaga" icon="bi-telephone" tone="emerald" subtitle="Saluran telepon, email, dan situs web sekolah" bodyClass="p-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor Telepon</label>
+                                        <input type="tel" name="tlp" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->telp ?? '' }}" placeholder="021-xxxxxx">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Faksimili</label>
+                                        <input type="text" name="fax" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->fax ?? '' }}" placeholder="Nomor fax">
                                     </div>
                                 </div>
-                                <div class="p-6 space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor Telepon</label>
-                                            <input type="tel" name="tlp" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->telp ?? '' }}" placeholder="021-xxxxxx">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Faksimili</label>
-                                            <input type="text" name="fax" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->fax ?? '' }}" placeholder="Nomor fax">
-                                        </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Email Resmi</label>
+                                        <input type="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->email ?? '' }}" placeholder="admin@sekolah.sch.id">
                                     </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Email Resmi</label>
-                                            <input type="email" name="email" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->email ?? '' }}" placeholder="admin@sekolah.sch.id">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Website Resmi</label>
-                                            <input type="url" name="web" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->web ?? '' }}" placeholder="https://sekolah.sch.id">
-                                        </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Website Resmi</label>
+                                        <input type="url" name="web" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->web ?? '' }}" placeholder="https://sekolah.sch.id">
                                     </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
 
                             <!-- Card 4: Penanggung Jawab & Parameter absensi by ikasmedia/AI -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-purple-100/80 rounded-xl p-2.5 text-purple-600">
-                                            <i class="bi bi-person-badge text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Pimpinan &amp; Opsi Sistem</h6>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="p-6 space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kepala Sekolah <span class="text-red-500">*</span></label>
-                                            <input type="text" name="kepsek" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kepsek ?? '' }}" required>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NIP Kepala Sekolah</label>
-                                            <input type="text" name="nip" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nip ?? '' }}" placeholder="NIP / NUPTK">
-                                        </div>
-                                    </div>
-
+                            <x-ui.card title="Pimpinan &amp; Opsi Sistem" icon="bi-person-badge" tone="violet" bodyClass="p-6 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key AI (OpenAI / Gemini)</label>
-                                        <input type="password" name="api_key" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->api_key ?? '' }}" placeholder="sk-...">
-                                        <span class="text-xs text-slate-400 mt-1 block">Digunakan untuk fitur pembuatan soal otomatis berbasis kecerdasan buatan.</span>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kepala Sekolah <span class="text-red-500">*</span></label>
+                                        <input type="text" name="kepsek" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->kepsek ?? '' }}" required>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">NIP Kepala Sekolah</label>
+                                        <input type="text" name="nip" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->nip ?? '' }}" placeholder="NIP / NUPTK">
                                     </div>
                                 </div>
-                            </div>
+
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key AI (OpenAI / Gemini)</label>
+                                    <input type="password" name="api_key" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" value="{{ $setting->api_key ?? '' }}" placeholder="sk-...">
+                                    <span class="text-xs text-slate-400 mt-1 block">Digunakan untuk fitur pembuatan soal otomatis berbasis kecerdasan buatan.</span>
+                                </div>
+                            </x-ui.card>
 
                             <!-- Card 5: Format Penomoran Surat Teguran -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden lg:col-span-2">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
-                                            <i class="bi bi-upc-scan text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Format Penomoran Surat Teguran</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Atur pola nomor surat yang tercetak pada PDF dan daftar surat teguran</p>
-                                        </div>
-                                    </div>
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Surat Teguran</span>
-                                </div>
-                                <div class="p-6 space-y-4">
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Format Nomor</label>
-                                            <input type="text" name="surat_teguran_format" x-ref="teguranFormat" x-model="teguran.format"
-                                                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" maxlength="120"
-                                                value="{{ $teguranFormat }}"
-                                                placeholder="{{ \App\Libraries\SuratNomor::DEFAULT_FORMAT }}">
-                                            <span class="text-xs text-slate-400 mt-1 block">Gunakan placeholder di bawah. Kosongkan untuk memakai format bawaan.</span>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jumlah Digit Nomor Urut</label>
-                                            <select name="surat_teguran_padding" x-model.number="teguran.padding"
-                                                class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
-                                                @for ($p = 1; $p <= 6; $p++)
-                                                    <option value="{{ $p }}">{{ $p }} digit{{ $p === 3 ? ' (standar)' : '' }}</option>
-                                                @endfor
-                                            </select>
-                                            <span class="text-xs text-slate-400 mt-1 block">Contoh: 3 digit menghasilkan 001, 002, 003.</span>
-                                        </div>
-                                    </div>
-
+                            <x-ui.card title="Format Penomoran Surat Teguran" icon="bi-upc-scan" tone="amber" subtitle="Atur pola nomor surat yang tercetak pada PDF dan daftar surat teguran" bodyClass="p-6 space-y-4" class="lg:col-span-2">
+                                <x-slot:actions>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700">Surat Teguran</span>
+                                </x-slot:actions>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Pratinjau Nomor</label>
-                                        <div class="break-all rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-800" x-text="teguranPreview"></div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Format Nomor</label>
+                                        <input type="text" name="surat_teguran_format" x-ref="teguranFormat" x-model="teguran.format"
+                                            class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" maxlength="120"
+                                            value="{{ $teguranFormat }}"
+                                            placeholder="{{ \App\Libraries\SuratNomor::DEFAULT_FORMAT }}">
+                                        <span class="text-xs text-slate-400 mt-1 block">Gunakan placeholder di bawah. Kosongkan untuk memakai format bawaan.</span>
                                     </div>
-
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Placeholder yang Tersedia</label>
-                                        <div class="flex flex-wrap gap-2">
-                                            @foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc)
-                                                <button type="button" @click="sisipPlaceholder(@js($ph))"
-                                                    class="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
-                                                    title="{{ $desc }}">{{ $ph }}</button>
-                                            @endforeach
-                                        </div>
-                                        <span class="text-xs text-slate-400 mt-2 block">Klik placeholder untuk menyisipkannya ke field format. Perubahan berlaku untuk surat yang terbit setelah disimpan.</span>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jumlah Digit Nomor Urut</label>
+                                        <select name="surat_teguran_padding" x-model.number="teguran.padding"
+                                            class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                            @for ($p = 1; $p <= 6; $p++)
+                                                <option value="{{ $p }}">{{ $p }} digit{{ $p === 3 ? ' (standar)' : '' }}</option>
+                                            @endfor
+                                        </select>
+                                        <span class="text-xs text-slate-400 mt-1 block">Contoh: 3 digit menghasilkan 001, 002, 003.</span>
                                     </div>
                                 </div>
-                            </div>
+
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Pratinjau Nomor</label>
+                                    <div class="break-all rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-800" x-text="teguranPreview"></div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Placeholder yang Tersedia</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach (\App\Libraries\SuratNomor::placeholders() as $ph => $desc)
+                                            <button type="button" @click="sisipPlaceholder(@js($ph))"
+                                                class="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-[11px] text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                                                title="{{ $desc }}">{{ $ph }}</button>
+                                        @endforeach
+                                    </div>
+                                    <span class="text-xs text-slate-400 mt-2 block">Klik placeholder untuk menyisipkannya ke field format. Perubahan berlaku untuk surat yang terbit setelah disimpan.</span>
+                                </div>
+                            </x-ui.card>
                         </div>
 
                         <!-- Action Bar Simpan Profil -->
@@ -401,51 +341,40 @@
                     </form>
 
                     <!-- Card: Identitas Visual & Media Upload -->
-                    <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden mt-8 mb-6">
-                        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                            <div class="flex items-center gap-3">
-                                <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
-                                    <i class="bi bi-images text-lg"></i>
-                                </div>
-                                <div>
-                                    <h6 class="font-bold text-slate-800 mb-0">Identitas Visual &amp; Dokumen Branding</h6>
-                                    <p class="text-xs text-slate-500 mb-0">Unggah logo resmi, cap stempel, tanda tangan digital, dan kop surat sekolah (Format: JPG/PNG/WEBP, Maks. 5MB)</p>
-                                </div>
-                            </div>
-                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Realtime Upload</span>
-                        </div>
-                        <div class="p-6">
-                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                @foreach ($mediaUploads as $item)
-                                    @php $field = $item['field']; @endphp
-                                    <div class="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 transition-colors hover:border-slate-300">
-                                        <div class="mb-2.5">
-                                            <label class="mb-0.5 block text-xs font-bold text-slate-800">{{ $item['label'] }}</label>
-                                            <span class="block truncate text-[11px] text-slate-400">{{ $item['desc'] }}</span>
-                                        </div>
-                                        <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white">
-                                            <img x-show="media['{{ $field }}']" :src="media['{{ $field }}']" alt="{{ $item['label'] }}"
-                                                class="h-full w-full object-contain p-1">
-                                            <span x-show="!media['{{ $field }}']" class="text-[11px] text-slate-400">Belum ada file</span>
-                                        </div>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <label class="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100">
-                                                <i class="bi bi-upload me-1"></i>Pilih File
-                                                <input type="file" class="hidden" accept="image/png,image/jpeg,image/webp"
-                                                    @change="unggahMedia($event, '{{ $field }}')">
-                                            </label>
-                                            <button type="button" x-show="media['{{ $field }}']" x-cloak
-                                                @click="hapusMedia('{{ $field }}')"
-                                                class="rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-red-600 transition-colors hover:bg-red-50">
-                                                <i class="bi bi-trash me-1"></i>Hapus
-                                            </button>
-                                            <span x-show="mediaLoading['{{ $field }}']" x-cloak class="text-[11px] text-slate-400">Mengunggah…</span>
-                                        </div>
+                    <x-ui.card title="Identitas Visual &amp; Dokumen Branding" icon="bi-images" tone="amber" subtitle="Unggah logo resmi, cap stempel, tanda tangan digital, dan kop surat sekolah (Format: JPG/PNG/WEBP, Maks. 5MB)" bodyClass="p-6" class="mt-6 mb-6">
+                        <x-slot:actions>
+                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700">Realtime Upload</span>
+                        </x-slot:actions>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            @foreach ($mediaUploads as $item)
+                                @php $field = $item['field']; @endphp
+                                <div class="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 transition-colors hover:border-slate-300">
+                                    <div class="mb-2.5">
+                                        <label class="mb-0.5 block text-xs font-bold text-slate-800">{{ $item['label'] }}</label>
+                                        <span class="block truncate text-[11px] text-slate-400">{{ $item['desc'] }}</span>
                                     </div>
-                                @endforeach
-                            </div>
+                                    <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-white">
+                                        <img x-show="media['{{ $field }}']" :src="media['{{ $field }}']" alt="{{ $item['label'] }}"
+                                            class="h-full w-full object-contain p-1">
+                                        <span x-show="!media['{{ $field }}']" class="text-[11px] text-slate-400">Belum ada file</span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <label class="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-100">
+                                            <i class="bi bi-upload me-1"></i>Pilih File
+                                            <input type="file" class="hidden" accept="image/png,image/jpeg,image/webp"
+                                                @change="unggahMedia($event, '{{ $field }}')">
+                                        </label>
+                                        <button type="button" x-show="media['{{ $field }}']" x-cloak
+                                            @click="hapusMedia('{{ $field }}')"
+                                            class="rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-red-600 transition-colors hover:bg-red-50">
+                                            <i class="bi bi-trash me-1"></i>Hapus
+                                        </button>
+                                        <span x-show="mediaLoading['{{ $field }}']" x-cloak class="text-[11px] text-slate-400">Mengunggah…</span>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
-                    </div>
+                    </x-ui.card>
                 </div>
 
                 <!-- Form Setting Presensi Wrapping Tab 2 to 6 -->
@@ -460,76 +389,65 @@
                             
                             <!-- Jadwal Kerja Mingguan Table -->
                             <div class="lg:col-span-2">
-                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50">
-                                        <div class="flex items-center gap-3">
-                                            <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
-                                                <i class="bi bi-calendar-check text-lg"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="font-bold text-slate-800 mb-0">Jadwal Kerja Mingguan GTK</h6>
-                                                <p class="text-xs text-slate-500 mb-0">Atur jam masuk, jam pulang, dan status hari libur</p>
-                                            </div>
-                                        </div>
+                                <x-ui.card title="Jadwal Kerja Mingguan GTK" icon="bi-calendar-check" tone="blue" subtitle="Atur jam masuk, jam pulang, dan status hari libur" bodyClass="p-0">
+                                    <x-slot:actions>
                                         <button type="button" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50" @click="terapkanSenin()">
                                             <i class="bi bi-copy mr-1"></i> Terapkan Senin ke Semua
                                         </button>
-                                    </div>
-                                    <div class="p-0">
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-sm">
-                                                <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                                    <tr>
-                                                        <th class="w-32">Hari</th>
-                                                        <th>Jam Masuk</th>
-                                                        <th>Jam Pulang</th>
-                                                        <th class="text-center w-28">Status Libur</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-slate-100">
-                                                    <?php
-                                                        $days = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
-                    foreach ($days as $k => $dayName) {
-                        $row = null;
-                        if (isset($jadwal)) {
-                            foreach ($jadwal as $j) {
-                                if ($j->hari == $k) {
-                                    $row = $j;
-                                    break;
-                                }
+                                    </x-slot:actions>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                                <tr>
+                                                    <th class="w-32">Hari</th>
+                                                    <th>Jam Masuk</th>
+                                                    <th>Jam Pulang</th>
+                                                    <th class="text-center w-28">Status Libur</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100">
+                                                <?php
+                                                    $days = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
+                foreach ($days as $k => $dayName) {
+                    $row = null;
+                    if (isset($jadwal)) {
+                        foreach ($jadwal as $j) {
+                            if ($j->hari == $k) {
+                                $row = $j;
+                                break;
                             }
                         }
-                        $jamMasuk = $row ? $row->jam_masuk : '07:30';
-                        $jamPulang = $row ? $row->jam_pulang : '15:00';
-                        $isLibur = $row ? $row->is_libur : ($k == 7 ? 1 : 0);
-                        ?>
-                                                    <tr class="hover:bg-slate-50/80 transition-colors">
-                                                        <td class="font-semibold text-slate-800 flex items-center gap-2">
-                                                            <span class="w-2 h-2 rounded-full {{ $k == 7 ? 'bg-red-500' : 'bg-blue-500' }}"></span>
-                                                            {{ $dayName }}
-                                                        </td>
-                                                        <td>
-                                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
-                                                                name="jadwal[{{ $k }}][jam_masuk]" x-model="jadwal[{{ $k }}].masuk" value="{{ substr($jamMasuk, 0, 5) }}">
-                                                        </td>
-                                                        <td>
-                                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
-                                                                name="jadwal[{{ $k }}][jam_pulang]" x-model="jadwal[{{ $k }}].pulang" value="{{ substr($jamPulang, 0, 5) }}">
-                                                        </td>
-                                                        <td class="text-center">
-                                                            <label class="relative my-auto inline-flex h-6 w-11 shrink-0 cursor-pointer items-center"><input type="checkbox" class="peer sr-only" name="jadwal[{{ $k }}][is_libur]" value="1" x-model="jadwal[{{ $k }}].libur"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span></label>
-                                                        </td>
-                                                    </tr>
-                                                    <?php } ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                    }
+                    $jamMasuk = $row ? $row->jam_masuk : '07:30';
+                    $jamPulang = $row ? $row->jam_pulang : '15:00';
+                    $isLibur = $row ? $row->is_libur : ($k == 7 ? 1 : 0);
+                    ?>
+                                                <tr class="hover:bg-slate-50/80 transition-colors">
+                                                    <td class="font-semibold text-slate-800 flex items-center gap-2">
+                                                        <span class="w-2 h-2 rounded-full {{ $k == 7 ? 'bg-red-500' : 'bg-blue-500' }}"></span>
+                                                        {{ $dayName }}
+                                                    </td>
+                                                    <td>
+                                                        <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
+                                                            name="jadwal[{{ $k }}][jam_masuk]" x-model="jadwal[{{ $k }}].masuk" value="{{ substr($jamMasuk, 0, 5) }}">
+                                                    </td>
+                                                    <td>
+                                                        <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" 
+                                                            name="jadwal[{{ $k }}][jam_pulang]" x-model="jadwal[{{ $k }}].pulang" value="{{ substr($jamPulang, 0, 5) }}">
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <label class="relative my-auto inline-flex h-6 w-11 shrink-0 cursor-pointer items-center"><input type="checkbox" class="peer sr-only" name="jadwal[{{ $k }}][is_libur]" value="1" x-model="jadwal[{{ $k }}].libur"><span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span></label>
+                                                    </td>
+                                                </tr>
+                                                <?php } ?>
+                                            </tbody>
+                                        </table>
                                     </div>
                                     <div class="px-6 py-3 bg-blue-50/60 border-t border-blue-100 flex items-center gap-2 text-xs text-blue-700">
                                         <i class="bi bi-info-circle shrink-0"></i>
                                         Pada hari yang ditandai <b>Libur</b>, guru tidak diwajibkan presensi dan tidak akan terkena sanksi alpa/denda.
                                     </div>
-                                </div>
+                                </x-ui.card>
                             </div>
 
                             <!-- Toleransi & Geofence GPS. Status hari libur TIDAK
@@ -539,147 +457,113 @@
                                  diturunkan otomatis saat disimpan. -->
                             <div class="space-y-6">
                                 <!-- Toleransi Batas Waktu Keterlambatan (Grace Period) -->
-                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden border-l-4 border-l-amber-500 shadow-sm">
-                                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
-                                        <div class="flex items-center gap-3">
-                                            <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600 shrink-0">
-                                                <i class="bi bi-clock-history text-lg"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="font-bold text-slate-800 mb-0">Toleransi Batas Waktu Absensi</h6>
-                                                <p class="text-xs text-slate-500 mb-0">Kelonggaran menit sebelum absensi dinyatakan terlambat</p>
-                                            </div>
-                                        </div>
+                                <x-ui.card title="Toleransi Batas Waktu Absensi" icon="bi-clock-history" tone="amber" subtitle="Kelonggaran menit sebelum absensi dinyatakan terlambat" bodyClass="p-6 space-y-4" class="shadow-sm">
+                                    <x-slot:actions>
                                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                                            <i class="bi bi-stopwatch"></i> <span x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</span>
-                                        </span>
-                                    </div>
-                                    <div class="p-6 space-y-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="input_grace_period">Toleransi Keterlambatan (Grace Period)</label>
-                                            <div class="flex items-center gap-2">
-                                                <div class="relative flex-1">
-                                                    <i class="bi bi-stopwatch absolute left-3 top-3 text-slate-400"></i>
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9 font-bold text-slate-800 text-base" 
-                                                        id="input_grace_period" name="grace_period" x-model.number="grace"
-                                                        value="{{ $absenSetting->grace_period ?? 15 }}" min="0" max="120" step="1" required>
-                                                </div>
-                                                <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 shrink-0">Menit</span>
+                                        <i class="bi bi-stopwatch"></i> <span x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</span>
+                                    </x-slot:actions>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="input_grace_period">Toleransi Keterlambatan (Grace Period)</label>
+                                        <div class="flex items-center gap-2">
+                                            <div class="relative flex-1">
+                                                <i class="bi bi-stopwatch absolute left-3 top-3 text-slate-400"></i>
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9 font-bold text-slate-800 text-base" 
+                                                    id="input_grace_period" name="grace_period" x-model.number="grace"
+                                                    value="{{ $absenSetting->grace_period ?? 15 }}" min="0" max="120" step="1" required>
                                             </div>
-                                            <p class="text-xs text-slate-400 mt-1.5 mb-0">Atur 0 jika ingin langsung tercatat terlambat tepat pada jam masuk tanpa toleransi.</p>
+                                            <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 shrink-0">Menit</span>
                                         </div>
+                                        <p class="text-xs text-slate-400 mt-1.5 mb-0">Atur 0 jika ingin langsung tercatat terlambat tepat pada jam masuk tanpa toleransi.</p>
+                                    </div>
 
-                                        <!-- Simulasi Interaktif Perhitungan -->
-                                        <div class="p-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 text-xs text-amber-900 space-y-2.5">
-                                            <div class="font-bold flex items-center gap-1.5 text-amber-800 text-xs">
-                                                <i class="bi bi-info-circle-fill text-amber-600"></i> Contoh Simulasi Batas Waktu Masuk:
-                                            </div>
-                                            <div class="bg-white/90 rounded-xl p-3 border border-amber-200/80 text-slate-700 leading-relaxed font-mono text-[11px] space-y-1">
-                                                <div class="text-slate-600 font-sans font-semibold pb-1 border-b border-slate-100 flex items-center justify-between">
-                                                    <span>Jam Masuk: <strong class="text-slate-800" x-text="jadwal[1].masuk || '07:15'">07:15</strong></span>
-                                                    <span>Toleransi: <strong class="text-amber-700" x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</strong></span>
-                                                </div>
-                                                <div class="pt-1 flex items-center gap-2">
-                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    <span>Absensi s/d <strong class="font-bold font-mono text-emerald-700" x-text="batasOntime">07:30</strong>:</span>
-                                                    <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-sans font-bold">Tepat Waktu (Belum Terlambat)</span>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                                                    <span>Absensi mulai <strong class="font-bold font-mono text-red-700" x-text="batasTelat">07:31</strong>:</span>
-                                                    <span class="inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-sans font-bold">Terlambat</span>
-                                                </div>
-                                            </div>
-                                            <p class="text-[11px] text-amber-700 mb-0 font-sans">
-                                                Aturan batas toleransi ini otomatis tersinkronisasi ke seluruh sistem presensi (GTK dan Siswa).
-                                            </p>
+                                    <!-- Simulasi Interaktif Perhitungan -->
+                                    <div class="p-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 text-xs text-amber-900 space-y-2.5">
+                                        <div class="font-bold flex items-center gap-1.5 text-amber-800 text-xs">
+                                            <i class="bi bi-info-circle-fill text-amber-600"></i> Contoh Simulasi Batas Waktu Masuk:
                                         </div>
+                                        <div class="bg-white/90 rounded-xl p-3 border border-amber-200/80 text-slate-700 leading-relaxed font-mono text-[11px] space-y-1">
+                                            <div class="text-slate-600 font-sans font-semibold pb-1 border-b border-slate-100 flex items-center justify-between">
+                                                <span>Jam Masuk: <strong class="text-slate-800" x-text="jadwal[1].masuk || '07:15'">07:15</strong></span>
+                                                <span>Toleransi: <strong class="text-amber-700" x-text="grace + ' Menit'">{{ (int) ($absenSetting->grace_period ?? 15) }} Menit</strong></span>
+                                            </div>
+                                            <div class="pt-1 flex items-center gap-2">
+                                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                <span>Absensi s/d <strong class="font-bold font-mono text-emerald-700" x-text="batasOntime">07:30</strong>:</span>
+                                                <span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-sans font-bold">Tepat Waktu (Belum Terlambat)</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                                <span>Absensi mulai <strong class="font-bold font-mono text-red-700" x-text="batasTelat">07:31</strong>:</span>
+                                                <span class="inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-sans font-bold">Terlambat</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] text-amber-700 mb-0 font-sans">
+                                            Aturan batas toleransi ini otomatis tersinkronisasi ke seluruh sistem presensi (GTK dan Siswa).
+                                        </p>
                                     </div>
-                                </div>
+                                </x-ui.card>
 
                                 <!-- Radius & Geofence GPS -->
-                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                    <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                        <div class="bg-rose-100/80 rounded-xl p-2 text-rose-600">
-                                            <i class="bi bi-geo-alt-fill text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Radius &amp; Geofence GPS</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Toleransi jarak presensi dari titik sekolah</p>
-                                        </div>
-                                    </div>
-                                    <div class="p-6 space-y-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Jarak Absen</label>
-                                            <div class="flex items-center gap-2">
-                                                <div class="relative flex-1">
-                                                    <i class="bi bi-broadcast absolute left-3 top-3 text-slate-400"></i>
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9" name="radius_meter" 
-                                                        value="{{ $absenSetting->radius_meter ?? 100 }}" min="10" max="5000" required>
-                                                </div>
-                                                <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">Meter</span>
+                                <x-ui.card title="Radius &amp; Geofence GPS" icon="bi-geo-alt-fill" tone="rose" subtitle="Toleransi jarak presensi dari titik sekolah" bodyClass="p-6 space-y-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Jarak Absen</label>
+                                        <div class="flex items-center gap-2">
+                                            <div class="relative flex-1">
+                                                <i class="bi bi-broadcast absolute left-3 top-3 text-slate-400"></i>
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pl-9" name="radius_meter" 
+                                                    value="{{ $absenSetting->radius_meter ?? 100 }}" min="10" max="5000" required>
                                             </div>
-                                            <span class="text-xs text-slate-400 mt-1 block">Jarak maksimal guru dari koordinat sekolah (standar: 100m).</span>
+                                            <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">Meter</span>
                                         </div>
+                                        <span class="text-xs text-slate-400 mt-1 block">Jarak maksimal guru dari koordinat sekolah (standar: 100m).</span>
+                                    </div>
 
-                                        <div class="p-4 rounded-xl border border-blue-100 bg-blue-50/50">
-                                            <div class="font-semibold text-slate-800 text-xs mb-1 flex items-center gap-1.5">
-                                                <i class="bi bi-pin-map text-blue-600"></i> Titik Lokasi Kampus / Kantor
-                                            </div>
-                                            <p class="text-xs text-slate-500 mb-3">Kelola koordinat GPS multi-lokasi kantor cabang atau kampus pembelajaran.</p>
-                                            <a href="{{ url('admin/presensi/lokasi') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 w-full">
-                                                <i class="bi bi-map mr-1"></i> Kelola Titik Lokasi ({{ count($locations ?? []) }} Lokasi)
-                                            </a>
+                                    <div class="p-4 rounded-xl border border-blue-100 bg-blue-50/50">
+                                        <div class="font-semibold text-slate-800 text-xs mb-1 flex items-center gap-1.5">
+                                            <i class="bi bi-pin-map text-blue-600"></i> Titik Lokasi Kampus / Kantor
                                         </div>
+                                        <p class="text-xs text-slate-500 mb-3">Kelola koordinat GPS multi-lokasi kantor cabang atau kampus pembelajaran.</p>
+                                        <a href="{{ url('admin/presensi/lokasi') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 w-full">
+                                            <i class="bi bi-map mr-1"></i> Kelola Titik Lokasi ({{ count($locations ?? []) }} Lokasi)
+                                        </a>
                                     </div>
-                                </div>
+                                </x-ui.card>
                             </div>
                         </div>
 
                         <!-- Integrasi Jadwal & Jurnal Mengajar -->
-                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden mt-6">
-                            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
-                                    <i class="bi bi-journal-check text-lg"></i>
+                        <x-ui.card title="Integrasi Jadwal &amp; Jurnal Mengajar" icon="bi-journal-check" tone="blue" subtitle="Syarat jurnal sebelum guru diizinkan absen pulang" bodyClass="p-6" class="mt-6">
+                            <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                                <div class="pr-4">
+                                    <span class="font-bold block text-sm text-slate-800">Wajib Isi Jurnal Sebelum Absen Pulang</span>
+                                    <span class="text-xs text-slate-500">
+                                        Guru yang memiliki jadwal mengajar hari ini wajib mengisi jurnal untuk setiap sesi yang sudah selesai sebelum absen pulang.
+                                        Guru tanpa jadwal, sesi yang belum selesai, hari libur, dan absen Dinas dikecualikan.
+                                    </span>
                                 </div>
-                                <div>
-                                    <h6 class="font-bold text-slate-800 mb-0">Integrasi Jadwal &amp; Jurnal Mengajar</h6>
-                                    <p class="text-xs text-slate-500 mb-0">Syarat jurnal sebelum guru diizinkan absen pulang</p>
-                                </div>
+                                <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                    <input type="checkbox" class="peer sr-only" name="wajib_jurnal_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_sebelum_pulang ?? 1) === 1 ? 'checked' : '' }}>
+                                    <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                </label>
                             </div>
-                            <div class="p-6">
-                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                    <div class="pr-4">
-                                        <span class="font-bold block text-sm text-slate-800">Wajib Isi Jurnal Sebelum Absen Pulang</span>
-                                        <span class="text-xs text-slate-500">
-                                            Guru yang memiliki jadwal mengajar hari ini wajib mengisi jurnal untuk setiap sesi yang sudah selesai sebelum absen pulang.
-                                            Guru tanpa jadwal, sesi yang belum selesai, hari libur, dan absen Dinas dikecualikan.
-                                        </span>
-                                    </div>
-                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                        <input type="checkbox" class="peer sr-only" name="wajib_jurnal_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_sebelum_pulang ?? 1) === 1 ? 'checked' : '' }}>
-                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                    </label>
-                                </div>
 
-                                <div class="flex items-center justify-between p-4 mt-3 ml-4 sm:ml-6 rounded-xl border border-slate-200 bg-white">
-                                    <div class="pr-4">
-                                        <span class="font-bold block text-sm text-slate-800">Jurnal Harus Sudah Divalidasi</span>
-                                        <span class="text-xs text-slate-500">
-                                            Hanya jurnal berstatus <strong>Disetujui</strong> yang dihitung memenuhi syarat; jurnal yang masih
-                                            menunggu validasi atau ditolak tetap menahan absen pulang.
-                                            Yang memvalidasi adalah guru piket hari itu, jadi pastikan jadwal piket terisi &mdash; tanpa itu tidak ada
-                                            guru yang bisa pulang meski jurnalnya sudah diisi.
-                                            Aktif hanya bila sakelar di atas juga aktif.
-                                        </span>
-                                    </div>
-                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                        <input type="checkbox" class="peer sr-only" name="wajib_jurnal_tervalidasi_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_tervalidasi_sebelum_pulang ?? 0) === 1 ? 'checked' : '' }}>
-                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                    </label>
+                            <div class="flex items-center justify-between p-4 mt-3 ml-4 sm:ml-6 rounded-xl border border-slate-200 bg-white">
+                                <div class="pr-4">
+                                    <span class="font-bold block text-sm text-slate-800">Jurnal Harus Sudah Divalidasi</span>
+                                    <span class="text-xs text-slate-500">
+                                        Hanya jurnal berstatus <strong>Disetujui</strong> yang dihitung memenuhi syarat; jurnal yang masih
+                                        menunggu validasi atau ditolak tetap menahan absen pulang.
+                                        Yang memvalidasi adalah guru piket hari itu, jadi pastikan jadwal piket terisi &mdash; tanpa itu tidak ada
+                                        guru yang bisa pulang meski jurnalnya sudah diisi.
+                                        Aktif hanya bila sakelar di atas juga aktif.
+                                    </span>
                                 </div>
+                                <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                    <input type="checkbox" class="peer sr-only" name="wajib_jurnal_tervalidasi_sebelum_pulang" value="1" {{ (int) ($absenSetting->wajib_jurnal_tervalidasi_sebelum_pulang ?? 0) === 1 ? 'checked' : '' }}>
+                                    <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                </label>
                             </div>
-                        </div>
+                        </x-ui.card>
                     </div>
 
                     <!-- ==================================================== -->
@@ -689,131 +573,109 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- AI Face Recognition -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-cyan-100/80 rounded-xl p-2.5 text-cyan-600">
-                                            <i class="bi bi-person-bounding-box text-lg"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Biometrik Wajah AI (Face Recognition)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Model neural network pencocokan wajah guru</p>
-                                        </div>
-                                    </div>
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700 text-[10px]">ResNet-34 AI</span>
-                                </div>
-                                <div class="p-6 space-y-5">
-                                    <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 flex items-center gap-3">
-                                        <i class="bi bi-cpu text-2xl text-blue-600 shrink-0"></i>
-                                        <div class="text-xs">
-                                            Sistem menggunakan modul <b>Face-API AI (128D Face Descriptor)</b> untuk membandingkan wajah selfie dengan foto profil terdaftar secara real-time di browser.
-                                        </div>
-                                    </div>
-
-                                    <!-- Mode Verifikasi Radio Cards -->
-                                    <div>
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Mode Kamera Face ID</label>
-                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                            <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
-                                                :class="faceMode === 'ai_match' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
-                                                <input class="sr-only" type="radio" name="face_match_mode" value="ai_match" x-model="faceMode">
-                                                <div class="font-bold text-sm flex items-center gap-2">
-                                                    <i class="bi bi-shield-check text-blue-600"></i> Selfie + AI Match
-                                                </div>
-                                                <span class="text-xs text-slate-500 block mt-1">Verifikasi kecocokan wajah selfie dengan foto profil guru secara biometrik.</span>
-                                            </label>
-                                            <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
-                                                :class="faceMode === 'selfie_only' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
-                                                <input class="sr-only" type="radio" name="face_match_mode" value="selfie_only" x-model="faceMode">
-                                                <div class="font-bold text-sm flex items-center gap-2">
-                                                    <i class="bi bi-camera text-slate-600"></i> Hanya Foto Selfie
-                                                </div>
-                                                <span class="text-xs text-slate-500 block mt-1">Ambil bukti foto selfie saja tanpa komparasi embedding wajah.</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Sensitivitas / Threshold -->
-                                    <div>
-                                        <div class="mb-2 flex items-center justify-between">
-                                            <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Kemiripan (Match Threshold)</label>
-                                            <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-bold text-blue-700" x-text="threshold.toFixed(2)">0.72</span>
-                                        </div>
-
-                                        <input type="range" class="w-full cursor-pointer accent-blue-600" min="0.55" max="0.85" step="0.01"
-                                            x-model.number="threshold">
-                                        <input type="hidden" name="face_threshold" :value="threshold">
-
-                                        <div class="flex justify-between text-[11px] text-slate-400 mt-1 mb-3">
-                                            <span>0.55 (Ketat)</span>
-                                            <span class="font-bold text-blue-600">0.72 (Rekomendasi)</span>
-                                            <span>0.85 (Longgar)</span>
-                                        </div>
-
-                                        <!-- Quick Presets -->
-                                        <div class="flex gap-2 flex-wrap">
-                                            <template x-for="p in thresholdPreset" :key="p.nilai">
-                                                <button type="button" @click="threshold = p.nilai"
-                                                    :class="Math.abs(threshold - p.nilai) < 0.01 ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'"
-                                                    class="rounded-lg px-3 py-1 text-[11px] font-bold transition-colors">
-                                                    <span x-text="p.label"></span>
-                                                </button>
-                                            </template>
-                                        </div>
-
-                                        <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                                            <div class="font-semibold text-slate-800" :class="thresholdWarna" x-text="thresholdJudul"></div>
-                                            <p class="mt-0.5 text-slate-600" x-text="thresholdDetail"></p>
-                                        </div>
+                            <x-ui.card title="Biometrik Wajah AI (Face Recognition)" icon="bi-person-bounding-box" tone="blue" subtitle="Model neural network pencocokan wajah guru" bodyClass="p-6 space-y-5">
+                                <x-slot:actions>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-700">ResNet-34 AI</span>
+                                </x-slot:actions>
+                                <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 flex items-center gap-3">
+                                    <i class="bi bi-cpu text-2xl text-blue-600 shrink-0"></i>
+                                    <div class="text-xs">
+                                        Sistem menggunakan modul <b>Face-API AI (128D Face Descriptor)</b> untuk membandingkan wajah selfie dengan foto profil terdaftar secara real-time di browser.
                                     </div>
                                 </div>
-                            </div>
+
+                                <!-- Mode Verifikasi Radio Cards -->
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Mode Kamera Face ID</label>
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
+                                            :class="faceMode === 'ai_match' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
+                                            <input class="sr-only" type="radio" name="face_match_mode" value="ai_match" x-model="faceMode">
+                                            <div class="font-bold text-sm flex items-center gap-2">
+                                                <i class="bi bi-shield-check text-blue-600"></i> Selfie + AI Match
+                                            </div>
+                                            <span class="text-xs text-slate-500 block mt-1">Verifikasi kecocokan wajah selfie dengan foto profil guru secara biometrik.</span>
+                                        </label>
+                                        <label class="block cursor-pointer rounded-xl border-2 p-3.5 transition-all"
+                                            :class="faceMode === 'selfie_only' ? 'border-blue-500 bg-blue-50/60 text-blue-900' : 'border-slate-200 hover:border-slate-300'">
+                                            <input class="sr-only" type="radio" name="face_match_mode" value="selfie_only" x-model="faceMode">
+                                            <div class="font-bold text-sm flex items-center gap-2">
+                                                <i class="bi bi-camera text-slate-600"></i> Hanya Foto Selfie
+                                            </div>
+                                            <span class="text-xs text-slate-500 block mt-1">Ambil bukti foto selfie saja tanpa komparasi embedding wajah.</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Sensitivitas / Threshold -->
+                                <div>
+                                    <div class="mb-2 flex items-center justify-between">
+                                        <label class="block text-xs font-bold uppercase tracking-wide text-slate-500">Toleransi Kemiripan (Match Threshold)</label>
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 font-mono text-xs font-bold text-blue-700" x-text="threshold.toFixed(2)">0.72</span>
+                                    </div>
+
+                                    <input type="range" class="w-full cursor-pointer accent-blue-600" min="0.55" max="0.85" step="0.01"
+                                        x-model.number="threshold">
+                                    <input type="hidden" name="face_threshold" :value="threshold">
+
+                                    <div class="flex justify-between text-[11px] text-slate-400 mt-1 mb-3">
+                                        <span>0.55 (Ketat)</span>
+                                        <span class="font-bold text-blue-600">0.72 (Rekomendasi)</span>
+                                        <span>0.85 (Longgar)</span>
+                                    </div>
+
+                                    <!-- Quick Presets -->
+                                    <div class="flex gap-2 flex-wrap">
+                                        <template x-for="p in thresholdPreset" :key="p.nilai">
+                                            <button type="button" @click="threshold = p.nilai"
+                                                :class="Math.abs(threshold - p.nilai) < 0.01 ? 'bg-blue-600 text-white' : 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                                                class="rounded-lg px-3 py-1 text-[11px] font-bold transition-colors">
+                                                <span x-text="p.label"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                                        <div class="font-semibold text-slate-800" :class="thresholdWarna" x-text="thresholdJudul"></div>
+                                        <p class="mt-0.5 text-slate-600" x-text="thresholdDetail"></p>
+                                    </div>
+                                </div>
+                            </x-ui.card>
 
                             <!-- Aturan Kamera & Foto Profil -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div class="bg-indigo-100/80 rounded-xl p-2.5 text-indigo-600">
-                                        <i class="bi bi-camera text-lg"></i>
-                                    </div>
+                            <x-ui.card title="Kebijakan Kamera &amp; Foto Profil" icon="bi-camera" tone="blue" subtitle="Ketentuan selfie pada jalur Face ID (absen QR tidak memakai kamera)" bodyClass="p-6 space-y-5">
+                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                                     <div>
-                                        <h6 class="font-bold text-slate-800 mb-0">Kebijakan Kamera &amp; Foto Profil</h6>
-                                        <p class="text-xs text-slate-500 mb-0">Ketentuan selfie pada jalur Face ID (absen QR tidak memakai kamera)</p>
+                                        <span class="font-bold block text-sm text-slate-800">Wajib Foto Selfie (Face ID)</span>
+                                        <span class="text-xs text-slate-500">Berlaku hanya untuk absen masuk &amp; pulang via Face ID. Absen QR tidak memerlukan foto atau verifikasi wajah.</span>
                                     </div>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="foto_wajib" value="1" {{ ($absenSetting->foto_wajib ?? true) ? 'checked' : '' }}>
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                    </label>
                                 </div>
-                                <div class="p-6 space-y-5">
-                                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Wajib Foto Selfie (Face ID)</span>
-                                            <span class="text-xs text-slate-500">Berlaku hanya untuk absen masuk &amp; pulang via Face ID. Absen QR tidak memerlukan foto atau verifikasi wajah.</span>
-                                        </div>
-                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                            <input type="checkbox" class="peer sr-only" name="foto_wajib" value="1" {{ ($absenSetting->foto_wajib ?? true) ? 'checked' : '' }}>
-                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                        </label>
-                                    </div>
 
-                                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Verifikasi Wajah Saat WFH</span>
-                                            <span class="text-xs text-slate-500">Wajib memverifikasi kecocokan wajah jika melakukan presensi dari rumah (WFH).</span>
-                                        </div>
-                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                            <input type="checkbox" class="peer sr-only" name="wfh_wajib_wajah" value="1" {{ ($absenSetting->wfh_wajib_wajah ?? 1) ? 'checked' : '' }}>
-                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                        </label>
+                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                                    <div>
+                                        <span class="font-bold block text-sm text-slate-800">Verifikasi Wajah Saat WFH</span>
+                                        <span class="text-xs text-slate-500">Wajib memverifikasi kecocokan wajah jika melakukan presensi dari rumah (WFH).</span>
                                     </div>
-
-                                    <div class="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40">
-                                        <div class="font-semibold text-slate-800 text-xs mb-1 flex items-center gap-1.5">
-                                            <i class="bi bi-person-lines-fill text-indigo-600"></i> Pembaruan Foto Profil Guru
-                                        </div>
-                                        <p class="text-xs text-slate-500 mb-3">Pastikan guru memiliki foto profil jelas berlatar polos agar AI dapat mendeteksi landmark wajah secara akurat.</p>
-                                        <a href="{{ url('dataguru') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
-                                            <i class="bi bi-people mr-1"></i> Buka Manajemen Data Guru
-                                        </a>
-                                    </div>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="wfh_wajib_wajah" value="1" {{ ($absenSetting->wfh_wajib_wajah ?? 1) ? 'checked' : '' }}>
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                    </label>
                                 </div>
-                            </div>
+
+                                <div class="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40">
+                                    <div class="font-semibold text-slate-800 text-xs mb-1 flex items-center gap-1.5">
+                                        <i class="bi bi-person-lines-fill text-indigo-600"></i> Pembaruan Foto Profil Guru
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-3">Pastikan guru memiliki foto profil jelas berlatar polos agar AI dapat mendeteksi landmark wajah secara akurat.</p>
+                                    <a href="{{ url('dataguru') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
+                                        <i class="bi bi-people mr-1"></i> Buka Manajemen Data Guru
+                                    </a>
+                                </div>
+                            </x-ui.card>
                         </div>
                     </div>
 
@@ -824,377 +686,316 @@
                         <div class="space-y-6">
                             
                             <!-- 1. Poin Dasar Kehadiran (Flat) -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
-                                            <i class="bi bi-plus-circle-fill text-lg"></i>
+                            <x-ui.card title="1. Poin Kehadiran Harian (Reward Flat)" icon="bi-plus-circle-fill" tone="emerald" subtitle="Poin tambahan yang diperoleh guru berdasarkan status kehadiran" bodyClass="p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Hadir Tepat Waktu</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-emerald-600" name="point_hadir" 
+                                                value="{{ $absenSetting->point_hadir ?? 10 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">Poin</span>
                                         </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">1. Poin Kehadiran Harian (Reward Flat)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Poin tambahan yang diperoleh guru berdasarkan status kehadiran</p>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin Resmi</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_izin" 
+                                                value="{{ $absenSetting->point_izin ?? 0 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">Poin</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit Sah</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_sakit" 
+                                                value="{{ $absenSetting->point_sakit ?? 0 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">Poin</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti Disetujui</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_cuti" 
+                                                value="{{ $absenSetting->point_cuti ?? 0 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">Poin</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-6">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Hadir Tepat Waktu</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-emerald-600" name="point_hadir" 
-                                                    value="{{ $absenSetting->point_hadir ?? 10 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">Poin</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin Resmi</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_izin" 
-                                                    value="{{ $absenSetting->point_izin ?? 0 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">Poin</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit Sah</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_sakit" 
-                                                    value="{{ $absenSetting->point_sakit ?? 0 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">Poin</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti Disetujui</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_cuti" 
-                                                    value="{{ $absenSetting->point_cuti ?? 0 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">Poin</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            </x-ui.card>
 
                             <!-- 2. Reward Datang Lebih Awal (Early Bird) -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
-                                            <i class="bi bi-award-fill text-lg"></i>
+                            <x-ui.card title="2. Reward Datang Lebih Awal (Early Bird Points)" icon="bi-award-fill" tone="blue" subtitle="Apresiasi kedisiplinan guru yang hadir sebelum jam masuk dimulai" bodyClass="p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 1 (1 - 15 Mnt Awal)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_1" 
+                                                value="{{ $absenSetting->reward_point_tier_1 ?? 1 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
                                         </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">2. Reward Datang Lebih Awal (Early Bird Points)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Apresiasi kedisiplinan guru yang hadir sebelum jam masuk dimulai</p>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 2 (16 - 60 Mnt Awal)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_2" 
+                                                value="{{ $absenSetting->reward_point_tier_2 ?? 1 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 3 (&gt; 60 Mnt Awal)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_3" 
+                                                value="{{ $absenSetting->reward_point_tier_3 ?? 2 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Maksimal Reward</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_cap_menit" 
+                                                value="{{ $absenSetting->reward_cap_menit ?? 30 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">Menit</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-6">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 1 (1 - 15 Mnt Awal)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_1" 
-                                                    value="{{ $absenSetting->reward_point_tier_1 ?? 1 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 2 (16 - 60 Mnt Awal)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_2" 
-                                                    value="{{ $absenSetting->reward_point_tier_2 ?? 1 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tier 3 (&gt; 60 Mnt Awal)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_point_tier_3" 
-                                                    value="{{ $absenSetting->reward_point_tier_3 ?? 2 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">pt/mnt</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Maksimal Reward</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="reward_cap_menit" 
-                                                    value="{{ $absenSetting->reward_cap_menit ?? 30 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">Menit</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            </x-ui.card>
 
                             <!-- 3. Sanksi & Poin Pelanggaran -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-red-100/80 rounded-xl p-2.5 text-red-600">
-                                            <i class="bi bi-dash-circle-fill text-lg"></i>
+                            <x-ui.card title="3. Poin Pelanggaran Dasar (Penalty Points)" icon="bi-dash-circle-fill" tone="rose" subtitle="Pengurangan poin kedisiplinan per kejadian pelanggaran" bodyClass="p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Terlambat Masuk (LATE)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-amber-600" name="point_telat" 
+                                                value="{{ $absenSetting->point_telat ?? 1 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">pt / kejadian</span>
                                         </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">3. Poin Pelanggaran Dasar (Penalty Points)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Pengurangan poin kedisiplinan per kejadian pelanggaran</p>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alpha (Tanpa Keterangan)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_alpa" 
+                                                value="{{ $absenSetting->point_alpa ?? 5 }}" min="0">
+                                            <span class="text-xs font-semibold text-slate-500">pt / hari</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tidak Absen Pulang (Lupa Check-Out)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_lupa_pulang" 
+                                                value="{{ $absenSetting->point_lupa_pulang ?? 5 }}" min="0" max="100">
+                                            <span class="text-xs font-semibold text-slate-500">pt / hari</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-6">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Terlambat Masuk (LATE)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-amber-600" name="point_telat" 
-                                                    value="{{ $absenSetting->point_telat ?? 1 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">pt / kejadian</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Alpha (Tanpa Keterangan)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_alpa" 
-                                                    value="{{ $absenSetting->point_alpa ?? 5 }}" min="0">
-                                                <span class="text-xs font-semibold text-slate-500">pt / hari</span>
-                                            </div>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Tidak Absen Pulang (Lupa Check-Out)</label>
-                                            <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold text-red-600" name="point_lupa_pulang" 
-                                                    value="{{ $absenSetting->point_lupa_pulang ?? 5 }}" min="0" max="100">
-                                                <span class="text-xs font-semibold text-slate-500">pt / hari</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-3 mb-0">
-                                        Poin pulang lebih awal mengikuti tier pada tabel "Tarif Progresif" di bawah, bukan tarif terpisah.
-                                    </p>
-                                    <p class="text-[11px] text-slate-400 mt-1.5 mb-0">
-                                        "Tidak absen pulang" dipotong cron harian untuk hari yang <b>sudah lewat</b> dan jam
-                                        pulangnya tetap kosong; guru yang absen pulang setelah jam kerja tidak dipotong.
-                                        Hari WFH, dinas, izin, sakit, cuti, alpha, dan yang masih antre verifikasi dibebaskan.
-                                        Nilai <b>0</b> mematikan aturan ini. Potongan dimulai sejak cron
-                                        pertama kali menjalaninya — hari-hari lama yang jam pulangnya kosong tidak ikut dipotong ke belakang.
-                                        Cron meninjau maksimal 60 hari ke belakang, jadi hari yang lebih tua dari itu tidak pernah terpotong
-                                        mendadak setelah cron lama mati. Bila admin kemudian mengisi jam pulang untuk hari yang sudah
-                                        terpotong, poinnya kembali penuh.
-                                    </p>
-                                </div>
-                            </div>
+                                <p class="text-[11px] text-slate-400 mt-3 mb-0">
+                                    Poin pulang lebih awal mengikuti tier pada tabel "Tarif Progresif" di bawah, bukan tarif terpisah.
+                                </p>
+                                <p class="text-[11px] text-slate-400 mt-1.5 mb-0">
+                                    "Tidak absen pulang" dipotong cron harian untuk hari yang <b>sudah lewat</b> dan jam
+                                    pulangnya tetap kosong; guru yang absen pulang setelah jam kerja tidak dipotong.
+                                    Hari WFH, dinas, izin, sakit, cuti, alpha, dan yang masih antre verifikasi dibebaskan.
+                                    Nilai <b>0</b> mematikan aturan ini. Potongan dimulai sejak cron
+                                    pertama kali menjalaninya — hari-hari lama yang jam pulangnya kosong tidak ikut dipotong ke belakang.
+                                    Cron meninjau maksimal 60 hari ke belakang, jadi hari yang lebih tua dari itu tidak pernah terpotong
+                                    mendadak setelah cron lama mati. Bila admin kemudian mengisi jam pulang untuk hari yang sudah
+                                    terpotong, poinnya kembali penuh.
+                                </p>
+                            </x-ui.card>
 
                             <!-- 4. Tarif Denda Bertingkat (Tiered Penalties) -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-amber-100/80 rounded-xl p-2.5 text-amber-600">
-                                            <i class="bi bi-sort-numeric-down text-lg"></i>
+                            <x-ui.card title="4. Tarif Denda &amp; Poin Keterlambatan Berjenjang" icon="bi-sort-numeric-down" tone="amber" subtitle="Skema denda rupiah dan poin per menit berdasarkan durasi telat" bodyClass="p-6 space-y-6">
+                                <x-slot:actions>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700">Tiered System</span>
+                                </x-slot:actions>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <!-- Tier 1 -->
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
+                                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                            <span class="font-bold text-sm text-slate-800">Tier 1 (1 - 30 Menit)</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 text-[10px]">Ringan</span>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-xs font-bold text-slate-500">Rp</span>
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_1" x-model.number="tier[0].denda" 
+                                                        value="{{ $absenSetting->denda_tier_1 ?? 100 }}">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_1" x-model.number="tier[0].poin" 
+                                                        value="{{ $absenSetting->point_tier_1 ?? 1 }}">
+                                                    <span class="text-xs text-slate-500">pt/mnt</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tier 2 -->
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
+                                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                            <span class="font-bold text-sm text-slate-800">Tier 2 (31 - 60 Menit)</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Sedang</span>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-xs font-bold text-slate-500">Rp</span>
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_2" x-model.number="tier[1].denda" 
+                                                        value="{{ $absenSetting->denda_tier_2 ?? 200 }}">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_2" x-model.number="tier[1].poin" 
+                                                        value="{{ $absenSetting->point_tier_2 ?? 2 }}">
+                                                    <span class="text-xs text-slate-500">pt/mnt</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tier 3 -->
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
+                                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                            <span class="font-bold text-sm text-slate-800">Tier 3 (&gt; 60 Menit)</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 text-[10px]">Berat</span>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-xs font-bold text-slate-500">Rp</span>
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_3" x-model.number="tier[2].denda" 
+                                                        value="{{ $absenSetting->denda_tier_3 ?? 500 }}">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
+                                                <div class="flex items-center gap-1.5">
+                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_3" x-model.number="tier[2].poin" 
+                                                        value="{{ $absenSetting->point_tier_3 ?? 5 }}">
+                                                    <span class="text-xs text-slate-500">pt/mnt</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 5. Batasan Denda & Alpha -->
+                                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                    <div class="font-bold text-xs text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                        <i class="bi bi-shield-lock text-slate-500"></i> Batasan Maksimal &amp; Denda Alpha
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari (Flat)</label>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="text-xs font-bold text-slate-500">Rp</span>
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_per_hari"
+                                                    value="{{ $absenSetting->denda_alpha_per_hari ?? 5000 }}" min="0" step="500">
+                                            </div>
+                                            <span class="text-[11px] text-slate-400 mt-1 block">Denda alpa flat per hari kerja, tanpa kelipatan.</span>
                                         </div>
                                         <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">4. Tarif Denda &amp; Poin Keterlambatan Berjenjang</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Skema denda rupiah dan poin per menit berdasarkan durasi telat</p>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Maksimal / Bulan</label>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="text-xs font-bold text-slate-500">Rp</span>
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_bulan" 
+                                                    value="{{ $absenSetting->max_denda_bulan ?? 500000 }}" min="0" step="5000">
+                                            </div>
+                                            <span class="text-[11px] text-slate-400 mt-1 block">Batas maksimal total denda guru per bulan (0 = tanpa batas).</span>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Lembur / Jam</label>
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_lembur_per_jam" 
+                                                    value="{{ $absenSetting->point_lembur_per_jam ?? 5 }}" min="0" max="100">
+                                                <span class="text-xs font-bold text-slate-500">Poin/Jam</span>
+                                            </div>
+                                            <span class="text-[11px] text-slate-400 mt-1 block">Reward poin per jam lembur yang disetujui.</span>
                                         </div>
                                     </div>
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Tiered System</span>
+
                                 </div>
-                                <div class="p-6 space-y-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <!-- Tier 1 -->
-                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
-                                            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                                                <span class="font-bold text-sm text-slate-800">Tier 1 (1 - 30 Menit)</span>
-                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 text-[10px]">Ringan</span>
-                                            </div>
-                                            <div class="space-y-3">
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_1" x-model.number="tier[0].denda" 
-                                                            value="{{ $absenSetting->denda_tier_1 ?? 100 }}">
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_1" x-model.number="tier[0].poin" 
-                                                            value="{{ $absenSetting->point_tier_1 ?? 1 }}">
-                                                        <span class="text-xs text-slate-500">pt/mnt</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        <!-- Tier 2 -->
-                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
-                                            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                                                <span class="font-bold text-sm text-slate-800">Tier 2 (31 - 60 Menit)</span>
-                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 text-[10px]">Sedang</span>
-                                            </div>
-                                            <div class="space-y-3">
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_2" x-model.number="tier[1].denda" 
-                                                            value="{{ $absenSetting->denda_tier_2 ?? 200 }}">
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_2" x-model.number="tier[1].poin" 
-                                                            value="{{ $absenSetting->point_tier_2 ?? 2 }}">
-                                                        <span class="text-xs text-slate-500">pt/mnt</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                <!-- 6. Interactive Simulator Calculator -->
+                                <div class="p-4 rounded-2xl border border-blue-200 bg-blue-50/60">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <i class="bi bi-lightning-charge-fill text-blue-600"></i>
+                                            <h6 class="font-bold text-slate-800 text-sm mb-0">Simulator Live Perhitungan Denda</h6>
                                         </div>
-
-                                        <!-- Tier 3 -->
-                                        <div class="rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:border-slate-300 hover:shadow-sm p-4">
-                                            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                                                <span class="font-bold text-sm text-slate-800">Tier 3 (&gt; 60 Menit)</span>
-                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 text-[10px]">Berat</span>
-                                            </div>
-                                            <div class="space-y-3">
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Rupiah / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="denda_tier_3" x-model.number="tier[2].denda" 
-                                                            value="{{ $absenSetting->denda_tier_3 ?? 500 }}">
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Pelanggaran / Menit</label>
-                                                    <div class="flex items-center gap-1.5">
-                                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-semibold" name="point_tier_3" x-model.number="tier[2].poin" 
-                                                            value="{{ $absenSetting->point_tier_3 ?? 5 }}">
-                                                        <span class="text-xs text-slate-500">pt/mnt</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Simulasi Interaktif</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Simulasi Keterlambatan (Menit)</label>
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" x-model.number="simMenit" min="1" max="300">
+                                        </div>
+                                        <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
+                                            <div class="text-xs text-slate-500 font-medium">Estimasi Denda Rupiah</div>
+                                            <div class="text-lg font-bold text-red-600 mt-0.5" x-text="'Rp ' + formatAngka(sim.denda)">Rp 0</div>
+                                        </div>
+                                        <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
+                                            <div class="text-xs text-slate-500 font-medium">Estimasi Poin Pelanggaran</div>
+                                            <div class="text-lg font-bold text-amber-600 mt-0.5" x-text="sim.poin + ' pt'">0 pt</div>
                                         </div>
                                     </div>
-
-                                     <!-- 5. Batasan Denda & Alpha -->
-                                     <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                                         <div class="font-bold text-xs text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                                             <i class="bi bi-shield-lock text-slate-500"></i> Batasan Maksimal &amp; Denda Alpha
-                                         </div>
-                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                              <div>
-                                                  <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari (Flat)</label>
-                                                  <div class="flex items-center gap-1.5">
-                                                      <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                      <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_per_hari"
-                                                          value="{{ $absenSetting->denda_alpha_per_hari ?? 5000 }}" min="0" step="500">
-                                                  </div>
-                                                  <span class="text-[11px] text-slate-400 mt-1 block">Denda alpa flat per hari kerja, tanpa kelipatan.</span>
-                                              </div>
-                                             <div>
-                                                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Maksimal / Bulan</label>
-                                                 <div class="flex items-center gap-1.5">
-                                                     <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                     <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_bulan" 
-                                                         value="{{ $absenSetting->max_denda_bulan ?? 500000 }}" min="0" step="5000">
-                                                 </div>
-                                                 <span class="text-[11px] text-slate-400 mt-1 block">Batas maksimal total denda guru per bulan (0 = tanpa batas).</span>
-                                             </div>
-                                             <div>
-                                                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Poin Lembur / Jam</label>
-                                                 <div class="flex items-center gap-1.5">
-                                                     <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="point_lembur_per_jam" 
-                                                         value="{{ $absenSetting->point_lembur_per_jam ?? 5 }}" min="0" max="100">
-                                                     <span class="text-xs font-bold text-slate-500">Poin/Jam</span>
-                                                 </div>
-                                                 <span class="text-[11px] text-slate-400 mt-1 block">Reward poin per jam lembur yang disetujui.</span>
-                                             </div>
-                                         </div>
-
-                                      </div>
-
-                                    <!-- 6. Interactive Simulator Calculator -->
-                                    <div class="p-4 rounded-2xl border border-blue-200 bg-blue-50/60">
-                                        <div class="flex justify-between items-center mb-3">
-                                            <div class="flex items-center gap-2">
-                                                <i class="bi bi-lightning-charge-fill text-blue-600"></i>
-                                                <h6 class="font-bold text-slate-800 text-sm mb-0">Simulator Live Perhitungan Denda</h6>
-                                            </div>
-                                            <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 text-[10px]">Simulasi Interaktif</span>
-                                        </div>
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Simulasi Keterlambatan (Menit)</label>
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" x-model.number="simMenit" min="1" max="300">
-                                            </div>
-                                            <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
-                                                <div class="text-xs text-slate-500 font-medium">Estimasi Denda Rupiah</div>
-                                                <div class="text-lg font-bold text-red-600 mt-0.5" x-text="'Rp ' + formatAngka(sim.denda)">Rp 0</div>
-                                            </div>
-                                            <div class="p-3 bg-white rounded-xl border border-blue-100 shadow-sm text-center">
-                                                <div class="text-xs text-slate-500 font-medium">Estimasi Poin Pelanggaran</div>
-                                                <div class="text-lg font-bold text-amber-600 mt-0.5" x-text="sim.poin + ' pt'">0 pt</div>
-                                            </div>
-                                        </div>
-                                        <div class="text-xs text-slate-500 mt-2.5" x-text="simBreakdown">
-                                            Breakdown perhitungan tier akan muncul otomatis sesuai perubahan angka di atas.
-                                        </div>
+                                    <div class="text-xs text-slate-500 mt-2.5" x-text="simBreakdown">
+                                        Breakdown perhitungan tier akan muncul otomatis sesuai perubahan angka di atas.
                                     </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
 
                             <!-- 7. Denda Siswa (Alpha & Bolos) -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
-                                            <i class="bi bi-bank text-lg"></i>
+                            <x-ui.card title="7. Denda Siswa (Alpha &amp; Bolos)" icon="bi-bank" tone="rose" subtitle="Tagihan rupiah per hari untuk siswa yang tidak masuk tanpa keterangan atau masuk tanpa absen pulang" bodyClass="p-6">
+                                <x-slot:actions>
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700">Presensi Siswa</span>
+                                </x-slot:actions>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari</label>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-slate-500">Rp</span>
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_siswa_per_hari"
+                                                value="{{ $absenSetting->denda_alpha_siswa_per_hari ?? 0 }}" min="0" step="500">
                                         </div>
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">7. Denda Siswa (Alpha &amp; Bolos)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Tagihan rupiah per hari untuk siswa yang tidak masuk tanpa keterangan atau masuk tanpa absen pulang</p>
-                                        </div>
+                                        <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat status siswa ALPHA / TANPA KETERANGAN pada hari kerja. <b>0</b> = tidak ditagih.</span>
                                     </div>
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 text-[10px]">Presensi Siswa</span>
-                                </div>
-                                <div class="p-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Alpha / Hari</label>
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_alpha_siswa_per_hari"
-                                                    value="{{ $absenSetting->denda_alpha_siswa_per_hari ?? 0 }}" min="0" step="500">
-                                            </div>
-                                            <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat status siswa ALPHA / TANPA KETERANGAN pada hari kerja. <b>0</b> = tidak ditagih.</span>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Bolos / Hari</label>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-slate-500">Rp</span>
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_bolos_siswa_per_hari"
+                                                value="{{ $absenSetting->denda_bolos_siswa_per_hari ?? 0 }}" min="0" step="500">
                                         </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Denda Bolos / Hari</label>
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="denda_bolos_siswa_per_hari"
-                                                    value="{{ $absenSetting->denda_bolos_siswa_per_hari ?? 0 }}" min="0" step="500">
-                                            </div>
-                                            <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat siswa punya jam masuk tetapi tetap tanpa jam pulang setelah jam pulang lewat — orang yang sama dengan daftar "BOLOS — MASUK TANPA PULANG" di rekap piket.</span>
-                                        </div>
-                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Siswa / Bulan</label>
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="text-xs font-bold text-slate-500">Rp</span>
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_siswa_bulan"
-                                                    value="{{ $absenSetting->max_denda_siswa_bulan ?? 0 }}" min="0" step="5000">
-                                            </div>
-                                            <span class="text-[11px] text-slate-400 mt-1 block">Plafon total per siswa per bulan kalender (0 = tanpa batas). Terpisah dari batas denda guru di atas.</span>
-                                        </div>
+                                        <span class="text-[11px] text-slate-400 mt-1 block">Ditagih saat siswa punya jam masuk tetapi tetap tanpa jam pulang setelah jam pulang lewat — orang yang sama dengan daftar "BOLOS — MASUK TANPA PULANG" di rekap piket.</span>
                                     </div>
-                                    <p class="text-[11px] text-slate-500 mt-4 mb-0 leading-relaxed">
-                                        Nominal tercatat pada baris presensi siswa (<i>Presensi &raquo; Rekap Siswa</i> kolom <b>Denda</b>).
-                                        Hari yang sudah tertagih mempertahankan nominalnya, jadi mengubah tarif di sini tidak menulis ulang
-                                        tagihan bulan-bulan sebelumnya — hanya hari-hari baru yang memakai tarif baru.
-                                        Matikan fitur cukup dengan mengembalikan kedua tarif ke <b>0</b>; riwayat tagihan yang sudah tercetak tidak ikut terhapus.
-                                    </p>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Denda Siswa / Bulan</label>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-slate-500">Rp</span>
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="max_denda_siswa_bulan"
+                                                value="{{ $absenSetting->max_denda_siswa_bulan ?? 0 }}" min="0" step="5000">
+                                        </div>
+                                        <span class="text-[11px] text-slate-400 mt-1 block">Plafon total per siswa per bulan kalender (0 = tanpa batas). Terpisah dari batas denda guru di atas.</span>
+                                    </div>
                                 </div>
-                            </div>
+                                <p class="text-[11px] text-slate-500 mt-4 mb-0 leading-relaxed">
+                                    Nominal tercatat pada baris presensi siswa (<i>Presensi &raquo; Rekap Siswa</i> kolom <b>Denda</b>).
+                                    Hari yang sudah tertagih mempertahankan nominalnya, jadi mengubah tarif di sini tidak menulis ulang
+                                    tagihan bulan-bulan sebelumnya — hanya hari-hari baru yang memakai tarif baru.
+                                    Matikan fitur cukup dengan mengembalikan kedua tarif ke <b>0</b>; riwayat tagihan yang sudah tercetak tidak ikut terhapus.
+                                </p>
+                            </x-ui.card>
                         </div>
                     </div>
 
@@ -1205,252 +1006,219 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
                             <!-- Batas Izin, Cuti & Standar Kehadiran -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div class="bg-violet-100/80 rounded-xl p-2.5 text-violet-600">
-                                        <i class="bi bi-shield-check text-lg"></i>
+                            <x-ui.card title="Batas Kuota Izin, Cuti &amp; Kehadiran" icon="bi-shield-check" tone="violet" subtitle="Pembatasan durasi permohonan dispensasi guru" bodyClass="p-6 space-y-5">
+                                <p class="text-xs text-slate-500 mb-0 leading-relaxed">
+                                    Kuota dihitung dari <b>hari kerja efektif</b> — akhir pekan dan hari libur
+                                    tidak memotong kuota, karena hari-hari itu memang tidak menghasilkan
+                                    catatan kehadiran.
+                                </p>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Izin / Tahun</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_hari"
+                                                value="{{ $absenSetting->max_izin_hari ?? 3 }}" min="0" max="365">
+                                            <span class="text-xs font-semibold text-slate-500">Hari</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas. Akumulasi izin disetujui + masih menunggu.</p>
                                     </div>
-                                    <div>
-                                        <h6 class="font-bold text-slate-800 mb-0">Batas Kuota Izin, Cuti &amp; Kehadiran</h6>
-                                        <p class="text-xs text-slate-500 mb-0">Pembatasan durasi permohonan dispensasi guru</p>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Cuti / Tahun</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_hari"
+                                                value="{{ $absenSetting->max_cuti_hari ?? 12 }}" min="0" max="365">
+                                            <span class="text-xs font-semibold text-slate-500">Hari</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas.</p>
+                                    </div>
+                                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Sakit / Tahun</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_hari"
+                                                value="{{ $absenSetting->max_sakit_hari ?? 12 }}" min="0" max="365">
+                                            <span class="text-xs font-semibold text-slate-500">Hari</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas. 12 = 2 minggu.</p>
                                     </div>
                                 </div>
-                                <div class="p-6 space-y-5">
-                                    <p class="text-xs text-slate-500 mb-0 leading-relaxed">
-                                        Kuota dihitung dari <b>hari kerja efektif</b> — akhir pekan dan hari libur
-                                        tidak memotong kuota, karena hari-hari itu memang tidak menghasilkan
-                                        catatan kehadiran.
-                                    </p>
 
+                                <div class="border-t border-slate-100 pt-5">
+                                    <h6 class="font-bold text-slate-700 text-sm mb-3">Maksimal durasi per pengajuan</h6>
+                                    <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+                                        Batas ini terpisah dari kuota tahunan: mengatur durasi satu pengajuan,
+                                        bukan total pemakaian setahun. Ini yang membuat “izin 3 hari” tidak lagi
+                                        otomatis menghabiskan seluruh kuota 3 hari/tahun.
+                                    </p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Izin / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin per Pengajuan</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_hari"
-                                                    value="{{ $absenSetting->max_izin_hari ?? 3 }}" min="0" max="365">
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_per_pengajuan"
+                                                    value="{{ $absenSetting->max_izin_per_pengajuan ?? 3 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas. Akumulasi izin disetujui + masih menunggu.</p>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Cuti / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti per Pengajuan</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_hari"
-                                                    value="{{ $absenSetting->max_cuti_hari ?? 12 }}" min="0" max="365">
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_per_pengajuan"
+                                                    value="{{ $absenSetting->max_cuti_per_pengajuan ?? 12 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas.</p>
                                         </div>
                                         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kuota Sakit / Tahun</label>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit per Pengajuan</label>
                                             <div class="flex items-center gap-2">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_hari"
-                                                    value="{{ $absenSetting->max_sakit_hari ?? 12 }}" min="0" max="365">
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_per_pengajuan"
+                                                    value="{{ $absenSetting->max_sakit_per_pengajuan ?? 3 }}" min="0" max="365">
                                                 <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
-                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">0 = tanpa batas. 12 = 2 minggu.</p>
+                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">Di atas 3 hari tetap wajib surat dokter.</p>
                                         </div>
-                                    </div>
-
-                                    <div class="border-t border-slate-100 pt-5">
-                                        <h6 class="font-bold text-slate-700 text-sm mb-3">Maksimal durasi per pengajuan</h6>
-                                        <p class="text-xs text-slate-500 mb-3 leading-relaxed">
-                                            Batas ini terpisah dari kuota tahunan: mengatur durasi satu pengajuan,
-                                            bukan total pemakaian setahun. Ini yang membuat “izin 3 hari” tidak lagi
-                                            otomatis menghabiskan seluruh kuota 3 hari/tahun.
-                                        </p>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Izin per Pengajuan</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_izin_per_pengajuan"
-                                                        value="{{ $absenSetting->max_izin_per_pengajuan ?? 3 }}" min="0" max="365">
-                                                    <span class="text-xs font-semibold text-slate-500">Hari</span>
-                                                </div>
+                                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Dinas per Pengajuan</label>
+                                            <div class="flex items-center gap-2">
+                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_dinas_per_pengajuan"
+                                                    value="{{ $absenSetting->max_dinas_per_pengajuan ?? 30 }}" min="0" max="365">
+                                                <span class="text-xs font-semibold text-slate-500">Hari</span>
                                             </div>
-                                            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Cuti per Pengajuan</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_cuti_per_pengajuan"
-                                                        value="{{ $absenSetting->max_cuti_per_pengajuan ?? 12 }}" min="0" max="365">
-                                                    <span class="text-xs font-semibold text-slate-500">Hari</span>
-                                                </div>
-                                            </div>
-                                            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Sakit per Pengajuan</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_sakit_per_pengajuan"
-                                                        value="{{ $absenSetting->max_sakit_per_pengajuan ?? 3 }}" min="0" max="365">
-                                                    <span class="text-xs font-semibold text-slate-500">Hari</span>
-                                                </div>
-                                                <p class="text-[11px] text-slate-400 mt-1 mb-0">Di atas 3 hari tetap wajib surat dokter.</p>
-                                            </div>
-                                            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50">
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Dinas per Pengajuan</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="max_dinas_per_pengajuan"
-                                                        value="{{ $absenSetting->max_dinas_per_pengajuan ?? 30 }}" min="0" max="365">
-                                                    <span class="text-xs font-semibold text-slate-500">Hari</span>
-                                                </div>
-                                                <p class="text-[11px] text-slate-400 mt-1 mb-0">Dinas tidak memakai kuota tahunan — tugas resmi dihitung sebagai hadir.</p>
-                                            </div>
+                                            <p class="text-[11px] text-slate-400 mt-1 mb-0">Dinas tidak memakai kuota tahunan — tugas resmi dihitung sebagai hadir.</p>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <i class="bi bi-calendar-check text-slate-500 text-lg mt-0.5"></i>
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Dasar perhitungan kuota</span>
-                                            <label class="flex items-center gap-2 mt-2 cursor-pointer">
-                                                <input type="checkbox" name="kuota_hari_kerja" value="1"
-                                                    {{ ((int) ($absenSetting->kuota_hari_kerja ?? 1) === 0) ? '' : 'checked' }}>
-                                                <span class="text-xs text-slate-600">Hitung hanya hari kerja efektif (hapus centang untuk memakai hitungan hari kalender)</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/50">
-                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 text-amber-900 flex items-center gap-1.5">
-                                            <i class="bi bi-percent text-amber-600"></i> Batas Minimum Kehadiran (Standar SMA/Disdik)
-                                        </label>
-                                        <div class="flex items-center gap-2 max-w-xs">
-                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="min_kehadiran_persen"
-                                                value="{{ $absenSetting->min_kehadiran_persen ?? 90 }}"
-                                                min="50" max="100" step="0.5">
-                                            <span class="text-sm font-bold text-amber-800">%</span>
-                                        </div>
-                                        <p class="text-xs text-amber-700 mt-2 mb-0">Standar minimal kehadiran bulanan (default 90%). Guru dengan persentase di bawah angka ini akan muncul di panel atensi khusus.</p>
-                                    </div>
-
-                                    <div class="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50">
-                                        <i class="bi bi-check-circle-fill text-emerald-500 text-lg mt-0.5"></i>
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Libur Kalender Nasional</span>
-                                            <span class="text-xs text-slate-600">Selalu aktif — tidak ada sakelar. Tanggal merah nasional selalu dikeluarkan dari perhitungan kehadiran, rekap, dan denda.</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Alert Kehadiran Rendah</span>
-                                            <span class="text-xs text-slate-500">Tampilkan indikator peringatan di monitoring jika kehadiran guru di bawah standar.</span>
-                                        </div>
-                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                            <input type="checkbox" class="peer sr-only" name="alert_kehadiran_enabled" value="1" {{ ($absenSetting->alert_kehadiran_enabled ?? 1) ? 'checked' : '' }}>
-                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                <div class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                                    <i class="bi bi-calendar-check text-slate-500 text-lg mt-0.5"></i>
+                                    <div>
+                                        <span class="font-bold block text-sm text-slate-800">Dasar perhitungan kuota</span>
+                                        <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                                            <input type="checkbox" name="kuota_hari_kerja" value="1"
+                                                {{ ((int) ($absenSetting->kuota_hari_kerja ?? 1) === 0) ? '' : 'checked' }}>
+                                            <span class="text-xs text-slate-600">Hitung hanya hari kerja efektif (hapus centang untuk memakai hitungan hari kalender)</span>
                                         </label>
                                     </div>
                                 </div>
-                            </div>
+
+                                <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/50">
+                                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500 text-amber-900 flex items-center gap-1.5">
+                                        <i class="bi bi-percent text-amber-600"></i> Batas Minimum Kehadiran (Standar SMA/Disdik)
+                                    </label>
+                                    <div class="flex items-center gap-2 max-w-xs">
+                                        <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="min_kehadiran_persen"
+                                            value="{{ $absenSetting->min_kehadiran_persen ?? 90 }}"
+                                            min="50" max="100" step="0.5">
+                                        <span class="text-sm font-bold text-amber-800">%</span>
+                                    </div>
+                                    <p class="text-xs text-amber-700 mt-2 mb-0">Standar minimal kehadiran bulanan (default 90%). Guru dengan persentase di bawah angka ini akan muncul di panel atensi khusus.</p>
+                                </div>
+
+                                <div class="flex items-start gap-3 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50">
+                                    <i class="bi bi-check-circle-fill text-emerald-500 text-lg mt-0.5"></i>
+                                    <div>
+                                        <span class="font-bold block text-sm text-slate-800">Libur Kalender Nasional</span>
+                                        <span class="text-xs text-slate-600">Selalu aktif — tidak ada sakelar. Tanggal merah nasional selalu dikeluarkan dari perhitungan kehadiran, rekap, dan denda.</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                                    <div>
+                                        <span class="font-bold block text-sm text-slate-800">Alert Kehadiran Rendah</span>
+                                        <span class="text-xs text-slate-500">Tampilkan indikator peringatan di monitoring jika kehadiran guru di bawah standar.</span>
+                                    </div>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="alert_kehadiran_enabled" value="1" {{ ($absenSetting->alert_kehadiran_enabled ?? 1) ? 'checked' : '' }}>
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                    </label>
+                                </div>
+                            </x-ui.card>
 
                             <!-- Kebijakan WFH (Work From Home) -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div class="bg-teal-100/80 rounded-xl p-2.5 text-teal-600">
-                                        <i class="bi bi-laptop text-lg"></i>
+                            <x-ui.card title="Kebijakan WFH (Work From Home)" icon="bi-laptop" tone="emerald" subtitle="Bypass radius GPS untuk penugasan luar/rumah" bodyClass="p-6 space-y-5">
+                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                                    <div>
+                                        <span class="font-bold block text-sm text-slate-800">Aktifkan Fitur WFH</span>
+                                        <span class="text-xs text-slate-500">Izinkan guru memilih opsi presensi bekerja dari rumah.</span>
+                                    </div>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="wfh_enabled" value="1" {{ ($absenSetting->wfh_enabled ?? 0) ? 'checked' : '' }} x-model="wfh">
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                    </label>
+                                </div>
+
+                                <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="wfh" x-cloak>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Mulai WFH</label>
+                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_mulai"
+                                                value="{{ $absenSetting->wfh_mulai ?? '08:00' }}">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Selesai WFH</label>
+                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_selesai"
+                                                value="{{ $absenSetting->wfh_selesai ?? '16:00' }}">
+                                        </div>
                                     </div>
                                     <div>
-                                        <h6 class="font-bold text-slate-800 mb-0">Kebijakan WFH (Work From Home)</h6>
-                                        <p class="text-xs text-slate-500 mb-0">Bypass radius GPS untuk penugasan luar/rumah</p>
-                                    </div>
-                                </div>
-                                <div class="p-6 space-y-5">
-                                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Aktifkan Fitur WFH</span>
-                                            <span class="text-xs text-slate-500">Izinkan guru memilih opsi presensi bekerja dari rumah.</span>
-                                        </div>
-                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                            <input type="checkbox" class="peer sr-only" name="wfh_enabled" value="1" {{ ($absenSetting->wfh_enabled ?? 0) ? 'checked' : '' }} x-model="wfh">
-                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                        </label>
-                                    </div>
-
-                                        <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="wfh" x-cloak>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Mulai WFH</label>
-                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_mulai"
-                                                    value="{{ $absenSetting->wfh_mulai ?? '08:00' }}">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Jam Selesai WFH</label>
-                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wfh_selesai"
-                                                    value="{{ $absenSetting->wfh_selesai ?? '16:00' }}">
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Kuota WFH / Bulan</label>
-                                            <div class="flex items-center gap-2 max-w-xs">
-                                                <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="wfh_max_per_bulan"
-                                                    value="{{ $absenSetting->wfh_max_per_bulan ?? 5 }}" min="0" max="31">
-                                                <span class="text-xs font-semibold text-slate-500">Hari / Guru</span>
-                                            </div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Batas Kuota WFH / Bulan</label>
+                                        <div class="flex items-center gap-2 max-w-xs">
+                                            <input type="number" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-bold" name="wfh_max_per_bulan"
+                                                value="{{ $absenSetting->wfh_max_per_bulan ?? 5 }}" min="0" max="31">
+                                            <span class="text-xs font-semibold text-slate-500">Hari / Guru</span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
                         </div>
                             <!-- Kebijakan Jam Operasional Scanner QR Siswa -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
-                                        <i class="bi bi-qr-code-scan text-lg"></i>
-                                    </div>
+                            <x-ui.card title="Jam Operasional Scanner QR Siswa" icon="bi-qr-code-scan" tone="rose" bodyClass="p-6 space-y-5">
+                                <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                                     <div>
-                                        <h6 class="font-bold text-slate-800 mb-0">Jam Operasional Scanner QR Siswa</h6>
-                                        <p class="text-xs text-slate-500 mb-0">Scan <b>masuk</b> dibatasi jendela operasional + jadwal masuk (ala absen wajah); scan <b>pulang</b> dibuka begitu jendela masuk ditutup dan ditutup lagi oleh jendela operasional</p>
+                                        <span class="font-bold block text-sm text-slate-800">Batasi Jam Scan Masuk</span>
+                                        <span class="text-xs text-slate-500">Matikan untuk scan 24 jam (tidak disarankan).</span>
                                     </div>
+                                    <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
+                                        <input type="checkbox" class="peer sr-only" name="qr_scan_aktif" value="1" {{ ($absenSetting->qr_scan_aktif ?? 1) ? 'checked' : '' }} x-model="qr">
+                                        <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                                    </label>
                                 </div>
-                                <div class="p-6 space-y-5">
-                                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-                                        <div>
-                                            <span class="font-bold block text-sm text-slate-800">Batasi Jam Scan Masuk</span>
-                                            <span class="text-xs text-slate-500">Matikan untuk scan 24 jam (tidak disarankan).</span>
-                                        </div>
-                                        <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center shrink-0 ml-3">
-                                            <input type="checkbox" class="peer sr-only" name="qr_scan_aktif" value="1" {{ ($absenSetting->qr_scan_aktif ?? 1) ? 'checked' : '' }} x-model="qr">
-                                            <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                                        </label>
-                                    </div>
 
-                                    <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="qr" x-cloak>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Dibuka Pukul</label>
-                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_mulai"
-                                                    value="{{ substr((string)($absenSetting->qr_scan_mulai ?? '05:30:00'), 0, 5) }}">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Ditutup Pukul</label>
-                                                <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_selesai"
-                                                    value="{{ substr((string)($absenSetting->qr_scan_selesai ?? '18:00:00'), 0, 5) }}">
-                                            </div>
-                                        </div>
-                                        <p class="text-[11px] text-slate-400">Contoh: 05:30–18:00 WITA. Berlaku untuk halaman <code>/scanner</code> &amp; <code>/guru/presensi-siswa</code>. Selain itu scan masuk mengikuti jadwal masuk hari ini (dibuka 1 jam sebelum, ditutup 3 jam setelah) dan scan pulang langsung dibuka setelah jendela masuk ditutup — sama seperti absen wajah. Jam selesai berlaku dua arah: lewat jam itu scan masuk <b>dan</b> pulang ditolak, dan cron <code>/cron/daily</code> menandai siswa yang masuk tanpa pulang sebagai &quot;pulang tidak tercatat&quot; (jam keluar tetap kosong, tidak diisi otomatis).</p>
+                                <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" x-show="qr" x-cloak>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Token Kiosk /scanner (wajib untuk kiosk publik)</label>
-                                            <?php $tokenKioskAktif = trim((string) ($absenSetting->qr_kiosk_token ?? '')) !== ''; ?>
-                                            <div class="mb-2">
-                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold {{ $tokenKioskAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
-                                                    <i class="bi {{ $tokenKioskAktif ? 'bi-shield-lock-fill' : 'bi-shield-exclamation' }}"></i>
-                                                    {{ $tokenKioskAktif ? 'Token terpasang — /scanner terkunci' : 'Belum ada token — /scanner publik ditolak' }}
-                                                </span>
-                                            </div>
-                                            <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono" name="qr_kiosk_token" value=""
-                                                placeholder="{{ $tokenKioskAktif ? 'Tidak diubah — isi hanya untuk mengganti token' : 'Isi token untuk mengunci kiosk' }}"
-                                                maxlength="64" autocomplete="new-password">
-                                            <?php if ($tokenKioskAktif) { ?>
-                                            <label class="flex items-center gap-2 text-[12px] text-slate-500 mt-2">
-                                                <input type="checkbox" name="qr_kiosk_token_hapus" value="1" class="form-check-input">
-                                                Hapus token (buka kembali /scanner untuk umum)
-                                            </label>
-                                            <?php } ?>
-                                            <p class="text-[11px] text-slate-400 mt-1">Bila terpasang, <b>seluruh</b> jalur publik <code>/scanner</code> — halaman kiosk, <code>/scanner/scan</code>, dan <code>/scanner/history</code> — menolak permintaan tanpa token. Daftarkan perangkat kiosk sekali lewat <code>/scanner?k=TOKEN</code> atau kolom buka-kunci di halaman itu; setelahnya perangkat dikenali sendiri. Kolom ini write-only: nilai token tidak pernah ditampilkan kembali, dan menyimpan form tanpa mengisi kolom tidak mengubahnya. Selama token kosong, halaman <code>/scanner</code> publik beserta endpoint scan/riwayatnya <b>menolak akses</b> (kecuali admin/guru yang sedang login).</p>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Dibuka Pukul</label>
+                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_mulai"
+                                                value="{{ substr((string)($absenSetting->qr_scan_mulai ?? '05:30:00'), 0, 5) }}">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Scan Ditutup Pukul</label>
+                                            <input type="time" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="qr_scan_selesai"
+                                                value="{{ substr((string)($absenSetting->qr_scan_selesai ?? '18:00:00'), 0, 5) }}">
                                         </div>
                                     </div>
+                                    <p class="text-[11px] text-slate-400">Contoh: 05:30–18:00 WITA. Berlaku untuk halaman <code>/scanner</code> &amp; <code>/guru/presensi-siswa</code>. Selain itu scan masuk mengikuti jadwal masuk hari ini (dibuka 1 jam sebelum, ditutup 3 jam setelah) dan scan pulang langsung dibuka setelah jendela masuk ditutup — sama seperti absen wajah. Jam selesai berlaku dua arah: lewat jam itu scan masuk <b>dan</b> pulang ditolak, dan cron <code>/cron/daily</code> menandai siswa yang masuk tanpa pulang sebagai &quot;pulang tidak tercatat&quot; (jam keluar tetap kosong, tidak diisi otomatis).</p>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Token Kiosk /scanner (wajib untuk kiosk publik)</label>
+                                        <?php $tokenKioskAktif = trim((string) ($absenSetting->qr_kiosk_token ?? '')) !== ''; ?>
+                                        <div class="mb-2">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold {{ $tokenKioskAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                                                <i class="bi {{ $tokenKioskAktif ? 'bi-shield-lock-fill' : 'bi-shield-exclamation' }}"></i>
+                                                {{ $tokenKioskAktif ? 'Token terpasang — /scanner terkunci' : 'Belum ada token — /scanner publik ditolak' }}
+                                            </span>
+                                        </div>
+                                        <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono" name="qr_kiosk_token" value=""
+                                            placeholder="{{ $tokenKioskAktif ? 'Tidak diubah — isi hanya untuk mengganti token' : 'Isi token untuk mengunci kiosk' }}"
+                                            maxlength="64" autocomplete="new-password">
+                                        <?php if ($tokenKioskAktif) { ?>
+                                        <label class="flex items-center gap-2 text-[12px] text-slate-500 mt-2">
+                                            <input type="checkbox" name="qr_kiosk_token_hapus" value="1" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500/30">
+                                            Hapus token (buka kembali /scanner untuk umum)
+                                        </label>
+                                        <?php } ?>
+                                        <p class="text-[11px] text-slate-400 mt-1">Bila terpasang, <b>seluruh</b> jalur publik <code>/scanner</code> — halaman kiosk, <code>/scanner/scan</code>, dan <code>/scanner/history</code> — menolak permintaan tanpa token. Daftarkan perangkat kiosk sekali lewat <code>/scanner?k=TOKEN</code> atau kolom buka-kunci di halaman itu; setelahnya perangkat dikenali sendiri. Kolom ini write-only: nilai token tidak pernah ditampilkan kembali, dan menyimpan form tanpa mengisi kolom tidak mengubahnya. Selama token kosong, halaman <code>/scanner</code> publik beserta endpoint scan/riwayatnya <b>menolak akses</b> (kecuali admin/guru yang sedang login).</p>
+                                    </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
                     </div>
 
                     <!-- ==================================================== -->
@@ -1461,157 +1229,124 @@
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 
                                 <!-- Bot Telegram Card -->
-                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <div class="flex items-center gap-3">
-                                            <div class="bg-sky-100/80 rounded-xl p-2.5 text-sky-600">
-                                                <i class="bi bi-telegram text-lg"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="font-bold text-slate-800 mb-0">Notifikasi Bot Telegram</h6>
-                                                <p class="text-xs text-slate-500 mb-0">Broadcast laporan absensi ke grup/channel</p>
-                                            </div>
-                                        </div>
+                                <x-ui.card title="Notifikasi Bot Telegram" icon="bi-telegram" tone="blue" subtitle="Broadcast laporan absensi ke grup/channel" bodyClass="p-6 space-y-4">
+                                    <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
+                                        Kirim ringkasan harian dan alert keterlambatan otomatis. Dapatkan bot token gratis melalui <a href="https://t.me/BotFather" target="_blank" class="font-bold underline">@BotFather</a>.
                                     </div>
-                                    <div class="p-6 space-y-4">
-                                        <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
-                                            Kirim ringkasan harian dan alert keterlambatan otomatis. Dapatkan bot token gratis melalui <a href="https://t.me/BotFather" target="_blank" class="font-bold underline">@BotFather</a>.
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Bot Token</label>
-                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_bot_token" 
-                                                value="{{ $absenSetting->telegram_bot_token ?? '' }}" 
-                                                placeholder="Contoh: 1234567890:AAHdqTcv...">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Chat ID Tujuan (Grup / Channel)</label>
-                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_chat_id" 
-                                                value="{{ $absenSetting->telegram_chat_id ?? '' }}" 
-                                                placeholder="Contoh: -1001234567890">
-                                        </div>
-                                        <div class="pt-2">
-                                            <button type="button" @click="ujiNotifikasi('telegram')" :disabled="!!menguji"
-                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
-                                                <span x-show="menguji === 'telegram'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></span>
-                                                <i x-show="menguji !== 'telegram'" class="bi bi-send"></i>
-                                                <span x-text="menguji === 'telegram' ? 'Mengirim…' : 'Test Kirim Telegram'"></span>
-                                            </button>
-                                        </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Bot Token</label>
+                                        <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_bot_token" 
+                                            value="{{ $absenSetting->telegram_bot_token ?? '' }}" 
+                                            placeholder="Contoh: 1234567890:AAHdqTcv...">
                                     </div>
-                                </div>
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Chat ID Tujuan (Grup / Channel)</label>
+                                        <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="telegram_chat_id" 
+                                            value="{{ $absenSetting->telegram_chat_id ?? '' }}" 
+                                            placeholder="Contoh: -1001234567890">
+                                    </div>
+                                    <div class="pt-2">
+                                        <button type="button" @click="ujiNotifikasi('telegram')" :disabled="!!menguji"
+                                            class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                            <span x-show="menguji === 'telegram'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"></span>
+                                            <i x-show="menguji !== 'telegram'" class="bi bi-send"></i>
+                                            <span x-text="menguji === 'telegram' ? 'Mengirim…' : 'Test Kirim Telegram'"></span>
+                                        </button>
+                                    </div>
+                                </x-ui.card>
 
                                 <!-- WhatsApp Gateway Card -->
-                                <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                        <div class="flex items-center gap-3">
-                                            <div class="bg-emerald-100/80 rounded-xl p-2.5 text-emerald-600">
-                                                <i class="bi bi-whatsapp text-lg"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="font-bold text-slate-800 mb-0">WhatsApp Gateway</h6>
-                                                <p class="text-xs text-slate-500 mb-0">Notifikasi ke nomor/grup WhatsApp</p>
-                                            </div>
-                                        </div>
+                                <x-ui.card title="WhatsApp Gateway" icon="bi-whatsapp" tone="emerald" subtitle="Notifikasi ke nomor/grup WhatsApp" bodyClass="p-6 space-y-4">
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kanal aktif</label>
+                                        <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_mode" x-model="waMode">
+                                            <?php
+                                            $waMode = strtolower(trim((string) ($absenSetting->wa_gateway_mode ?? '')));
+                if ($waMode === '') {
+                    // Instalasi lama hanya punya Fonnte — jangan diam-diam jadi "off".
+                    $waMode = (! empty($absenSetting->wa_token) && ! empty($absenSetting->wa_target_number)) ? 'fonnte' : 'off';
+                }
+                ?>
+                                            <option value="off" {{ $waMode === 'off' ? 'selected' : '' }}>Nonaktif</option>
+                                            <option value="openwa" {{ $waMode === 'openwa' ? 'selected' : '' }}>OpenWA (self-hosted)</option>
+                                            <option value="fonnte" {{ $waMode === 'fonnte' ? 'selected' : '' }}>Fonnte</option>
+                                        </select>
                                     </div>
-                                    <div class="p-6 space-y-4">
-                                        <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Kanal aktif</label>
-                                            <select class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_mode" x-model="waMode">
-                                                <?php
-                                                $waMode = strtolower(trim((string) ($absenSetting->wa_gateway_mode ?? '')));
-                    if ($waMode === '') {
-                        // Instalasi lama hanya punya Fonnte — jangan diam-diam jadi "off".
-                        $waMode = (! empty($absenSetting->wa_token) && ! empty($absenSetting->wa_target_number)) ? 'fonnte' : 'off';
-                    }
-                    ?>
-                                                <option value="off" {{ $waMode === 'off' ? 'selected' : '' }}>Nonaktif</option>
-                                                <option value="openwa" {{ $waMode === 'openwa' ? 'selected' : '' }}>OpenWA (self-hosted)</option>
-                                                <option value="fonnte" {{ $waMode === 'fonnte' ? 'selected' : '' }}>Fonnte</option>
-                                            </select>
-                                        </div>
 
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor / Grup WhatsApp tujuan laporan</label>
+                                        <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_target_number" 
+                                            value="{{ $absenSetting->wa_target_number ?? '' }}" 
+                                            placeholder="081234567890 atau 120363...@g.us">
+                                        <p class="text-xs text-slate-500 mt-1">
+                                            Nomor Untuk grup tulis chat id OpenWA seperti <code>120363...@g.us</code>.
+                                        </p>
+                                    </div>
+
+                                    <!-- Panel OpenWA -->
+                                    <div class="space-y-4" x-show="waMode === 'openwa'" x-cloak>
                                         <div>
-                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nomor / Grup WhatsApp tujuan laporan</label>
-                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_target_number" 
-                                                value="{{ $absenSetting->wa_target_number ?? '' }}" 
-                                                placeholder="081234567890 atau 120363...@g.us">
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Base URL OpenWA</label>
+                                            <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_base_url" 
+                                                value="{{ $absenSetting->wa_base_url ?? '' }}" 
+                                                placeholder="http://localhost:2785">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key OpenWA</label>
+                                            <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_api_key" 
+                                                value="{{ $absenSetting->wa_api_key ?? '' }}" 
+                                                placeholder="owa_k1_...">
                                             <p class="text-xs text-slate-500 mt-1">
-                                                Nomor Untuk grup tulis chat id OpenWA seperti <code>120363...@g.us</code>.
+                                               Ambil dari dashboard OpenWA atau file <code>data/.api-key</code>.
                                             </p>
                                         </div>
-
-                                        <!-- Panel OpenWA -->
-                                        <div class="space-y-4" x-show="waMode === 'openwa'" x-cloak>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Base URL OpenWA</label>
-                                                <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_base_url" 
-                                                    value="{{ $absenSetting->wa_base_url ?? '' }}" 
-                                                    placeholder="http://localhost:2785">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Key OpenWA</label>
-                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_api_key" 
-                                                    value="{{ $absenSetting->wa_api_key ?? '' }}" 
-                                                    placeholder="owa_k1_...">
-                                                <p class="text-xs text-slate-500 mt-1">
-                                                   Ambil dari dashboard OpenWA atau file <code>data/.api-key</code>.
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sesi (opsional)</label>
-                                                <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_session_name" 
-                                                    value="{{ $absenSetting->wa_session_name ?? '' }}" 
-                                                    placeholder="ika-notif">
-                                                <p class="text-xs text-slate-500 mt-1">Kosongkan untuk memakai sesi berstatus <code>ready</code> pertama.</p>
-                                            </div>
-                                        </div>
-
-                                        <!-- Panel Fonnte -->
-                                        <div class="space-y-4" x-show="waMode === 'fonnte'" x-cloak>
-                                            <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
-                                                Integrasi via layanan gateway <a href="https://fonnte.com" target="_blank" class="font-bold underline text-emerald-600">Fonnte</a>.
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Gateway API URL</label>
-                                                <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_url" 
-                                                    value="{{ $absenSetting->wa_gateway_url ?? 'https://api.fonnte.com/send' }}">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Token</label>
-                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_token" 
-                                                    value="{{ $absenSetting->wa_token ?? '' }}" 
-                                                    placeholder="Masukkan token API Fonnte">
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-2 flex items-center gap-3">
-                                            <button type="button" @click="ujiNotifikasi('whatsapp')" :disabled="!!menguji"
-                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
-                                                <span x-show="menguji === 'whatsapp'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600"></span>
-                                                <i x-show="menguji !== 'whatsapp'" class="bi bi-send"></i>
-                                                <span x-text="menguji === 'whatsapp' ? 'Mengirim…' : 'Test Kirim WhatsApp'"></span>
-                                            </button>
-                                            <a href="{{ url('admin/presensi/whatsapp') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
-                                                <i class="bi bi-people mr-1"></i> Kelola Tautan Guru
-                                            </a>
-                                            <a href="{{ url('admin/presensi/notifikasi-status') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
-                                                <i class="bi bi-activity mr-1"></i> Status Notifikasi
-                                            </a>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nama Sesi (opsional)</label>
+                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_session_name" 
+                                                value="{{ $absenSetting->wa_session_name ?? '' }}" 
+                                                placeholder="ika-notif">
+                                            <p class="text-xs text-slate-500 mt-1">Kosongkan untuk memakai sesi berstatus <code>ready</code> pertama.</p>
                                         </div>
                                     </div>
-                                </div>
+
+                                    <!-- Panel Fonnte -->
+                                    <div class="space-y-4" x-show="waMode === 'fonnte'" x-cloak>
+                                        <div class="flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed border-blue-200 bg-blue-50 text-blue-800 text-xs">
+                                            Integrasi via layanan gateway <a href="https://fonnte.com" target="_blank" class="font-bold underline text-emerald-600">Fonnte</a>.
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Gateway API URL</label>
+                                            <input type="url" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_gateway_url" 
+                                                value="{{ $absenSetting->wa_gateway_url ?? 'https://api.fonnte.com/send' }}">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">API Token</label>
+                                            <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="wa_token" 
+                                                value="{{ $absenSetting->wa_token ?? '' }}" 
+                                                placeholder="Masukkan token API Fonnte">
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2 flex items-center gap-3">
+                                        <button type="button" @click="ujiNotifikasi('whatsapp')" :disabled="!!menguji"
+                                            class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                            <span x-show="menguji === 'whatsapp'" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600"></span>
+                                            <i x-show="menguji !== 'whatsapp'" class="bi bi-send"></i>
+                                            <span x-text="menguji === 'whatsapp' ? 'Mengirim…' : 'Test Kirim WhatsApp'"></span>
+                                        </button>
+                                        <a href="{{ url('admin/presensi/whatsapp') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50">
+                                            <i class="bi bi-people mr-1"></i> Kelola Tautan Guru
+                                        </a>
+                                        <a href="{{ url('admin/presensi/notifikasi-status') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
+                                            <i class="bi bi-activity mr-1"></i> Status Notifikasi
+                                        </a>
+                                    </div>
+                                </x-ui.card>
                             </div>
 
                             <!-- Google OAuth Single Sign-On Integration Card -->
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div class="flex items-center gap-3">
-                                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="22" height="22" alt="Google">
-                                        <div>
-                                            <h6 class="font-bold text-slate-800 mb-0">Integrasi Login Akun Google (Single Sign-On)</h6>
-                                            <p class="text-xs text-slate-500 mb-0">Login instan bagi guru &amp; staf menggunakan akun Google Workspace / Gmail</p>
-                                        </div>
-                                    </div>
+                            <x-ui.card title="Integrasi Login Akun Google (Single Sign-On)" icon="bi-google" tone="blue" subtitle="Login instan bagi guru &amp; staf menggunakan akun Google Workspace / Gmail" bodyClass="p-6">
+                                <x-slot:actions>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-semibold text-slate-600">Aktifkan SSO</span>
                                         <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
@@ -1619,48 +1354,46 @@
                                             <span class="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-blue-600"></span><span class="absolute left-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                                         </label>
                                     </div>
-                                </div>
-                                <div class="p-6">
-                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        <div class="lg:col-span-2 space-y-4">
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client ID</label>
-                                                <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_id"
-                                                    value="{{ $absenSetting->google_client_id ?? '' }}"
-                                                    placeholder="Contoh: 1234567890-xxx.apps.googleusercontent.com">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client Secret</label>
-                                                <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_secret"
-                                                    value="{{ $absenSetting->google_client_secret ?? '' }}"
-                                                    placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Authorized Redirect URI (Wajib didaftarkan di Google Console)</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="text" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 font-mono text-xs text-slate-600 shadow-xs outline-none"
-                                                        value="{{ url('presensi/google-callback') }}" readonly>
-                                                    <button class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50" type="button" @click="salinUri(@js(url('presensi/google-callback')))">
-                                                        <i class="bi bi-clipboard"></i> Salin
-                                                    </button>
-                                                </div>
-                                            </div>
+                                </x-slot:actions>
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div class="lg:col-span-2 space-y-4">
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client ID</label>
+                                            <input type="text" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_id"
+                                                value="{{ $absenSetting->google_client_id ?? '' }}"
+                                                placeholder="Contoh: 1234567890-xxx.apps.googleusercontent.com">
                                         </div>
-                                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2 text-slate-600">
-                                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
-                                                <i class="bi bi-info-circle text-blue-600"></i> Panduan Singkat Google OAuth
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Google Client Secret</label>
+                                            <input type="password" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" name="google_client_secret"
+                                                value="{{ $absenSetting->google_client_secret ?? '' }}"
+                                                placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Authorized Redirect URI (Wajib didaftarkan di Google Console)</label>
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 font-mono text-xs text-slate-600 shadow-xs outline-none"
+                                                    value="{{ url('presensi/google-callback') }}" readonly>
+                                                <button class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-50" type="button" @click="salinUri(@js(url('presensi/google-callback')))">
+                                                    <i class="bi bi-clipboard"></i> Salin
+                                                </button>
                                             </div>
-                                            <ol class="list-decimal pl-4 space-y-1 text-slate-500">
-                                                <li>Buka Google Cloud Console di <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-600 underline">console.cloud.google.com</a></li>
-                                                <li>Pilih proyek &rarr; <b>Credentials</b> &rarr; <b>Create Credentials</b> &rarr; <b>OAuth Client ID</b></li>
-                                                <li>Pilih type <b>Web Application</b></li>
-                                                <li>Tempelkan URI di samping ke <b>Authorized redirect URIs</b></li>
-                                                <li>Simpan dan salin Client ID &amp; Secret ke kolom di samping</li>
-                                            </ol>
                                         </div>
                                     </div>
+                                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2 text-slate-600">
+                                        <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                            <i class="bi bi-info-circle text-blue-600"></i> Panduan Singkat Google OAuth
+                                        </div>
+                                        <ol class="list-decimal pl-4 space-y-1 text-slate-500">
+                                            <li>Buka Google Cloud Console di <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-600 underline">console.cloud.google.com</a></li>
+                                            <li>Pilih proyek &rarr; <b>Credentials</b> &rarr; <b>Create Credentials</b> &rarr; <b>OAuth Client ID</b></li>
+                                            <li>Pilih type <b>Web Application</b></li>
+                                            <li>Tempelkan URI di samping ke <b>Authorized redirect URIs</b></li>
+                                            <li>Simpan dan salin Client ID &amp; Secret ke kolom di samping</li>
+                                        </ol>
+                                    </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
                         </div>
                     </div>
 
@@ -1687,20 +1420,7 @@
 
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div class="xl:col-span-2 space-y-6">
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-6">
-                                <div class="flex items-start gap-4 mb-5">
-                                    <div class="p-2.5 bg-primary-50 text-primary-600 rounded-xl">
-                                        <i class="bi bi-palette text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800">Tema Warna Aplikasi</h4>
-                                        <p class="text-xs text-slate-500 mt-1">
-                                            Pilih preset warna atau buat warna sendiri. Tema diterapkan ke panel admin,
-                                            halaman login, desktop guru, serta aplikasi mobile guru &amp; siswa tanpa mengubah kode CSS.
-                                        </p>
-                                    </div>
-                                </div>
-
+                            <x-ui.card title="Tema Warna Aplikasi" icon="bi-palette" tone="blue" subtitle="Pilih preset warna atau buat warna sendiri. Tema diterapkan ke panel admin, halaman login, desktop guru, serta aplikasi mobile guru & siswa tanpa mengubah kode CSS." bodyClass="p-6">
                                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                     @foreach ($themePresets as $key => $preset)
                                         <button type="button" @click="pilihTemaPreset(@js($key))"
@@ -1761,7 +1481,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </x-ui.card>
 
                             <div class="rounded-2xl border border-slate-200 bg-white p-4 flex items-start gap-3">
                                 <i class="bi bi-info-circle text-primary-500 mt-0.5"></i>
@@ -1773,12 +1493,10 @@
                         </div>
 
                         <div class="space-y-4">
-                            <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-5">
-                                <div class="flex items-center justify-between mb-3">
-                                    <h4 class="font-bold text-slate-800 text-sm">Pratinjau Langsung</h4>
-                                    <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Live</span>
-                                </div>
-
+                            <x-ui.card title="Pratinjau Langsung" icon="bi-eye" tone="slate" bodyClass="p-5">
+                                <x-slot:actions>
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-600">Live</span>
+                                </x-slot:actions>
                                 <div class="rounded-xl overflow-hidden border border-border p-3">
                                     <div class="flex">
                                         <div class="w-20 p-2.5 space-y-1.5" style="background: linear-gradient(160deg, #1e293b 0%, #0f172a 55%, #0c1322 100%)">
@@ -1807,7 +1525,7 @@
                                 <p class="text-[11px] leading-relaxed text-slate-500 mt-3">
                                     Pratinjau memakai komponen contoh. Setelah disimpan, warna baru langsung dipakai di seluruh aplikasi.
                                 </p>
-                            </div>
+                            </x-ui.card>
 
                             <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 p-5">
                                 <button type="button" @click="simpanTema()" :disabled="menyimpanTema"
@@ -1832,89 +1550,67 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         
                         <!-- Unduh Data Backup -->
-                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                <div class="bg-blue-100/80 rounded-xl p-2.5 text-blue-600">
-                                    <i class="bi bi-cloud-arrow-down text-lg"></i>
-                                </div>
+                        <x-ui.card title="Ekspor &amp; Cadangan Database" icon="bi-cloud-arrow-down" tone="blue" subtitle="Unduh snapshot database sistem secara instan" bodyClass="p-6 space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-colors">
                                 <div>
-                                    <h6 class="font-bold text-slate-800 mb-0">Ekspor &amp; Cadangan Database</h6>
-                                    <p class="text-xs text-slate-500 mb-0">Unduh snapshot database sistem secara instan</p>
+                                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                        <i class="bi bi-filetype-sql text-blue-600 text-lg"></i> Database Penuh (SQL Dump)
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-0 mt-0.5">Skema tabel lengkap dan seluruh data presensi, master, serta pengaturan.</p>
                                 </div>
+                                <a href="{{ url('admin/presensi/backup') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 shrink-0 ml-3" target="_blank">
+                                    <i class="bi bi-download mr-1"></i> Unduh SQL
+                                </a>
                             </div>
-                            <div class="p-6 space-y-4">
-                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-colors">
-                                    <div>
-                                        <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                            <i class="bi bi-filetype-sql text-blue-600 text-lg"></i> Database Penuh (SQL Dump)
-                                        </div>
-                                        <p class="text-xs text-slate-400 mb-0 mt-0.5">Skema tabel lengkap dan seluruh data presensi, master, serta pengaturan.</p>
-                                    </div>
-                                    <a href="{{ url('admin/presensi/backup') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 shrink-0 ml-3" target="_blank">
-                                        <i class="bi bi-download mr-1"></i> Unduh SQL
-                                    </a>
-                                </div>
 
-                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-colors">
-                                    <div>
-                                        <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                            <i class="bi bi-filetype-json text-emerald-600 text-lg"></i> Data Log Presensi (JSON)
-                                        </div>
-                                        <p class="text-xs text-slate-400 mb-0 mt-0.5">Format data portabel riwayat kehadiran GTK untuk migrasi data.</p>
+                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-colors">
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                        <i class="bi bi-filetype-json text-emerald-600 text-lg"></i> Data Log Presensi (JSON)
                                     </div>
-                                    <a href="{{ url('admin/presensi/backup-json') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 shrink-0 ml-3" target="_blank">
-                                        <i class="bi bi-download mr-1"></i> Unduh JSON
-                                    </a>
+                                    <p class="text-xs text-slate-400 mb-0 mt-0.5">Format data portabel riwayat kehadiran GTK untuk migrasi data.</p>
                                 </div>
-
-                                <div class="flex items-center justify-between p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 hover:border-indigo-200 transition-colors">
-                                    <div>
-                                        <div class="font-bold text-indigo-900 text-sm flex items-center gap-2">
-                                            <i class="bi bi-database-fill-gear text-indigo-600 text-lg"></i> Database Manager &amp; Restore
-                                        </div>
-                                        <p class="text-xs text-slate-500 mb-0 mt-0.5">Kelola berkas arsip backup lokal dan pulihkan tabel database.</p>
-                                    </div>
-                                    <a href="{{ url('settings/dbManager') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 shrink-0 ml-3">
-                                        <i class="bi bi-box-arrow-up-right mr-1"></i> Buka Manager
-                                    </a>
-                                </div>
+                                <a href="{{ url('admin/presensi/backup-json') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 shrink-0 ml-3" target="_blank">
+                                    <i class="bi bi-download mr-1"></i> Unduh JSON
+                                </a>
                             </div>
-                        </div>
+
+                            <div class="flex items-center justify-between p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 hover:border-indigo-200 transition-colors">
+                                <div>
+                                    <div class="font-bold text-indigo-900 text-sm flex items-center gap-2">
+                                        <i class="bi bi-database-fill-gear text-indigo-600 text-lg"></i> Database Manager &amp; Restore
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-0 mt-0.5">Kelola berkas arsip backup lokal dan pulihkan tabel database.</p>
+                                </div>
+                                <a href="{{ url('settings/dbManager') }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors no-underline disabled:cursor-not-allowed disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 shrink-0 ml-3">
+                                    <i class="bi bi-box-arrow-up-right mr-1"></i> Buka Manager
+                                </a>
+                            </div>
+                        </x-ui.card>
 
                         <!-- Pembersihan Kapasitas Server -->
-                        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-shadow hover:border-slate-300 overflow-hidden">
-                            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                <div class="bg-rose-100/80 rounded-xl p-2.5 text-rose-600">
-                                    <i class="bi bi-trash3 text-lg"></i>
+                        <x-ui.card title="Pembersihan Kapasitas Penyimpanan" icon="bi-trash3" tone="rose" subtitle="Optimalisasi ruang disk hosting server" bodyClass="p-6 space-y-4">
+                            <div class="p-4 bg-rose-50/50 rounded-xl border border-rose-200/80">
+                                <div class="font-bold text-sm text-rose-700 flex items-center gap-2 mb-1">
+                                    <i class="bi bi-images"></i> Hapus Foto Absen Bulan-Bulan Lalu
                                 </div>
-                                <div>
-                                    <h6 class="font-bold text-slate-800 mb-0">Pembersihan Kapasitas Penyimpanan</h6>
-                                    <p class="text-xs text-slate-500 mb-0">Optimalisasi ruang disk hosting server</p>
-                                </div>
+                                <p class="text-xs text-slate-600 mb-4">
+                                    Menghapus berkas gambar foto selfie dari bulan-bulan sebelumnya agar kapasitas disk server hemat. 
+                                    <b>Data log kehadiran teks, jam, dan titik koordinat GPS tetap tersimpan aman</b> di database.
+                                </p>
+                                <button type="button" @click="bersihkanFoto()" :disabled="membersihkan"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span x-show="membersihkan" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                    <i x-show="!membersihkan" class="bi bi-trash3"></i>
+                                    <span x-text="membersihkan ? 'Menghapus…' : 'Bersihkan Foto Lama Sekarang'"></span>
+                                </button>
                             </div>
-                            <div class="p-6 space-y-4">
-                                <div class="p-4 bg-rose-50/50 rounded-xl border border-rose-200/80">
-                                    <div class="font-bold text-sm text-rose-700 flex items-center gap-2 mb-1">
-                                        <i class="bi bi-images"></i> Hapus Foto Absen Bulan-Bulan Lalu
-                                    </div>
-                                    <p class="text-xs text-slate-600 mb-4">
-                                        Menghapus berkas gambar foto selfie dari bulan-bulan sebelumnya agar kapasitas disk server hemat. 
-                                        <b>Data log kehadiran teks, jam, dan titik koordinat GPS tetap tersimpan aman</b> di database.
-                                    </p>
-                                    <button type="button" @click="bersihkanFoto()" :disabled="membersihkan"
-                                        class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">
-                                        <span x-show="membersihkan" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                                        <i x-show="!membersihkan" class="bi bi-trash3"></i>
-                                        <span x-text="membersihkan ? 'Menghapus…' : 'Bersihkan Foto Lama Sekarang'"></span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        </x-ui.card>
                     </div>
                 </div>
 
             </div>
-    </div>
+        </div>
 </div>
 @endsection
 

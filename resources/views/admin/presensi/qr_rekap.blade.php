@@ -1,71 +1,108 @@
 @extends('layouts.main')
+
 @section('content')
-<div class="fade-in-up p-4 md:p-6 space-y-6">
-    <!-- Header (pola kartu/dapodik/izin) -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold mb-2">
-                <i class="bi bi-people-fill"></i> Rekap Peserta QR
-            </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul }}</h1>
-            <p class="text-xs text-slate-500 mt-1">Riwayat scan masuk dan pulang pada QR acara ini.</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <a href="{{ url('admin/presensi/qr') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline">
+
+<?php
+$logList = collect($logs ?? []);
+$totalScan = $logList->count();
+$pesertaCount = (int) ($peserta_count ?? $totalScan);
+$scanPulang = (int) ($scan_pulang_count ?? 0);
+$badgeTanggal = 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600';
+$badgeJam = 'inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700';
+$badgePeserta = 'inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-bold text-white';
+$badgePulang = 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700';
+$badgeMasuk = 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700';
+$badgeScanPulang = 'inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700';
+?>
+
+<div class="px-4 pb-6 pt-4 md:px-6 md:pt-6">
+
+    <x-ui.page-header
+        :title="$judul ?? 'Rekap Peserta QR'"
+        icon="bi-people-fill"
+        tone="blue"
+        subtitle="Riwayat scan masuk dan pulang pada QR acara ini."
+        :crumbs="['Presensi', 'QR Code', 'Rekap Peserta']">
+        <x-slot:actions>
+            <a href="{{ url('admin/presensi/qr') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
                 <i class="bi bi-arrow-left"></i> Kembali ke QR
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="flex flex-wrap items-center gap-2 p-5 border-b border-slate-100">
-                <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <i class="bi bi-info-circle text-sm"></i>
+    <div class="mt-4">
+        <x-ui.card title="{{ $event->nama_acara }}" icon="bi-info-circle" tone="blue"
+            subtitle="Peserta yang berhasil memindai QR acara ini."
+            bodyClass="p-0">
+            <x-slot:meta>
+                <span class="{{ $badgeTanggal }}">
+                    <i class="bi bi-calendar3"></i>
+                    {{ date('d/m/Y', strtotime($event->tanggal)) }}
                 </span>
-                <h2 class="text-sm font-extrabold text-slate-900">{{ $event->nama_acara }}</h2>
-                <span class="badge-tw badge-secondary rounded-full text-[11px]">{{ date('d/m/Y', strtotime($event->tanggal)) }}</span>
-                <span class="badge-tw badge-info rounded-full text-[11px]">{{ substr($event->jam_mulai, 0, 5) }} - {{ substr($event->jam_selesai, 0, 5) }}</span>
-                <span class="ml-auto badge-tw badge-primary rounded-full text-[11px]">{{ (int) ($peserta_count ?? count($logs)) }} peserta</span>
-                <?php if (!empty($scan_pulang_count)): ?>
-                <span class="badge-tw badge-secondary rounded-full text-[11px]">{{ (int) $scan_pulang_count }} scan pulang</span>
-                <?php endif; ?>
-            </div>
-            <div class="p-5">
-                <div class="table-responsive-tw"><table class="table-tw">
-                        <thead class="bg-slate-50 text-slate-500 text-sm uppercase">
-                            <tr>
-                                <th>#</th>
-                                <th>Nama Guru</th>
-                                <th>NIP</th>
-                                <th>Jenis</th>
-                                <th>Scan Pada</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($logs)): ?>
-                            <tr><td colspan="5" class="text-center text-slate-400 py-8">Belum ada peserta</td></tr>
-                            <?php else: ?>
-                            <?php $i=1; foreach ($logs as $l): ?>
-                            <tr>
-                                <td>{{ $i++ }}</td>
-                                <td>{{ $l->nama_guru ?? 'Guru #'.$l->user_id }}</td>
-                                <td>{{ $l->nip ?? '-' }}</td>
-                                <td>
-                                    <?php if (($l->jenis ?? 'masuk') === 'pulang'): ?>
-                                    <span class="badge-tw badge-warning rounded-full text-[10px]">Pulang</span>
-                                    <?php else: ?>
-                                    <span class="badge-tw badge-success rounded-full text-[10px]">Masuk</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>{{ date('d/m/Y H:i:s', strtotime($l->scanned_at)) }}</td>
-                            </tr>
-                            <?php endforeach ?>
-                            <?php endif ?>
-                        </tbody>
-                    </table>
+                <span class="{{ $badgeJam }}">
+                    <i class="bi bi-clock"></i>
+                    {{ substr((string) $event->jam_mulai, 0, 5) }} - {{ substr((string) $event->jam_selesai, 0, 5) }}
+                </span>
+                <span class="{{ $badgePeserta }}">
+                    <i class="bi bi-people-fill"></i>{{ $pesertaCount }} peserta
+                </span>
+                @if ($scanPulang > 0)
+                    <span class="{{ $badgePulang }}">
+                        <i class="bi bi-box-arrow-right"></i>{{ $scanPulang }} scan pulang
+                    </span>
+                @endif
+            </x-slot:meta>
+
+            @if ($logList->isEmpty())
+                <div class="p-5">
+                    <x-ui.empty icon="bi-people" title="Belum ada peserta"
+                        description="Belum ada guru yang memindai QR pada acara ini." />
                 </div>
-                <div class="mt-4 text-xs text-slate-400">Total scan: {{ count($logs) }}</div>
-            </div>
-        </div>
+            @else
+                <x-ui.table class="min-w-[720px]">
+                    <caption class="sr-only">Riwayat scan peserta pada acara {{ $event->nama_acara }}</caption>
+                    <x-slot:head>
+                        <th class="w-10 px-4 py-3">#</th>
+                        <th class="px-3 py-3">Nama Guru</th>
+                        <th class="px-3 py-3">NIP</th>
+                        <th class="px-3 py-3">Jenis</th>
+                        <th class="px-4 py-3">Scan Pada</th>
+                    </x-slot:head>
+
+                    @foreach ($logList as $l)
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-4 py-3">
+                                <span class="tabular-nums text-xs text-slate-400">{{ $loop->iteration }}</span>
+                            </td>
+                            <td class="px-3 py-3 text-xs font-bold text-slate-800">
+                                {{ $l->nama_guru ?? 'Guru #' . $l->user_id }}
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 font-mono text-xs tabular-nums text-slate-600">
+                                {{ $l->nip ?? '-' }}
+                            </td>
+                            <td class="px-3 py-3">
+                                @if (($l->jenis ?? 'masuk') === 'pulang')
+                                    <span class="{{ $badgeScanPulang }}">Pulang</span>
+                                @else
+                                    <span class="{{ $badgeMasuk }}">Masuk</span>
+                                @endif
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-3 font-mono text-xs tabular-nums text-slate-700">
+                                {{ date('d/m/Y H:i:s', strtotime($l->scanned_at)) }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+            @endif
+
+            <x-slot:footer>
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                    <span>Total scan: <span class="font-semibold text-slate-600">{{ $totalScan }}</span></span>
+                    <span>{{ $pesertaCount }} peserta terdaftar</span>
+                </div>
+            </x-slot:footer>
+        </x-ui.card>
+    </div>
 </div>
 @endsection

@@ -3130,12 +3130,17 @@ class PresensiSiswaQrController extends BaseController
         $curDenda = (float) ($existing->denda ?? 0.0);
         $curKet = (string) ($existing->keterangan_denda ?? '');
 
-        if ($checkTime >= $threshold) {
+        // Jadwal/jam yang tidak terbaca membuat strtotime() false (0); selisihnya
+        // lalu menjadi epoch dan lembur ~29 juta menit. Perlakukan sebagai tepat
+        // waktu tanpa lembur agar poin tidak meledak.
+        if ($threshold === false || $checkTime === false) {
+            $statusPulang = 'ONTIME';
+        } elseif ($checkTime >= $threshold) {
             $statusPulang = 'ONTIME';
             $diffVal = $checkTime - $threshold;
             $diffMins = (int) floor($diffVal / 60);
             if ($diffMins >= 60) {
-                $pulangAkhirMenit = $diffMins - 60;
+                $pulangAkhirMenit = max(0, min($diffMins - 60, AttendancePolicy::MAKS_LEMBUR_MENIT));
                 $rewardOut = $penaltyService->calculateReward($pulangAkhirMenit, $attSetting);
                 $curPoints += $rewardOut;
             }

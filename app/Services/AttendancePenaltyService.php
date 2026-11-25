@@ -177,6 +177,17 @@ class AttendancePenaltyService
         $threshold = strtotime($date.' '.$jamPulangBatas);
         $checkTime = strtotime($recordedTime);
 
+        // Jadwal/waktu yang tidak terbaca membuat strtotime() false (0), lalu
+        // selisihnya menjadi epoch dan lembur tampak ~29 juta menit. Perlakukan
+        // sebagai tepat waktu tanpa lembur, bukan sebagai selisih raksasa.
+        if ($threshold === false || $checkTime === false) {
+            return [
+                'status' => 'ONTIME',
+                'pulang_cepat_menit' => 0,
+                'pulang_akhir_menit' => 0,
+            ];
+        }
+
         if ($checkTime < $threshold) {
             return [
                 'status' => 'EARLY',
@@ -187,6 +198,7 @@ class AttendancePenaltyService
 
         $diffMinutes = ($checkTime > $threshold) ? (int) floor(($checkTime - $threshold) / 60) : 0;
         $pulangAkhirMenit = ($diffMinutes >= 60) ? ($diffMinutes - 60) : 0;
+        $pulangAkhirMenit = max(0, min($pulangAkhirMenit, AttendancePolicy::MAKS_LEMBUR_MENIT));
 
         return [
             'status' => 'ONTIME',
