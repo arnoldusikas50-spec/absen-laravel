@@ -28,17 +28,17 @@ $subjudulRekap = ($namaBulan[$bulanInt] ?? '') . ' ' . $tahun
 $kepalaDasar   = 'sticky top-0 z-[3] h-8 border-b-2 border-slate-300 bg-slate-50 px-1 py-1 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static';
 $kepalaWarna   = 'sticky top-0 z-[3] h-8 border-b-2 border-slate-300 px-1 py-1 text-[0.68rem] font-bold uppercase tracking-[0.04em] print:static';
 $kepalaNo      = 'sticky left-0 top-0 z-[5] w-[42px] min-w-[42px] border-b-2 border-slate-300 bg-slate-50 px-1 py-1 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static';
-$kepalaNama    = 'sticky left-[42px] top-0 z-[5] w-[190px] min-w-[190px] border-b-2 border-slate-300 bg-slate-50 px-2 py-1 text-left text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static print:w-[130px] print:min-w-[130px]';
+$kepalaNama    = 'sticky left-[42px] top-0 z-[5] w-[210px] min-w-[210px] border-b-2 border-slate-300 bg-slate-50 px-2 py-1 text-left text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static print:w-[130px] print:min-w-[130px]';
 // Baris tanggal menempel tepat di bawah baris judul grup (h-8 = 32px),
 // supaya kedua baris header tidak saling menimpa saat tabel di-scroll.
-$kepalaHari    = 'sticky top-8 z-[3] w-[52px] min-w-[52px] border-b-2 border-slate-300 bg-slate-50 px-0.5 py-[3px] text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static print:w-auto print:min-w-0 print:px-0 print:text-[0.5rem]';
-$kepalaHariOff = 'sticky top-8 z-[3] w-[52px] min-w-[52px] border-b-2 border-slate-300 bg-red-50 px-0.5 py-[3px] text-[0.68rem] font-bold uppercase tracking-[0.04em] text-red-400 print:static print:w-auto print:min-w-0 print:px-0 print:text-[0.5rem]';
+$kepalaHari    = 'sticky top-8 z-[3] w-[64px] min-w-[64px] border-b-2 border-slate-300 bg-slate-50 px-0.5 py-[3px] text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 print:static print:w-auto print:min-w-0 print:px-0 print:text-[0.5rem]';
+$kepalaHariOff = 'sticky top-8 z-[3] w-[64px] min-w-[64px] border-b-2 border-slate-300 bg-red-50 px-0.5 py-[3px] text-[0.68rem] font-bold uppercase tracking-[0.04em] text-red-400 print:static print:w-auto print:min-w-0 print:px-0 print:text-[0.5rem]';
 
 $selNo      = 'sticky left-0 z-[2] w-[42px] min-w-[42px] bg-white px-1 py-0 text-center font-mono text-xs text-slate-400 print:static';
 // `print:` mengembalikan tabel ke layout fixed selebar halaman A4 landscape,
-// sedang di layar kolom tetap 52px dan tabel bergulir horizontal.
-$selNama    = 'sticky left-[42px] z-[2] w-[190px] min-w-[190px] bg-white px-2 py-1 text-left print:static print:w-[130px] print:min-w-[130px] print:px-1';
-$selHari    = 'h-[42px] w-[52px] min-w-[52px] px-0.5 py-0.5 leading-[1.2] whitespace-nowrap print:h-auto print:w-auto print:min-w-0 print:px-0';
+// sedang di layar kolom tetap 64px dan tabel bergulir horizontal.
+$selNama    = 'sticky left-[42px] z-[2] w-[210px] min-w-[210px] bg-white px-2 py-1 text-left print:static print:w-[130px] print:min-w-[130px] print:px-1';
+$selHari    = 'h-[42px] w-[64px] min-w-[64px] px-0.5 py-0.5 leading-[1.2] whitespace-nowrap print:h-auto print:w-auto print:min-w-0 print:px-0';
 $selRingkas = 'w-[38px] min-w-[38px] px-1 py-[3px] font-bold print:w-[26px] print:min-w-[26px] print:px-0.5';
 $selPersen  = 'w-[55px] min-w-[55px] px-1 py-[3px] font-bold print:w-[38px] print:min-w-[38px] print:px-0.5';
 $selDenda   = 'w-[96px] min-w-[96px] px-1.5 py-[3px] whitespace-nowrap text-right text-[0.7rem] font-bold print:w-[64px] print:min-w-[64px] print:px-1 print:text-[0.62rem]';
@@ -225,7 +225,7 @@ $selDenda   = 'w-[96px] min-w-[96px] px-1.5 py-[3px] whitespace-nowrap text-righ
 
                         <!-- Nama & identitas -->
                         <td class="{{ $selNama }}">
-                            <div class="max-w-[180px] truncate font-semibold text-slate-800" title="{{ $siswa->nama }}">
+                            <div class="max-w-[200px] truncate font-semibold text-slate-800" title="{{ $siswa->nama }}">
                                 {{ $siswa->nama }}
                             </div>
                             <div class="flex items-center gap-1.5 text-[0.65rem] text-slate-400">
@@ -291,12 +291,12 @@ $selDenda   = 'w-[96px] min-w-[96px] px-1.5 py-[3px] whitespace-nowrap text-righ
                                     $outColor = 'text-slate-400';
 
                                     // Jam masuk & pulang ditumpuk dua baris; lebar kolom
-                                    // 52px membuat dua jam (07:08 + 14:13) tetap muat
+                                    // 64px membuat dua jam (07:08 + 14:13) tetap lega
                                     // tanpa saling menimpa.
                                     $judulJam = 'Masuk ' . $inT . ($outT !== '' ? ' · Pulang ' . $outT : '');
 
                                     if ($cell['time_in'] !== '') {
-                                        $cellInner = '<div class="px-0.5 py-0.5 text-center text-[0.62rem] leading-[1.2] tabular-nums print:px-0 print:text-[0.5rem] print:leading-[1.1]" title="' . $judulJam . '">
+                                        $cellInner = '<div class="px-0.5 py-0.5 text-center text-[0.66rem] leading-[1.2] tabular-nums print:px-0 print:text-[0.5rem] print:leading-[1.1]" title="' . $judulJam . '">
                                             <div class="mb-px border-b border-slate-200 pb-px font-bold ' . $inColor . '">' . $inT . '</div>';
                                         if ($outT !== '') {
                                             $cellInner .= '<div class="' . $outColor . '">' . $outT . '</div>';
