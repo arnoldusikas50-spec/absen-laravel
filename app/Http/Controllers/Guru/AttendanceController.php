@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\BaseController;
 use App\Http\Controllers\SchemaForge;
+use App\Libraries\CetakGambar;
 use App\Libraries\QrToken;
 use App\Libraries\RememberLogin;
 use App\Libraries\RouterosAPI;
@@ -3558,19 +3559,8 @@ class AttendanceController extends BaseController
             Log::error('kepsekDownloadTeguran alpha dates gagal: '.$e->getMessage());
         }
 
-        $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
-            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
-
-        $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
-            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
-            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
 
         $nomorSurat = SuratNomor::build(
             (int) ($letter->nomor_urut ?? 0),
@@ -7921,21 +7911,9 @@ class AttendanceController extends BaseController
             )
         );
 
-        // Logo Processing
-        $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
-            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
-
-        // Kop Sekolah Processing
-        $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
-            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
-            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
+        // Logo & kop sekolah untuk kepala surat
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
 
         // Baris surat yang dipakai PDF sudah ditentukan di atas
         // ($barisTerbit): tanggal surat = tanggal terbit arsip.
@@ -8111,19 +8089,8 @@ class AttendanceController extends BaseController
             )
         );
 
-        $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
-            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
-
-        $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
-            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
-            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
 
         $data = [
             'setting' => $setting,

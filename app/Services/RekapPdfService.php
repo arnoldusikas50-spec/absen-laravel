@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Libraries\CetakGambar;
 use App\Models\AttendanceSettingModel;
 use App\Models\DashboardModel;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -112,27 +113,11 @@ class RekapPdfService
         $ytdStats = $this->getYTDDendaStats($tahun);
 
         // Kop Sekolah Processing
-        $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path($setting->kopsekolah))) {
-            $type = pathinfo(public_path($setting->kopsekolah), PATHINFO_EXTENSION);
-            $imgData = file_get_contents(public_path($setting->kopsekolah));
-            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
-        }
-
-        $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path($setting->logo_kiri))) {
-            $type = pathinfo(public_path($setting->logo_kiri), PATHINFO_EXTENSION);
-            $imgData = file_get_contents(public_path($setting->logo_kiri));
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
-        }
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
 
         // TTD Kepala Sekolah (dari /settings) untuk blok tanda tangan
-        $ttdBase64 = '';
-        if (isset($setting->tanda_tangan) && $setting->tanda_tangan && file_exists(public_path($setting->tanda_tangan))) {
-            $type = pathinfo(public_path($setting->tanda_tangan), PATHINFO_EXTENSION);
-            $imgData = file_get_contents(public_path($setting->tanda_tangan));
-            $ttdBase64 = 'data:image/'.$type.';base64,'.base64_encode($imgData);
-        }
+        $ttdBase64 = CetakGambar::dataUri($setting->tanda_tangan ?? null);
 
         $data = [
             'setting' => $setting,
@@ -311,8 +296,8 @@ class RekapPdfService
         $absenSetting = $absenSettingModel->first();
 
         // Inline gambar supaya Dompdf tidak butuh akses jaringan
-        $logoBase64 = $this->gambarBase64($setting->logo_kiri ?? null);
-        $kopBase64 = $this->gambarBase64($setting->kopsekolah ?? null);
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
 
         $data = [
             'users' => $users,
@@ -561,32 +546,5 @@ class RekapPdfService
         }
 
         return $ytdStats;
-    }
-
-    public function gambarBase64(?string $path): string
-    {
-        if (empty($path)) {
-            return '';
-        }
-        $full = public_path(ltrim((string) $path, '/'));
-        if (! file_exists($full)) {
-            return '';
-        }
-
-        $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-        $mime = match ($ext) {
-            'png' => 'image/png',
-            'jpg', 'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'svg' => 'image/svg+xml',
-            default => 'application/octet-stream',
-        };
-
-        $data = @file_get_contents($full);
-        if ($data === false) {
-            return '';
-        }
-
-        return 'data:'.$mime.';base64,'.base64_encode($data);
     }
 }

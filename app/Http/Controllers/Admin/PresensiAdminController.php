@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\TelegramBotController;
 use App\Http\Controllers\BaseController;
 use App\Http\Controllers\CronControllerController;
 use App\Http\Controllers\SchemaForge;
+use App\Libraries\CetakGambar;
 use App\Libraries\QrToken;
 use App\Libraries\SuratNomor;
 use App\Libraries\SuratTeguranLevel;
@@ -1918,18 +1919,8 @@ class PresensiAdminController extends BaseController
         }
 
         // Images
-        $logoBase64 = '';
-        if (isset($setting->logo_kiri) && $setting->logo_kiri && file_exists(public_path().'/'.$setting->logo_kiri)) {
-            $type = pathinfo(public_path().'/'.$setting->logo_kiri, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->logo_kiri);
-            $logoBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
-        $kopBase64 = '';
-        if (isset($setting->kopsekolah) && $setting->kopsekolah && file_exists(public_path().'/'.$setting->kopsekolah)) {
-            $type = pathinfo(public_path().'/'.$setting->kopsekolah, PATHINFO_EXTENSION);
-            $data = file_get_contents(public_path().'/'.$setting->kopsekolah);
-            $kopBase64 = 'data:image/'.$type.';base64,'.base64_encode($data);
-        }
+        $logoBase64 = CetakGambar::dataUri($setting->logo_kiri ?? null);
+        $kopBase64 = CetakGambar::dataUri($setting->kopsekolah ?? null);
 
         // Nomor Surat (format dapat dikonfigurasi di /settings)
         $nomorSurat = SuratNomor::build(
@@ -12190,8 +12181,8 @@ class PresensiAdminController extends BaseController
             'nomor_surat' => $nomorSurat,
             'periode_bulan' => (int) ($letter->bulan ?? date('n')),
             'periode_tahun' => (int) ($letter->tahun ?? date('Y')),
-            'logo_base64' => $this->gambarBase64($setting->logo_kiri ?? null),
-            'kop_base64' => $this->gambarBase64($setting->kopsekolah ?? null),
+            'logo_base64' => CetakGambar::dataUri($setting->logo_kiri ?? null),
+            'kop_base64' => CetakGambar::dataUri($setting->kopsekolah ?? null),
         ];
 
         // QR TTE, sama seperti surat teguran — supaya surat panggilan bisa
@@ -12265,17 +12256,6 @@ class PresensiAdminController extends BaseController
         }
 
         return $setting;
-    }
-
-    /**
-     * Baca gambar profil settings sebagai data URI untuk Dompdf.
-     *
-     * Dompdf tidak bisa ambil gambar dari URL (butuh akses jaringan),
-     * jadi gambar harus di-inline sebagai base64.
-     */
-    private function gambarBase64(?string $path): string
-    {
-        return (new RekapPdfService)->gambarBase64($path);
     }
 
     // ─────────────────────────────────────────────────────────────────
