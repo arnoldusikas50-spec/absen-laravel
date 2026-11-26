@@ -6,48 +6,26 @@
     <style>
         body { font-family: sans-serif; font-size: 10px; margin: 0; padding: 12px; color: #111; }
         h2, p { margin: 0; padding: 0; }
-        .kop { border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 12px; }
-        .kop-title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
-        .kop-sub { font-size: 10px; color: #444; }
-        .doc-title { text-align: center; margin: 10px 0 2px; font-size: 14px; font-weight: bold; text-transform: uppercase; }
-        .doc-sub { text-align: center; font-size: 10px; color: #444; margin-bottom: 10px; }
+        @include('partials.cetak.css-dokumen')
         table.grid { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.grid th, table.grid td { border: 1px solid #333; padding: 4px 5px; }
         table.grid th { background: #f0f0f0; font-size: 9px; text-transform: uppercase; }
         .right { text-align: right; }
         .center { text-align: center; }
         .summary td { border: 1px solid #333; padding: 4px 8px; font-weight: bold; }
-        .sign { margin-top: 24px; width: 100%; }
-        .sign td { border: none; padding: 4px; font-size: 10px; }
     </style>
 </head>
 <body>
     <?php
-    $logoBase64 = '';
-    if (!empty($setting->logo_kiri)) {
-        $logoPath = public_path() . '/' . ltrim($setting->logo_kiri, '/');
-        if (is_file($logoPath)) {
-            $ext = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
-            $mime = $ext === 'png' ? 'png' : ($ext === 'jpg' || $ext === 'jpeg' ? 'jpeg' : $ext);
-            $logoBase64 = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
-        }
-    }
     $tglFmt = date('d M Y', strtotime($tgl));
     $statusLabel = ['HADIR' => 'Hadir', 'SAKIT' => 'Sakit', 'IZIN' => 'Izin', 'ALPA' => 'Alpa', 'BDR' => 'BDR', 'TANPA_KETERANGAN' => 'Belum'];
     ?>
 
-    <table width="100%" class="kop">
-        <tr>
-            <td width="12%" align="center" valign="middle" style="border:none;">
-                <?php if ($logoBase64): ?><img src="{{ $logoBase64 }}" style="width:60px;"><?php endif; ?>
-            </td>
-            <td align="center" valign="middle" style="border:none;">
-                <div class="kop-title">{{ $setting->nama_sekolah ?? 'SEKOLAH' }}</div>
-                <?php if (!empty($setting->alamat)): ?><div class="kop-sub">{{ $setting->alamat }}</div><?php endif; ?>
-            </td>
-            <td width="12%" style="border:none;"></td>
-        </tr>
-    </table>
+    @include('partials.cetak.kop', [
+        'kopBase64' => null,
+        'logoLebar' => 60,
+        'logoKolomLebar' => 12,
+    ])
 
     <div class="doc-title">Monitoring Presensi Siswa Harian</div>
     <div class="doc-sub">{{ $kelasNama }} • {{ $tglFmt }}</div>

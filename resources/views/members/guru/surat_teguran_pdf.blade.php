@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Dirender Dompdf: script/CDN tidak dieksekusi, semua gaya harus inline di <style>. --}}
     <title>Surat Teguran</title>
     <style>
         body {

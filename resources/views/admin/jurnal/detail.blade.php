@@ -1,246 +1,229 @@
 @extends('layouts.main')
 
 @section('content')
-<div class="fade-in-up p-4 md:p-6 space-y-5 max-w-4xl">
+<div class="mx-auto max-w-4xl space-y-4 px-4 pb-8 pt-4 md:px-6 md:pt-6">
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
-        <div class="flex items-start gap-3 min-w-0">
-            <a href="{{ url('admin/jurnal') }}"
-               class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors no-underline shrink-0"
-               title="Kembali ke Monitoring">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <div class="min-w-0">
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-bold mb-1">
-                    <i class="bi bi-journal-text"></i> Baca Jurnal (Monitoring)
-                </div>
-                <h1 class="text-lg md:text-xl font-extrabold text-slate-900 m-0 leading-tight">Detail Jurnal Mengajar</h1>
-                <p class="text-[11px] text-slate-500 m-0 mt-0.5">
-                    {{ $tp_active->tahun ?? '-' }} &middot; Semester {{ $smt_active->smt ?? '-' }}
-                </p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-            <?php if (!empty($can_print)): ?>
-            <a href="{{ url('guru/jurnal/cetak/' . (int) $jurnal->id_jurnal) }}" target="_blank"
-               class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors no-underline shrink-0">
-                <i class="bi bi-printer"></i> Cetak
-            </a>
-            <?php endif; ?>
-            <button type="button" onclick="window.history.back()"
-                    class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors no-underline shrink-0"
+    <div x-data>
+        <x-ui.page-header
+            title="Detail Jurnal Mengajar"
+            icon="bi-journal-text"
+            tone="violet"
+            :subtitle="($tp_active->tahun ?? '-') . ' · Semester ' . ($smt_active->smt ?? '-')"
+            :crumbs="['Jurnal', 'Monitoring', 'Detail']">
+            <x-slot:actions>
+                <a href="{{ url('admin/jurnal') }}"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 no-underline transition-colors hover:bg-slate-100"
+                    title="Kembali ke Monitoring">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                @if (!empty($can_print))
+                    <a href="{{ url('guru/jurnal/cetak/' . (int) $jurnal->id_jurnal) }}" target="_blank"
+                        class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-100">
+                        <i class="bi bi-printer"></i> Cetak
+                    </a>
+                @endif
+                <button type="button" @click="window.history.back()"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100"
                     title="Kembali">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </x-slot:actions>
+        </x-ui.page-header>
     </div>
 
     <!-- Identitas KBM -->
-    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-2">
-        <div class="flex items-center justify-between gap-2 flex-wrap">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-[11px] font-bold">
+    <x-ui.card icon="bi-calendar3" title="Identitas KBM" tone="blue" bodyClass="space-y-3 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
                 <i class="bi bi-calendar3 text-[10px]"></i>
                 {{ buat_tanggal(date('l, d F Y', strtotime($jurnal->tanggal))) }}
             </span>
-            <span class="inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-extrabold uppercase tracking-wider">
+            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                 Jam {{ $jurnal->jam_ke }}
             </span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+        <div class="grid grid-cols-1 gap-3 pt-1 text-xs sm:grid-cols-2">
             <div>
                 <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Guru Pengajar</span>
-                <span class="font-bold text-slate-800 uppercase">{{ $jurnal->nama_guru ?? '-' }}</span>
-                <span class="block text-[10px] text-slate-400 mt-0.5">NIP: {{ $jurnal->nip ?: '-' }}</span>
+                <span class="font-bold uppercase text-slate-800">{{ $jurnal->nama_guru ?? '-' }}</span>
+                <span class="mt-0.5 block text-[10px] text-slate-400">NIP: {{ $jurnal->nip ?: '-' }}</span>
             </div>
             <div>
                 <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Kelas / Mata Pelajaran</span>
-                <span class="font-bold text-indigo-700 uppercase">{{ $jurnal->nama_kelas ?? '-' }}</span>
-                <span class="block text-[11px] font-semibold text-slate-600 mt-0.5 uppercase">{{ $jurnal->nama_mapel ?? '-' }}</span>
+                <span class="font-bold uppercase text-indigo-700">{{ $jurnal->nama_kelas ?? '-' }}</span>
+                <span class="mt-0.5 block text-[11px] font-semibold uppercase text-slate-600">{{ $jurnal->nama_mapel ?? '-' }}</span>
             </div>
         </div>
-    </div>
+    </x-ui.card>
 
     <!-- Status validasi -->
-    <?php if (!empty($ada_validasi)): ?>
-    <?php
-        $stValidasi = (string) ($status_validasi ?? '');
-        $validGaya = [
-            'APPROVED' => ['Disetujui guru piket', 'border-emerald-200 bg-emerald-50/70 text-emerald-800', 'bi-shield-check'],
-            'PENDING'  => ['Menunggu validasi guru piket', 'border-indigo-200 bg-indigo-50/70 text-indigo-700', 'bi-hourglass-split'],
-            'REJECTED' => ['Ditolak — perlu diperbaiki guru', 'border-rose-200 bg-rose-50/70 text-rose-700', 'bi-x-circle-fill'],
-        ];
-        $gi = $validGaya[$stValidasi] ?? $validGaya['PENDING'];
-    ?>
-    <div class="rounded-3xl border {{ $gi[1] }} p-3.5 flex items-start gap-2.5">
-        <i class="bi {{ $gi[2] }} mt-0.5"></i>
-        <div class="min-w-0">
-            <span class="block text-xs font-extrabold">{{ $gi[0] }}</span>
-            <span class="block text-[10px] font-semibold opacity-80 mt-0.5">
-                <?php if ($stValidasi !== 'PENDING' && !empty($nama_validator)): ?>
-                Oleh {{ $nama_validator }}{!! !empty($jurnal->validasi_pada) ? ' · ' . e((string) $jurnal->validasi_pada) : '' !!}
-                <?php elseif (!empty($jurnal->updated_at)): ?>
-                Jurnal terakhir diubah {{ (string) $jurnal->updated_at }}
-                <?php endif; ?>
-            </span>
-            <?php if (!empty($jurnal->validasi_catatan)): ?>
-            <p class="text-[11px] font-semibold mt-1.5 mb-0 leading-relaxed whitespace-pre-line">
-                Catatan: {{ (string) $jurnal->validasi_catatan }}
-            </p>
-            <?php endif; ?>
+    @if (!empty($ada_validasi))
+        @php
+            $stValidasi = (string) ($status_validasi ?? '');
+            $validGaya = [
+                'APPROVED' => ['Disetujui guru piket', 'border-emerald-200 bg-emerald-50/70 text-emerald-800', 'bi-shield-check'],
+                'PENDING'  => ['Menunggu validasi guru piket', 'border-indigo-200 bg-indigo-50/70 text-indigo-700', 'bi-hourglass-split'],
+                'REJECTED' => ['Ditolak — perlu diperbaiki guru', 'border-rose-200 bg-rose-50/70 text-rose-700', 'bi-x-circle-fill'],
+            ];
+            $gi = $validGaya[$stValidasi] ?? $validGaya['PENDING'];
+        @endphp
+        <div class="flex items-start gap-2.5 rounded-2xl border p-3.5 {{ $gi[1] }}">
+            <i class="bi {{ $gi[2] }} mt-0.5"></i>
+            <div class="min-w-0">
+                <span class="block text-xs font-extrabold">{{ $gi[0] }}</span>
+                <span class="mt-0.5 block text-[10px] font-semibold opacity-80">
+                    @if ($stValidasi !== 'PENDING' && !empty($nama_validator))
+                        Oleh {{ $nama_validator }}{!! !empty($jurnal->validasi_pada) ? ' · ' . e((string) $jurnal->validasi_pada) : '' !!}
+                    @elseif (!empty($jurnal->updated_at))
+                        Jurnal terakhir diubah {{ (string) $jurnal->updated_at }}
+                    @endif
+                </span>
+                @if (!empty($jurnal->validasi_catatan))
+                    <p class="mb-0 mt-1.5 whitespace-pre-line text-[11px] font-semibold leading-relaxed">
+                        Catatan: {{ (string) $jurnal->validasi_catatan }}
+                    </p>
+                @endif
+            </div>
         </div>
-    </div>
-    <?php endif; ?>
+    @endif
 
     <!-- Materi Pokok & Tujuan Pembelajaran -->
-    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-3">
-        <?php if (!empty($jurnal->materi_pokok) || !empty($jurnal->tujuan_pembelajaran)): ?>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <?php if (!empty($jurnal->materi_pokok)): ?>
-            <div class="bg-blue-50/40 rounded-xl border border-blue-100 p-3">
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1 mb-1.5">
-                    <i class="bi bi-bookmark-fill text-blue-600 text-[9px]"></i> Materi Pokok
-                </span>
-                <p class="text-xs font-medium text-slate-700 leading-relaxed m-0 whitespace-pre-line">
-                    {!! nl2br(e((string) $jurnal->materi_pokok)) !!}
-                </p>
+    <x-ui.card icon="bi-book" title="Materi & Tujuan Pembelajaran" tone="blue" bodyClass="space-y-3 p-4">
+        @if (!empty($jurnal->materi_pokok) || !empty($jurnal->tujuan_pembelajaran))
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                @if (!empty($jurnal->materi_pokok))
+                    <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                        <span class="mb-1.5 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
+                            <i class="bi bi-bookmark-fill text-[9px] text-blue-600"></i> Materi Pokok
+                        </span>
+                        <p class="m-0 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">
+                            {!! nl2br(e((string) $jurnal->materi_pokok)) !!}
+                        </p>
+                    </div>
+                @endif
+                @if (!empty($jurnal->tujuan_pembelajaran))
+                    <div class="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+                        <span class="mb-1.5 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">
+                            <i class="bi bi-bullseye text-[9px] text-indigo-600"></i> Tujuan Pembelajaran
+                        </span>
+                        <p class="m-0 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">
+                            {!! nl2br(e((string) $jurnal->tujuan_pembelajaran)) !!}
+                        </p>
+                    </div>
+                @endif
             </div>
-            <?php endif; ?>
-            <?php if (!empty($jurnal->tujuan_pembelajaran)): ?>
-            <div class="bg-indigo-50/40 rounded-xl border border-indigo-100 p-3">
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 flex items-center gap-1 mb-1.5">
-                    <i class="bi bi-bullseye text-indigo-600 text-[9px]"></i> Tujuan Pembelajaran
-                </span>
-                <p class="text-xs font-medium text-slate-700 leading-relaxed m-0 whitespace-pre-line">
-                    {!! nl2br(e((string) $jurnal->tujuan_pembelajaran)) !!}
-                </p>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php else: ?>
-        <div class="text-center py-6">
-            <i class="bi bi-dash-square text-3xl text-slate-300 mb-2"></i>
-            <p class="text-xs text-slate-400 font-medium">Tidak ada materi pokok dan tujuan pembelajaran</p>
-        </div>
-        <?php endif; ?>
-    </div>
+        @else
+            <x-ui.empty icon="bi-dash-square" title="Tidak ada materi pokok dan tujuan pembelajaran" />
+        @endif
+    </x-ui.card>
 
     <!-- Model & Asesmen -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="bg-white rounded-3xl p-3.5 border border-slate-200/80 shadow-xs">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Model / Metode</span>
-            <span class="text-xs font-bold text-purple-700">{{ $jurnal->model_belajar ?: 'Reguler' }}</span>
-        </div>
-        <div class="bg-white rounded-3xl p-3.5 border border-slate-200/80 shadow-xs">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Bentuk Asesmen</span>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <x-ui.card bodyClass="p-3.5">
+            <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Model / Metode</span>
+            <span class="text-xs font-bold text-violet-700">{{ $jurnal->model_belajar ?: 'Reguler' }}</span>
+        </x-ui.card>
+        <x-ui.card bodyClass="p-3.5">
+            <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Bentuk Asesmen</span>
             <span class="text-xs font-bold text-emerald-700">{{ $jurnal->jenis_asesmen ?: 'Formatif' }}</span>
-        </div>
+        </x-ui.card>
     </div>
 
     <!-- Profil Pancasila -->
-    <?php if (!empty($profil_list)): ?>
-    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs">
-        <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
-            Dimensi Profil Pelajar Pancasila
-        </span>
-        <div class="flex flex-wrap gap-1.5">
-            <?php foreach ($profil_list as $p): ?>
-            <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-bold">
-                <i class="bi bi-star-fill text-amber-500 text-[9px]"></i> {{ $p }}
-            </span>
-            <?php endforeach; ?>
-        </div>
-    </div>
-    <?php endif; ?>
+    @if (!empty($profil_list))
+        <x-ui.card icon="bi-stars" title="Dimensi Profil Pelajar Pancasila" tone="amber" bodyClass="p-4">
+            <div class="flex flex-wrap gap-1.5">
+                @foreach ($profil_list as $p)
+                    <span class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">
+                        <i class="bi bi-star-fill text-[9px] text-amber-500"></i> {{ $p }}
+                    </span>
+                @endforeach
+            </div>
+        </x-ui.card>
+    @endif
 
     <!-- Kegiatan / Media -->
-    <?php if (!empty($jurnal->kegiatan_belajar) || !empty($jurnal->media_alat)): ?>
-    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-3">
-        <?php if (!empty($jurnal->kegiatan_belajar)): ?>
-        <div>
-            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1">
-                <i class="bi bi-list-task text-blue-500 text-[9px]"></i> Alur Kegiatan Belajar
-            </span>
-            <p class="text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-line m-0">
-                {{ (string) $jurnal->kegiatan_belajar }}
-            </p>
-        </div>
-        <?php endif; ?>
-        <?php if (!empty($jurnal->media_alat)): ?>
-        <div class="pt-2 border-t border-slate-100">
-            <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Media &amp; Alat</span>
-            <span class="text-xs font-bold text-slate-700">{{ $jurnal->media_alat }}</span>
-        </div>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
+    @if (!empty($jurnal->kegiatan_belajar) || !empty($jurnal->media_alat))
+        <x-ui.card icon="bi-list-task" title="Kegiatan & Media" tone="blue" bodyClass="space-y-3 p-4">
+            @if (!empty($jurnal->kegiatan_belajar))
+                <div>
+                    <span class="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                        <i class="bi bi-list-task text-[9px] text-blue-500"></i> Alur Kegiatan Belajar
+                    </span>
+                    <p class="m-0 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">
+                        {{ (string) $jurnal->kegiatan_belajar }}
+                    </p>
+                </div>
+            @endif
+            @if (!empty($jurnal->media_alat))
+                <div class="border-t border-slate-100 pt-2">
+                    <span class="mb-1 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Media &amp; Alat</span>
+                    <span class="text-xs font-bold text-slate-700">{{ $jurnal->media_alat }}</span>
+                </div>
+            @endif
+        </x-ui.card>
+    @endif
 
     <!-- Refleksi & Tindak Lanjut -->
-    <?php if (!empty($jurnal->refleksi) || !empty($jurnal->tindak_lanjut)): ?>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <?php if (!empty($jurnal->refleksi)): ?>
-        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs">
-            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1">
-                <i class="bi bi-lightbulb text-amber-500 text-[9px]"></i> Refleksi Guru
-            </span>
-            <p class="text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-line m-0">
-                {{ (string) $jurnal->refleksi }}
-            </p>
+    @if (!empty($jurnal->refleksi) || !empty($jurnal->tindak_lanjut))
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            @if (!empty($jurnal->refleksi))
+                <x-ui.card icon="bi-lightbulb" title="Refleksi Guru" tone="amber" bodyClass="p-4">
+                    <p class="m-0 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">
+                        {{ (string) $jurnal->refleksi }}
+                    </p>
+                </x-ui.card>
+            @endif
+            @if (!empty($jurnal->tindak_lanjut))
+                <x-ui.card icon="bi-arrow-right-circle" title="Rencana Tindak Lanjut" tone="blue" bodyClass="p-4">
+                    <p class="m-0 whitespace-pre-line text-xs font-medium leading-relaxed text-slate-700">
+                        {{ (string) $jurnal->tindak_lanjut }}
+                    </p>
+                </x-ui.card>
+            @endif
         </div>
-        <?php endif; ?>
-        <?php if (!empty($jurnal->tindak_lanjut)): ?>
-        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs">
-            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1">
-                <i class="bi bi-arrow-right-circle text-blue-500 text-[9px]"></i> Rencana Tindak Lanjut
-            </span>
-            <p class="text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-line m-0">
-                {{ (string) $jurnal->tindak_lanjut }}
-            </p>
-        </div>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
+    @endif
 
     <!-- Kehadiran Siswa & Catatan -->
-    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+    <x-ui.card icon="bi-people" title="Kehadiran Siswa & Catatan" tone="emerald" bodyClass="space-y-3 p-4">
         <div>
-            <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+            <span class="mb-1 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 Status Kehadiran Siswa
             </span>
-            <?php
-            $absentNama = $siswa_absent_nama ?? [];
-            $absentCount = $siswa_absent_count ?? 0;
-            $rawAbsent = trim((string) ($jurnal->siswa_absent ?? ''));
-            $isNihil = empty($absentNama) && empty($rawAbsent) || strtolower($rawAbsent) === 'nihil';
-            ?>
-            <?php if ($absentCount > 0): ?>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-bold">
-                <i class="bi bi-person-x"></i> Tidak Hadir ({{ $absentCount }}):
-                <span class="ml-1 text-[10px] uppercase">{{ implode(', ', $absentNama) }}</span>
-            </span>
-            <?php elseif (!$isNihil && $rawAbsent !== ''): ?>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-bold">
-                <i class="bi bi-person-x"></i> Tidak Hadir: {{ $rawAbsent }}
-            </span>
-            <?php else: ?>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold">
-                <i class="bi bi-check-circle-fill"></i> Semua siswa hadir
-            </span>
-            <?php endif; ?>
+            @php
+                $absentNama = $siswa_absent_nama ?? [];
+                $absentCount = $siswa_absent_count ?? 0;
+                $rawAbsent = trim((string) ($jurnal->siswa_absent ?? ''));
+                $isNihil = empty($absentNama) && empty($rawAbsent) || strtolower($rawAbsent) === 'nihil';
+            @endphp
+            @if ($absentCount > 0)
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                    <i class="bi bi-person-x"></i> Tidak Hadir ({{ $absentCount }}):
+                    <span class="ml-1 text-[10px] uppercase">{{ implode(', ', $absentNama) }}</span>
+                </span>
+            @elseif (!$isNihil && $rawAbsent !== '')
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                    <i class="bi bi-person-x"></i> Tidak Hadir: {{ $rawAbsent }}
+                </span>
+            @else
+                <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                    <i class="bi bi-check-circle-fill"></i> Semua siswa hadir
+                </span>
+            @endif
         </div>
 
-        <?php if (!empty($jurnal->catatan_khusus)): ?>
-        <div class="pt-2 border-t border-slate-100">
-            <span class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
-                Catatan Khusus
-            </span>
-            <p class="text-xs font-medium text-slate-700 m-0 whitespace-pre-line">{!! nl2br(e((string) $jurnal->catatan_khusus)) !!}</p>
-        </div>
-        <?php endif; ?>
-    </div>
+        @if (!empty($jurnal->catatan_khusus))
+            <div class="border-t border-slate-100 pt-2">
+                <span class="mb-1 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Catatan Khusus
+                </span>
+                <p class="m-0 whitespace-pre-line text-xs font-medium text-slate-700">{!! nl2br(e((string) $jurnal->catatan_khusus)) !!}</p>
+            </div>
+        @endif
+    </x-ui.card>
 
-    <p class="text-[10px] text-slate-400 text-center m-0 flex items-center justify-center gap-1">
+    <p class="m-0 flex items-center justify-center gap-1 text-center text-[10px] text-slate-400">
         <i class="bi bi-info-circle"></i>
         Halaman ini hanya untuk membaca. Perubahan jurnal dilakukan oleh guru pemilik jurnal.
     </p>

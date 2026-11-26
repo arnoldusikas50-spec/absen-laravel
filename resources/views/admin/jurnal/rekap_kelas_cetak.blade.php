@@ -32,18 +32,9 @@ foreach ($mapels as $m) {
     }
 }
 
-$img64 = function ($rel) {
-    if (empty($rel)) return '';
-    $path = public_path() . '/' . ltrim($rel, '/');
-    if (!is_file($path)) return '';
-    $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = ($ext === 'jpg') ? 'jpeg' : $ext;
-    return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-};
-
-$kopBase64  = $img64($setting->kopsekolah ?? '');
-$logoBase64 = $img64($setting->logo_kiri ?? '');
-$ttdBase64  = $img64($setting->tanda_tangan ?? '');
+$kopBase64  = \App\Libraries\CetakGambar::dataUri($setting->kopsekolah ?? '');
+$logoBase64 = \App\Libraries\CetakGambar::dataUri($setting->logo_kiri ?? '');
+$ttdBase64  = \App\Libraries\CetakGambar::dataUri($setting->tanda_tangan ?? '');
 
 $hariNama = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
 ?>
@@ -105,25 +96,7 @@ $hariNama = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat
 </div>
 
 <!-- Kop -->
-<?php if ($kopBase64): ?>
-<div style="text-align:center; margin-bottom:10px;">
-    <img src="{{ $kopBase64 }}" style="max-height:90px; width:auto; max-width:100%;">
-</div>
-<?php else: ?>
-<table width="100%" class="kop">
-    <tr>
-        <td width="10%" align="center" valign="middle" style="border:none;">
-            <?php if ($logoBase64): ?><img src="{{ $logoBase64 }}" style="width:52px;"><?php endif; ?>
-        </td>
-        <td align="center" valign="middle" style="border:none;">
-            <div class="kop-title">{{ $namaSekolah }}</div>
-            <?php if (!empty($setting->alamat)): ?>
-            <div class="kop-sub">{{ $setting->alamat }}</div>
-            <?php endif; ?>
-        </td>
-    </tr>
-</table>
-<?php endif; ?>
+@include('partials.cetak.kop', ['kopTinggi' => 90, 'logoLebar' => 52])
 
 <div class="doc-title">Jurnal Mengajar</div>
 <div class="doc-sub">
@@ -246,29 +219,22 @@ $hariNama = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat
 </p>
 
 <!-- Tanda Tangan -->
-<table class="sign">
-    <tr>
-        <td width="50%" align="center">
-            Mengetahui,<br>Kepala Sekolah
-            <div class="space">
-                <?php if ($ttdBase64): ?>
-                <img src="{{ $ttdBase64 }}" style="max-height:54px; max-width:170px;">
-                <?php endif; ?>
-            </div>
-            <span class="bold">{{ $namaKepsek ?: '( _______________________ )' }}</span><br>
-            NIP. {{ $nipKepsek ?: '-' }}
-        </td>
-        <td width="50%" align="center">
-            <?php if (!empty($setting->tempat)): ?>{{ $setting->tempat }}, <?php endif; ?>{{ $tanggalCetak }}<br>
-            {{ $guruPilih !== '' ? 'Guru Mata Pelajaran' : 'Wali Kelas' }}
-            <div class="space"></div>
-            <span class="bold">
-                {{ $guruPilih !== '' ? $guruPilih : ($namaWali !== '' ? $namaWali : '( _______________________ )') }}
-            </span><br>
-            NIP. {{ $guruPilih !== '' ? ($guruPilihNip !== '' ? $guruPilihNip : '-') : '..........................' }}
-        </td>
-    </tr>
-</table>
+@include('partials.cetak.tanda-tangan', [
+    'kiri' => [
+        'peran' => 'Mengetahui,<br>Kepala Sekolah',
+        'nama' => $namaKepsek ?: '( _______________________ )',
+        'nip' => $nipKepsek ?: '-',
+        'ttd' => true,
+    ],
+    'kanan' => [
+        'tanggal' => true,
+        'peran' => $guruPilih !== '' ? 'Guru Mata Pelajaran' : 'Wali Kelas',
+        'nama' => $guruPilih !== '' ? $guruPilih : ($namaWali !== '' ? $namaWali : '( _______________________ )'),
+        'nip' => $guruPilih !== '' ? ($guruPilihNip !== '' ? $guruPilihNip : '-') : '..........................',
+    ],
+    'ttdTinggi' => 54,
+    'ttdLebar' => 170,
+])
 
 </body>
 </html>

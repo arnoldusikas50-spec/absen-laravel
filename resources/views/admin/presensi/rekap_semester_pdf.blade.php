@@ -16,18 +16,17 @@ $minFmt  = $fmtTrim($minPersen);
 $lowFmt  = $fmtTrim($minPersen - 10);
 
 // Gambar external (kop, logo, TTD) di-encode base64 supaya Dompdf tidak butuh akses jaringan
-$img64 = function ($rel) {
-    if (empty($rel)) return '';
-    $path = public_path() . '/' . ltrim($rel, '/');
-    if (!is_file($path)) return '';
-    $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = ($ext === 'jpg') ? 'jpeg' : $ext;
-    return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-};
+$kopBase64  = \App\Libraries\CetakGambar::dataUri($setting->kopsekolah ?? '');
+$logoBase64 = \App\Libraries\CetakGambar::dataUri($setting->logo_kiri ?? '');
+$ttdBase64  = \App\Libraries\CetakGambar::dataUri($setting->tanda_tangan ?? '');
 
-$kopBase64  = $img64($setting->kopsekolah ?? '');
-$logoBase64 = $img64($setting->logo_kiri ?? '');
-$ttdBase64  = $img64($setting->tanda_tangan ?? '');
+$kontak = [];
+if (!empty($setting->telp)) {
+    $kontak[] = 'Telp: ' . $setting->telp;
+}
+if (!empty($setting->email)) {
+    $kontak[] = 'Email: ' . $setting->email;
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -63,29 +62,13 @@ $ttdBase64  = $img64($setting->tanda_tangan ?? '');
 <body>
 
     <!-- Kop Surat (gambar kop dari Pengaturan; fallback kop teks) -->
-    <?php if ($kopBase64): ?>
-    <div style="text-align:center; margin-bottom:8px;">
-        <img src="{{ $kopBase64 }}" style="max-height:110px; width:auto; max-width:100%;">
-    </div>
-    <?php else: ?>
-    <table width="100%" class="kop">
-        <tr>
-            <td width="10%" align="center" valign="middle" style="border:none;">
-                <?php if ($logoBase64): ?><img src="{{ $logoBase64 }}" style="width:52px;"><?php endif; ?>
-            </td>
-            <td align="center" valign="middle" style="border:none;">
-                <div class="kop-title">{{ $namaSekolah }}</div>
-                <?php if (!empty($setting->alamat)): ?><div class="kop-sub">{{ $setting->alamat }}</div><?php endif; ?>
-                <?php
-                $kontak = [];
-                if (!empty($setting->telp))   $kontak[] = 'Telp: ' . $setting->telp;
-                if (!empty($setting->email))  $kontak[] = 'Email: ' . $setting->email;
-                if ($kontak): ?><div class="kop-sub">{{ implode(' | ', $kontak) }}</div><?php endif; ?>
-            </td>
-            <td width="10%" style="border:none;"></td>
-        </tr>
-    </table>
-    <?php endif; ?>
+    @include('partials.cetak.kop', [
+        'kopTinggi' => 110,
+        'logoLebar' => 52,
+        'kopMarginBawah' => 8,
+        'kopKontak' => $kontak,
+        'kopSpacerKanan' => true,
+    ])
 
     <div class="doc-title">Rekap Kehadiran Guru</div>
     <div class="doc-sub">Semester {{ $semLabel }} Tahun Pelajaran {{ $tpStart }}/{{ $tpEnd }} &middot; Periode {{ $periode }}</div>

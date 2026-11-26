@@ -10,18 +10,9 @@ $namaBulan   = buat_tanggal(date('F', mktime(0, 0, 0, (int) $bulan, 10)));
 $smtLabel    = trim((string) ($smt_active->smt ?? '')) ?: '-';
 $tpLabel     = trim((string) ($tp_active->tahun ?? '')) ?: '-';
 
-$img64 = function ($rel) {
-    if (empty($rel)) return '';
-    $path = public_path() . '/' . ltrim($rel, '/');
-    if (!is_file($path)) return '';
-    $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = ($ext === 'jpg') ? 'jpeg' : $ext;
-    return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-};
-
-$kopBase64  = $img64($setting->kopsekolah ?? '');
-$logoBase64 = $img64($setting->logo_kiri ?? '');
-$ttdBase64  = $img64($setting->tanda_tangan ?? '');
+$kopBase64  = \App\Libraries\CetakGambar::dataUri($setting->kopsekolah ?? '');
+$logoBase64 = \App\Libraries\CetakGambar::dataUri($setting->logo_kiri ?? '');
+$ttdBase64  = \App\Libraries\CetakGambar::dataUri($setting->tanda_tangan ?? '');
 $belum      = max(0, $total_guru - $guru_mengisi);
 $tanggalCetak = buat_tanggal(date('d F Y'));
 ?>
@@ -73,25 +64,7 @@ $tanggalCetak = buat_tanggal(date('d F Y'));
 </div>
 
 <!-- Kop -->
-<?php if ($kopBase64): ?>
-<div style="text-align:center; margin-bottom:10px;">
-    <img src="{{ $kopBase64 }}" style="max-height:100px; width:auto; max-width:100%;">
-</div>
-<?php else: ?>
-<table width="100%" class="kop">
-    <tr>
-        <td width="10%" align="center" valign="middle" style="border:none;">
-            <?php if ($logoBase64): ?><img src="{{ $logoBase64 }}" style="width:56px;"><?php endif; ?>
-        </td>
-        <td align="center" valign="middle" style="border:none;">
-            <div class="kop-title">{{ $namaSekolah }}</div>
-            <?php if (!empty($setting->alamat)): ?>
-            <div class="kop-sub">{{ $setting->alamat }}</div>
-            <?php endif; ?>
-        </td>
-    </tr>
-</table>
-<?php endif; ?>
+@include('partials.cetak.kop', ['kopTinggi' => 100, 'logoLebar' => 56])
 
 <div class="doc-title">Rekapitulasi Jurnal Mengajar Guru</div>
 <div class="doc-sub">
@@ -180,22 +153,15 @@ $tanggalCetak = buat_tanggal(date('d F Y'));
 </p>
 
 <!-- Tanda Tangan -->
-<table class="sign">
-    <tr>
-        <td width="55%"></td>
-        <td width="45%" align="center">
-            <?php if (!empty($setting->tempat)): ?>{{ $setting->tempat }}, <?php endif; ?>{{ $tanggalCetak }}<br>
-            Mengetahui,<br>Kepala Sekolah
-            <div class="space">
-                <?php if ($ttdBase64): ?>
-                <img src="{{ $ttdBase64 }}" style="max-height:58px; max-width:180px;">
-                <?php endif; ?>
-            </div>
-            <span class="bold">{{ $namaKepsek ?: '( _______________________ )' }}</span><br>
-            <?php if ($namaKepsek): ?>NIP. {{ $nipKepsek ?: '-' }}<?php endif; ?>
-        </td>
-    </tr>
-</table>
+@include('partials.cetak.tanda-tangan', [
+    'kanan' => [
+        'tanggal' => true,
+        'peran' => 'Mengetahui,<br>Kepala Sekolah',
+        'nama' => $namaKepsek ?: '( _______________________ )',
+        'nip' => $namaKepsek ? ($nipKepsek ?: '-') : null,
+        'ttd' => true,
+    ],
+])
 
 </body>
 </html>

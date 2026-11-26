@@ -1,310 +1,508 @@
 @extends('layouts.main')
 
-@section('styles')
-<style>
-.bdr-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.15rem .55rem; border-radius:9999px; font-size:.68rem; font-weight:800; }
-.bdr-semua   { background:#e0e7ff; color:#4338ca; }
-.bdr-tingkat { background:#dcfce7; color:#15803d; }
-.bdr-kelas   { background:#e0f2fe; color:#0369a1; }
-</style>
-@endsection
-
 @section('content')
-<div class="fade-in-up p-4 md:p-6 space-y-4 w-full max-w-none">
-    <nav class="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold" aria-label="Breadcrumb">
-        <a href="{{ url('dashboard') }}" class="hover:text-blue-600 no-underline">Dashboard</a>
-        <span>/</span>
-        <span class="text-slate-600">Jadwal BDR</span>
-    </nav>
+<?php
+$daftarRows = $daftar ?? [];
+$hariIniRows = $hari_ini ?? [];
+$bolehKelola = !empty($boleh);
 
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-xs">
-        <div class="min-w-0">
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-[11px] font-bold mb-2">
-                <i class="bi bi-house-door-fill"></i> Belajar Dari Rumah
-            </div>
-            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">{{ $judul ?? 'Jadwal BDR' }}</h1>
-            <p class="text-xs text-slate-500 mt-1">
-                Tandai kelas yang tidak KBM di sekolah (mis. kelas X &amp; XI diliburkan saat kelas XII ujian).
-                Siswanya tercatat <strong>BDR</strong>, bukan Alpha, dan hari itu tidak menurunkan persen kehadiran.
-            </p>
-        </div>
-        <?php if (!empty($boleh)): ?>
-        <div class="shrink-0">
-            <button type="button" class="btn-tw btn-primary" id="btn-tambah">
-                <i class="bi bi-plus-lg mr-1"></i> Tambah Jadwal BDR
-            </button>
-        </div>
-        <?php endif; ?>
+$levelOptions = [];
+foreach (($levels ?? []) as $levelKey => $levelLabel) {
+    if ($levelKey === '' || $levelKey === null) {
+        continue;
+    }
+    $levelOptions[(int) $levelKey] = $levelLabel;
+}
+
+$badgeLingkup = [
+    'KELAS' => 'border-sky-200 bg-sky-50 text-sky-700',
+    'TINGKAT' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    'SEMUA' => 'border-indigo-200 bg-indigo-50 text-indigo-700',
+];
+$labelLingkup = [
+    'KELAS' => 'Satu Kelas',
+    'TINGKAT' => 'Satu Tingkat',
+    'SEMUA' => 'Semua Kelas',
+];
+
+$inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-700 outline-hidden transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20';
+$labelClass = 'mb-1.5 block text-xs font-semibold tracking-wider text-slate-700 uppercase';
+
+$pageConfig = [
+    'csrf' => csrf_token(),
+    'today' => date('Y-m-d'),
+    'levelDefault' => (string) (array_key_first($levelOptions) ?? ''),
+    'urls' => [
+        'save' => url('admin/bdr/save'),
+        'terapkan' => url('admin/bdr/terapkan'),
+        'delete' => url('admin/bdr/delete'),
+    ],
+];
+?>
+
+<div x-data="bdrPage()"
+    data-config="{{ json_encode($pageConfig, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) }}">
+
+    <div class="px-4 pt-4 md:px-6 md:pt-6">
+        <x-ui.page-header
+            :title="$judul ?? 'Jadwal BDR'"
+            icon="bi-house-door-fill"
+            tone="emerald"
+            subtitle="Tandai kelas yang tidak KBM di sekolah agar absensinya tercatat BDR, bukan Alpha."
+            :crumbs="['Presensi', 'Jadwal BDR']">
+            @if ($bolehKelola)
+                <x-slot:actions>
+                    <button type="button" @click="openForm()"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs shadow-emerald-500/20 transition-colors hover:bg-emerald-700">
+                        <i class="bi bi-plus-lg"></i> Tambah Jadwal BDR
+                    </button>
+                </x-slot:actions>
+            @endif
+        </x-ui.page-header>
     </div>
 
-    <!-- Kelas yang BDR hari ini -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs">
-        <h2 class="text-sm font-extrabold text-slate-900 mb-2">
-            <i class="bi bi-calendar-day text-teal-600 mr-1"></i> Hari ini, {{ date('d-m-Y') }}
-        </h2>
-        <?php if (empty($hari_ini)): ?>
-            <p class="text-xs text-slate-400">Tidak ada jadwal BDR hari ini.</p>
-        <?php else: ?>
-            <div class="flex flex-wrap gap-2">
-                <?php foreach ($hari_ini as $h): ?>
-                    <span class="bdr-badge bdr-{{ strtolower($h->lingkup ?? 'kelas') }}">
-                        <i class="bi bi-dot"></i>{{ $h->judul ?: 'Belajar dari rumah' }}
-                    </span>
-                <?php endforeach; ?>
-            </div>
-            <p class="text-[11px] text-slate-400 mt-2">Cron pukul 18:00 menandai siswa kelas tersebut BDR, bukan Alpha.</p>
-        <?php endif; ?>
+    <div class="mt-4 space-y-4 px-4 pb-6 md:px-6">
+
+        {{-- Jadwal BDR yang aktif hari ini --}}
+        <x-ui.card title="Hari ini, {{ date('d-m-Y') }}" icon="bi-calendar-day" tone="emerald" bodyClass="p-5">
+            @if (empty($hariIniRows))
+                <p class="flex items-center gap-2 text-xs text-slate-400">
+                    <i class="bi bi-inbox"></i> Tidak ada jadwal BDR hari ini.
+                </p>
+            @else
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($hariIniRows as $h)
+                        @php
+                            $lingkupHariIni = strtoupper((string) ($h->lingkup ?? 'KELAS'));
+                            $badgeHariIni = $badgeLingkup[$lingkupHariIni] ?? $badgeLingkup['KELAS'];
+                        @endphp
+                        <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold {{ $badgeHariIni }}">
+                            <i class="bi bi-dot"></i>
+                            {{ $h->judul ?: 'Belajar dari rumah' }}
+                        </span>
+                    @endforeach
+                </div>
+            @endif
+
+            <x-slot:footer>
+                <p class="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500">
+                    <i class="bi bi-clock-history mt-0.5 text-emerald-600"></i>
+                    <span>Cron pukul 18:00 menandai siswa kelas tersebut BDR, bukan Alpha.</span>
+                </p>
+            </x-slot:footer>
+        </x-ui.card>
+
+        {{-- Daftar jadwal --}}
+        <x-ui.card title="Daftar Jadwal" icon="bi-list-check" tone="blue" bodyClass="p-0">
+            <x-slot:meta>
+                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+                    <i class="bi bi-collection"></i> {{ count($daftarRows) }} jadwal
+                </span>
+            </x-slot:meta>
+
+            @if (count($daftarRows) === 0)
+                <div class="p-4 md:p-5">
+                    <x-ui.empty icon="bi-calendar-x" title="Belum ada jadwal BDR"
+                        description="{{ $bolehKelola ? 'Klik Tambah Jadwal BDR untuk membuat jadwal pertama.' : 'Belum ada jadwal BDR yang dibuat admin.' }}" />
+                </div>
+            @else
+                <x-ui.table class="min-w-[840px]">
+                    <x-slot:head>
+                        <th class="w-12 px-3 py-3 text-center">#</th>
+                        <th class="w-32 px-3 py-3">Lingkup</th>
+                        <th class="w-44 px-3 py-3">Kelas / Tingkat</th>
+                        <th class="w-44 px-3 py-3">Tanggal</th>
+                        <th class="px-3 py-3">Keperluan</th>
+                        @if ($bolehKelola)
+                            <th class="w-40 px-3 py-3 text-center">Aksi</th>
+                        @endif
+                    </x-slot:head>
+
+                    @foreach ($daftarRows as $d)
+                        @php
+                            $lingkup = strtoupper((string) ($d->lingkup ?? 'KELAS'));
+                            $badge = $badgeLingkup[$lingkup] ?? $badgeLingkup['KELAS'];
+                            $tglMulai = substr((string) $d->tgl_mulai, 0, 10);
+                            $tglSelesai = $d->tgl_selesai ? substr((string) $d->tgl_selesai, 0, 10) : '';
+                            $sudahLewat = ($tglSelesai ?: $tglMulai) < date('Y-m-d');
+                        @endphp
+                        <tr class="transition-colors hover:bg-slate-50/60">
+                            <td class="px-3 py-3 text-center">
+                                <span class="tabular-nums text-xs text-slate-400">{{ $loop->iteration }}</span>
+                            </td>
+                            <td class="px-3 py-3">
+                                <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold {{ $badge }}">
+                                    {{ $labelLingkup[$lingkup] ?? $d->lingkup }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-3 text-xs font-semibold text-slate-700">
+                                @if ($lingkup === 'KELAS')
+                                    {{ $d->nama_kelas ?: 'Kelas #' . $d->id_kelas }}
+                                @elseif ($lingkup === 'TINGKAT')
+                                    Tingkat {{ $d->level ?: $d->level_id }}
+                                @else
+                                    Semua kelas
+                                @endif
+                            </td>
+                            <td class="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                                {{ date('d/m/Y', strtotime($tglMulai)) }}
+                                @if ($tglSelesai !== '' && $tglSelesai !== $tglMulai)
+                                    <span class="text-slate-400">&ndash; {{ date('d/m/Y', strtotime($tglSelesai)) }}</span>
+                                @endif
+                            </td>
+                            <td class="px-3 py-3 text-xs">
+                                <div class="font-semibold text-slate-800">{{ $d->judul }}</div>
+                                @if (!empty($d->keterangan))
+                                    <div class="text-slate-400">{{ $d->keterangan }}</div>
+                                @endif
+                            </td>
+                            @if ($bolehKelola)
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center justify-center gap-1">
+                                        @if ($sudahLewat)
+                                            <button type="button" title="Ubah absensi Alpha yang sudah terlanjur tercatat menjadi BDR"
+                                                @click="terapkan({{ (int) $d->id }})" :disabled="busy"
+                                                class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-40">
+                                                <i class="bi bi-magic"></i> Terapkan
+                                            </button>
+                                        @endif
+                                        <button type="button" title="Edit Jadwal BDR"
+                                            @click="openForm({{ Js::from([
+                                                'id' => (int) $d->id,
+                                                'lingkup' => $lingkup,
+                                                'id_kelas' => $d->id_kelas,
+                                                'level_id' => $d->level_id,
+                                                'tgl_mulai' => $tglMulai,
+                                                'tgl_selesai' => $tglSelesai,
+                                                'judul' => $d->judul,
+                                                'keterangan' => $d->keterangan,
+                                            ]) }})"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-500 transition-colors hover:bg-slate-50">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button" title="Hapus Jadwal BDR"
+                                            @click="hapus({{ (int) $d->id }}, {{ Js::from($d->judul ?: 'Jadwal BDR') }})" :disabled="busy"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-500 transition-colors hover:bg-rose-100 disabled:opacity-40">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            @endif
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+            @endif
+        </x-ui.card>
     </div>
 
-    <!-- Daftar jadwal -->
-    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div class="p-4 border-b border-slate-100">
-            <h2 class="text-sm font-extrabold text-slate-900">Daftar Jadwal</h2>
-        </div>
-        <div class="table-responsive-tw">
-            <table class="table-tw">
-                <thead>
-                    <tr>
-                        <th class="text-center" style="width:40px">#</th>
-                        <th>Lingkup</th>
-                        <th>Kelas / Tingkat</th>
-                        <th>Tanggal</th>
-                        <th>Keperluan</th>
-                        <?php if (!empty($boleh)): ?><th class="text-center">Aksi</th><?php endif; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php if (empty($daftar)): ?>
-                    <tr>
-                        <td colspan="6" class="text-center text-slate-400 py-8 text-xs">
-                            Belum ada jadwal BDR. Klik <strong>Tambah Jadwal BDR</strong> untuk membuat.
-                        </td>
-                    </tr>
-                <?php else: ?>
-                    <?php $no = 1; foreach ($daftar as $d):
-                        $selesai = $d->tgl_selesai ?: $d->tgl_mulai;
-                        $sudahLewat = $selesai < date('Y-m-d');
-                    ?>
-                    <tr>
-                        <td class="text-center text-slate-400 text-xs font-mono">{{ $no++ }}</td>
-                        <td><span class="bdr-badge bdr-{{ strtolower($d->lingkup ?? 'kelas') }}">{{ $d->lingkup }}</span></td>
-                        <td class="text-xs font-semibold text-slate-700">
-                            <?php if ($d->lingkup === 'KELAS'): ?>
-                                {{ $d->nama_kelas ?: ('Kelas #' . $d->id_kelas) }}
-                            <?php elseif ($d->lingkup === 'TINGKAT'): ?>
-                                Tingkat {{ $d->level ?: $d->level_id }}
-                            <?php else: ?>
-                                Semua kelas
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-xs text-slate-600 whitespace-nowrap">
-                            {{ date('d/m/Y', strtotime($d->tgl_mulai)) }}
-                            <?php if ($d->tgl_selesai && $d->tgl_selesai !== $d->tgl_mulai): ?>
-                                &ndash; {{ date('d/m/Y', strtotime($d->tgl_selesai)) }}
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-xs">
-                            <div class="font-semibold text-slate-800">{{ $d->judul }}</div>
-                            <?php if (!empty($d->keterangan)): ?>
-                                <div class="text-slate-400">{{ $d->keterangan }}</div>
-                            <?php endif; ?>
-                        </td>
-                        <?php if (!empty($boleh)): ?>
-                        <td class="text-center whitespace-nowrap">
-                            <?php if ($sudahLewat): ?>
-                                <button type="button" class="btn-tw btn-tw-sm btn-light" data-terapkan="{{ (int) $d->id }}"
-                                        title="Ubah absensi Alpha yang sudah terlanjur tercatat menjadi BDR">
-                                    <i class="bi bi-magic mr-1"></i> Terapkan
-                                </button>
-                            <?php endif; ?>
-                            <button type="button" class="btn-tw btn-tw-sm btn-light" data-edit='{{ json_encode([
-                                "id" => (int) $d->id, "lingkup" => $d->lingkup, "id_kelas" => $d->id_kelas,
-                                "level_id" => $d->level_id, "tgl_mulai" => $d->tgl_mulai, "tgl_selesai" => $d->tgl_selesai,
-                                "judul" => $d->judul, "keterangan" => $d->keterangan,
-                            ], JSON_HEX_APOS | JSON_HEX_QUOT) }}'>
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button type="button" class="btn-tw btn-tw-sm btn-danger" data-hapus="{{ (int) $d->id }}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                        <?php endif; ?>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<?php if (!empty($boleh)): ?>
-<!-- ─── Modal form ─── -->
-<div id="modalBdr" class="modal hidden fixed inset-0 z-[100] items-center justify-center bg-slate-900/60 p-4" tabindex="-1" aria-hidden="true">
-    <div class="modal-box-tw w-full max-w-lg">
-        <form id="form-bdr" class="flex flex-col gap-4">
-            <div class="modal-header-tw">
-                <h3 class="text-sm font-extrabold text-slate-900" id="modal-title">Tambah Jadwal BDR</h3>
-                <button type="button" data-ui-dismiss="modal" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-lg leading-none border-none cursor-pointer">&times;</button>
-            </div>
-            <div class="modal-body-tw space-y-4">
-                <input type="hidden" name="id" id="f_id" value="">
-
-                <div>
-                    <label class="form-label-tw">Lingkup yang diliburkan</label>
-                    <select name="lingkup" id="f_lingkup" class="form-control-tw">
-                        <option value="KELAS">Satu kelas tertentu</option>
-                        <option value="TINGKAT">Satu tingkat (kelas paralel, mis. semua kelas X)</option>
-                        <option value="SEMUA">Semua kelas</option>
-                    </select>
+    @if ($bolehKelola)
+        <x-ui.modal id="modalBdr" size="max-w-lg">
+            <x-slot:header>
+                <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4">
+                    <h2 class="flex min-w-0 items-center gap-2.5 text-sm font-bold text-slate-800">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                            <i class="bi bi-house-door-fill text-sm"></i>
+                        </span>
+                        <span x-text="form.id ? 'Edit Jadwal BDR' : 'Tambah Jadwal BDR'">Tambah Jadwal BDR</span>
+                    </h2>
+                    <button type="button" data-ui-dismiss="modal" aria-label="Tutup"
+                        class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                        <i class="bi bi-x-lg text-sm"></i>
+                    </button>
                 </div>
+            </x-slot:header>
 
-                <div id="wrap_kelas">
-                    <label class="form-label-tw">Kelas</label>
-                    <select name="id_kelas" id="f_kelas" class="form-control-tw">
-                        <option value="">Pilih kelas :</option>
-                        <?php foreach (($kelass ?? []) as $idK => $namaKelas): ?>
-                            <option value="{{ (int) $idK }}">{{ $namaKelas }}</option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <form @submit.prevent="save()" class="flex min-h-0 flex-col">
+                <div class="space-y-4 overflow-y-auto p-5">
+                    <input type="hidden" name="id" x-model="form.id">
 
-                <div id="wrap_tingkat" class="hidden">
-                    <label class="form-label-tw">Tingkat</label>
-                    <select name="level_id" id="f_level" class="form-control-tw">
-                        <?php foreach (($levels ?? []) as $lv => $label): if ($lv === '') continue; ?>
-                            <option value="{{ (int) $lv }}">{{ $label }}</option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p class="text-[11px] text-slate-400 mt-1">Mis. 10 = kelas X, 11 = kelas XI, 12 = kelas XII.</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="form-label-tw">Dari tanggal <span class="text-red-500">*</span></label>
-                        <input type="date" name="tgl_mulai" id="f_mulai" class="form-control-tw" required>
+                        <label for="bdr-lingkup" class="{{ $labelClass }}">Lingkup yang diliburkan</label>
+                        <select name="lingkup" id="bdr-lingkup" x-model="form.lingkup" class="{{ $inputClass }}">
+                            <option value="KELAS">Satu kelas tertentu</option>
+                            <option value="TINGKAT">Satu tingkat (kelas paralel, mis. semua kelas X)</option>
+                            <option value="SEMUA">Semua kelas</option>
+                        </select>
                     </div>
+
+                    <div x-show="form.lingkup === 'KELAS'" x-cloak>
+                        <label for="bdr-kelas" class="{{ $labelClass }}">Kelas</label>
+                        <select name="id_kelas" id="bdr-kelas" x-model="form.id_kelas" :required="form.lingkup === 'KELAS'" class="{{ $inputClass }}">
+                            <option value="">Pilih kelas :</option>
+                            @foreach (($kelass ?? []) as $idKelas => $namaKelas)
+                                <option value="{{ (int) $idKelas }}">{{ $namaKelas }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div x-show="form.lingkup === 'TINGKAT'" x-cloak>
+                        <label for="bdr-level" class="{{ $labelClass }}">Tingkat</label>
+                        <select name="level_id" id="bdr-level" x-model="form.level_id" :required="form.lingkup === 'TINGKAT'" class="{{ $inputClass }}">
+                            @foreach ($levelOptions as $levelId => $levelLabel)
+                                <option value="{{ $levelId }}">{{ $levelLabel }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-[11px] text-slate-400">Mis. 10 = kelas X, 11 = kelas XI, 12 = kelas XII.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label for="bdr-mulai" class="{{ $labelClass }}">Dari tanggal <span class="text-rose-500">*</span></label>
+                            <input type="date" name="tgl_mulai" id="bdr-mulai" x-model="form.tgl_mulai" required class="{{ $inputClass }}">
+                        </div>
+                        <div>
+                            <label for="bdr-selesai" class="{{ $labelClass }}">Sampai tanggal</label>
+                            <input type="date" name="tgl_selesai" id="bdr-selesai" x-model="form.tgl_selesai" class="{{ $inputClass }}">
+                            <p class="mt-1 text-[11px] text-slate-400">Kosongkan bila hanya satu hari.</p>
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="form-label-tw">Sampai tanggal</label>
-                        <input type="date" name="tgl_selesai" id="f_selesai" class="form-control-tw">
-                        <p class="text-[11px] text-slate-400 mt-1">Kosongkan bila hanya satu hari.</p>
+                        <label for="bdr-judul" class="{{ $labelClass }}">Keperluan</label>
+                        <input type="text" name="judul" id="bdr-judul" x-model="form.judul" maxlength="255"
+                            placeholder="Ujian Sekolah Kelas XII — kelas X & XI belajar dari rumah" class="{{ $inputClass }}">
+                    </div>
+
+                    <div>
+                        <label for="bdr-keterangan" class="{{ $labelClass }}">Keterangan</label>
+                        <textarea name="keterangan" id="bdr-keterangan" rows="2" x-model="form.keterangan"
+                            placeholder="Tugas yang dikerjakan dari rumah, catatan wali kelas, dsb." class="{{ $inputClass }}"></textarea>
                     </div>
                 </div>
 
-                <div>
-                    <label class="form-label-tw">Keperluan</label>
-                    <input type="text" name="judul" id="f_judul" class="form-control-tw" maxlength="255"
-                           placeholder="Ujian Sekolah Kelas XII — kelas X & XI belajar dari rumah">
+                <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+                    <button type="button" @click="$store.modals.close('#modalBdr')"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                    <button type="submit" :disabled="saving"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs shadow-emerald-500/20 transition-colors hover:bg-emerald-700 disabled:opacity-60">
+                        <span x-show="saving" x-cloak class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/70 border-t-transparent"></span>
+                        <i x-show="!saving" class="bi bi-check-lg"></i>
+                        <span x-text="saving ? 'Menyimpan...' : 'Simpan'">Simpan</span>
+                    </button>
                 </div>
-
-                <div>
-                    <label class="form-label-tw">Keterangan</label>
-                    <textarea name="keterangan" id="f_ket" rows="2" class="form-control-tw"
-                              placeholder="Tugas yang dikerjakan dari rumah, catatan wali kelas, dsb."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer-tw">
-                <button type="button" class="btn-tw btn-secondary" data-ui-dismiss="modal">Batal</button>
-                <button type="submit" class="btn-tw btn-primary" id="btn-simpan">
-                    <i class="bi bi-check2-circle mr-1"></i> Simpan
-                </button>
-            </div>
-        </form>
-    </div>
+            </form>
+        </x-ui.modal>
+    @endif
 </div>
-<?php endif; ?>
 @endsection
-
 
 @section('scripts')
 <script>
-$(document).ready(function() {
-    const csrf = () => { const d = {}; d[CSRF_NAME] = CSRF_HASH; return d; };
-    const BASE = '{{ url('admin/bdr') }}';
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('bdrPage', () => ({
+            config: { csrf: '', today: '', levelDefault: '', urls: {} },
+            saving: false,
+            busy: false,
 
-    function toggleLingkup() {
-        const v = $('#f_lingkup').val();
-        $('#wrap_kelas').toggleClass('hidden', v !== 'KELAS');
-        $('#wrap_tingkat').toggleClass('hidden', v !== 'TINGKAT');
-    }
+            form: {
+                id: '',
+                lingkup: 'KELAS',
+                id_kelas: '',
+                level_id: '',
+                tgl_mulai: '',
+                tgl_selesai: '',
+                judul: '',
+                keterangan: '',
+            },
 
-    function openForm(rec) {
-        rec = rec || {};
-        $('#modal-title').text(rec.id ? 'Edit Jadwal BDR' : 'Tambah Jadwal BDR');
-        $('#f_id').val(rec.id || '');
-        $('#f_lingkup').val(rec.lingkup || 'KELAS');
-        $('#f_kelas').val(rec.id_kelas || '');
-        $('#f_level').val(rec.level_id || '10');
-        $('#f_mulai').val(rec.tgl_mulai || new Date().toLocaleDateString('en-CA'));
-        $('#f_selesai').val(rec.tgl_selesai || '');
-        $('#f_judul').val(rec.judul || '');
-        $('#f_ket').val(rec.keterangan || '');
-        toggleLingkup();
-        $('#modalBdr').appModal('show');
-    }
+            init() {
+                const cfg = JSON.parse(this.$el.dataset.config || '{}');
 
-    $('#f_lingkup').on('change', toggleLingkup);
-    $('#btn-tambah').on('click', () => openForm());
+                this.config = {
+                    csrf: cfg.csrf || '',
+                    today: cfg.today || '',
+                    levelDefault: cfg.levelDefault || '',
+                    urls: cfg.urls || {},
+                };
+            },
 
-    $(document).on('click', '[data-edit]', function() {
-        try { openForm(JSON.parse($(this).attr('data-edit'))); } catch (e) {}
-    });
+            openForm(rec) {
+                rec = rec || {};
 
-    $('#form-bdr').on('submit', function(e) {
-        e.preventDefault();
-        const payload = csrf();
-        ['id','lingkup','id_kelas','level_id','tgl_mulai','tgl_selesai','judul','keterangan'].forEach(n => {
-            payload[n] = $('[name="' + n + '"]').val() || '';
-        });
+                this.form = {
+                    id: rec.id ?? '',
+                    lingkup: rec.lingkup || 'KELAS',
+                    id_kelas: rec.id_kelas ?? '',
+                    level_id: rec.level_id ?? this.config.levelDefault,
+                    tgl_mulai: rec.tgl_mulai || this.config.today,
+                    tgl_selesai: rec.tgl_selesai || '',
+                    judul: rec.judul || '',
+                    keterangan: rec.keterangan || '',
+                };
 
-        const $btn = $('#btn-simpan'); const orig = $btn.html();
-        $btn.prop('disabled', true).html('<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full mr-1"></span> Menyimpan…');
+                this.$store.modals.open('#modalBdr');
+            },
 
-        $.ajax({
-            url: BASE + '/save', type: 'POST', data: payload, dataType: 'json',
-            success: res => {
-                if (res.status) {
-                    $('#modalBdr').appModal('hide');
-                    Swal.fire('Berhasil', res.message || 'Tersimpan.', 'success').then(() => location.reload());
-                } else {
-                    Swal.fire('Gagal', (res && res.message) || 'Gagal menyimpan.', 'error');
+            async post(url, entries) {
+                const body = new URLSearchParams();
+                body.append('_token', this.config.csrf);
+
+                entries.forEach(([key, value]) => body.append(key, value ?? ''));
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'X-CSRF-TOKEN': this.config.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+
+                let result = null;
+
+                try {
+                    result = await response.json();
+                } catch (error) {
+                    result = null;
+                }
+
+                if (!result || result.status !== true) {
+                    throw new Error((result && result.message) || 'Gagal menghubungi server.');
+                }
+
+                return result;
+            },
+
+            async save() {
+                if (this.saving) {
+                    return;
+                }
+
+                if (!this.form.tgl_mulai) {
+                    Swal.fire('Perhatian', 'Tanggal mulai wajib diisi.', 'warning');
+                    return;
+                }
+
+                if (this.form.lingkup === 'KELAS' && !this.form.id_kelas) {
+                    Swal.fire('Perhatian', 'Pilih kelas terlebih dahulu.', 'warning');
+                    return;
+                }
+
+                if (this.form.lingkup === 'TINGKAT' && !this.form.level_id) {
+                    Swal.fire('Perhatian', 'Pilih tingkat terlebih dahulu.', 'warning');
+                    return;
+                }
+
+                if (this.form.tgl_selesai && this.form.tgl_selesai < this.form.tgl_mulai) {
+                    Swal.fire('Perhatian', 'Tanggal selesai tidak boleh sebelum tanggal mulai.', 'warning');
+                    return;
+                }
+
+                this.saving = true;
+
+                try {
+                    const res = await this.post(this.config.urls.save, [
+                        ['id', this.form.id],
+                        ['lingkup', this.form.lingkup],
+                        ['id_kelas', this.form.lingkup === 'KELAS' ? this.form.id_kelas : ''],
+                        ['level_id', this.form.lingkup === 'TINGKAT' ? this.form.level_id : ''],
+                        ['tgl_mulai', this.form.tgl_mulai],
+                        ['tgl_selesai', this.form.tgl_selesai],
+                        ['judul', this.form.judul],
+                        ['keterangan', this.form.keterangan],
+                    ]);
+
+                    this.$store.modals.close('#modalBdr');
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: res.message || 'Tersimpan.',
+                        timer: 1400,
+                        showConfirmButton: false,
+                    });
+
+                    window.location.reload();
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                } finally {
+                    this.saving = false;
                 }
             },
-            error: xhr => Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message) || 'Gagal menghubungi server.', 'error'),
-            complete: () => $btn.prop('disabled', false).html(orig)
-        });
-    });
 
-    $(document).on('click', '[data-terapkan]', function() {
-        const id = $(this).data('terapkan');
-        Swal.fire({
-            title: 'Terapkan jadwal ini?',
-            html: 'Absensi <strong>Alpha</strong> pada tanggal tersebut (yang belum ada jam masuknya) akan diubah menjadi <strong>BDR</strong>.',
-            icon: 'question', showCancelButton: true,
-            confirmButtonColor: '#2563eb', confirmButtonText: 'Ya, terapkan', cancelButtonText: 'Batal'
-        }).then(r => {
-            if (!r.isConfirmed) return;
-            $.ajax({
-                url: BASE + '/terapkan/' + id, type: 'POST', data: csrf(), dataType: 'json',
-                success: res => Swal.fire(res.status ? 'Selesai' : 'Gagal', res.message || '', res.status ? 'success' : 'error').then(() => { if (res.status) location.reload(); }),
-                error: () => Swal.fire('Error', 'Gagal menghubungi server.', 'error')
-            });
-        });
-    });
-
-    $(document).on('click', '[data-hapus]', function() {
-        const id = $(this).data('hapus');
-        Swal.fire({ title: 'Hapus jadwal BDR?', icon: 'warning', showCancelButton: true,
-                    confirmButtonColor: '#dc2626', confirmButtonText: 'Hapus', cancelButtonText: 'Batal' })
-            .then(r => {
-                if (!r.isConfirmed) return;
-                $.ajax({
-                    url: BASE + '/delete/' + id, type: 'POST', data: csrf(), dataType: 'json',
-                    success: res => Swal.fire(res.status ? 'Terhapus' : 'Gagal', res.message || '', res.status ? 'success' : 'error').then(() => { if (res.status) location.reload(); }),
-                    error: () => Swal.fire('Error', 'Gagal menghubungi server.', 'error')
+            async terapkan(id) {
+                const confirm = await Swal.fire({
+                    title: 'Terapkan jadwal ini?',
+                    html: 'Absensi <strong>Alpha</strong> pada tanggal tersebut (yang belum ada jam masuknya) akan diubah menjadi <strong>BDR</strong>.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#059669',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, terapkan',
+                    cancelButtonText: 'Batal',
                 });
-            });
+
+                if (!confirm.isConfirmed) {
+                    return;
+                }
+
+                this.busy = true;
+
+                try {
+                    const res = await this.post(this.config.urls.terapkan + '/' + id, []);
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Selesai',
+                        text: res.message || '',
+                        timer: 1400,
+                        showConfirmButton: false,
+                    });
+
+                    window.location.reload();
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                } finally {
+                    this.busy = false;
+                }
+            },
+
+            async hapus(id, label) {
+                const confirm = await Swal.fire({
+                    title: 'Hapus jadwal BDR?',
+                    html: `Jadwal <strong>${this.escape(label)}</strong> akan dihapus.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Hapus',
+                    cancelButtonText: 'Batal',
+                });
+
+                if (!confirm.isConfirmed) {
+                    return;
+                }
+
+                this.busy = true;
+
+                try {
+                    const res = await this.post(this.config.urls.delete + '/' + id, []);
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Terhapus',
+                        text: res.message || '',
+                        timer: 1200,
+                        showConfirmButton: false,
+                    });
+
+                    window.location.reload();
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                } finally {
+                    this.busy = false;
+                }
+            },
+
+            escape(value) {
+                const div = document.createElement('div');
+                div.textContent = value ?? '';
+
+                return div.innerHTML;
+            },
+        }));
     });
-});
 </script>
 @endsection

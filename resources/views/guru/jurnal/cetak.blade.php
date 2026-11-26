@@ -10,18 +10,9 @@ $smtLabel    = trim((string) ($smt_active->smt ?? '')) ?: '-';
 $tpLabel     = trim((string) ($tp_active->tahun ?? '')) ?: '-';
 $tanggalCetak = buat_tanggal(date('d F Y'));
 
-$img64 = function ($rel) {
-    if (empty($rel)) return '';
-    $path = public_path() . '/' . ltrim($rel, '/');
-    if (!is_file($path)) return '';
-    $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mime = ($ext === 'jpg') ? 'jpeg' : $ext;
-    return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-};
-
-$kopBase64  = $img64($setting->kopsekolah ?? '');
-$logoBase64 = $img64($setting->logo_kiri ?? '');
-$ttdBase64  = $img64($setting->tanda_tangan ?? '');
+$kopBase64  = \App\Libraries\CetakGambar::dataUri($setting->kopsekolah ?? '');
+$logoBase64 = \App\Libraries\CetakGambar::dataUri($setting->logo_kiri ?? '');
+$ttdBase64  = \App\Libraries\CetakGambar::dataUri($setting->tanda_tangan ?? '');
 
 $hariNama = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
 $guruCetak = $is_single ? $jurnal : ($guru ?? null);
@@ -109,25 +100,7 @@ $guruCetak = $is_single ? $jurnal : ($guru ?? null);
 </div>
 
 <!-- Kop -->
-<?php if ($kopBase64): ?>
-<div style="text-align:center; margin-bottom:10px;">
-    <img src="{{ $kopBase64 }}" style="max-height:100px; width:auto; max-width:100%;">
-</div>
-<?php else: ?>
-<table width="100%" class="kop">
-    <tr>
-        <td width="10%" align="center" valign="middle" style="border:none;">
-            <?php if ($logoBase64): ?><img src="{{ $logoBase64 }}" style="width:56px;"><?php endif; ?>
-        </td>
-        <td align="center" valign="middle" style="border:none;">
-            <div class="kop-title">{{ $namaSekolah }}</div>
-            <?php if (!empty($setting->alamat)): ?>
-            <div class="kop-sub">{{ $setting->alamat }}</div>
-            <?php endif; ?>
-        </td>
-    </tr>
-</table>
-<?php endif; ?>
+@include('partials.cetak.kop', ['kopTinggi' => 100, 'logoLebar' => 56])
 
 <div class="doc-title">{{ $is_single ? 'Jurnal Mengajar Guru' : 'Rekapitulasi Jurnal Mengajar Bulanan' }}</div>
 <div class="doc-sub">
@@ -287,27 +260,20 @@ $semuaHadir  = $siswaAbsent === '' || strtolower($siswaAbsent) === 'nihil';
 </p>
 
 <!-- Tanda Tangan -->
-<table class="sign">
-    <tr>
-        <td width="50%" align="center">
-            Mengetahui,<br>Kepala Sekolah
-            <div class="space">
-                <?php if ($ttdBase64): ?>
-                <img src="{{ $ttdBase64 }}" style="max-height:58px; max-width:180px;">
-                <?php endif; ?>
-            </div>
-            <span class="bold">{{ $namaKepsek ?: '( _______________________ )' }}</span><br>
-            <?php if ($namaKepsek): ?>NIP. {{ $nipKepsek ?: '-' }}<?php endif; ?>
-        </td>
-        <td width="50%" align="center">
-            <?php if (!empty($setting->tempat)): ?>{{ $setting->tempat }}, <?php endif; ?>{{ $tanggalCetak }}<br>
-            Guru Mata Pelajaran
-            <div class="space"></div>
-            <span class="bold">{{ $guruCetak->nama_guru ?? 'Guru' }}</span><br>
-            NIP. {{ $guruCetak->nip ?: '-' }}
-        </td>
-    </tr>
-</table>
+@include('partials.cetak.tanda-tangan', [
+    'kiri' => [
+        'peran' => 'Mengetahui,<br>Kepala Sekolah',
+        'nama' => $namaKepsek ?: '( _______________________ )',
+        'nip' => $namaKepsek ? ($nipKepsek ?: '-') : null,
+        'ttd' => true,
+    ],
+    'kanan' => [
+        'tanggal' => true,
+        'peran' => 'Guru Mata Pelajaran',
+        'nama' => $guruCetak->nama_guru ?? 'Guru',
+        'nip' => $guruCetak->nip ?: '-',
+    ],
+])
 
 </body>
 </html>

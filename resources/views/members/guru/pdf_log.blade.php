@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Dirender Dompdf: script/CDN tidak dieksekusi, semua gaya harus inline di <style>. --}}
     <style>
         body { font-family: sans-serif; font-size: 12px; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }

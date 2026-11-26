@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="id">
 <head>
-    <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="utf-8">
     <title>Detail Jurnal</title>
     <style>

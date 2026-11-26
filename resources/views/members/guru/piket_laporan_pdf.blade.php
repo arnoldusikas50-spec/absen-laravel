@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="id">
 <head>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Dirender Dompdf: script/CDN tidak dieksekusi, semua gaya harus inline di <style>. --}}
     <meta charset="utf-8">
     <title>Laporan Piket - {{ $tanggal }}</title>
     <style>
