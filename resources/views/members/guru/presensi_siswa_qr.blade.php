@@ -1,12 +1,8 @@
 @extends('layouts.mobile_tw')
 
 @section('styles')
-{{-- Utility (arbitrary value, warna transparan, varian sm/md/lg) yang dipakai
-     halaman ini tidak ada di build tailwind.css lama. --}}
-<link rel="stylesheet" href="{{ asset('assets/app/css/kiosk-ui.css') }}?v={{ @filemtime(public_path() . '/' . 'assets/app/css/kiosk-ui.css') }}">
 <style>
-    /* Utility Tailwind v4 yang tidak ada padanan v3 di build lama, sehingga
-       elemennya tampil tanpa bentuk sama sekali tanpa aturan ini. */
+    /* Utility yang belum punya padanan bawaan Tailwind v4. */
     .border-3 { border-width: 3px; }
     .shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); }
     .active\:scale-98:active { transform: scale(.98); }

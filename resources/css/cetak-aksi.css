@@ -1,0 +1,22 @@
+/*
+ * Stylesheet utilitas untuk ACTION BAR LAYAR pada dokumen cetak kartu
+ * (admin/presensi/kartu/cetak & guru_cetak).
+ *
+ * Aturan main:
+ * - Hanya memuat layer `utilities`; preflight/base TIDAK diimpor sehingga
+ *   tidak ada reset global yang bisa mengubah tata letak dokumen cetak.
+ * - Setiap kelas ditulis dengan varian `layar:` yang menghasilkan
+ *   `@media screen { ... }`, jadi seluruh kelas di file ini mustahil
+ *   berlaku saat media `print`.
+ * - Kandidat dipindai hanya dari partial action bar
+ *   (`resources/views/admin/presensi/kartu/aksi/bar_layar.blade.php`), jadi
+ *   tidak ada daftar kelas duplikat yang harus disinkronkan manual: utility
+ *   baru cukup ditulis di partial tersebut.
+ */
+@import 'tailwindcss/theme' source(none);
+@import 'tailwindcss/utilities' source(none);
+
+@custom-variant layar (@media screen);
+
+@source "../views/admin/presensi/kartu/aksi";
+

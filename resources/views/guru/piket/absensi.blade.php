@@ -1,249 +1,201 @@
 @extends('layouts.main')
 
 @section('content')
-<style>
-    .radio-status {
-        margin-right: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 1px solid #ddd;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-    }
 
-    .status-cell input[type="radio"] {
-        display: none;
-    }
-
-    .radio-status:hover {
-        background: #f8f9fa;
-        border-color: var(--bs-primary);
-    }
-
-    input[type="radio"]:checked+span {
-        font-weight: bold;
-    }
-
-    /* Highlight Classes */
-    .bg-hadir {
-        background-color: rgba(25, 135, 84, 0.05) !important;
-    }
-
-    .bg-sakit {
-        background-color: rgba(13, 110, 253, 0.05) !important;
-    }
-
-    .bg-izin {
-        background-color: rgba(255, 193, 7, 0.05) !important;
-    }
-
-    .bg-alpha {
-        background-color: rgba(220, 53, 69, 0.05) !important;
-    }
-
-    .bg-telat {
-        background-color: rgba(108, 117, 125, 0.05) !important;
-    }
-
-    .status-cell label input:checked+.status-text-H {
-        color: #198754;
-        font-weight: 800;
-    }
-
-    .status-cell label input:checked+.status-text-S {
-        color: #0d6efd;
-        font-weight: 800;
-    }
-
-    .status-cell label input:checked+.status-text-I {
-        color: #ffc107;
-        font-weight: 800;
-    }
-
-    .status-cell label input:checked+.status-text-A {
-        color: #dc3545;
-        font-weight: 800;
-    }
-
-    .status-cell label input:checked+.status-text-T {
-        color: #6c757d;
-        font-weight: 800;
-    }
-
-    .status-cell label:has(input:checked) {
-        border-color: currentColor !important;
-        background: white;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-</style>
-
-<!-- Content Header -->
-<div class="content-header fade-in-up">
-    <div class="container-fluid ps-3 ps-lg-4">
-        <div class="flex flex-wrap gap-4 align-items-center">
-            <div class="w-full sm:w-1/2 px-2">
-                <h3 class="mb-0 fw-bold text-danger"><i class="bi bi-calendar-check me-2"></i>{{ $judul }}</h3>
-                <p class="text-muted small mb-0">Input Rekapitulasi Absensi Per Kelas oleh Piket</p>
-            </div>
-            <div class="w-full sm:w-1/2 px-2 text-sm-end mt-2 mt-sm-0">
-                <a href="{{ url('guru/piket') }}" class="btn-tw btn-outline-secondary shadow-sm px-3 rounded-pill">
-                    <i class="bi bi-arrow-left me-1"></i> Kembali
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <x-ui.page-header
+        :title="$judul"
+        icon="bi-calendar-check"
+        tone="rose"
+        subtitle="Input Rekapitulasi Absensi Per Kelas oleh Piket"
+        :crumbs="['Piket', 'Absen Kelas']">
+        <x-slot:actions>
+            <a href="{{ url('guru/piket') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
 </div>
 
-<!-- Main Content -->
-<div class="content-area">
-    <div class="container-fluid px-3 px-lg-4">
-        <div class="card card-outline card-danger shadow-sm border-0 mb-4" style="border-radius: 15px;">
-            <div class="card-header border-0 bg-transparent py-3">
-                <form method="get" class="flex flex-wrap gap-4 gap-3 align-items-center">
-                    <div class="w-full md:w-1/4 px-2">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white border-primary border-opacity-25"><i
-                                    class="bi bi-calendar-event text-primary"></i></span>
-                            <input type="date" name="tanggal" class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm border-primary border-opacity-25"
-                                value="{{ $tanggal }}">
-                        </div>
-                    </div>
-                    <div class="w-full md:w-1/4 px-2">
-                        <select name="kelas"
-                            class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white form-select-sm border-primary border-opacity-25 rounded-pill"
-                            onchange="this.form.submit()">
-                            <option value="">-- Pilih Kelas --</option>
-                            <?php foreach ($kelas_list as $k): ?>
-                                <option value="{{ $k->id_kelas }}" {{ ($kelas_selected == $k->id_kelas) ? 'selected' : '' }}>
-                                    {{ $k->nama_kelas }}
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn-tw btn-tw-sm btn-primary rounded-pill px-3 w-100">
-                            <i class="bi bi-search me-1"></i> Tampilkan
-                        </button>
-                    </div>
-                </form>
+<div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+    <x-ui.card bodyClass="p-0">
+        <x-slot:toolbar>
+            <form method="get" class="flex flex-wrap items-end gap-3">
+                <div class="mr-1 flex items-center gap-2">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50">
+                        <i class="bi bi-calendar-event text-sm text-rose-600"></i>
+                    </span>
+                    <h2 class="text-sm font-bold text-slate-700">Pilih Tanggal &amp; Kelas</h2>
+                </div>
+
+                <div>
+                    <label for="tanggal" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Tanggal</label>
+                    <input type="date" name="tanggal" id="tanggal" value="{{ $tanggal }}"
+                        class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-hidden focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20">
+                </div>
+
+                <div>
+                    <label for="kelas" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Kelas</label>
+                    <select name="kelas" id="kelas" onchange="this.form.submit()"
+                        class="h-9 min-w-[180px] rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-hidden focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20">
+                        <option value="">-- Pilih Kelas --</option>
+                        @foreach ($kelas_list as $k)
+                            <option value="{{ $k->id_kelas }}" @selected((int) $kelas_selected === (int) $k->id_kelas)>
+                                {{ $k->nama_kelas }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <button type="submit"
+                    class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 text-xs font-bold text-white shadow-xs shadow-rose-500/20 transition-colors hover:bg-rose-700">
+                    <i class="bi bi-search"></i> Tampilkan
+                </button>
+            </form>
+        </x-slot:toolbar>
+    </x-ui.card>
+
+    @if ($kelas_selected && ! empty($siswa_absensi))
+        <x-ui.card :title="'Absensi Kelas — ' . date('d/m/Y', strtotime($tanggal))" icon="bi-people-fill" tone="rose" bodyClass="p-0">
+            <form id="formAbsensi"
+                x-data="piketAbsensi('{{ url('guru/piket/save_absensi') }}', '{{ csrf_token() }}')"
+                @submit.prevent="simpan($event.target)">
+                <input type="hidden" name="tanggal" value="{{ $tanggal }}">
+                <input type="hidden" name="id_kelas" value="{{ $kelas_selected }}">
+
+                <x-ui.table class="min-w-[760px]">
+                    <x-slot:head>
+                        <th class="w-14 px-4 py-3 text-center">No</th>
+                        <th class="w-40 px-4 py-3">NIS / Username</th>
+                        <th class="px-4 py-3">Nama Lengkap Siswa</th>
+                        <th class="px-4 py-3">Status Kehadiran</th>
+                    </x-slot:head>
+
+                    @foreach ($siswa_absensi as $i => $s)
+                        @php
+                            $statusAwal = $s->status ?? '';
+                            $pilihan = [
+                                ['kode' => 'H', 'label' => 'Hadir', 'kelas' => 'peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700'],
+                                ['kode' => 'S', 'label' => 'Sakit', 'kelas' => 'peer-checked:border-sky-500 peer-checked:bg-sky-50 peer-checked:text-sky-700'],
+                                ['kode' => 'I', 'label' => 'Izin', 'kelas' => 'peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:text-amber-700'],
+                                ['kode' => 'A', 'label' => 'Alpha', 'kelas' => 'peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700'],
+                                ['kode' => 'T', 'label' => 'Telat', 'kelas' => 'peer-checked:border-slate-500 peer-checked:bg-slate-100 peer-checked:text-slate-700'],
+                            ];
+                        @endphp
+                        <tr x-data="{ status: '{{ $statusAwal }}' }"
+                            :class="{
+                                'bg-emerald-50/40': status === 'H',
+                                'bg-sky-50/40': status === 'S',
+                                'bg-amber-50/40': status === 'I',
+                                'bg-rose-50/40': status === 'A',
+                                'bg-slate-50': status === 'T',
+                            }"
+                            class="transition-colors">
+                            <td class="px-4 py-2.5 text-center text-xs font-bold text-slate-400">{{ $i + 1 }}</td>
+                            <td class="px-4 py-2.5 font-mono text-xs text-slate-500">{{ $s->nis }}</td>
+                            <td class="px-4 py-2.5 text-sm font-bold text-slate-800">{{ $s->nama }}</td>
+                            <td class="px-4 py-2.5">
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ($pilihan as $opt)
+                                        <label class="relative">
+                                            <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="{{ $opt['kode'] }}"
+                                                x-model="status" @checked($statusAwal === $opt['kode']) class="peer sr-only">
+                                            <span class="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-500 transition-colors hover:bg-slate-50 {{ $opt['kelas'] }}">
+                                                {{ $opt['label'] }}
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.table>
+
+                <div class="flex flex-col items-stretch justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3.5 sm:flex-row sm:items-center">
+                    <p class="text-[11px] text-slate-500">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Pilih status kehadiran setiap siswa, lalu simpan rekap.
+                    </p>
+                    <button type="submit" :disabled="menyimpan"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-xs shadow-emerald-500/25 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        <i class="bi" :class="menyimpan ? 'bi-arrow-repeat animate-spin' : 'bi-cloud-arrow-up'"></i>
+                        <span x-text="menyimpan ? 'Menyimpan...' : 'SIMPAN REKAP ABSENSI'">SIMPAN REKAP ABSENSI</span>
+                    </button>
+                </div>
+            </form>
+        </x-ui.card>
+    @else
+        <x-ui.card bodyClass="p-0">
+            <div class="p-6">
+                <x-ui.empty icon="bi-file-earmark-spreadsheet" title="Belum Ada Data Terpilih"
+                    description="Silakan tentukan Tanggal dan Kelas pada filter di atas untuk menginput absensi." />
             </div>
-
-            <?php if ($kelas_selected && !empty($siswa_absensi)): ?>
-                <div class="card-body p-0">
-                    <form id="formAbsensi">
-                        <input type="hidden" name="tanggal" value="{{ $tanggal }}">
-                        <input type="hidden" name="id_kelas" value="{{ $kelas_selected }}">
-
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="bg-light small fw-bold text-uppercase">
-                                    <tr>
-                                        <th class="ps-4" width="5%">No</th>
-                                        <th width="15%">NIS/Username</th>
-                                        <th width="25%">Nama Lengkap Siswa</th>
-                                        <th class="pe-4" width="55%">Status Kehadiran</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="small">
-                                    <?php foreach ($siswa_absensi as $i => $s): ?>
-                                        <tr class="row-siswa" id="row-{{ $s->id_siswa }}">
-                                            <td class="ps-4">{{ $i + 1 }}</td>
-                                            <td class="text-muted">{{ $s->nis }}</td>
-                                            <td class="fw-bold text-dark">{{ $s->nama }}</td>
-                                            <td class="status-cell pe-4">
-                                                <label class="radio-status" style="color: #198754;">
-                                                    <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="H"
-                                                        {{ ($s->status == 'H') ? 'checked' : '' }} onclick="highlight(this)">
-                                                    <span class="status-text-H uppercase small">Hadir</span>
-                                                </label>
-                                                <label class="radio-status" style="color: #0d6efd;">
-                                                    <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="S"
-                                                        {{ ($s->status == 'S') ? 'checked' : '' }} onclick="highlight(this)">
-                                                    <span class="status-text-S uppercase small">Sakit</span>
-                                                </label>
-                                                <label class="radio-status" style="color: #ffc107;">
-                                                    <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="I"
-                                                        {{ ($s->status == 'I') ? 'checked' : '' }} onclick="highlight(this)">
-                                                    <span class="status-text-I uppercase small">Izin</span>
-                                                </label>
-                                                <label class="radio-status" style="color: #dc3545;">
-                                                    <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="A"
-                                                        {{ ($s->status == 'A') ? 'checked' : '' }} onclick="highlight(this)">
-                                                    <span class="status-text-A uppercase small">Alpha</span>
-                                                </label>
-                                                <label class="radio-status" style="color: #6c757d;">
-                                                    <input type="radio" name="absensi[{{ $s->id_siswa }}]" value="T"
-                                                        {{ ($s->status == 'T') ? 'checked' : '' }} onclick="highlight(this)">
-                                                    <span class="status-text-T uppercase small">Telat</span>
-                                                </label>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="p-4 border-top text-end bg-light bg-opacity-50">
-                            <button type="submit" class="btn-tw btn-success btn-lg rounded-pill shadow px-5 fw-bold">
-                                <i class="bi bi-cloud-arrow-up me-2"></i> SIMPAN REKAP ABSENSI
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            <?php else: ?>
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-file-earmark-spreadsheet display-1 opacity-10"></i>
-                    <h5 class="mt-3 fw-bold text-muted">Belum Ada Data Terpilih</h5>
-                    <p class="text-muted small">Silakan tentukan Tanggal dan Kelas pada filter di atas untuk menginput
-                        absensi.</p>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
+        </x-ui.card>
+    @endif
 </div>
+@endsection
 
+@section('scripts')
 <script>
-    function highlight(radio) {
-        var flex flex-wrap gap-4 = $(radio).closest('tr');
-        flex flex-wrap gap-4.removeClass('bg-hadir bg-sakit bg-izin bg-alpha bg-telat');
+document.addEventListener('alpine:init', () => {
+    Alpine.data('piketAbsensi', (url, token) => ({
+        menyimpan: false,
 
-        switch (radio.value) {
-            case 'H': flex flex-wrap gap-4.addClass('bg-hadir'); break;
-            case 'S': flex flex-wrap gap-4.addClass('bg-sakit'); break;
-            case 'I': flex flex-wrap gap-4.addClass('bg-izin'); break;
-            case 'A': flex flex-wrap gap-4.addClass('bg-alpha'); break;
-            case 'T': flex flex-wrap gap-4.addClass('bg-telat'); break;
-        }
-    }
+        simpan(form) {
+            const kelas = form.querySelector('input[name="id_kelas"]').value;
+            const terisi = Array.from(form.querySelectorAll('input[type=radio]:checked')).length;
+            const total = form.querySelectorAll('tbody tr').length;
 
-    $(document).ready(function () {
-        $('input[type=radio]:checked').each(function () {
-            highlight(this);
-        });
+            if (terisi === 0) {
+                Swal.fire({ icon: 'warning', title: 'Belum ada status', text: 'Pilih status kehadiran minimal satu siswa.' });
+                return;
+            }
 
-        $('#formAbsensi').on('submit', function (e) {
-            e.preventDefault();
+            const periksa = terisi < total
+                ? { title: 'Simpan Absensi?', text: 'Masih ada ' + (total - terisi) + ' siswa tanpa status. Simpan tetap?' }
+                : { title: 'Simpan Absensi?', text: 'Pastikan data kehadiran sudah benar untuk kelas ini.' };
+
             Swal.fire({
-                title: 'Simpan Absensi?',
-                text: "Pastikan data kehadiran sudah benar hari ini.",
+                ...periksa,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Ya, Simpan',
-                customClass: { confirmButton: 'btn-tw btn-success rounded-pill px-4', cancelButton: 'btn-tw btn-light rounded-pill px-4' }
+                cancelButtonText: 'Batal',
             }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
-                    $.post('{{ url('guru/piket/save_absensi') }}', $(this).serialize(), function (res) {
-                        if (res.status) {
-                            Swal.fire('Berhasil', res.message, 'success');
-                        } else {
-                            Swal.fire('Gagal', res.message, 'error');
-                        }
-                    });
+                if (!result.isConfirmed) {
+                    return;
                 }
+
+                this.menyimpan = true;
+                Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
+
+                fetch(url, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token,
+                    },
+                })
+                    .then((response) => response.json())
+                    .then((res) => {
+                        Swal.fire({
+                            icon: res.status ? 'success' : 'error',
+                            title: res.status ? 'Berhasil' : 'Gagal',
+                            text: res.message,
+                        });
+                    })
+                    .catch(() => {
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan saat menyimpan absensi.' });
+                    })
+                    .finally(() => {
+                        this.menyimpan = false;
+                    });
             });
-        });
-    });
+        },
+    }));
+});
 </script>
 @endsection

@@ -6,7 +6,7 @@
  *  - Aset statis same-origin (/assets/, /icons/): StaleWhileRevalidate (< 1 hari)
  *  - POST / API check-in-out / Realtime data: diabaikan (network only)
  */
-const CACHE_VERSION = 'presensi-v7';
+const CACHE_VERSION = 'presensi-v8';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const PAGES_CACHE = CACHE_VERSION + '-pages';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000; // Batas umur cache: 1 hari (24 jam)
@@ -19,7 +19,6 @@ const PRECACHE = [
   '/icons/maskable-192.png?v=2',
   '/icons/maskable-512.png?v=2',
   '/icons/apple-touch-icon.png',
-  '/assets/app/css/tailwind.css',
   '/assets/app/css/lucide-icons.css',
   '/assets/plugins/jquery/jquery.min.js',
   '/assets/plugins/sweetalert2/sweetalert2.all.min.js'

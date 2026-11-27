@@ -1,340 +1,131 @@
 @extends('layouts.main')
 
 @section('content')
-<style>
-    /* Premium Dashboard Styles */
-    .welcome-banner {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-        border-radius: 20px;
-        padding: 30px;
-        margin-bottom: 30px;
-        position: relative;
-        overflow: hidden;
-    }
 
-    .welcome-banner::after {
-        content: '';
-        position: absolute;
-        right: -50px;
-        top: -50px;
-        width: 200px;
-        height: 200px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 100px;
-    }
+<?php
+$kartuStatistik = [
+    ['label' => 'Tamu Masuk', 'nilai' => $stats['tamu'] ?? 0, 'satuan' => 'Orang', 'icon' => 'bi-person-badge', 'gradien' => 'from-violet-500 to-violet-600'],
+    ['label' => 'Kejadian', 'nilai' => $stats['kejadian'] ?? 0, 'satuan' => 'Kasus', 'icon' => 'bi-info-circle', 'gradien' => 'from-amber-500 to-amber-600'],
+    ['label' => 'Jurnal Terisi', 'nilai' => $stats['jurnal'] ?? 0, 'satuan' => 'Kelas', 'icon' => 'bi-journal-check', 'gradien' => 'from-emerald-500 to-emerald-600'],
+    ['label' => 'Siswa Absent', 'nilai' => $stats['siswa_absen'] ?? 0, 'satuan' => 'Siswa', 'icon' => 'bi-person-x', 'gradien' => 'from-rose-500 to-rose-600'],
+];
 
-    .stat-card-premium {
-        border-radius: 20px;
-        border: none;
-        transition: all 0.3s ease;
-        overflow: hidden;
-        position: relative;
-    }
+$layanan = [
+    ['url' => 'guru/piket/tamu', 'icon' => 'bi-person-rolodex', 'judul' => 'Buku Tamu', 'teks' => 'Catat tamu yang berkunjung ke sekolah', 'warna' => 'bg-violet-50 text-violet-600', 'hover' => 'hover:border-violet-300 hover:shadow-violet-500/10', 'hoverIcon' => 'group-hover:bg-violet-500'],
+    ['url' => 'guru/piket/kejadian', 'icon' => 'bi-exclamation-octagon', 'judul' => 'Kejadian', 'teks' => 'Catat masalah/kejadian khusus siswa', 'warna' => 'bg-amber-50 text-amber-600', 'hover' => 'hover:border-amber-300 hover:shadow-amber-500/10', 'hoverIcon' => 'group-hover:bg-amber-500'],
+    ['url' => 'guru/piket/absensi', 'icon' => 'bi-calendar2-check', 'judul' => 'Absen Kelas', 'teks' => 'Lihat dan bantu rekap absensi per kelas', 'warna' => 'bg-rose-50 text-rose-600', 'hover' => 'hover:border-rose-300 hover:shadow-rose-500/10', 'hoverIcon' => 'group-hover:bg-rose-500'],
+    ['url' => 'guru/piket/laporan', 'icon' => 'bi-display', 'judul' => 'Monitoring', 'teks' => 'Aktivitas Guru & Siswa terpusat', 'warna' => 'bg-sky-50 text-sky-600', 'hover' => 'hover:border-sky-300 hover:shadow-sky-500/10', 'hoverIcon' => 'group-hover:bg-sky-500'],
+    ['url' => 'guru/piket/laporan', 'icon' => 'bi-file-earmark-bar-graph', 'judul' => 'Laporan Guru', 'teks' => 'Rekap kehadiran guru di kelas', 'warna' => 'bg-blue-50 text-blue-600', 'hover' => 'hover:border-blue-300 hover:shadow-blue-500/10', 'hoverIcon' => 'group-hover:bg-blue-500'],
+];
+?>
 
-    .stat-card-premium:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    .stat-card-premium .icon-blob {
-        position: absolute;
-        right: -15px;
-        bottom: -15px;
-        font-size: 5rem;
-        opacity: 0.15;
-        transform: rotate(-15deg);
-    }
-
-    .card-tamu {
-        background: linear-gradient(135deg, var(--accent-500) 0%, var(--accent-600) 100%);
-        color: white;
-    }
-
-    .card-kejadian {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-    }
-
-    .card-jurnal {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-    }
-
-    .card-absen {
-        background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
-        color: white;
-    }
-
-    .service-card {
-        border: 2px dashed #e2e8f0;
-        border-radius: 24px;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        background: #fff;
-        cursor: pointer;
-        text-decoration: none !important;
-        display: block;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .service-card:hover {
-        border-color: transparent;
-        transform: scale(1.02);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-        background: #fff;
-    }
-
-    .service-card .icon-wrapper {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 15px;
-        transition: all 0.4s;
-    }
-
-    .sc-tamu:hover .icon-wrapper {
-        background: var(--accent-500);
-        color: white !important;
-    }
-
-    .sc-tamu:hover {
-        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
-    }
-
-    .sc-kejadian:hover .icon-wrapper {
-        background: #f59e0b;
-        color: white !important;
-    }
-
-    .sc-kejadian:hover {
-        box-shadow: 0 20px 40px rgba(245, 158, 11, 0.15);
-    }
-
-    .sc-absen:hover .icon-wrapper {
-        background: var(--brand-500);
-        color: white !important;
-    }
-
-    .sc-absen:hover {
-        box-shadow: 0 20px 40px rgb(var(--brand-500-rgb) / 0.15);
-    }
-
-    .sc-monitoring:hover .icon-wrapper {
-        background: #0ea5e9;
-        color: white !important;
-    }
-
-    .sc-monitoring:hover {
-        box-shadow: 0 20px 40px rgba(14, 165, 233, 0.15);
-    }
-
-    .table-premium thead {
-        background: #f8fafc;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .table-premium tbody tr {
-        transition: all 0.2s;
-    }
-
-    .table-premium tbody tr:hover {
-        background-color: #f1f5f9;
-    }
-</style>
-
-<div class="content-header fade-in-up">
-    <div class="container-fluid ps-3 ps-lg-4">
-        <div class="welcome-banner shadow">
-            <div class="flex flex-wrap gap-4 align-items-center">
-                <div class="w-full md:w-2/3 px-2">
-                    <h2 class="text-white fw-bold mb-1">Selamat Datang, Bapak/Ibu Guru!</h2>
-                    <p class="text-white text-opacity-75 mb-0">Halaman Dashboard Petugas Piket - {{ date('l, d F Y') }}
-                    </p>
-                </div>
-                <div class="w-full md:w-1/3 px-2 text-md-end">
-                    <div id="digital-clock" class="text-white fw-extrabold h3 mb-0 opacity-50">00:00:00</div>
-                </div>
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <div x-data="{
+            waktu: '',
+            mulai() {
+                const format = () => new Date().toLocaleTimeString('id-ID', { hour12: false });
+                this.waktu = format();
+                setInterval(() => { this.waktu = format(); }, 1000);
+            },
+        }" x-init="mulai()"
+        class="relative overflow-hidden rounded-3xl bg-linear-to-br from-slate-800 via-slate-800 to-slate-700 px-6 py-7 shadow-lg shadow-slate-900/20">
+        <span class="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/5" aria-hidden="true"></span>
+        <span class="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-white/5" aria-hidden="true"></span>
+        <div class="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+                <h1 class="text-xl font-bold text-white md:text-2xl">Selamat Datang, Bapak/Ibu Guru!</h1>
+                <p class="mt-1 text-sm text-slate-300">Halaman Dashboard Petugas Piket · {{ date('l, d F Y') }}</p>
+            </div>
+            <div class="shrink-0 text-left sm:text-right">
+                <div class="font-mono text-3xl font-extrabold tracking-tight text-white/60" x-text="waktu">00:00:00</div>
+                <div class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Waktu server lokal</div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="content-area">
-    <div class="container-fluid px-3 px-lg-4">
+<div class="mt-5 space-y-6 px-4 pb-6 md:px-6">
 
-        <!-- Header Row -->
-        <div class="flex flex-wrap gap-4 gap-4 mb-5">
-            <div class="w-full md:w-1/4 px-2">
-                <div class="card stat-card-premium card-tamu shadow-sm h-100 p-4">
-                    <div class="icon-blob"><i class="bi bi-person-badge"></i></div>
-                    <div class="position-relative">
-                        <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Tamu Masuk</h6>
-                        <h2 class="fw-extrabold mb-0">{{ $stats['tamu'] }} <small
-                                class="fs-6 opacity-75 fw-normal">Orang</small></h2>
+    {{-- Statistik --}}
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        @foreach ($kartuStatistik as $kartu)
+            <div class="relative overflow-hidden rounded-2xl bg-linear-to-br {{ $kartu['gradien'] }} p-4 text-white shadow-md">
+                <i class="bi {{ $kartu['icon'] }} pointer-events-none absolute -bottom-3 -right-3 text-6xl rotate-[-15deg] text-white/15" aria-hidden="true"></i>
+                <div class="relative">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-white/75">{{ $kartu['label'] }}</div>
+                    <div class="mt-2 flex items-baseline gap-1.5">
+                        <span class="text-2xl font-extrabold leading-none">{{ $kartu['nilai'] }}</span>
+                        <span class="text-xs font-medium text-white/70">{{ $kartu['satuan'] }}</span>
                     </div>
                 </div>
             </div>
-            <div class="w-full md:w-1/4 px-2">
-                <div class="card stat-card-premium card-kejadian shadow-sm h-100 p-4">
-                    <div class="icon-blob"><i class="bi bi-info-circle"></i></div>
-                    <div class="position-relative">
-                        <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Kejadian</h6>
-                        <h2 class="fw-extrabold mb-0">{{ $stats['kejadian'] }} <small
-                                class="fs-6 opacity-75 fw-normal">Kasus</small></h2>
-                    </div>
-                </div>
-            </div>
-            <div class="w-full md:w-1/4 px-2">
-                <div class="card stat-card-premium card-jurnal shadow-sm h-100 p-4">
-                    <div class="icon-blob"><i class="bi bi-journal-check"></i></div>
-                    <div class="position-relative">
-                        <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Jurnal Terisi</h6>
-                        <h2 class="fw-extrabold mb-0">{{ $stats['jurnal'] }} <small
-                                class="fs-6 opacity-75 fw-normal">Kelas</small></h2>
-                    </div>
-                </div>
-            </div>
-            <div class="w-full md:w-1/4 px-2">
-                <div class="card stat-card-premium card-absen shadow-sm h-100 p-4">
-                    <div class="icon-blob"><i class="bi bi-person-x"></i></div>
-                    <div class="position-relative">
-                        <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Siswa Absent</h6>
-                        <h2 class="fw-extrabold mb-0">{{ $stats['siswa_absen'] }} <small
-                                class="fs-6 opacity-75 fw-normal">Siswa</small></h2>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @endforeach
+    </div>
 
-        <!-- Services Grid -->
-        <div class="mb-4">
-            <h4 class="fw-bold text-slate-800 mb-4 px-1"><i
-                    class="bi bi-lightning-charge-fill text-warning me-2"></i>Layanan Utama Piket</h4>
-            <div class="flex flex-wrap gap-4 gap-4">
-                <div class="w-full md:w-1/4 px-2">
-                    <a href="{{ url('guru/piket/tamu') }}" class="service-card sc-tamu p-4 text-center">
-                        <div class="icon-wrapper bg-indigo-100 text-indigo-600">
-                            <i class="bi bi-person-rolodex fs-1"></i>
-                        </div>
-                        <h5 class="fw-bold mb-1">Buku Tamu</h5>
-                        <p class="text-muted small mb-0 px-2">Catat tamu yang berkunjung ke sekolah</p>
-                    </a>
-                </div>
-                <div class="w-full md:w-1/4 px-2">
-                    <a href="{{ url('guru/piket/kejadian') }}" class="service-card sc-kejadian p-4 text-center">
-                        <div class="icon-wrapper bg-amber-100 text-amber-600">
-                            <i class="bi bi-exclamation-octagon fs-1"></i>
-                        </div>
-                        <h5 class="fw-bold mb-1">Kejadian</h5>
-                        <p class="text-muted small mb-0 px-2">Catat masalah/kejadian khusus siswa</p>
-                    </a>
-                </div>
-                <div class="w-full md:w-1/4 px-2">
-                    <a href="{{ url('guru/piket/absensi') }}" class="service-card sc-absen p-4 text-center">
-                        <div class="icon-wrapper bg-rose-100 text-rose-600">
-                            <i class="bi bi-calendar2-check fs-1"></i>
-                        </div>
-                        <h5 class="fw-bold mb-1">Absen Kelas</h5>
-                        <p class="text-muted small mb-0 px-2">Lihat dan bantu rekap absensi per kelas</p>
-                    </a>
-                </div>
-                <div class="w-full md:w-1/4 px-2">
-                    <a href="{{ url('guru/piket/laporan') }}"
-                        class="service-card sc-monitoring p-4 text-center">
-                        <div class="icon-wrapper bg-sky-100 text-sky-600">
-                            <i class="bi bi-display fs-1"></i>
-                        </div>
-                        <h5 class="fw-bold mb-1">Monitoring</h5>
-                        <p class="text-muted small mb-0 px-2">Aktivitas Guru & Siswa terpusat</p>
-                    </a>
-                </div>
-                <div class="w-full md:w-1/4 px-2">
-                    <a href="{{ url('guru/piket/laporan') }}"
-                        class="service-card p-4 text-center border-primary border-opacity-25"
-                        style="border-style: solid !important;">
-                        <div class="icon-wrapper bg-light text-primary border border-primary border-opacity-10">
-                            <i class="bi bi-file-earmark-bar-graph fs-1"></i>
-                        </div>
-                        <h5 class="fw-bold mb-1">Laporan Guru</h5>
-                        <p class="text-muted small mb-0 px-2">Rekap kehadiran guru di kelas</p>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Table Recent Activities -->
-        <div class="flex flex-wrap gap-4 mt-5">
-            <div class="w-full px-2">
-                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="card-header bg-white py-4 border-0 flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-bold text-dark"><i
-                                class="bi bi-clock-history me-2 text-primary"></i>Aktivitas Mengajar Terbaru</h5>
-                        <a href="{{ url('guru/piket/laporan') }}#seksi-detail"
-                            class="btn-tw btn-tw-sm btn-light text-primary fw-bold rounded-pill px-3">Lihat Semua <i
-                                class="bi bi-arrow-right ms-1"></i></a>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-premium align-middle mb-0">
-                                <thead class="small text-uppercase fw-bold text-muted">
-                                    <tr>
-                                        <th class="ps-4">Jam</th>
-                                        <th>Nama Guru</th>
-                                        <th>Mata Pelajaran</th>
-                                        <th>Kelas</th>
-                                        <th class="pe-4 text-center">Siswa Absent</th>
-                                    </tr>
-                                <tbody>
-                                    <?php if (empty($jurnal_terbaru)): ?>
-                                        <tr>
-                                            <td colspan="5" class="text-center py-5">
-                                                <i class="bi bi-journal-x fs-1 opacity-10 block mb-2"></i>
-                                                <span class="text-muted">Belum ada aktivitas mengajar hari ini.</span>
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($jurnal_terbaru as $j): ?>
-                                            <tr>
-                                                <td class="ps-4 fw-bold">{{ $j->jam_ke }}</td>
-                                                <td class="fw-bold text-primary">{{ $j->nama_guru }}</td>
-                                                <td class="text-muted">{{ $j->nama_mapel }}</td>
-                                                <td><span
-                                                        class="badge-tw badge-secondary text-dark border px-3 rounded-pill fw-normal">{{ $j->nama_kelas }}</span>
-                                                </td>
-                                                <td class="pe-4 text-center">
-                                                    <?php if (!\App\Models\PiketModel::parseSiswaAbsent($j->siswa_absent ?? null)['nihil']): ?>
-                                                        <span class="badge-tw badge-danger bg-opacity-10 text-danger rounded-pill px-3"><i
-                                                                class="bi bi-person-x me-1"></i> Ada Siswa</span>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">- Nihil -</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    {{-- Layanan utama --}}
+    <div>
+        <h2 class="mb-3 flex items-center gap-2 px-1 text-sm font-bold text-slate-800">
+            <i class="bi bi-lightning-charge-fill text-amber-500"></i> Layanan Utama Piket
+        </h2>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            @foreach ($layanan as $item)
+                <a href="{{ url($item['url']) }}"
+                    class="group flex flex-col items-center rounded-3xl border-2 border-dashed border-slate-200 bg-white p-5 text-center no-underline transition-all hover:-translate-y-0.5 hover:shadow-xl {{ $item['hover'] }}">
+                    <span class="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-colors {{ $item['warna'] }} {{ $item['hoverIcon'] }} group-hover:text-white">
+                        <i class="bi {{ $item['icon'] }}"></i>
+                    </span>
+                    <span class="text-sm font-bold text-slate-800">{{ $item['judul'] }}</span>
+                    <span class="mt-1 text-xs leading-relaxed text-slate-500">{{ $item['teks'] }}</span>
+                </a>
+            @endforeach
         </div>
     </div>
-</div>
 
-<script>
-    // Real-time Clock
-    function updateClock() {
-        const now = new Date();
-        const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
-            now.getMinutes().toString().padStart(2, '0') + ':' +
-            now.getSeconds().toString().padStart(2, '0');
-        document.getElementById('digital-clock').textContent = timeStr;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-</script>
+    {{-- Aktivitas mengajar terbaru --}}
+    <x-ui.card title="Aktivitas Mengajar Terbaru" icon="bi-clock-history" tone="blue" bodyClass="p-0">
+        <x-slot:actions>
+            <a href="{{ url('guru/piket/laporan') }}#seksi-detail"
+                class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-blue-600 no-underline transition-colors hover:bg-blue-50">
+                Lihat Semua <i class="bi bi-arrow-right"></i>
+            </a>
+        </x-slot:actions>
+
+        <x-ui.table>
+            <x-slot:head>
+                <th class="w-20 px-4 py-3">Jam</th>
+                <th class="px-4 py-3">Nama Guru</th>
+                <th class="px-4 py-3">Mata Pelajaran</th>
+                <th class="w-32 px-3 py-3">Kelas</th>
+                <th class="w-40 px-4 py-3 text-center">Siswa Absent</th>
+            </x-slot:head>
+
+            @forelse ($jurnal_terbaru as $j)
+                <tr class="transition-colors hover:bg-slate-50/60">
+                    <td class="px-4 py-2.5 font-bold text-slate-700">{{ $j->jam_ke }}</td>
+                    <td class="px-4 py-2.5 font-bold text-blue-600">{{ $j->nama_guru }}</td>
+                    <td class="px-4 py-2.5 text-slate-500">{{ $j->nama_mapel }}</td>
+                    <td class="px-3 py-2.5">
+                        <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">{{ $j->nama_kelas }}</span>
+                    </td>
+                    <td class="px-4 py-2.5 text-center">
+                        @if (! \App\Models\PiketModel::parseSiswaAbsent($j->siswa_absent ?? null)['nihil'])
+                            <span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">
+                                <i class="bi bi-person-x"></i> Ada Siswa
+                            </span>
+                        @else
+                            <span class="text-[11px] text-slate-400">- Nihil -</span>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="px-4 py-10 text-center">
+                        <i class="bi bi-journal-x mb-2 block text-4xl text-slate-200"></i>
+                        <span class="text-xs text-slate-500">Belum ada aktivitas mengajar hari ini.</span>
+                    </td>
+                </tr>
+            @endforelse
+        </x-ui.table>
+    </x-ui.card>
+</div>
 @endsection

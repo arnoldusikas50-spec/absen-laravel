@@ -1,164 +1,161 @@
 @extends('layouts.main')
 
 @section('content')
-<style>
-    .report-card { border-radius: 20px; transition: all 0.3s; border: none; }
-    .status-box { 
-        padding: 5px 12px; 
-        border-radius: 8px; 
-        font-size: 0.75rem; 
-        font-weight: 700; 
-        text-transform: uppercase;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .check-success { background: #dcfce7; color: #166534; }
-    .check-danger { background: #fee2e2; color: #991b1b; }
-    .check-warning { background: #fef3c7; color: #92400e; }
-    .check-neutral { background: #f1f5f9; color: #475569; }
 
-    .cross-badge {
-        width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    }
-</style>
-
-<div class="content-header fade-in-up">
-    <div class="container-fluid ps-3 ps-lg-4">
-        <div class="flex flex-wrap gap-4 align-items-center">
-            <div class="w-full sm:w-1/2 px-2">
-                <h3 class="mb-0 fw-bold text-primary"><i class="bi bi-file-earmark-diff me-2"></i>{{ $judul }}</h3>
-                <p class="text-muted small mb-0">Perbandingan Kehadiran Guru (Piket vs Jurnal Guru)</p>
-            </div>
-            <div class="w-full sm:w-1/2 px-2 text-sm-end mt-2 mt-sm-0">
-                <a href="{{ url('guru/piket/input_laporan') }}" class="btn-tw btn-primary rounded-pill px-4 shadow-sm me-2">
-                    <i class="bi bi-pencil-square me-1"></i> Input Laporan Piket
-                </a>
-                <a href="{{ url('guru/piket') }}" class="btn-tw btn-outline-secondary rounded-pill px-4">
-                    <i class="bi bi-arrow-left me-1"></i> Kembali
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <x-ui.page-header
+        :title="$judul"
+        icon="bi-file-earmark-diff"
+        tone="blue"
+        subtitle="Perbandingan Kehadiran Guru (Piket vs Jurnal Guru)"
+        :crumbs="['Piket', 'Laporan']">
+        <x-slot:actions>
+            <a href="{{ url('guru/piket/input_laporan') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white no-underline shadow-xs shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                <i class="bi bi-pencil-square"></i> Input Laporan Piket
+            </a>
+            <a href="{{ url('guru/piket') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 no-underline shadow-xs transition-colors hover:bg-slate-50">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
 </div>
 
-<div class="content-area">
-    <div class="container-fluid px-3 px-lg-4">
-        
-        <div class="card report-card shadow-sm mb-4 p-4">
-            <form action="" method="get" class="flex flex-wrap gap-4 gap-3 align-items-end">
-                <div class="w-full md:w-1/4 px-2">
-                    <label class="form-label-tw small fw-bold">Tanggal</label>
-                    <input type="date" name="tanggal" class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm rounded-pill" value="{{ $tanggal }}" onchange="this.form.submit()">
-                </div>
-                <div class="w-full md:w-3/4 px-2 text-md-end">
-                    <div class="d-inline-flex gap-3 small fw-bold text-muted bg-light p-2 px-3 rounded-pill border">
-                        <span><i class="bi bi-person-check-fill text-success me-1"></i> Jurnal = Guru isi mandiri</span>
-                        <span class="border-start ps-3"><i class="bi bi-clipboard-check-fill text-primary me-1"></i> Piket = Petugas piket cek manual</span>
+<div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+    <x-ui.card bodyClass="p-0">
+        <x-slot:toolbar>
+            <form method="get" class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-end gap-3">
+                    <div>
+                        <label for="tanggal" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Tanggal</label>
+                        <input type="date" name="tanggal" id="tanggal" value="{{ $tanggal }}" onchange="this.form.submit()"
+                            class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
                     </div>
+                    <noscript>
+                        <button type="submit"
+                            class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 text-xs font-bold text-white">Tampilkan</button>
+                    </noscript>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500">
+                    <span class="inline-flex items-center gap-1"><i class="bi bi-person-check-fill text-emerald-600"></i> Jurnal = Guru isi mandiri</span>
+                    <span class="h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                    <span class="inline-flex items-center gap-1"><i class="bi bi-clipboard-check-fill text-blue-600"></i> Piket = Petugas piket cek manual</span>
                 </div>
             </form>
-        </div>
+        </x-slot:toolbar>
+    </x-ui.card>
 
-        <?php if (empty($report)): ?>
-            <div class="text-center py-5">
-                <i class="bi bi-inbox fs-1 opacity-10"></i>
-                <h5 class="text-muted">Tidak ada jadwal KBM ditemukan.</h5>
+    @if (empty($report))
+        <x-ui.card bodyClass="p-0">
+            <div class="p-6">
+                <x-ui.empty icon="bi-inbox" title="Tidak ada jadwal KBM ditemukan"
+                    description="Tidak ada jadwal KBM pada tanggal yang dipilih." />
             </div>
-        <?php else: ?>
-            <div class="flex flex-wrap gap-4 gap-4">
-                <?php foreach ($report as $kls): ?>
-                    <div class="col-xl-6">
-                        <div class="card report-card shadow-sm h-100">
-                            <div class="card-header bg-white border-0 py-3 flex justify-content-between">
-                                <h6 class="mb-0 fw-bold">Kelas: {{ $kls['nama_kelas'] }}</h6>
-                                <span class="badge-tw badge-secondary text-dark border rounded-pill">Sesuai Jadwal</span>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="bg-light x-small text-uppercase fw-bold text-muted">
-                                            <tr>
-                                                <th class="ps-3" width="50">Jam</th>
-                                                <th>Mata Pelajaran / Guru</th>
-                                                <th class="text-center" width="100">Jurnal Guru</th>
-                                                <th class="text-center" width="100">Laporan Piket</th>
-                                                <th class="pe-3 text-center" width="60">Match?</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($kls['slots'] as $s): ?>
-                                                <?php 
-                                                    $isFilled = $s['jurnal'];
-                                                    $piket = $s['piket'];
-                                                    $isPiketHadir = ($piket && $piket->status == 'H');
-                                                    $match = ($isFilled == $isPiketHadir);
-                                                ?>
-                                                <tr class="{{ !$match ? 'bg-danger bg-opacity-10' : '' }}">
-                                                    <td class="ps-3 text-center"><small class="fw-bold">{{ $s['jam_ke'] }}</small></td>
-                                                    <td>
-                                                        <div class="fw-bold small">{{ $s['nama_mapel'] }}</div>
-                                                        <div class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-person me-1"></i>{{ $s['nama_guru'] }}</div>
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <?php if ($isFilled): ?>
-                                                            <span class="status-box check-success"><i class="bi bi-check-circle"></i> ISI</span>
-                                                        <?php else: ?>
-                                                            <span class="status-box check-danger"><i class="bi bi-x-circle"></i> KOSONG</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <?php if ($piket): ?>
-                                                            <span class="status-box {{ $isPiketHadir ? 'check-success' : 'check-warning' }}">
-                                                                <i class="bi bi-{{ $isPiketHadir ? 'person-check' : 'person-x' }}"></i> {{ $piket->status }}
-                                                            </span>
-                                                        <?php else: ?>
-                                                            <span class="status-box check-neutral small text-opacity-50">? BELUM</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="pe-3 text-center">
-                                                        <?php if (!$piket): ?>
-                                                            <i class="bi bi-question-circle text-muted"></i>
-                                                        <?php elseif ($match): ?>
-                                                            <i class="bi bi-check-all text-success fs-4"></i>
-                                                        <?php else: ?>
-                                                            <i class="bi bi-exclamation-triangle-fill text-danger" title="Data Tidak Sesuai!"></i>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                </tr>
-                                                <?php if ($piket && $piket->keterangan): ?>
-                                                    <tr class="{{ !$match ? 'bg-danger bg-opacity-10' : '' }}">
-                                                        <td colspan="5" class="ps-3 border-0 pb-2">
-                                                            <div class="p-2 x-small bg-white bg-opacity-50 rounded border" style="font-size: 0.7rem;">
-                                                                <i class="bi bi-info-circle me-1"></i>Catatan Piket: {{ $piket->keterangan }}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+        </x-ui.card>
+    @else
+        <div class="grid gap-4 xl:grid-cols-2">
+            @foreach ($report as $kls)
+                <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+                    <div class="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
+                        <h2 class="flex items-center gap-2 text-sm font-bold text-slate-800">
+                            <i class="bi bi-building text-blue-600"></i> Kelas: {{ $kls['nama_kelas'] }}
+                        </h2>
+                        <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                            Sesuai Jadwal
+                        </span>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
 
-    </div>
-</div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[560px] border-collapse text-left text-xs">
+                            <thead class="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <tr class="border-b border-slate-200">
+                                    <th class="w-14 px-3 py-2.5">Jam</th>
+                                    <th class="px-3 py-2.5">Mata Pelajaran / Guru</th>
+                                    <th class="w-24 px-3 py-2.5 text-center">Jurnal Guru</th>
+                                    <th class="w-28 px-3 py-2.5 text-center">Laporan Piket</th>
+                                    <th class="w-16 px-3 py-2.5 text-center">Match?</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach ($kls['slots'] as $s)
+                                    @php
+                                        $isFilled = $s['jurnal'];
+                                        $piket = $s['piket'];
+                                        $isPiketHadir = ($piket && $piket->status == 'H');
+                                        $match = ($isFilled == $isPiketHadir);
+                                    @endphp
+                                    <tr class="{{ ! $match ? 'bg-rose-50/60' : '' }}">
+                                        <td class="px-3 py-2.5 text-center font-bold text-slate-700">{{ $s['jam_ke'] }}</td>
+                                        <td class="px-3 py-2.5">
+                                            <div class="font-bold text-slate-800">{{ $s['nama_mapel'] }}</div>
+                                            <div class="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                                                <i class="bi bi-person"></i>{{ $s['nama_guru'] }}
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center">
+                                            @if ($isFilled)
+                                                <span class="inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
+                                                    <i class="bi bi-check-circle"></i> Isi
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 rounded-lg bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-800">
+                                                    <i class="bi bi-x-circle"></i> Kosong
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center">
+                                            @if ($piket)
+                                                <span class="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase {{ $isPiketHadir ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                    <i class="bi bi-{{ $isPiketHadir ? 'person-check' : 'person-x' }}"></i> {{ $piket->status }}
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-400">
+                                                    ? Belum
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center">
+                                            @if (! $piket)
+                                                <i class="bi bi-question-circle text-slate-400" title="Belum ada laporan piket"></i>
+                                            @elseif ($match)
+                                                <i class="bi bi-check-all text-lg text-emerald-600" title="Data sesuai"></i>
+                                            @else
+                                                <i class="bi bi-exclamation-triangle-fill text-rose-600" title="Data tidak sesuai!"></i>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @if ($piket && $piket->keterangan)
+                                        <tr class="{{ ! $match ? 'bg-rose-50/60' : '' }}">
+                                            <td colspan="5" class="px-3 pb-2.5">
+                                                <div class="flex items-start gap-1.5 rounded-lg border border-slate-200 bg-white/70 px-2.5 py-1.5 text-[11px] text-slate-500">
+                                                    <i class="bi bi-info-circle mt-0.5"></i>
+                                                    <span>Catatan Piket: {{ $piket->keterangan }}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endforeach
+        </div>
 
-<div class="container-fluid mb-5 mt-4">
-    <div class="alert alert-info border-0 shadow-sm rounded-4 ps-4">
-        <div class="flex flex-wrap gap-4 align-items-center">
-            <div class="col-auto"><i class="bi bi-lightbulb fs-2"></i></div>
-            <div class="col">
-                <h6 class="fw-bold mb-1">Tips Cross-Check</h6>
-                <p class="small mb-0">Baris berwarna <span class="bg-danger bg-opacity-50 px-1 rounded">merah</span> menandakan adanya ketidaksesuaian antara jurnal yang diisi guru dengan pantauan manual petugas piket. Hal ini berguna untuk memastikan objektivitas data kehadiran guru.</p>
+        <div class="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3.5">
+            <i class="bi bi-lightbulb mt-0.5 text-xl text-blue-500"></i>
+            <div class="text-xs leading-relaxed text-slate-600">
+                <h2 class="mb-0.5 text-xs font-bold text-slate-800">Tips Cross-Check</h2>
+                <p>
+                    Baris berwarna <span class="rounded bg-rose-100 px-1 font-semibold text-rose-700">merah</span>
+                    menandakan adanya ketidaksesuaian antara jurnal yang diisi guru dengan pantauan manual petugas piket.
+                    Hal ini berguna untuk memastikan objektivitas data kehadiran guru.
+                </p>
             </div>
         </div>
-    </div>
+    @endif
 </div>
-
 @endsection

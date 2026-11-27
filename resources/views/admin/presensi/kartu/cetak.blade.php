@@ -50,157 +50,6 @@
             padding: 20px;
         }
 
-        /* Top Action Bar (Screen Only) */
-        .top-bar {
-            max-width: 1100px;
-            margin: 0 auto 20px auto;
-            background: #ffffff;
-            padding: 16px 20px;
-            border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-            border: 1px solid #e2e8f0;
-        }
-        .top-bar-info {
-            font-size: 13px;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .top-bar-info strong {
-            color: #0f172a;
-        }
-        .btn-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 14px;
-            font-size: 11.5px;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            border: none;
-            transition: all 0.15s ease;
-        }
-        .btn-primary {
-            background-color: #2563eb;
-            color: #ffffff;
-        }
-        .btn-primary:hover {
-            background-color: #1d4ed8;
-        }
-        .btn-secondary {
-            background-color: #f8fafc;
-            color: #334155;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
-        }
-        .btn-active {
-            background-color: #1d4ed8 !important;
-            color: #ffffff !important;
-            box-shadow: 0 2px 6px rgba(29,78,216,0.3);
-        }
-        @media (max-width: 640px) {
-            .top-bar-head { align-items: flex-start; }
-            .btn-group { width: 100%; }
-            .btn-group .btn { flex: 1; justify-content: center; }
-        }
-
-        /* ── Top bar terstruktur (layar) ──────────────────────────────── */
-        .top-bar-head {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-        .top-bar-title {
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0f172a;
-        }
-        .top-bar-title > i {
-            color: #2563eb;
-            font-size: 16px;
-        }
-        .top-bar-count {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 11px;
-            font-weight: 800;
-            color: #1d4ed8;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            padding: 3px 10px;
-            border-radius: 999px;
-        }
-        .top-bar-count.muted {
-            color: #334155;
-            background: #f1f5f9;
-            border-color: #e2e8f0;
-        }
-        .top-bar-controls {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding-top: 13px;
-            border-top: 1px dashed #e2e8f0;
-        }
-        .ctrl-group {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .ctrl-label {
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-            color: #94a3b8;
-        }
-        .seg {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px;
-            background: #f1f5f9;
-            border-radius: 11px;
-        }
-        .top-bar-tip {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 11px;
-            color: #64748b;
-            padding-top: 11px;
-            border-top: 1px dashed #e2e8f0;
-        }
-        .top-bar-tip i {
-            color: #f59e0b;
-            flex: 0 0 auto;
-        }
-
         /* Sheet Container */
         .sheet-container {
             max-width: 900px;
@@ -1530,98 +1379,25 @@
         }
     </style>
     @endif
+    {{-- Utilitas layar untuk action bar. Isi file ini seluruhnya berada di dalam
+         `@media screen` (varian `layar:`) dan tanpa preflight, jadi tidak bisa
+         memengaruhi aturan maupun hasil cetak. --}}
+    @vite('resources/css/cetak-aksi.css')
 </head>
 <body>
 
-    <!-- Top Action Bar (Screen Only) -->
-    <?php
-    $baseQs = 'id_kelas=' . $qKelas . ($qSiswa ? '&id_siswa=' . $qSiswa : '');
-    $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($d === 'duplex_portrait' ? '&template=' . $templateAktif : '');
-    $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($isPortrait ? '&template=' . $templateAktif : '');
-    $qsFlip = static fn (string $f): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $f . ($isPortrait ? '&template=' . $templateAktif : '');
-    $qsTemplate = static fn (string $t): string => '?' . $baseQs . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=' . $t;
-    ?>
-    <div class="top-bar no-print">
-        <div class="top-bar-head">
-            <div class="top-bar-title">
-                <i class="bi bi-printer-fill"></i> Siap Cetak
-                <span class="top-bar-count">{{ count($siswa_list) }} Kartu Siswa</span>
-                <span class="top-bar-count muted">{{ $nama_kelas }}</span>
-            </div>
-            <div class="btn-group">
-                <a href="{{ $previewUrl }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Kembali
-                </a>
-                <button onclick="window.print()" class="btn btn-primary">
-                    <i class="bi bi-printer"></i> Cetak Sekarang
-                </button>
-            </div>
-        </div>
-
-        <div class="top-bar-controls">
-            <div class="ctrl-group">
-                <span class="ctrl-label">Desain</span>
-                <div class="seg">
-                    <a href="{{ $qsDesain('duplex') }}" class="btn {{ $desainAktif === 'duplex' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 8.56 × 5.4 cm">
-                        <i class="bi bi-layers-fill"></i> Landscape
-                    </a>
-                    <a href="{{ $qsDesain('duplex_portrait') }}" class="btn {{ $desainAktif === 'duplex_portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.4 × 8.56 cm">
-                        <i class="bi bi-card-heading"></i> Portrait
-                    </a>
-                </div>
-            </div>
-            <div class="ctrl-group">
-                <span class="ctrl-label">Tata Letak</span>
-                <div class="seg">
-                    <a href="{{ $qsMode('lembar') }}" class="btn {{ $modeAktif === 'lembar' ? 'btn-active' : 'btn-secondary' }}" title="Sisi depan & belakang berdampingan dalam satu lembar">
-                        <i class="bi bi-file-earmark"></i> Lembar
-                    </a>
-                    <a href="{{ $qsMode('bolakbalik') }}" class="btn {{ $modeAktif === 'bolakbalik' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 dua tahap: semua depan, lalu semua belakang">
-                        <i class="bi bi-layout-text-window-reverse"></i> Bolak-balik
-                    </a>
-                    <a href="{{ $qsMode('ktp') }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
-                        <i class="bi bi-credit-card-2-front"></i> Ukuran KTP
-                    </a>
-                </div>
-            </div>
-            @if ($isPortrait)
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Template</span>
-                    <div class="seg">
-                        <a href="{{ $qsTemplate('vektor') }}" class="btn {{ $templateAktif === 'vektor' ? 'btn-active' : 'btn-secondary' }}" title="Desain vektor bawaan">
-                            <i class="bi bi-vector-pen"></i> Vektor
-                        </a>
-                        <a href="{{ $templatePngSiap ? $qsTemplate('png') : ($bisaSetelan ? url('setting') : '#') }}"
-                           {{ $templatePngSiap ? '' : ($bisaSetelan ? 'title="Unggah latar kartu depan &amp; belakang di menu Pengaturan dulu" style="opacity:.45;"' : 'aria-disabled="true" title="Latar kartu diunggah admin melalui menu Pengaturan" style="pointer-events:none;opacity:.45;"') }}
-                           class="btn {{ $templateAktif === 'png' ? 'btn-active' : 'btn-secondary' }}" title="Latar PNG hasil unggahan /settings">
-                            <i class="bi bi-image"></i> Latar PNG
-                        </a>
-                    </div>
-                </div>
-            @endif
-            @if ($modeAktif === 'bolakbalik')
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Balik Kertas</span>
-                    <div class="seg">
-                        <a href="{{ $qsFlip('long') }}" class="btn {{ $flipAktif === 'long' ? 'btn-active' : 'btn-secondary' }}" title="Balik kertas pada sisi panjang (sisi belakang tegak lurus)">
-                            <i class="bi bi-arrow-left-right"></i> Sisi Panjang
-                        </a>
-                        <a href="{{ $qsFlip('short') }}" class="btn {{ $flipAktif === 'short' ? 'btn-active' : 'btn-secondary' }}" title="Balik kertas pada sisi pendek (sisi belakang terbalik 180°)">
-                            <i class="bi bi-arrow-down-up"></i> Sisi Pendek
-                        </a>
-                    </div>
-                </div>
-            @endif
-        </div>
-
-        <div class="top-bar-tip">
-            <i class="bi bi-lightbulb-fill"></i>
-            <span>
-                Aktifkan <strong>“Background graphics”</strong> pada dialog cetak agar warna kartu tercetak penuh, dan pilih ukuran kertas
-                <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>.
-            </span>
-        </div>
-    </div>
+    @php
+        // Query string action bar (dipakai partial action bar layar).
+        $baseQs = 'id_kelas=' . $qKelas . ($qSiswa ? '&id_siswa=' . $qSiswa : '');
+        // Label tata letak A4 dikirim ke partial: folder partial tidak boleh memuat
+        // kata itu karena pemindai Tailwind menjadikannya utility tanpa prefiks.
+        $labelGrid = 'Grid A4';
+        $qsDesain = static fn (string $d): string => '?' . $baseQs . '&desain=' . $d . '&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($d === 'duplex_portrait' ? '&template=' . $templateAktif : '');
+        $qsMode = static fn (string $m): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=' . $m . ($m === 'bolakbalik' ? '&flip=' . $flipAktif : '') . ($isPortrait ? '&template=' . $templateAktif : '');
+        $qsFlip = static fn (string $f): string => '?' . $baseQs . '&desain=' . $desainAktif . '&mode=bolakbalik&flip=' . $f . ($isPortrait ? '&template=' . $templateAktif : '');
+        $qsTemplate = static fn (string $t): string => '?' . $baseQs . '&desain=duplex_portrait&mode=' . $modeAktif . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '') . '&template=' . $t;
+    @endphp
+    @include('admin.presensi.kartu.aksi.bar_layar', ['varian' => 'siswa'])
 
     <!-- Sheet Container -->
     <div class="sheet-container">
@@ -1638,15 +1414,7 @@
             </div>
         <?php endif; ?>
 
-        <?php if (empty($siswa_list)): ?>
-            <div class="no-print" style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;text-align:center;">
-                <p style="font-size:15px;font-weight:800;color:#0f172a;margin:0 0 6px 0;">Tidak ada kartu untuk dicetak</p>
-                <p style="font-size:12px;color:#64748b;margin:0 0 16px 0;">
-                    Pilih kelas / siswa lain pada halaman preview kartu, lalu buka kembali halaman cetak ini.
-                </p>
-                <a href="{{ $previewUrl }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</a>
-            </div>
-        <?php endif; ?>
+        @include('admin.presensi.kartu.aksi.pemberitahuan_kosong', ['varian' => 'siswa'])
 
         {{-- ══════════════════════════════════════════════════════════════════
              MODE KTP: cetak langsung ukuran kartu KTP (CR80 85.6 × 54 mm)

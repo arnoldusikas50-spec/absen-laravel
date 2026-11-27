@@ -1,185 +1,201 @@
 @extends('layouts.main')
 
 @section('content')
-<style>
-    .input-card { border-radius: 20px; border: none; overflow: hidden; }
-    .status-select { 
-        border: 2px solid #e2e8f0; 
-        border-radius: 12px; 
-        padding: 8px 15px; 
-        font-weight: 600;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-    .status-select:focus { border-color: var(--accent-500); box-shadow: 0 0 0 3px rgb(var(--accent-500-rgb) / 0.1); }
-    .status-H { background-color: #ecfdf5; color: #059669; border-color: #10b981 !important; }
-    .status-S { background-color: var(--primary-50); color: var(--primary-600); border-color: var(--primary-500) !important; }
-    .status-I { background-color: #fffbeb; color: #d97706; border-color: #f59e0b !important; }
-    .status-A { background-color: #fef2f2; color: #dc2626; border-color: #ef4444 !important; }
-    
-    .loading-overlay {
-        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(255,255,255,0.7);
-        display: none; align-items: center; justify-content: center; z-index: 10;
-    }
-</style>
 
-<div class="content-header fade-in-up">
-    <div class="container-fluid ps-3 ps-lg-4">
-        <div class="flex flex-wrap gap-4 align-items-center">
-            <div class="w-full sm:w-1/2 px-2">
-                <h3 class="mb-0 fw-bold text-primary"><i class="bi bi-pencil-square me-2"></i>{{ $judul }}</h3>
-                <p class="text-muted small mb-0">Input Laporan Kehadiran Guru Harian (Cross-Check Manual)</p>
-            </div>
-            <div class="w-full sm:w-1/2 px-2 text-sm-end mt-2 mt-sm-0">
-                <a href="{{ url('guru/piket/laporan') }}" class="btn-tw btn-outline-primary rounded-pill px-4 shadow-sm">
-                    <i class="bi bi-file-earmark-bar-graph me-1"></i> Lihat Hasil Rekap
-                </a>
-            </div>
-        </div>
-    </div>
+<div x-data="piketLaporan('{{ url('guru/piket/save_laporan_guru') }}', '{{ csrf_token() }}')">
+<div class="px-4 pt-4 md:px-6 md:pt-6">
+    <x-ui.page-header
+        :title="$judul"
+        icon="bi-pencil-square"
+        tone="blue"
+        subtitle="Input Laporan Kehadiran Guru Harian (Cross-Check Manual)"
+        :crumbs="['Piket', 'Input Laporan']">
+        <x-slot:actions>
+            <a href="{{ url('guru/piket/laporan') }}"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 no-underline shadow-xs transition-colors hover:bg-blue-100">
+                <i class="bi bi-file-earmark-bar-graph"></i> Lihat Hasil Rekap
+            </a>
+        </x-slot:actions>
+    </x-ui.page-header>
 </div>
 
-<div class="content-area">
-    <div class="container-fluid px-3 px-lg-4">
-        
-        <div class="card input-card shadow-sm mb-4 p-4">
-            <form action="" method="get" class="flex flex-wrap gap-4 gap-3 align-items-end">
-                <div class="w-full md:w-1/3 px-2">
-                    <label class="form-label-tw small fw-bold">Tanggal Piket</label>
-                    <input type="date" name="tanggal" class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm rounded-pill" value="{{ $tanggal }}" onchange="this.form.submit()">
+<div class="mt-4 space-y-5 px-4 pb-6 md:px-6">
+
+    <x-ui.card bodyClass="p-0">
+        <x-slot:toolbar>
+            <form method="get" class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label for="tanggal" class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Tanggal Piket</label>
+                    <input type="date" name="tanggal" id="tanggal" value="{{ $tanggal }}" onchange="this.form.submit()"
+                        class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
                 </div>
-                <div class="w-full md:w-1/3 px-2">
-                    <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i> Data disimpan otomatis saat status diubah.</p>
-                </div>
+                <noscript>
+                    <button type="submit"
+                        class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 text-xs font-bold text-white">Tampilkan</button>
+                </noscript>
+                <p class="pb-2 text-[11px] text-slate-500">
+                    <i class="bi bi-info-circle me-1"></i> Data disimpan otomatis saat status diubah.
+                </p>
             </form>
-        </div>
+        </x-slot:toolbar>
+    </x-ui.card>
 
-        <?php if (empty($report)): ?>
-            <div class="text-center py-5">
-                <i class="bi bi-calendar-x fs-1 opacity-10 block mb-3"></i>
-                <h5 class="text-muted">Jadwal tidak ditemukan untuk tanggal ini.</h5>
+    @if (empty($report))
+        <x-ui.card bodyClass="p-0">
+            <div class="p-6">
+                <x-ui.empty icon="bi-calendar-x" title="Jadwal tidak ditemukan"
+                    description="Tidak ada jadwal KBM untuk tanggal yang dipilih." />
             </div>
-        <?php else: ?>
-            <div class="flex flex-wrap gap-4 gap-4">
-                <?php foreach ($report as $idKls => $kls): ?>
-                    <div class="w-full px-2">
-                        <div class="card input-card shadow-sm position-relative">
-                            <div class="loading-overlay" id="loader-{{ $idKls }}"><div class="spinner-border text-primary"></div></div>
-                            <div class="card-header bg-white border-0 py-3">
-                                <h5 class="mb-0 fw-bold"><i class="bi bi-building me-2 text-primary"></i>Kelas: {{ $kls['nama_kelas'] }}</h5>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0">
-                                        <thead class="bg-light small fw-bold text-muted">
-                                            <tr>
-                                                <th class="ps-4" width="80">Jam</th>
-                                                <th>Mata Pelajaran</th>
-                                                <th>Guru (Sesuai Jadwal)</th>
-                                                <th width="200">Status Kehadiran</th>
-                                                <th width="300" class="pe-4">Keterangan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($kls['slots'] as $s): ?>
-                                                <?php $manual = $s['manual']; ?>
-                                                <tr>
-                                                    <td class="ps-4"><span class="badge-tw badge-secondary text-dark border">{{ $s['jam_ke'] }}</span></td>
-                                                    <td>
-                                                        <div class="fw-bold">{{ $s['nama_mapel'] }}</div>
-                                                    </td>
-                                                    <td>
-                                                        <div class="{{ $s['nama_guru'] == 'Belum Diset' ? 'text-danger fw-bold' : '' }}">
-                                                            {{ $s['nama_guru'] }}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <select class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white status-select status-{{ $manual->status ?? 'none' }}" 
-                                                            onchange="saveAttendance(this, {{ $idKls }}, {{ $s['jam_ke'] }}, {{ $s['id_mapel'] }}, {{ $s['id_guru'] ?: 0 }})">
-                                                            <option value="" {{ !$manual ? 'selected' : '' }}>-- Pilih Status --</option>
-                                                            <option value="H" {{ ($manual && $manual->status == 'H') ? 'selected' : '' }}>Hadir</option>
-                                                            <option value="S" {{ ($manual && $manual->status == 'S') ? 'selected' : '' }}>Sakit</option>
-                                                            <option value="I" {{ ($manual && $manual->status == 'I') ? 'selected' : '' }}>Izin</option>
-                                                            <option value="A" {{ ($manual && $manual->status == 'A') ? 'selected' : '' }}>Alpa</option>
-                                                        </select>
-                                                    </td>
-                                                    <td class="pe-4">
-                                                        <div class="input-group input-group-sm">
-                                                            <input type="text" class="input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Catatan (opsional)..." 
-                                                                value="{{ $manual->keterangan ?? '' }}"
-                                                                onblur="saveAttendance(this, {{ $idKls }}, {{ $s['jam_ke'] }}, {{ $s['id_mapel'] }}, {{ $s['id_guru'] ?: 0 }})">
-                                                            <span class="input-group-text bg-white"><i class="bi bi-chat-dots"></i></span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        </x-ui.card>
+    @else
+        @foreach ($report as $idKls => $kls)
+            <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+                <div x-show="menyimpan[{{ $idKls }}]" x-cloak
+                    class="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                    <i class="bi bi-arrow-repeat animate-spin text-2xl text-blue-600"></i>
+                </div>
 
-    </div>
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
+                    <h2 class="flex items-center gap-2 text-sm font-bold text-slate-800">
+                        <i class="bi bi-building text-blue-600"></i> Kelas: {{ $kls['nama_kelas'] }}
+                    </h2>
+                    <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+                        {{ count($kls['slots']) }} jam
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[880px] border-collapse text-left text-xs">
+                        <thead class="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            <tr class="border-b border-slate-200">
+                                <th class="w-20 px-4 py-2.5">Jam</th>
+                                <th class="px-3 py-2.5">Mata Pelajaran</th>
+                                <th class="px-3 py-2.5">Guru (Sesuai Jadwal)</th>
+                                <th class="w-48 px-3 py-2.5">Status Kehadiran</th>
+                                <th class="w-72 px-4 py-2.5">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($kls['slots'] as $s)
+                                @php
+                                    $manual = $s['manual'];
+                                    $statusAwal = $manual->status ?? '';
+                                @endphp
+                                <tr x-data="{ status: '{{ $statusAwal }}' }" class="transition-colors hover:bg-slate-50/60">
+                                    <td class="px-4 py-2.5">
+                                        <span class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600">{{ $s['jam_ke'] }}</span>
+                                    </td>
+                                    <td class="px-3 py-2.5 font-bold text-slate-800">{{ $s['nama_mapel'] }}</td>
+                                    <td class="px-3 py-2.5 {{ $s['nama_guru'] == 'Belum Diset' ? 'font-bold text-rose-600' : 'text-slate-600' }}">
+                                        {{ $s['nama_guru'] }}
+                                    </td>
+                                    <td class="px-3 py-2.5">
+                                        <select x-model="status"
+                                            @change="simpan($el, {{ $idKls }}, {{ $s['jam_ke'] }}, {{ $s['id_mapel'] }}, {{ $s['id_guru'] ?: 0 }})"
+                                            aria-label="Status kehadiran guru"
+                                            :class="{
+                                                'border-slate-200 bg-white text-slate-600': status === '',
+                                                'border-emerald-500 bg-emerald-50 text-emerald-700': status === 'H',
+                                                'border-sky-500 bg-sky-50 text-sky-700': status === 'S',
+                                                'border-amber-500 bg-amber-50 text-amber-700': status === 'I',
+                                                'border-rose-500 bg-rose-50 text-rose-700': status === 'A',
+                                            }"
+                                            class="w-full cursor-pointer rounded-xl border-2 px-3 py-1.5 text-xs font-semibold outline-hidden transition-colors focus:ring-2 focus:ring-blue-500/20">
+                                            <option value="">-- Pilih Status --</option>
+                                            <option value="H">Hadir</option>
+                                            <option value="S">Sakit</option>
+                                            <option value="I">Izin</option>
+                                            <option value="A">Alpa</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <div class="relative">
+                                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                                                <i class="bi bi-chat-dots"></i>
+                                            </span>
+                                            <input type="text" placeholder="Catatan (opsional)..." value="{{ $manual->keterangan ?? '' }}"
+                                                aria-label="Catatan laporan piket"
+                                                @blur="simpan($el, {{ $idKls }}, {{ $s['jam_ke'] }}, {{ $s['id_mapel'] }}, {{ $s['id_guru'] ?: 0 }})"
+                                                class="w-full rounded-xl border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-700 outline-hidden transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endforeach
+    @endif
 </div>
+</div>
+@endsection
 
+@section('scripts')
 <script>
-function saveAttendance(el, idKelas, jamKe, idMapel, idGuru) {
-    const flex flex-wrap gap-4 = el.closest('tr');
-    const status = flex flex-wrap gap-4.querySelector('.status-select').value;
-    const keterangan = flex flex-wrap gap-4.querySelector('input').value;
-    const date = '{{ $tanggal }}';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('piketLaporan', (url, token) => ({
+        menyimpan: {},
 
-    if (!status && !keterangan) return;
-    if (!status) {
-        Swal.fire({ icon: 'warning', title: 'Status wajib dipilih', text: 'Pilih Hadir/Sakit/Izin/Alpa sebelum menyimpan catatan.' });
-        return;
-    }
+        simpan(el, idKelas, jamKe, idMapel, idGuru) {
+            const baris = el.closest('tr');
+            const select = baris.querySelector('select');
+            const catatan = baris.querySelector('input[type=text]');
+            const status = select.value;
+            const keterangan = catatan.value;
 
-    const overlay = document.getElementById('loader-' + idKelas);
-    overlay.style.display = 'flex';
+            if (!status && keterangan.trim() === '') {
+                return;
+            }
 
-    const formData = new FormData();
-    formData.append('tanggal', date);
-    formData.append('id_kelas', idKelas);
-    formData.append('jam_ke', jamKe);
-    formData.append('id_mapel', idMapel);
-    formData.append('id_guru', idGuru);
-    formData.append('status', status);
-    formData.append('keterangan', keterangan);
-    formData.append('_token', '{{ csrf_token() }}');
+            if (!status) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Status wajib dipilih',
+                    text: 'Pilih Hadir/Sakit/Izin/Alpa sebelum menyimpan catatan.',
+                });
+                return;
+            }
 
-    fetch('{{ url('guru/piket/save_laporan_guru') }}', {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        overlay.style.display = 'none';
-        if (data.status) {
-            // Update class for styling
-            const select = flex flex-wrap gap-4.querySelector('.status-select');
-            select.className = 'input-tw w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white status-select status-' + status;
-            
-            // Subtle feedback
-            const toast = Swal.mixin({
-                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true
-            });
-            toast.fire({ icon: 'success', title: data.message });
-        } else {
-            Swal.fire('Eror', data.message, 'error');
-        }
-    })
-    .catch(err => {
-        overlay.style.display = 'none';
-        console.error(err);
-    });
-}
+            const data = new FormData();
+            data.append('tanggal', '{{ $tanggal }}');
+            data.append('id_kelas', idKelas);
+            data.append('jam_ke', jamKe);
+            data.append('id_mapel', idMapel);
+            data.append('id_guru', idGuru);
+            data.append('status', status);
+            data.append('keterangan', keterangan);
+
+            this.menyimpan[idKelas] = true;
+
+            fetch(url, {
+                method: 'POST',
+                body: data,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': token },
+            })
+                .then((response) => response.json())
+                .then((res) => {
+                    if (res.status) {
+                        Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 1500,
+                            timerProgressBar: true,
+                        }).fire({ icon: 'success', title: res.message });
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                })
+                .catch((err) => {
+                    console.error(err);
+                    Swal.fire('Error', 'Laporan piket gagal disimpan.', 'error');
+                })
+                .finally(() => {
+                    this.menyimpan[idKelas] = false;
+                });
+        },
+    }));
+});
 </script>
-
 @endsection

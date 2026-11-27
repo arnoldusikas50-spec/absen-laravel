@@ -32,8 +32,6 @@
     <!-- Tailwind CSS (build lokal — npm run build) -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    <!-- DataTables CSS (vanilla - tanpa Bootstrap theme) -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.css') }}">
     <!-- Toastr -->
@@ -69,24 +67,6 @@
         let smt_active = '{{ isset($smt_active) ? $smt_active->smt   : "" }}';
         let id_tp_active  = '{{ isset($tp_active)  ? $tp_active->id_tp  : "" }}';
         let id_smt_active = '{{ isset($smt_active) ? $smt_active->id_smt : "" }}';
-
-        const dt_lang_id = {
-            "emptyTable":    "Tidak ada data yang tersedia",
-            "info":          "Menampilkan _START_ – _END_ dari _TOTAL_ entri",
-            "infoEmpty":     "Menampilkan 0 sampai 0 dari 0 entri",
-            "infoFiltered":  "(difilter dari _MAX_ total entri)",
-            "lengthMenu":    "Tampilkan _MENU_ entri",
-            "loadingRecords":"Memuat...",
-            "processing":    "Sedang memproses...",
-            "search":        "Cari:",
-            "zeroRecords":   "Tidak ditemukan data yang sesuai",
-            "paginate": {
-                "first":    "Pertama",
-                "last":     "Terakhir",
-                "next":     "Selanjutnya",
-                "previous": "Sebelumnya"
-            }
-        };
 
         function startTime() {
             var t = new Date();
@@ -176,14 +156,6 @@
     @yield('modals')
 
     <!-- ===== JS ===== -->
-    <!-- DataTables -->
-    <script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/datatables-buttons/js/dataTables.buttons.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/jszip/jszip.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/pdfmake/pdfmake.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/pdfmake/vfs_fonts.js') }}"></script>
-    <script src="{{ asset('assets/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
     <!-- SweetAlert2 -->
     <script src="{{ asset('assets/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
     <!-- Toastr -->

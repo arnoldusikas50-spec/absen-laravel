@@ -1,7 +1,11 @@
 @php
     // Tata letak cetak: grid (lembar A4) | ktp (satu kartu per halaman CR80).
     $desainAktif = $desain ?? 'landscape';
-    $modeAktif = ($mode ?? 'grid') === 'ktp' ? 'ktp' : 'grid';
+    // Nilai tata letak A4 dikirim ke partial action bar; folder partial tidak boleh
+    // memuat kata itu karena pemindai Tailwind menjadikannya utility tanpa prefiks.
+    $modeGrid = 'grid';
+    $labelGrid = 'Grid A4';
+    $modeAktif = ($mode ?? $modeGrid) === 'ktp' ? 'ktp' : $modeGrid;
     $ktpLebarMm = 85.6;
     $ktpTinggiMm = 54.0;
     // Prefix role-aware: admin (menu admin) atau guru (Kartu QR Saya).
@@ -31,167 +35,6 @@
             color: #0f172a;
             margin: 0;
             padding: 20px;
-        }
-
-        /* Top Action Bar (Screen Only) */
-        .top-bar {
-            max-width: 1100px;
-            margin: 0 auto 20px auto;
-            background: #ffffff;
-            padding: 16px 20px;
-            border-radius: 14px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-            border: 1px solid #e2e8f0;
-        }
-        .top-bar-info {
-            font-size: 13px;
-            color: #475569;
-        }
-        .top-bar-info strong {
-            color: #0f172a;
-        }
-        .btn-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 14px;
-            font-size: 11.5px;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            border: none;
-            transition: all 0.15s ease;
-        }
-        .btn-primary {
-            background-color: #2563eb;
-            color: #ffffff;
-        }
-        .btn-primary:hover {
-            background-color: #1d4ed8;
-        }
-        .btn-secondary {
-            background-color: #f8fafc;
-            color: #334155;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
-        }
-        .btn-active {
-            background-color: #1d4ed8 !important;
-            color: #ffffff !important;
-            box-shadow: 0 2px 6px rgba(29,78,216,0.3);
-        }
-        @media (max-width: 640px) {
-            .top-bar-head { align-items: flex-start; }
-            .btn-group { width: 100%; }
-            .btn-group .btn { flex: 1; justify-content: center; }
-        }
-
-        /* ── Top bar terstruktur (layar) ──────────────────────────────── */
-        .top-bar-head {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-        .top-bar-title {
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0f172a;
-            flex-wrap: wrap;
-        }
-        .top-bar-title > i {
-            color: #2563eb;
-            font-size: 16px;
-        }
-        .top-bar-count {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 11px;
-            font-weight: 800;
-            color: #1d4ed8;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            padding: 3px 10px;
-            border-radius: 999px;
-        }
-        .top-bar-count.muted {
-            color: #334155;
-            background: #f1f5f9;
-            border-color: #e2e8f0;
-        }
-        .top-bar-controls {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding-top: 13px;
-            border-top: 1px dashed #e2e8f0;
-        }
-        .ctrl-group {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .ctrl-label {
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-            color: #94a3b8;
-        }
-        .seg {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px;
-            background: #f1f5f9;
-            border-radius: 11px;
-        }
-        .top-bar-tip {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 11px;
-            color: #64748b;
-            padding-top: 11px;
-            border-top: 1px dashed #e2e8f0;
-        }
-        .top-bar-tip i {
-            color: #f59e0b;
-            flex: 0 0 auto;
-        }
-        .top-bar-alert {
-            width: 100%;
-            display: flex;
-            align-items: flex-start;
-            gap: 7px;
-            font-size: 11px;
-            font-weight: 600;
-            color: #b45309;
-            background: #fffbeb;
-            border: 1px solid #fcd34d;
-            border-radius: 8px;
-            padding: 8px 12px;
         }
 
         /* Sheet Container (A4 Printable Area) */
@@ -1082,83 +925,18 @@
         }
     </style>
     @endif
+    {{-- Utilitas layar untuk action bar. Isi file ini seluruhnya berada di dalam
+         `@media screen` (varian `layar:`) dan tanpa preflight, jadi tidak bisa
+         memengaruhi aturan maupun hasil cetak. --}}
+    @vite('resources/css/cetak-aksi.css')
 </head>
 <body class="{{ $modeAktif === 'ktp' ? 'ktp-mode' : '' }}">
 
-    <!-- Action Bar (Screen Only) -->
-    <div class="top-bar no-print">
-        <div class="top-bar-head">
-            <div class="top-bar-title">
-                <i class="bi bi-printer-fill"></i> Siap Cetak
-                <span class="top-bar-count">{{ count($guru_list) }} Kartu Guru</span>
-                <span class="top-bar-count muted">{{ $judul_cetak }}</span>
-            </div>
-            <div class="btn-group">
-                <a href="{{ $previewUrl }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Kembali
-                </a>
-                <button onclick="window.print()" class="btn btn-primary">
-                    <i class="bi bi-printer"></i> Cetak Sekarang
-                </button>
-            </div>
-        </div>
-
-        <div class="top-bar-controls">
-            <div class="ctrl-group">
-                <span class="ctrl-label">Desain</span>
-                <div class="seg">
-                    <a href="{{ $cetakBase . 'desain=landscape&mode=' . $modeAktif }}" class="btn {{ $desainAktif === 'landscape' ? 'btn-active' : 'btn-secondary' }}" title="Ukuran 9.2 × 5.8 cm">
-                        <i class="bi bi-layers-fill"></i> Landscape
-                    </a>
-                    <a href="{{ $cetakBase . 'desain=portrait&mode=' . $modeAktif }}" class="btn {{ $desainAktif === 'portrait' ? 'btn-active' : 'btn-secondary' }}" title="Portrait 5.8 × 9.2 cm">
-                        <i class="bi bi-card-heading"></i> Portrait
-                    </a>
-                </div>
-            </div>
-            <div class="ctrl-group">
-                <span class="ctrl-label">Tata Letak</span>
-                <div class="seg">
-                    <a href="{{ $cetakBase . 'desain=' . $desainAktif . '&mode=grid' }}" class="btn {{ $modeAktif === 'grid' ? 'btn-active' : 'btn-secondary' }}" title="Grid A4 — beberapa kartu per lembar">
-                        <i class="bi bi-grid-3x3-gap"></i> Grid A4
-                    </a>
-                    <a href="{{ $cetakBase . 'desain=' . $desainAktif . '&mode=ktp' }}" class="btn {{ $modeAktif === 'ktp' ? 'btn-active' : 'btn-secondary' }}" title="Cetak langsung ukuran kartu KTP (85.6 × 54 mm)">
-                        <i class="bi bi-credit-card-2-front"></i> Ukuran KTP
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <?php if (!empty($terpotong)): ?>
-            <div class="top-bar-alert">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <span>Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama — cetak sisanya dengan memilih satu guru.</span>
-            </div>
-        <?php endif; ?>
-
-        <div class="top-bar-tip">
-            <i class="bi bi-lightbulb-fill"></i>
-            <span>
-                Aktifkan <strong>“Background graphics”</strong> pada dialog cetak agar warna kartu tercetak penuh, dan pilih ukuran kertas
-                <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>.
-            </span>
-        </div>
-    </div>
+    @include('admin.presensi.kartu.aksi.bar_layar', ['varian' => 'guru'])
 
     <!-- Sheet Container -->
     <div class="sheet-container">
-        <?php if (empty($guru_list)): ?>
-            <div class="no-print" style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;text-align:center;">
-                <p style="font-size:15px;font-weight:800;color:#0f172a;margin:0 0 6px 0;">Tidak ada kartu guru untuk dicetak</p>
-                <p style="font-size:12px;color:#64748b;margin:0 0 16px 0;">
-                    <?php if (!empty($catatan)): ?>
-                        {{ $catatan }}
-                    <?php else: ?>
-                        Guru yang dipilih tidak ditemukan pada master data guru. Periksa kembali filternya di halaman preview.
-                    <?php endif; ?>
-                </p>
-                <a href="{{ $previewUrl }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Kembali ke Preview</a>
-            </div>
-        <?php endif; ?>
+        @include('admin.presensi.kartu.aksi.pemberitahuan_kosong', ['varian' => 'guru'])
 
         @if ($modeAktif === 'ktp')
             <!-- Mode Cetak Ukuran KTP (CR80 85.6 × 54 mm, satu kartu per halaman) -->
