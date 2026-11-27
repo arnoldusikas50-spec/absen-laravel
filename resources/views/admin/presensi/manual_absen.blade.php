@@ -87,7 +87,7 @@
     ];
 @endphp
 
-<div class="space-y-4"
+<div class="fade-in-up space-y-5 px-4 pb-6 pt-4 md:px-6 md:pt-6"
     x-data="manualAbsenPage({
         csrf: @js(csrf_token()),
         primary: @js(\App\Libraries\Theme::metaColor('primary')),
@@ -113,65 +113,69 @@
         title="Input Kehadiran Guru"
         icon="bi-pencil-square"
         tone="blue"
-        subtitle="Catat kehadiran guru secara manual oleh admin / panitia, per guru maupun massal."
+        subtitle="Catat kehadiran guru secara manual oleh admin atau panitia — per guru maupun massal."
         :crumbs="['Presensi', 'Absen Manual']">
         <x-slot:actions>
             <a href="{{ url('admin/presensi') }}"
-                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-100">
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                 <i class="bi bi-speedometer2"></i> Monitoring
             </a>
             <a href="{{ url('admin/presensi/rekap') }}"
-                class="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs font-bold text-violet-700 no-underline transition-colors hover:bg-violet-100">
+                class="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2 text-xs font-bold text-violet-700 no-underline transition-colors hover:border-violet-300 hover:bg-violet-100">
                 <i class="bi bi-table"></i> Rekap
             </a>
         </x-slot:actions>
     </x-ui.page-header>
 
     {{-- Tanggal + mode --}}
-    <x-ui.card body-class="p-5 space-y-3">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:flex-wrap">
-            <div class="grid grid-cols-2 gap-2 md:flex md:items-center">
-                <input type="date" x-model="tanggal" :max="today" aria-label="Tanggal absensi"
-                    class="col-span-2 min-h-[40px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300 md:col-span-1 md:w-auto">
+    <x-ui.card body-class="p-4 sm:p-5 space-y-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="relative">
+                    <i class="bi bi-calendar3 pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                    <input type="date" x-model="tanggal" :max="today" aria-label="Tanggal absensi"
+                        class="min-h-[40px] w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm font-medium outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200 sm:w-auto">
+                </div>
                 <button type="button" @click="quickSetDate(-1)"
-                    class="min-h-[40px] w-full rounded-lg border-[1.5px] border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 md:w-auto">
-                    Kemarin
+                    class="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <i class="bi bi-chevron-left"></i> Kemarin
                 </button>
                 <button type="button" @click="quickSetDate(0)"
-                    class="min-h-[40px] w-full rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 md:w-auto">
-                    Hari Ini
+                    class="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-700">
+                    <i class="bi bi-calendar-check"></i> Hari Ini
                 </button>
             </div>
 
-            <div x-show="tanggal" x-cloak class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                :class="liburInfo.libur ? 'bg-amber-100 text-amber-800' : (isHariAktif ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700')">
+            <div x-show="tanggal" x-cloak
+                class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+                :class="liburInfo.libur ? 'bg-amber-100 text-amber-800' : (isHariAktif ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600')">
                 <i class="bi bi-calendar3"></i>
                 <span x-text="tanggalLabel"></span>
             </div>
 
-            <div class="inline-flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 md:ml-auto" role="tablist" aria-label="Mode pengisian">
+            <div class="inline-flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 lg:ml-auto" role="tablist" aria-label="Mode pengisian">
                 <button type="button" role="tab" @click="mode = 'single'"
                     :aria-selected="mode === 'single' ? 'true' : 'false'"
                     :class="mode === 'single' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
-                    class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-colors">
+                    class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors">
                     <i class="bi bi-person"></i> Per Guru
                 </button>
                 <button type="button" role="tab" @click="mode = 'batch'"
                     :aria-selected="mode === 'batch' ? 'true' : 'false'"
                     :class="mode === 'batch' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
-                    class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-colors">
+                    class="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors">
                     <i class="bi bi-people"></i> Massal
                 </button>
             </div>
         </div>
 
-        <div x-show="isHariAktif" x-cloak class="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-800" role="alert">
+        <div x-show="isHariAktif" x-cloak class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800" role="alert">
             <i class="bi bi-clock-history mt-0.5 shrink-0"></i>
-            <span><strong>Hari ini (hari aktif):</strong> hanya boleh absen <em>Datang saja</em> atau <em>Pulang saja</em>. Datang + Pulang sekaligus hanya untuk tanggal kemarin atau sebelumnya.</span>
+            <span><strong>Hari ini (hari aktif):</strong> hanya boleh mencatat <em>Datang saja</em> atau <em>Pulang saja</em>. Datang + Pulang sekaligus hanya untuk tanggal kemarin atau sebelumnya.</span>
         </div>
-        <div x-show="liburInfo.libur" x-cloak class="flex items-start gap-2 rounded-xl border border-orange-300 bg-orange-50 px-3.5 py-2.5 text-xs font-medium text-orange-800" role="alert">
+        <div x-show="liburInfo.libur" x-cloak class="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800" role="alert">
             <i class="bi bi-exclamation-triangle mt-0.5 shrink-0"></i>
-            <span><strong>Hari libur</strong> — <span x-text="liburInfo.alasan"></span>. Simpan per guru &amp; baris HADIR massal akan ditolak server.</span>
+            <span><strong>Hari libur</strong> — <span x-text="liburInfo.alasan"></span>. Simpan per guru dan baris HADIR massal akan ditolak server.</span>
         </div>
     </x-ui.card>
 
@@ -180,7 +184,7 @@
         <div class="lg:col-span-2">
             <x-ui.card title="Form Presensi" icon="bi-pencil-square" tone="blue">
                 <x-slot:actions>
-                    <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
+                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
                         :class="chipClass(single.label)"
                         x-text="single.label || 'Pilih guru'"></span>
                 </x-slot:actions>
@@ -192,8 +196,8 @@
                             Guru <span class="text-red-500">*</span>
                         </label>
                         <select id="selectGuru" x-model="guruId"
-                            class="min-h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300">
-                            <option value="">-- Ketik nama atau NIP --</option>
+                            class="min-h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
+                            <option value="">— Pilih guru (ketik nama atau NIP) —</option>
                             @foreach ($guruOpsi as $g)
                                 <option value="{{ $g['id'] }}">{{ $g['label'] }}</option>
                             @endforeach
@@ -209,7 +213,7 @@
                                     <input type="radio" class="peer sr-only" name="singleStatus"
                                         id="status{{ $s['key'] }}" value="{{ $s['key'] }}" x-model="status">
                                     <label for="status{{ $s['key'] }}"
-                                        class="flex cursor-pointer items-center gap-1.5 rounded-xl border-[1.5px] border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50 {{ $s['aktif'] }}">
+                                        class="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 {{ $s['aktif'] }}">
                                         <i class="bi {{ $s['icon'] }} text-sm"></i> {{ $s['label'] }}
                                     </label>
                                 </div>
@@ -220,48 +224,48 @@
                     {{-- Jenis absen --}}
                     <div x-show="status === 'HADIR'" x-cloak>
                         <span class="mb-1.5 block text-sm font-semibold text-slate-700">Jenis Absen</span>
-                        <div class="inline-flex gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1" role="group" aria-label="Jenis absen">
+                        <div class="inline-flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1" role="group" aria-label="Jenis absen">
                             <button type="button" @click="jenis = 'masuk'" :aria-pressed="jenis === 'masuk' ? 'true' : 'false'"
                                 :class="jenis === 'masuk' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
-                                class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-colors">
+                                class="inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-bold transition-colors">
                                 <i class="bi bi-box-arrow-in-right"></i> Datang
                             </button>
                             <button type="button" @click="jenis = 'pulang'" :aria-pressed="jenis === 'pulang' ? 'true' : 'false'"
                                 :class="jenis === 'pulang' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
-                                class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-colors">
+                                class="inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-bold transition-colors">
                                 <i class="bi bi-box-arrow-left"></i> Pulang
                             </button>
                             <button type="button" @click="jenis = 'keduanya'" :disabled="isHariAktif"
                                 :aria-pressed="jenis === 'keduanya' ? 'true' : 'false'"
                                 :title="isHariAktif ? 'Tidak tersedia untuk hari aktif — pilih Datang atau Pulang' : ''"
                                 :class="jenis === 'keduanya' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
-                                class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40">
+                                class="inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40">
                                 <i class="bi bi-arrow-left-right"></i> Keduanya
                             </button>
                         </div>
                         <div class="mt-2 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
-                            :class="isHariAktif ? 'border-amber-300 bg-amber-50 text-amber-800' : ''">
+                            :class="isHariAktif ? 'border-amber-200 bg-amber-50 text-amber-800' : ''">
                             <i class="bi bi-info-circle mt-0.5 shrink-0"></i>
                             <span x-text="hintJenis"></span>
                         </div>
                     </div>
 
                     {{-- Jam --}}
-                    <div x-show="status === 'HADIR'" x-cloak class="space-y-3">
+                    <div x-show="status === 'HADIR'" x-cloak class="space-y-2.5">
                         <div class="grid grid-cols-2 gap-3">
                             <div x-show="jenis !== 'pulang'">
                                 <label for="inputJamMasuk" class="mb-1.5 block text-sm font-semibold text-slate-700">
                                     <i class="bi bi-box-arrow-in-right me-1 text-emerald-600"></i>Jam Datang
                                 </label>
                                 <input type="time" id="inputJamMasuk" x-model="jamMasuk"
-                                    class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-base outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300">
+                                    class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center font-mono text-base outline-none transition-colors focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200">
                             </div>
                             <div x-show="jenis !== 'masuk'">
                                 <label for="inputJamPulang" class="mb-1.5 block text-sm font-semibold text-slate-700">
                                     <i class="bi bi-box-arrow-left me-1 text-orange-500"></i>Jam Pulang
                                 </label>
                                 <input type="time" id="inputJamPulang" x-model="jamPulang"
-                                    class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-base outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-300">
+                                    class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center font-mono text-base outline-none transition-colors focus:border-orange-400 focus:ring-2 focus:ring-orange-200">
                             </div>
                         </div>
                         <p x-show="jadwalAktif" x-cloak class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
@@ -277,8 +281,8 @@
                         </label>
                         <div class="relative">
                             <input type="text" id="inputKeterangan" x-model="keterangan" maxlength="500"
-                                placeholder="Mis: Keperluan keluarga, sakit mendadak…"
-                                class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-16 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300">
+                                placeholder="Mis: keperluan keluarga, sakit mendadak…"
+                                class="min-h-[42px] w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-16 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                             <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                                 <span x-text="keterangan.length"></span>/500
                             </span>
@@ -286,16 +290,16 @@
                     </div>
 
                     {{-- Aksi --}}
-                    <div class="flex items-center gap-2 border-t border-slate-100 pt-3">
+                    <div class="flex items-center gap-2 border-t border-slate-100 pt-4">
                         <button type="button" x-show="single.adaData" x-cloak @click="hapusSingle()"
-                            class="min-h-[42px] rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                            class="inline-flex min-h-[42px] items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-bold text-red-600 transition-colors hover:border-red-300 hover:bg-red-100"
                             title="Hapus data presensi guru ini pada tanggal yang dipilih">
-                            <i class="bi bi-trash me-1"></i>Hapus Presensi
+                            <i class="bi bi-trash"></i> Hapus
                         </button>
                         <button type="button" @click="simpanSingle()" :disabled="simpanNonaktif"
                             :title="liburInfo.libur ? 'Nonaktif: server menolak presensi di hari libur' : ''"
-                            class="min-h-[44px] flex-1 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
-                            <i class="bi bi-floppy me-1"></i><span x-text="saving ? 'Menyimpan…' : 'Simpan Presensi'"></span>
+                            class="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                            <i class="bi bi-floppy"></i><span x-text="saving ? 'Menyimpan…' : 'Simpan Presensi'"></span>
                         </button>
                     </div>
                 </div>
@@ -305,7 +309,7 @@
         <div class="lg:sticky lg:top-4 lg:self-start">
             <x-ui.card title="Status Terkini" icon="bi-person-check" tone="violet">
                 <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 text-xl font-extrabold text-white"
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-lg font-extrabold text-white"
                         x-text="guruAktif ? guruAktif.nama.charAt(0).toUpperCase() : '?'"></div>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-bold leading-snug text-slate-900"
@@ -322,9 +326,9 @@
                         <div class="h-4 w-2/3 animate-pulse rounded bg-slate-100"></div>
                     </div>
 
-                    <div x-show="!single.loading && !guruAktif" x-cloak class="py-4 text-center">
+                    <div x-show="!single.loading && !guruAktif" x-cloak class="py-6 text-center">
                         <i class="bi bi-person-dash block text-3xl text-slate-200"></i>
-                        <p class="mt-1 text-xs text-slate-400">Pilih guru untuk melihat status kehadiran hari ini</p>
+                        <p class="mt-1.5 text-xs text-slate-400">Pilih guru untuk melihat status kehadiran</p>
                     </div>
 
                     <div x-show="!single.loading && guruAktif" x-cloak class="space-y-1">
@@ -346,7 +350,7 @@
                         </div>
                         <div x-show="single.keterangan" x-cloak class="pt-2">
                             <p class="mb-1 text-xs text-slate-400">Catatan</p>
-                            <p class="text-xs italic text-slate-600" x-text="single.keterangan"></p>
+                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs italic text-slate-600" x-text="single.keterangan"></p>
                         </div>
                     </div>
                 </div>
@@ -364,43 +368,44 @@
         <x-ui.card title="Absensi Massal" icon="bi-people" tone="emerald" body-class="p-0">
             <x-slot:actions>
                 <button type="button" @click="isiYangBelum()"
-                    class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
                     title="Isi Hadir untuk guru yang belum absen">
-                    <i class="bi bi-plus-circle me-1"></i>Isi yang Belum
+                    <i class="bi bi-plus-circle"></i> Isi yang Belum
                 </button>
                 <button type="button" @click="pulangSaja()"
-                    class="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors hover:bg-orange-100"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-colors hover:border-orange-300 hover:bg-orange-100"
                     title="Isi jam pulang untuk guru yang sudah datang">
-                    <i class="bi bi-box-arrow-left me-1"></i>Pulang Saja
+                    <i class="bi bi-box-arrow-left"></i> Pulang Saja
                 </button>
                 <button type="button" @click="resetBatch()"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                    title="Reset">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
                 </button>
             </x-slot:actions>
 
             <x-slot:toolbar>
                 <div class="space-y-3">
                     <div class="flex flex-wrap items-center gap-2" aria-live="polite" aria-label="Statistik presensi massal">
-                        <div class="flex min-w-[68px] flex-1 flex-col items-center rounded-xl bg-slate-100 px-3.5 py-1.5 text-center text-slate-700">
-                            <span class="text-xl font-extrabold leading-tight" x-text="statistik.total"></span>
-                            <span class="text-[11px] font-semibold opacity-70">Total</span>
+                        <div class="flex min-w-[60px] flex-1 flex-col items-center rounded-lg bg-slate-100 px-3 py-1.5 text-center text-slate-700">
+                            <span class="text-lg font-extrabold leading-tight" x-text="statistik.total"></span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wide opacity-70">Total</span>
                         </div>
-                        <div class="flex min-w-[68px] flex-1 flex-col items-center rounded-xl bg-emerald-100 px-3.5 py-1.5 text-center text-emerald-700">
-                            <span class="text-xl font-extrabold leading-tight" x-text="statistik.lengkap"></span>
-                            <span class="text-[11px] font-semibold opacity-70">Lengkap</span>
+                        <div class="flex min-w-[60px] flex-1 flex-col items-center rounded-lg bg-emerald-100 px-3 py-1.5 text-center text-emerald-700">
+                            <span class="text-lg font-extrabold leading-tight" x-text="statistik.lengkap"></span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wide opacity-70">Lengkap</span>
                         </div>
-                        <div class="flex min-w-[68px] flex-1 flex-col items-center rounded-xl bg-amber-100 px-3.5 py-1.5 text-center text-amber-700">
-                            <span class="text-xl font-extrabold leading-tight" x-text="statistik.masuk"></span>
-                            <span class="text-[11px] font-semibold opacity-70">Masuk</span>
+                        <div class="flex min-w-[60px] flex-1 flex-col items-center rounded-lg bg-amber-100 px-3 py-1.5 text-center text-amber-700">
+                            <span class="text-lg font-extrabold leading-tight" x-text="statistik.masuk"></span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wide opacity-70">Masuk</span>
                         </div>
-                        <div class="flex min-w-[68px] flex-1 flex-col items-center rounded-xl bg-sky-100 px-3.5 py-1.5 text-center text-sky-700">
-                            <span class="text-xl font-extrabold leading-tight" x-text="statistik.izin"></span>
-                            <span class="text-[11px] font-semibold opacity-70">Izin</span>
+                        <div class="flex min-w-[60px] flex-1 flex-col items-center rounded-lg bg-sky-100 px-3 py-1.5 text-center text-sky-700">
+                            <span class="text-lg font-extrabold leading-tight" x-text="statistik.izin"></span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wide opacity-70">Izin</span>
                         </div>
-                        <div class="flex min-w-[68px] flex-1 flex-col items-center rounded-xl bg-red-100 px-3.5 py-1.5 text-center text-red-700">
-                            <span class="text-xl font-extrabold leading-tight" x-text="statistik.belum"></span>
-                            <span class="text-[11px] font-semibold opacity-70">Belum</span>
+                        <div class="flex min-w-[60px] flex-1 flex-col items-center rounded-lg bg-red-100 px-3 py-1.5 text-center text-red-700">
+                            <span class="text-lg font-extrabold leading-tight" x-text="statistik.belum"></span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wide opacity-70">Belum</span>
                         </div>
                         <div class="ml-auto">
                             <span x-show="editedCount > 0" x-cloak
@@ -410,27 +415,27 @@
                         </div>
                     </div>
 
-                    <div class="h-1 overflow-hidden rounded bg-slate-200">
-                        <div class="h-full rounded bg-emerald-500 transition-all" :style="'width:' + progres + '%'"></div>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                        <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all" :style="'width:' + progres + '%'"></div>
                     </div>
 
-                    <div class="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
                         <div class="relative flex-1">
                             <i class="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
                             <input type="search" x-model="query" placeholder="Cari nama guru atau NIP…" autocomplete="off"
-                                class="min-h-[38px] w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300">
+                                class="min-h-[38px] w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                         </div>
                         <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter kategori">
                             <template x-for="f in filterOpsi" :key="f.key">
                                 <button type="button" @click="filter = f.key"
-                                    :class="filter === f.key ? f.aktif : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'"
-                                    class="rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-bold transition-colors">
+                                    :class="filter === f.key ? f.aktif : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                                    class="rounded-full border px-3 py-1.5 text-xs font-bold transition-colors">
                                     <span x-text="f.label"></span>
-                                    <span class="font-extrabold opacity-80" x-text="hitungFilter(f.key)"></span>
+                                    <span class="ml-0.5 font-extrabold opacity-80" x-text="hitungFilter(f.key)"></span>
                                 </button>
                             </template>
                         </div>
-                        <p x-show="query !== '' || filter !== 'all'" x-cloak class="mt-1 text-xs text-slate-400 md:mt-0"
+                        <p x-show="query !== '' || filter !== 'all'" x-cloak class="text-xs text-slate-400"
                             x-text="'Menampilkan ' + visibleRows.length + ' dari ' + rows.length + ' guru'"></p>
                     </div>
                 </div>
@@ -440,7 +445,7 @@
                 <x-ui.table>
                     <x-slot:head>
                         <th class="px-4 py-3 text-left" scope="col" style="width: 46%; min-width: 200px;">Guru</th>
-                        <th class="px-3 py-3" style="width: 18%;" scope="col">Status</th>
+                        <th class="px-3 py-3 text-left" style="width: 18%;" scope="col">Status</th>
                         <th class="px-3 py-3 text-center" style="width: 18%;" scope="col">Datang</th>
                         <th class="px-3 py-3 text-center" style="width: 18%;" scope="col">Pulang</th>
                     </x-slot:head>
@@ -452,16 +457,16 @@
                                     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xs font-extrabold text-indigo-700" x-text="row.initial"></div>
                                     <div class="min-w-0">
                                         <div class="truncate text-sm font-semibold leading-tight text-slate-800" x-text="row.nama"></div>
-                                        <div x-show="row.nip && row.nip !== '-'" class="font-mono text-xs text-slate-400" x-text="row.nip"></div>
-                                        <div class="mt-0.5">
-                                            <span class="rounded-md px-1.5 py-0.5 text-[11px] font-bold" :class="row.badge" x-text="row.label"></span>
+                                        <div class="flex items-center gap-2">
+                                            <span x-show="row.nip && row.nip !== '-'" class="font-mono text-xs text-slate-400" x-text="row.nip"></span>
+                                            <span class="rounded px-1.5 py-0.5 text-[11px] font-bold" :class="row.badge" x-text="row.label"></span>
                                         </div>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-2 py-2.5">
                                 <select x-model="row.status" @change="onBatchStatusChange(row)" :aria-label="'Status ' + row.nama"
-                                    class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300">
+                                    class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                                     <option value="HADIR">Hadir</option>
                                     <option value="IJIN">Izin</option>
                                     <option value="SAKIT">Sakit</option>
@@ -472,18 +477,18 @@
                             <td class="px-2 py-2.5">
                                 <input type="time" x-model="row.jamMasuk" @input="row.edited = true"
                                     :disabled="row.status !== 'HADIR'" :aria-label="'Datang ' + row.nama"
-                                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50 disabled:text-slate-400">
+                                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400">
                             </td>
                             <td class="px-2 py-2.5">
                                 <input type="time" x-model="row.jamPulang" @input="row.edited = true"
                                     :disabled="row.status !== 'HADIR'" :aria-label="'Pulang ' + row.nama"
-                                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50 disabled:text-slate-400">
+                                    class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400">
                             </td>
                         </tr>
                     </template>
 
                     <tr x-show="visibleRows.length === 0" x-cloak>
-                        <td colspan="4" class="px-4 py-6">
+                        <td colspan="4" class="px-4 py-8">
                             <x-ui.empty icon="bi-search" title="Tidak ada hasil yang cocok"
                                 description="Ubah kata kunci pencarian atau pilih filter lain." />
                         </td>
@@ -496,8 +501,8 @@
                     <p class="flex-1 text-xs text-slate-500"
                         x-text="editedCount > 0 ? (editedCount + ' baris telah diubah dan siap disimpan.') : 'Ubah minimal 1 baris untuk mengaktifkan tombol simpan.'"></p>
                     <button type="button" @click="simpanBatch()" :disabled="editedCount === 0 || savingBatch"
-                        class="min-h-[42px] rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
-                        <i class="bi bi-cloud-upload me-1.5"></i>
+                        class="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">
+                        <i class="bi bi-cloud-upload"></i>
                         <span x-text="savingBatch ? 'Menyimpan…' : ('Simpan ' + editedCount + ' Perubahan')"></span>
                     </button>
                 </div>

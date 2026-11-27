@@ -129,18 +129,18 @@
     ];
 @endphp
 
-<div class="space-y-4" x-data="pendingDinas(@js($config))">
+<div class="fade-in-up space-y-5 px-4 pb-6 pt-4 md:px-6 md:pt-6" x-data="pendingDinas(@js($config))">
 
     <x-ui.page-header title="{{ $judul ?? 'Verifikasi Dinas Luar' }}" icon="bi-briefcase-fill" tone="blue"
         subtitle="Tinjau koordinat GPS, foto kehadiran, lalu setujui permintaan dinas luar guru."
         :crumbs="['Presensi', 'Dinas Luar']">
         <x-slot:actions>
             <a href="{{ url('admin/presensi/izin') }}"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                 <i class="bi bi-file-earmark-medical text-blue-600"></i> Verifikasi Izin/Sakit
             </a>
             <a href="{{ url('admin/presensi') }}"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                 <i class="bi bi-speedometer2"></i> Monitoring Presensi
             </a>
         </x-slot:actions>
@@ -196,9 +196,9 @@
                     <input type="text" x-model="cari" x-ref="cari" autocomplete="off"
                         placeholder="Cari guru, NIP, tanggal..."
                         aria-label="Cari pengajuan dinas"
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                     <button type="button" x-show="cari !== ''" x-cloak @click="cari = ''; $refs.cari.focus()"
-                        class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700"
+                        class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
                         title="Bersihkan pencarian">
                         <i class="bi bi-x text-xs"></i>
                     </button>

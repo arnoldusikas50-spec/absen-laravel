@@ -1,11 +1,23 @@
 @extends('layouts.mobile_tw')
 
+@php
+    // Rantai utility bersama badge, tombol, dan label form mobile.
+    // Nilainya mengikuti definisi .badge-tw/.btn-tw/.form-label-tw di
+    // layouts/mobile_tw sebelum dimigrasi supaya gaya tetap sama.
+    $badgeDasar = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-[0.6rem] py-[0.2rem] text-[0.68rem] font-bold tracking-[0.015em]';
+    $btnSm = 'inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-[0.8rem] py-[0.35rem] text-[0.72rem] font-bold tracking-[0.01em] no-underline cursor-pointer select-none transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-60';
+    $btnDasar = 'inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-[1.1rem] py-[0.55rem] text-[0.8125rem] font-bold tracking-[0.01em] no-underline cursor-pointer select-none transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-60';
+    // Varian .btn-brand / .btn-light, ukuran kecil dan normal.
+    $glowBrand = 'shadow-[0_4px_6px_-1px_rgb(var(--brand-600-rgb)/0.3)]';
+    $btnBrand = $btnDasar . ' border-brand-600 bg-brand-600 text-white ' . $glowBrand;
+    $btnBrandSm = $btnSm . ' border-brand-600 bg-brand-600 text-white ' . $glowBrand;
+    $btnLight = $btnDasar . ' border-slate-200 bg-slate-50 text-slate-700';
+    $btnLightSm = $btnSm . ' border-slate-200 bg-slate-50 text-slate-700';
+    $labelForm = 'block mb-1.5 text-[0.78rem] font-semibold text-slate-700';
+@endphp
+
 @section('styles')
 <style>
-    /* Utility yang belum punya padanan bawaan Tailwind v4. */
-    .border-3 { border-width: 3px; }
-    .shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); }
-    .active\:scale-98:active { transform: scale(.98); }
     /* Ikon di dalam field: kunci padding-kiri via ID (spesifisitas 1-1-0)
        agar teks tak menumpuk ikon walau shorthand .m3-input menimpa .pl-* */
     #select-kelas.m3-input,
@@ -414,12 +426,12 @@ $csrfHash  = csrf_token();
             <?php if (!empty($isLoggedIn)): ?>
             <a href="{{ url('presensi/profile') }}" class="block relative no-underline">
                 <img src="{{ $avatarSrc }}" alt="Avatar" class="avatar-main">
-                <span class="absolute bottom-0 end-0 rounded-full" style="width: 13px; height: 13px; background: #10b981; border: 2.5px solid #fff; margin-bottom: 2px; margin-right: 2px;"></span>
+                <span class="absolute bottom-0 right-0 rounded-full" style="width: 13px; height: 13px; background: #10b981; border: 2.5px solid #fff; margin-bottom: 2px; margin-right: 2px;"></span>
             </a>
             <?php else: ?>
             <a href="{{ url('auth') }}" title="Klik untuk Login GTK" class="block relative no-underline">
                 <img src="{{ $avatarSrc }}" alt="Logo" class="avatar-main">
-                <span class="absolute bottom-0 end-0 rounded-full" style="width: 13px; height: 13px; background: #f59e0b; border: 2.5px solid #fff; margin-bottom: 2px; margin-right: 2px;" title="Mode Publik"></span>
+                <span class="absolute bottom-0 right-0 rounded-full" style="width: 13px; height: 13px; background: #f59e0b; border: 2.5px solid #fff; margin-bottom: 2px; margin-right: 2px;" title="Mode Publik"></span>
             </a>
             <?php endif; ?>
         </div>
@@ -435,7 +447,7 @@ $csrfHash  = csrf_token();
         <div id="digitalClock">{{ date('H:i:s') }}</div>
         <span class="clock-tz">WITA</span>
         <div id="digitalDate">
-            <i class="bi bi-calendar2-day text-rose-600 me-1"></i> {{ $tanggalIndo }}
+            <i class="bi bi-calendar2-day text-rose-600 mr-1"></i> {{ $tanggalIndo }}
         </div>
     </div>
 </div>
@@ -557,12 +569,12 @@ $csrfHash  = csrf_token();
             </div>
             <div class="flex items-center gap-2 mt-1">
                 <button type="button" onclick="initCamera()"
-                    class="btn-tw btn-tw-sm btn-brand">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Coba Lagi
+                    class="{{ $btnBrandSm }}">
+                    <i class="bi bi-arrow-clockwise mr-1"></i> Coba Lagi
                 </button>
                 <button type="button" onclick="openManualModal()"
-                    class="btn-tw btn-tw-sm btn-light">
-                    <i class="bi bi-keyboard me-1"></i> Ketik NIS/NISN/NIP/NUPTK
+                    class="{{ $btnLightSm }}">
+                    <i class="bi bi-keyboard mr-1"></i> Ketik NIS/NISN/NIP/NUPTK
                 </button>
             </div>
         </div>
@@ -583,7 +595,7 @@ $csrfHash  = csrf_token();
     <div class="section-header">
         <div class="flex items-center gap-2">
             <h5>Riwayat Scan Hari Ini</h5>
-            <span id="history-badge-count" class="badge-tw badge-secondary text-[10px]">0</span>
+            <span id="history-badge-count" class="{{ $badgeDasar }} bg-slate-100 text-slate-600 text-[10px]">0</span>
         </div>
         <button type="button" onclick="loadHistory(true)" class="text-xs text-rose-600 font-bold border-none bg-transparent cursor-pointer hover:underline flex items-center gap-1">
             <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -633,7 +645,7 @@ $csrfHash  = csrf_token();
         <p id="history-shown-info" class="text-[11px] text-slate-400 font-semibold mb-2"></p>
         <button type="button" id="btn-history-more" onclick="loadMoreHistory()"
                 class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-blue-600 text-xs font-bold shadow-xs active:scale-95 transition-all">
-            <i class="bi bi-chevron-down me-1"></i> Muat Lebih Banyak
+            <i class="bi bi-chevron-down mr-1"></i> Muat Lebih Banyak
         </button>
     </div>
 </div>
@@ -653,14 +665,14 @@ $csrfHash  = csrf_token();
                     <p class="text-[11px] text-slate-400 m-0">Ketik NIS/NISN/NIP/NUPTK</p>
                 </div>
             </div>
-            <button type="button" class="btn-tw btn-tw-sm btn-light p-1.5" data-tw-dismiss="modal">
+            <button type="button" class="{{ $btnLightSm }}" data-tw-dismiss="modal">
                 <i class="bi bi-x-lg text-slate-500"></i>
             </button>
         </div>
 
         <form id="form-manual-input" onsubmit="handleManualSubmit(event)">
             <div class="mb-4">
-                <label class="form-label-tw">NIS/NISN/NIP/NUPTK <span class="text-rose-500">*</span></label>
+                <label class="{{ $labelForm }}">NIS/NISN/NIP/NUPTK <span class="text-rose-500">*</span></label>
                 <div class="relative">
                     <i class="bi bi-upc-scan absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                     <input type="text" id="manual-nis-input" class="m3-input pl-9 text-base font-bold tracking-wider"
@@ -676,7 +688,7 @@ $csrfHash  = csrf_token();
             </div>
 
             <div class="mb-4">
-                <label class="form-label-tw">Mode Presensi</label>
+                <label class="{{ $labelForm }}">Mode Presensi</label>
                 <div class="flex gap-2">
                     <input type="radio" name="manual_mode" id="mm-masuk" value="masuk" checked class="sr-only mode-opt">
                     <label for="mm-masuk" class="mode-chip mode-chip-masuk flex-1 flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-slate-200 cursor-pointer text-xs font-bold">
@@ -690,9 +702,9 @@ $csrfHash  = csrf_token();
             </div>
 
             <div class="flex gap-2">
-                <button type="button" class="btn-tw btn-light flex-1" data-tw-dismiss="modal">Batal</button>
-                <button type="submit" class="btn-tw btn-brand flex-1" id="btn-submit-manual">
-                    <i class="bi bi-check2-circle me-1"></i> Proses Absen
+                <button type="button" class="{{ $btnLight }} flex-1" data-tw-dismiss="modal">Batal</button>
+                <button type="submit" class="{{ $btnBrand }} flex-1" id="btn-submit-manual">
+                    <i class="bi bi-check2-circle mr-1"></i> Proses Absen
                 </button>
             </div>
         </form>
@@ -780,7 +792,7 @@ $csrfHash  = csrf_token();
 
             <!-- Action Button -->
             <button type="button" onclick="closeScanPopup()"
-                    class="mt-4 w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md">
+                    class="mt-4 w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md">
                 <i class="bi bi-qr-code-scan"></i>
                 <span>Lanjut Scan Berikutnya</span>
             </button>
@@ -803,7 +815,7 @@ $csrfHash  = csrf_token();
                     <p class="text-[11px] text-slate-400 m-0">Efek bel audio &amp; pengucapan nama</p>
                 </div>
             </div>
-            <button type="button" class="btn-tw btn-tw-sm btn-light p-1.5" data-tw-dismiss="modal">
+            <button type="button" class="{{ $btnLightSm }}" data-tw-dismiss="modal">
                 <i class="bi bi-x-lg text-slate-500"></i>
             </button>
         </div>
@@ -842,17 +854,17 @@ $csrfHash  = csrf_token();
         <div class="pt-2 border-t border-slate-100">
             <span class="text-[11px] font-bold text-slate-400 block mb-2">Uji Coba Suara:</span>
             <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="testSound('in')" class="btn-tw btn-tw-sm bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold hover:bg-emerald-100 flex items-center justify-center gap-1.5 py-2">
+                <button type="button" onclick="testSound('in')" class="{{ $btnSm }} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
                     <i class="bi bi-play-circle-fill"></i> Tes Masuk
                 </button>
-                <button type="button" onclick="testSound('out')" class="btn-tw btn-tw-sm bg-amber-50 text-amber-700 border border-amber-200 font-bold hover:bg-amber-100 flex items-center justify-center gap-1.5 py-2">
+                <button type="button" onclick="testSound('out')" class="{{ $btnSm }} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
                     <i class="bi bi-play-circle-fill"></i> Tes Pulang
                 </button>
             </div>
         </div>
 
         <div class="mt-4">
-            <button type="button" class="btn-tw btn-brand w-full py-2.5" data-tw-dismiss="modal">
+            <button type="button" class="{{ $btnBrand }} w-full" data-tw-dismiss="modal">
                 Simpan &amp; Tutup
             </button>
         </div>
@@ -1958,10 +1970,10 @@ $csrfHash  = csrf_token();
         let siswaHtml = '';
         if (s) {
             const timeInfo = s.jam_masuk
-                ? `<span class="badge-tw badge-success"><i class="bi bi-box-arrow-in-right"></i> ${s.jam_masuk}</span>`
+                ? `<span class="{{ $badgeDasar }} bg-green-100 text-green-700"><i class="bi bi-box-arrow-in-right"></i> ${s.jam_masuk}</span>`
                 : '';
             const outInfo = s.jam_keluar
-                ? `<span class="badge-tw badge-warning"><i class="bi bi-box-arrow-right"></i> ${s.jam_keluar}</span>`
+                ? `<span class="{{ $badgeDasar }} bg-amber-100 text-amber-700"><i class="bi bi-box-arrow-right"></i> ${s.jam_keluar}</span>`
                 : '';
 
             siswaHtml = `
@@ -1972,7 +1984,7 @@ $csrfHash  = csrf_token();
                 <div class="flex-1 min-w-0">
                     <h6 class="font-extrabold text-sm text-slate-900 m-0 leading-tight truncate">${escHtml(s.nama)}</h6>
                     <div class="flex items-center gap-2 mt-1">
-                        ${s.nama_kelas ? `<span class="badge-tw badge-secondary text-[10px]">${escHtml(s.nama_kelas)}</span>` : ''}
+                        ${s.nama_kelas ? `<span class="{{ $badgeDasar }} bg-slate-100 text-slate-600 text-[10px]">${escHtml(s.nama_kelas)}</span>` : ''}
                         <span class="text-[11px] text-slate-500 font-semibold">NIS: ${escHtml(s.nis || '-')}</span>
                     </div>
                 </div>
@@ -2019,7 +2031,7 @@ $csrfHash  = csrf_token();
         const wrap = $('#history-load-more-wrap');
         if (historyHasMore && allHistoryRows.length) {
             $('#history-shown-info').text('Menampilkan ' + allHistoryRows.length + ' — masih ada lagi');
-            $('#btn-history-more').show().prop('disabled', false).html('<i class="bi bi-chevron-down me-1"></i> Muat Lebih Banyak');
+            $('#btn-history-more').show().prop('disabled', false).html('<i class="bi bi-chevron-down mr-1"></i> Muat Lebih Banyak');
             wrap.removeClass('hidden');
         } else if (allHistoryRows.length > HISTORY_PAGE) {
             $('#history-shown-info').text('Menampilkan ' + allHistoryRows.length + ' — semua sudah tampil');
@@ -2046,7 +2058,7 @@ $csrfHash  = csrf_token();
         const offset = append ? allHistoryRows.length : 0;
         if (append) {
             historyLoadingMore = true;
-            $('#btn-history-more').prop('disabled', true).html('<i class="bi bi-arrow-clockwise me-1"></i> Memuat...');
+            $('#btn-history-more').prop('disabled', true).html('<i class="bi bi-arrow-clockwise mr-1"></i> Memuat...');
         }
 
         const params = new URLSearchParams({
@@ -2199,13 +2211,13 @@ $csrfHash  = csrf_token();
             const foto = row.foto ? escHtml(row.foto) : FOTO_CADANGAN;
 
             const statusMap = {
-                'HADIR': { cls: 'badge-success', label: 'Hadir' },
-                'SAKIT': { cls: 'badge-warning', label: 'Sakit' },
-                'IZIN':  { cls: 'badge-purple',  label: 'Izin'  },
-                'ALPA':  { cls: 'badge-danger',  label: 'Alpa'  },
-                'BDR':   { cls: 'badge-info',    label: 'BDR'   },
+                'HADIR': { cls: 'bg-green-100 text-green-700',   label: 'Hadir' },
+                'SAKIT': { cls: 'bg-amber-100 text-amber-700',   label: 'Sakit' },
+                'IZIN':  { cls: 'bg-purple-100 text-purple-700', label: 'Izin'  },
+                'ALPA':  { cls: 'bg-red-100 text-red-700',       label: 'Alpa'  },
+                'BDR':   { cls: 'bg-sky-100 text-sky-700',       label: 'BDR'   },
             };
-            const st = statusMap[row.status] || { cls: 'badge-secondary', label: row.status || 'Hadir' };
+            const st = statusMap[row.status] || { cls: 'bg-slate-100 text-slate-600', label: row.status || 'Hadir' };
 
             html += `
             <div class="activity-card" data-nama="${escHtml((row.nama || '').toLowerCase())}" data-nis="${escHtml(row.nis || '')}">
@@ -2214,7 +2226,7 @@ $csrfHash  = csrf_token();
                 <div class="activity-info flex-1 min-w-0">
                     <h6 class="truncate">${escHtml(row.nama)}</h6>
                     <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="badge-tw ${st.cls} text-[9px] py-0 px-1.5">${st.label}</span>
+                        <span class="{{ $badgeDasar }} ${st.cls} text-[9px]">${st.label}</span>
                         <span class="text-[11px] text-slate-400 font-medium">${escHtml(row.nama_kelas || '-')}</span>
                         ${row.nis ? `<span class="text-[11px] text-slate-400">• ${escHtml(row.nis)}</span>` : ''}
                     </div>

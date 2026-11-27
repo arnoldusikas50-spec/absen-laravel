@@ -1,5 +1,18 @@
 @extends('layouts.mobile_tw')
 
+@php
+    // Rantai utility bersama chip status, tombol, dan label form mobile.
+    // Nilainya mengikuti definisi .badge-tw/.btn-tw/.form-label-tw di
+    // layouts/mobile_tw sebelum dimigrasi supaya gaya tetap sama.
+    $badgeDasar = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-[0.6rem] py-[0.2rem] text-[0.68rem] font-bold tracking-[0.015em]';
+    $btnSm = 'inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-[0.8rem] py-[0.35rem] text-[0.72rem] font-bold tracking-[0.01em] no-underline cursor-pointer select-none transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-60';
+    $btnDasar = 'inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-[1.1rem] py-[0.55rem] text-[0.8125rem] font-bold tracking-[0.01em] no-underline cursor-pointer select-none transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-60';
+    // Tombol "kembali" di kepala tiap tab (ukuran sentuh diatur .btn-back).
+    $btnKembali = $btnSm . ' bg-slate-50 text-slate-700 border-slate-200 btn-back hover:text-slate-800';
+    $labelForm = 'block mb-1.5 text-[0.78rem] font-semibold text-slate-700';
+    $labelKoreksi = 'flex items-center gap-1.5 mb-[7px] text-[11px] font-extrabold uppercase tracking-[0.5px] text-slate-500';
+@endphp
+
 @section('styles')
 <style>
     /* SweetAlert di atas bottom-nav (z 2000) */
@@ -590,12 +603,6 @@
     }
     .koreksi-note p { margin: 1px 0 0; font-size: 12.5px; line-height: 1.55; font-weight: 500; color: var(--primary-900); }
     .koreksi-card { padding: 18px; }
-    .koreksi-card .form-label-tw {
-        display: flex; align-items: center; gap: 6px;
-        margin-bottom: 7px; font-size: 11px; font-weight: 800;
-        letter-spacing: .5px; text-transform: uppercase; color: #64748b;
-    }
-    .koreksi-card .form-label-tw .bi { font-size: 13px; color: #94a3b8; }
     .koreksi-submit { min-height: 50px; font-size: 14px; border-radius: 16px !important; }
     .koreksi-history-head {
         display: flex; align-items: center; gap: 7px;
@@ -949,35 +956,6 @@
     .score-denda:active { opacity: .65; }
 
     /* ── Stats Cards & Material UI ───────────────────────────── */
-    .stat-card {
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 16px;
-        border: 1px solid rgba(226, 232, 240, 0.9);
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .stat-card:active { transform: scale(0.99); }
-    .stat-label {
-        font-size: 11.5px;
-        font-weight: 700;
-        color: #64748b;
-        display: block;
-        margin-bottom: 4px;
-    }
-    .stat-value {
-        font-size: 26px;
-        font-weight: 900;
-        color: #0f172a;
-        line-height: 1.15;
-        letter-spacing: -0.5px;
-    }
-    .stat-sub {
-        font-size: 11.5px;
-        color: #94a3b8;
-        font-weight: 500;
-        margin-top: 4px;
-    }
     .progress-m3 {
         background: #f1f5f9;
         border-radius: 9999px;
@@ -1339,7 +1317,7 @@
     <div class="flex justify-center px-4 mb-1">
         <button type="button" class="btn-toggle-menu" id="btnToggleMenu" aria-expanded="false" aria-controls="extraMenuContainer">
             <span id="toggleMenuText">Menu Lainnya</span>
-            <i class="bi bi-chevron-down ms-1" id="toggleMenuIcon" aria-hidden="true"></i>
+            <i class="bi bi-chevron-down ml-1" id="toggleMenuIcon" aria-hidden="true"></i>
         </button>
     </div>
 
@@ -1403,16 +1381,16 @@
     <?php $menungguValidasi = count(array_filter($jadwal, static fn($x) => !empty($x['menunggu_validasi']))); ?>
     <div class="px-4 mt-3">
         <div class="section-header px-0">
-            <h5><i class="bi bi-calendar-week me-2 text-brand-600"></i>Jadwal Hari Ini</h5>
+            <h5><i class="bi bi-calendar-week mr-2 text-brand-600"></i>Jadwal Hari Ini</h5>
             <div class="flex items-center gap-2">
                 <?php if (!empty($is_holiday)): ?>
-                <span class="badge-tw badge-secondary text-[10px] font-semibold"><i class="bi bi-calendar-x me-1"></i>Hari libur</span>
+                <span class="{{ $badgeDasar }} bg-slate-100 text-slate-600"><i class="bi bi-calendar-x mr-1"></i>Hari libur</span>
                 <?php elseif ($belumDijurnal > 0): ?>
-                <span class="badge-tw badge-info text-[10px] font-semibold">{{ (int) $belumDijurnal }} belum dijurnal</span>
+                <span class="{{ $badgeDasar }} bg-sky-100 text-sky-700">{{ (int) $belumDijurnal }} belum dijurnal</span>
                 <?php elseif ($menungguValidasi > 0): ?>
-                <span class="badge-tw badge-warning text-[10px] font-semibold"><i class="bi bi-shield-check me-1"></i>{{ (int) $menungguValidasi }} menunggu validasi</span>
+                <span class="{{ $badgeDasar }} bg-amber-100 text-amber-700"><i class="bi bi-shield-check mr-1"></i>{{ (int) $menungguValidasi }} menunggu validasi</span>
                 <?php else: ?>
-                <span class="badge-tw badge-success text-[10px] font-semibold"><i class="bi bi-check2-circle me-1"></i>Semua terjurnal</span>
+                <span class="{{ $badgeDasar }} bg-green-100 text-green-700"><i class="bi bi-check2-circle mr-1"></i>Semua terjurnal</span>
                 <?php endif; ?>
                 <a href="{{ url('guru/jadwal') }}" class="text-sm font-semibold text-brand-600 no-underline">Lihat Semua</a>
             </div>
@@ -1442,33 +1420,33 @@
                     <div class="text-[13.5px] font-bold text-slate-800 line-clamp-1">{{ $j['nama_mapel'] }}</div>
                     <div class="text-xs text-slate-400 mt-0.5">{{ $j['nama_kelas'] }}</div>
                     <div class="mt-2.5 flex justify-between items-center">
-                        <span class="badge-tw badge-secondary text-[11px] font-medium">{{ $j['dari'] }} - {{ $j['sampai'] }}</span>
+                        <span class="{{ $badgeDasar }} bg-slate-100 text-slate-600">{{ $j['dari'] }} - {{ $j['sampai'] }}</span>
                         <?php if ($isSekarang): ?>
-                        <span class="badge-tw badge-success text-[10px] font-semibold"><i class="bi bi-play-fill"></i> Sekarang</span>
+                        <span class="{{ $badgeDasar }} bg-green-100 text-green-700"><i class="bi bi-play-fill"></i> Sekarang</span>
                         <?php elseif ($isAkanDatang): ?>
-                        <span class="badge-tw badge-info text-[10px] font-semibold">Akan Datang</span>
+                        <span class="{{ $badgeDasar }} bg-sky-100 text-sky-700">Akan Datang</span>
                         <?php else: ?>
-                        <span class="badge-tw badge-secondary text-[10px]">Selesai</span>
+                        <span class="{{ $badgeDasar }} bg-slate-100 text-slate-600">Selesai</span>
                         <?php endif; ?>
                     </div>
                     <div class="mt-2.5 flex items-center gap-1.5">
                         <?php if ($isSekarang): ?>
-                        <a href="{{ url("guru/presensi-siswa/kelas/{$j['id_kelas']}?id_mapel=" . (int) ($j['id_mapel'] ?? 0)) }}" class="btn-tw btn-tw-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex-1 rounded-xl flex items-center justify-center gap-1 shadow-xs">
-                            <i class="bi bi-people-fill me-1"></i>Presensi
+                        <a href="{{ url("guru/presensi-siswa/kelas/{$j['id_kelas']}?id_mapel=" . (int) ($j['id_mapel'] ?? 0)) }}" class="{{ $btnSm }} border-transparent bg-emerald-600 hover:bg-emerald-700 text-white flex-1 shadow-xs">
+                            <i class="bi bi-people-fill mr-1"></i>Presensi
                         </a>
                         <?php endif; ?>
                         <?php if (!empty($j['sudah_dijurnal']) && (int) ($j['id_jurnal'] ?? 0) > 0): ?>
-                        <a href="{{ url('guru/jurnal/edit/' . (int) $j['id_jurnal']) }}" class="btn-tw btn-tw-sm font-semibold flex-1 rounded-xl flex items-center justify-center gap-1 shadow-xs" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
-                            <i class="bi bi-check2-circle me-1"></i>Sudah Dijurnal
+                        <a href="{{ url('guru/jurnal/edit/' . (int) $j['id_jurnal']) }}" class="{{ $btnSm }} flex-1 shadow-xs" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                            <i class="bi bi-check2-circle mr-1"></i>Sudah Dijurnal
                         </a>
                         <?php elseif (!empty($j['menunggu_validasi']) && (int) ($j['id_jurnal'] ?? 0) > 0): ?>
                         <?php $ditolak = strtoupper((string) ($j['validasi_status'] ?? '')) === 'REJECTED'; ?>
-                        <a href="{{ url(($ditolak ? 'guru/jurnal/edit/' : 'guru/jurnal/detail/') . (int) $j['id_jurnal']) }}" class="btn-tw btn-tw-sm font-semibold flex-1 rounded-xl flex items-center justify-center gap-1 shadow-xs" style="background: {{ $ditolak ? '#fff1f2' : '#fffbeb' }}; color: {{ $ditolak ? '#be123c' : '#b45309' }}; border: 1px solid {{ $ditolak ? '#fecdd3' : '#fde68a' }};">
-                            <i class="bi {{ $ditolak ? 'bi-x-circle' : 'bi-shield-check' }} me-1"></i>{{ $ditolak ? 'Perbaiki' : 'Menunggu Validasi' }}
+                        <a href="{{ url(($ditolak ? 'guru/jurnal/edit/' : 'guru/jurnal/detail/') . (int) $j['id_jurnal']) }}" class="{{ $btnSm }} flex-1 shadow-xs" style="background: {{ $ditolak ? '#fff1f2' : '#fffbeb' }}; color: {{ $ditolak ? '#be123c' : '#b45309' }}; border: 1px solid {{ $ditolak ? '#fecdd3' : '#fde68a' }};">
+                            <i class="bi {{ $ditolak ? 'bi-x-circle' : 'bi-shield-check' }} mr-1"></i>{{ $ditolak ? 'Perbaiki' : 'Menunggu Validasi' }}
                         </a>
                         <?php else: ?>
-                        <a href="{{ url('guru/jurnal/create') . '?' . http_build_query(['id_jadwal' => (int) ($j['id_jadwal'] ?? 0), 'kelas' => (int) $j['id_kelas'], 'mapel' => (int) ($j['id_mapel'] ?? 0), 'kembali' => 'absen']) }}" class="btn-tw btn-tw-sm font-semibold flex-1 rounded-xl flex items-center justify-center gap-1 shadow-xs" style="background: var(--primary-600); color: #fff;">
-                            <i class="bi bi-journal-text me-1"></i>Isi Jurnal
+                        <a href="{{ url('guru/jurnal/create') . '?' . http_build_query(['id_jadwal' => (int) ($j['id_jadwal'] ?? 0), 'kelas' => (int) $j['id_kelas'], 'mapel' => (int) ($j['id_mapel'] ?? 0), 'kembali' => 'absen']) }}" class="{{ $btnSm }} flex-1 shadow-xs" style="background: var(--primary-600); color: #fff;">
+                            <i class="bi bi-journal-text mr-1"></i>Isi Jurnal
                         </a>
                         <?php endif; ?>
                     </div>
@@ -1719,14 +1697,14 @@
                             <!-- Status Chips -->
                             <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/60">
                                 <span class="chip chip-success">
-                                    <i class="bi bi-shield-check me-1"></i>Bebas Denda
+                                    <i class="bi bi-shield-check mr-1"></i>Bebas Denda
                                 </span>
                                 <span class="chip chip-solid">
-                                    <i class="bi bi-check2-all me-1"></i>Tercatat Resmi
+                                    <i class="bi bi-check2-all mr-1"></i>Tercatat Resmi
                                 </span>
                                 <?php if ($isDinas): ?>
                                 <span class="chip chip-primary">
-                                    <i class="bi bi-award-fill me-1"></i>Poin Hadir Penuh
+                                    <i class="bi bi-award-fill mr-1"></i>Poin Hadir Penuh
                                 </span>
                                 <?php endif; ?>
                                 <?php if ($todayPermit && !empty($todayPermit->bukti)): ?>
@@ -1735,7 +1713,7 @@
                                     $buktiUrl = (strpos($buktiPath, 'uploads/') !== false) ? url($buktiPath) : url('uploads/bukti/' . $buktiPath);
                                     ?>
                                     <a href="{{ $buktiUrl }}" target="_blank" class="chip chip-warning no-underline font-bold text-amber-800 hover:bg-amber-100 transition-colors">
-                                        <i class="bi bi-paperclip me-1"></i>Lihat Dokumen
+                                        <i class="bi bi-paperclip mr-1"></i>Lihat Dokumen
                                     </a>
                                 <?php endif; ?>
                             </div>
@@ -1827,7 +1805,7 @@
                                     <?php if ($isManualIn): ?>
                                         <div class="attendance-label">Metode Presensi</div>
                                         <div class="attendance-location text-slate-800">
-                                            <i class="bi bi-shield-check text-amber-500 me-1"></i>Input Manual Admin
+                                            <i class="bi bi-shield-check text-amber-500 mr-1"></i>Input Manual Admin
                                         </div>
                                         <?php if (!empty($attendance->keterangan) && strtolower(trim($attendance->keterangan)) !== 'absen manual oleh admin'): ?>
                                             <div class="attendance-meta text-slate-500">
@@ -1838,7 +1816,7 @@
                                     <?php elseif ($isQrIn): ?>
                                         <div class="attendance-label">Metode Presensi</div>
                                         <div class="attendance-location text-slate-800">
-                                            <i class="bi bi-qr-code text-indigo-500 me-1"></i>Scan QR Kiosk
+                                            <i class="bi bi-qr-code text-indigo-500 mr-1"></i>Scan QR Kiosk
                                         </div>
                                         <div class="attendance-meta text-slate-500">
                                             <i class="bi bi-display text-[10px]"></i>
@@ -1847,14 +1825,14 @@
                                     <?php elseif ($isWfhIn): ?>
                                         <div class="attendance-label">Metode Presensi</div>
                                         <div class="attendance-location text-slate-800">
-                                            <i class="bi bi-house-door text-sky-500 me-1"></i>Work From Home
+                                            <i class="bi bi-house-door text-sky-500 mr-1"></i>Work From Home
                                         </div>
                                     <?php elseif ($isEntryDinas): ?>
                                         <div class="attendance-label">Titik Lokasi Tugas Dinas</div>
-                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-sky-600 me-1"></i>{{ $attendance->nama_lokasi_masuk ?? 'Lokasi Luar Sekolah' }}</div>
+                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-sky-600 mr-1"></i>{{ $attendance->nama_lokasi_masuk ?? 'Lokasi Luar Sekolah' }}</div>
                                     <?php else: ?>
                                         <div class="attendance-label">Titik Lokasi</div>
-                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-red-600 me-1"></i>{{ $attendance->nama_lokasi_masuk ?? '-' }}</div>
+                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-red-600 mr-1"></i>{{ $attendance->nama_lokasi_masuk ?? '-' }}</div>
                                         <div class="attendance-meta">
                                             <i class="bi bi-radar"></i>
                                             <span>Akurasi {{ isset($attendance->jarak_masuk) ? round($attendance->jarak_masuk) . 'm' : '-' }}</span>
@@ -1863,11 +1841,11 @@
                                 </div>
                                 <div class="flex flex-wrap gap-1 pt-1">
                                     <?php if ($isEntryDinas): ?>
-                                        <span class="chip chip-primary" style="background:#e0f2fe; color:#0369a1;"><i class="bi bi-briefcase-fill me-1"></i>Tugas Luar</span>
+                                        <span class="chip chip-primary" style="background:#e0f2fe; color:#0369a1;"><i class="bi bi-briefcase-fill mr-1"></i>Tugas Luar</span>
                                         <?php if ($attendance->status_masuk === 'DINAS_PENDING'): ?>
-                                            <span class="chip chip-warning"><i class="bi bi-hourglass-split me-1"></i>Menunggu Approval</span>
+                                            <span class="chip chip-warning"><i class="bi bi-hourglass-split mr-1"></i>Menunggu Approval</span>
                                         <?php else: ?>
-                                            <span class="chip chip-success"><i class="bi bi-check-circle-fill me-1"></i>Disetujui</span>
+                                            <span class="chip chip-success"><i class="bi bi-check-circle-fill mr-1"></i>Disetujui</span>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <?php if (($attendance->status_masuk ?? '') === 'LATE'): ?>
@@ -1952,12 +1930,12 @@
                                     <?php if ($isManualOut): ?>
                                         <div class="attendance-label">Metode Presensi</div>
                                         <div class="attendance-location text-slate-800">
-                                            <i class="bi bi-shield-check text-amber-500 me-1"></i>Input Manual Admin
+                                            <i class="bi bi-shield-check text-amber-500 mr-1"></i>Input Manual Admin
                                         </div>
                                     <?php elseif ($isQrOut): ?>
                                         <div class="attendance-label">Metode Presensi</div>
                                         <div class="attendance-location text-slate-800">
-                                            <i class="bi bi-qr-code text-indigo-500 me-1"></i>Scan QR Kiosk
+                                            <i class="bi bi-qr-code text-indigo-500 mr-1"></i>Scan QR Kiosk
                                         </div>
                                         <div class="attendance-meta text-slate-500">
                                             <i class="bi bi-display text-[10px]"></i>
@@ -1965,10 +1943,10 @@
                                         </div>
                                     <?php elseif ($isExitDinas): ?>
                                         <div class="attendance-label">Lokasi Kepulangan Dinas</div>
-                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-sky-600 me-1"></i>{{ $attendance->nama_lokasi_pulang ?? 'Lokasi Luar Sekolah' }}</div>
+                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-sky-600 mr-1"></i>{{ $attendance->nama_lokasi_pulang ?? 'Lokasi Luar Sekolah' }}</div>
                                     <?php else: ?>
                                         <div class="attendance-label">Lokasi Kepulangan</div>
-                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-red-600 me-1"></i>{{ $attendance->nama_lokasi_pulang ?? '-' }}</div>
+                                        <div class="attendance-location"><i class="bi bi-geo-alt-fill text-red-600 mr-1"></i>{{ $attendance->nama_lokasi_pulang ?? '-' }}</div>
                                         <div class="attendance-meta">
                                             <i class="bi bi-radar"></i>
                                             <span>Jarak {{ isset($attendance->jarak_pulang) ? round($attendance->jarak_pulang) . 'm' : '-' }}</span>
@@ -2019,9 +1997,9 @@
             <div id="qr-event-card" class="m3-card m3-card-elevated mt-3 mx-0 hidden">
                 <div class="flex items-center justify-between mb-2">
                     <h6 class="font-bold mb-0 text-slate-800" style="font-size: 14px; letter-spacing: -0.2px;">
-                        <i class="bi bi-qr-code-scan me-2 text-brand-600"></i>Absen via QR
+                        <i class="bi bi-qr-code-scan mr-2 text-brand-600"></i>Absen via QR
                     </h6>
-                    <span class="badge-tw badge-primary-subtle text-brand-600 rounded-full px-2 py-1" style="font-size: 10px; font-weight: 600;">Hari ini</span>
+                    <span class="{{ $badgeDasar }} bg-brand-600/[0.08] text-brand-600" style="font-size: 10px; font-weight: 600;">Hari ini</span>
                 </div>
                 <p class="text-slate-400 mb-2" style="font-size: 11px;">Ketuk acara untuk absen — tercatat sebagai absen masuk harian bila dalam jam &amp; area.</p>
                 <div id="qr-event-list" class="space-y-2"></div>
@@ -2032,9 +2010,9 @@
                 <div class="m3-card m3-card-elevated mt-3 mx-0">
                     <div class="flex items-center justify-between mb-3">
                         <h6 class="font-bold mb-0 text-slate-800" style="font-size: 14px; letter-spacing: -0.2px;">
-                            <i class="bi bi-people-fill me-2 text-brand-600"></i>Aktivitas Rekan
+                            <i class="bi bi-people-fill mr-2 text-brand-600"></i>Aktivitas Rekan
                         </h6>
-                        <span class="badge-tw badge-primary-subtle text-brand-600 rounded-full px-2 py-1" style="font-size: 10px; font-weight: 600;">Terbaru</span>
+                        <span class="{{ $badgeDasar }} bg-brand-600/[0.08] text-brand-600" style="font-size: 10px; font-weight: 600;">Terbaru</span>
                     </div>
                     
                     <div>
@@ -2096,59 +2074,59 @@
                              else                     { $oIcon = ['bi-check-lg', '#dcfce7', '#15803d']; }
                         ?>
                         <div class="flex items-start py-2">
-                            <div class="relative me-3 flex-shrink-0">
+                            <div class="relative mr-3 flex-shrink-0">
                                 <div class="flex items-center justify-center shadow-sm" style="width:42px;height:42px;border-radius:14px;background:{{ $oIcon[1] }};color:{{ $oIcon[2] }};font-size:19px;"><i class="bi {{ $oIcon[0] }}"></i></div>
                             </div>
                             <div class="grow min-w-0">
                                 <div class="flex justify-between items-center mb-1">
-                                    <div class="font-bold text-slate-800 truncate pe-2" style="font-size: 13.5px;">{{ $oName }}</div>
+                                    <div class="font-bold text-slate-800 truncate pr-2" style="font-size: 13.5px;">{{ $oName }}</div>
                                     <div class="text-slate-400 whitespace-nowrap" style="font-size: 11px; font-weight: 600;">{{ $actionTime }}</div>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1">
                                     <?php if ($isDinas): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e;">
-                                            <i class="bi bi-briefcase-fill me-1"></i>DINAS
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e;">
+                                            <i class="bi bi-briefcase-fill mr-1"></i>DINAS
                                         </span>
                                         <?php if ($statusMasuk === 'DINAS_PENDING'): ?>
-                                            <span class="badge-tw rounded-full px-2 py-0" style="font-size: 9px; font-weight: 600; background: #fff3cd; color: #856404;">Menunggu Persetujuan</span>
+                                            <span class="{{ $badgeDasar }}" style="font-size: 9px; font-weight: 600; background: #fff3cd; color: #856404;">Menunggu Persetujuan</span>
                                         <?php elseif ($statusMasuk === 'DINAS_APPROVED'): ?>
-                                            <span class="badge-tw rounded-full px-2 py-0" style="font-size: 9px; font-weight: 600; background: #d1fae5; color: #065f46;">Disetujui</span>
+                                            <span class="{{ $badgeDasar }}" style="font-size: 9px; font-weight: 600; background: #d1fae5; color: #065f46;">Disetujui</span>
                                         <?php endif; ?>
                                     <?php elseif ($isWfh): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: var(--accent-100); color: var(--accent-800);">
-                                            <i class="bi bi-house-fill me-1"></i>WFH
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: var(--accent-100); color: var(--accent-800);">
+                                            <i class="bi bi-house-fill mr-1"></i>WFH
                                         </span>
                                         <span class="text-slate-400" style="font-size: 10px;">Dari Rumah</span>
                                     <?php elseif ($isIjin): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: #fce7f3; color: #9d174d;">
-                                            <i class="bi bi-file-earmark-text-fill me-1"></i>IZIN
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: #fce7f3; color: #9d174d;">
+                                            <i class="bi bi-file-earmark-text-fill mr-1"></i>IZIN
                                         </span>
                                     <?php elseif ($isSakit): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #991b1b;">
-                                            <i class="bi bi-thermometer-half me-1"></i>SAKIT
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #991b1b;">
+                                            <i class="bi bi-thermometer-half mr-1"></i>SAKIT
                                         </span>
                                     <?php elseif ($isCuti): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: #e0f2fe; color: #075985;">
-                                            <i class="bi bi-calendar-check-fill me-1"></i>CUTI
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: #e0f2fe; color: #075985;">
+                                            <i class="bi bi-calendar-check-fill mr-1"></i>CUTI
                                         </span>
                                     <?php elseif ($isAlpha): ?>
-                                        <span class="badge-tw rounded-full px-2 py-0" style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #991b1b;">
-                                            <i class="bi bi-x-circle-fill me-1"></i>Alpha
+                                        <span class="{{ $badgeDasar }}" style="font-size: 10px; font-weight: 700; background: #fee2e2; color: #991b1b;">
+                                            <i class="bi bi-x-circle-fill mr-1"></i>Alpha
                                         </span>
                                     <?php else: ?>
-                                        <span class="badge-tw {{ $isPulang ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600' }} rounded-full px-2 py-0" style="font-size: 10px; font-weight: 600;">
+                                        <span class="{{ $badgeDasar }} {{ $isPulang ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600' }}" style="font-size: 10px; font-weight: 600;">
                                             Absen {{ $isPulang ? 'Pulang' : 'Masuk' }}
                                         </span>
                                         <?php 
                                         $oDev = strtolower((string)($o->device_info ?? ''));
                                         $oKet = strtolower((string)($o->keterangan ?? ''));
                                         if (strpos($oDev, 'manual') !== false || strpos($oKet, 'manual') !== false || strpos($oKet, 'admin') !== false): ?>
-                                            <span class="badge-tw rounded-full px-2 py-0" style="font-size: 9px; font-weight: 700; background: #fef3c7; color: #92400e;">
-                                                <i class="bi bi-person-gear me-0.5"></i>Manual
+                                            <span class="{{ $badgeDasar }}" style="font-size: 9px; font-weight: 700; background: #fef3c7; color: #92400e;">
+                                                <i class="bi bi-person-gear mr-0.5"></i>Manual
                                             </span>
                                         <?php elseif (strpos($oDev, 'kiosk') !== false || strpos($oDev, 'qr') !== false || strpos($oKet, 'kiosk') !== false || strpos($oKet, 'qr') !== false): ?>
-                                            <span class="badge-tw rounded-full px-2 py-0" style="font-size: 9px; font-weight: 700; background: var(--accent-100); color: var(--accent-800);">
-                                                <i class="bi bi-qr-code me-0.5"></i>QR
+                                            <span class="{{ $badgeDasar }}" style="font-size: 9px; font-weight: 700; background: var(--accent-100); color: var(--accent-800);">
+                                                <i class="bi bi-qr-code mr-0.5"></i>QR
                                             </span>
                                         <?php endif; ?>
                                         <span class="text-slate-400" style="font-size: 10px;">•</span>
@@ -2163,7 +2141,7 @@
                                 </div>
                                 <?php if ($reasonText !== ''): ?>
                                     <div class="text-slate-400 mt-1" style="font-size: 10.5px; font-style: italic; line-height: 1.3; word-break: break-word;">
-                                        <i class="bi bi-chat-left-quote me-1" style="font-size: 9px;"></i>{{ $reasonText }}
+                                        <i class="bi bi-chat-left-quote mr-1" style="font-size: 9px;"></i>{{ $reasonText }}
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -2183,9 +2161,9 @@
                     <div class="m3-card m3-card-elevated mt-4 mx-0">
                         <div class="flex items-center justify-between mb-3">
                             <h6 class="font-bold mb-0 text-slate-800" style="font-size: 14px; letter-spacing: -0.2px;">
-                                <i class="bi bi-award-fill me-2 text-brand-600"></i>Leaderboard Kedisiplinan
+                                <i class="bi bi-award-fill mr-2 text-brand-600"></i>Leaderboard Kedisiplinan
                             </h6>
-                            <span class="badge-tw badge-secondary text-slate-400 rounded-full px-2 py-1" style="font-size: 10px; font-weight: 600;">{{ date('M Y') }}</span>
+                            <span class="{{ $badgeDasar }} bg-slate-100 text-slate-600" style="font-size: 10px; font-weight: 600;">{{ date('M Y') }}</span>
                         </div>
                         
                         <div>
@@ -2213,7 +2191,7 @@
                                   }
                             ?>
                             <div class="flex items-center py-2 px-2 rounded-xl mb-2" style="{{ $rankBorder }}">
-                                <div class="relative me-3 shrink-0">
+                                <div class="relative mr-3 shrink-0">
                                     <img src="{{ $r->avatar }}" alt="{{ $rName }}" class="foto-orang shadow-sm" onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::cadangan() }}'">
                                     <div class="absolute bottom-0 end-0 rounded-full shadow-sm flex items-center justify-center" style="width: 20px; height: 20px; margin-bottom: -4px; margin-right: -4px; background: {{ $rankBadgeBg }}; color: {{ $rankBadgeColor }}; font-weight: 800; font-size: 10px; border: 1.5px solid #fff;">
                                         {{ $rank }}
@@ -2221,14 +2199,14 @@
                                 </div>
                                 <div class="grow min-w-0">
                                     <div class="flex justify-between items-start">
-                                        <div class="min-w-0 pe-2">
+                                        <div class="min-w-0 pr-2">
                                             <div class="font-bold text-slate-800 truncate" style="font-size: 13.5px;">{{ $rName }}</div>
                                             <div class="flex items-center text-slate-400 mt-1" style="font-size: 11px;">
-                                                <i class="bi bi-patch-check-fill text-emerald-600 me-1"></i>
+                                                <i class="bi bi-patch-check-fill text-emerald-600 mr-1"></i>
                                                 <span>{{ $r->ontime }} Hari Tepat Waktu</span>
                                             </div>
                                         </div>
-                                        <div class="text-right whitespace-nowrap shrink-0 ps-1">
+                                        <div class="text-right whitespace-nowrap shrink-0 pl-1">
                                             <div class="font-bold text-brand-600" style="font-size: 15px; letter-spacing: -0.3px;">{{ number_format($r->score, 1) }}</div>
                                             <div class="text-slate-400" style="font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;">Skor</div>
                                             <?php if (($r->total_denda ?? 0) > 0): ?>
@@ -2245,7 +2223,7 @@
                         </div>
                         
                         <div class="mt-3 pt-2 border-t text-center" style="border-color: #f1f5f9 !important;">
-                            <button class="btn-tw btn-tw-sm btn-light no-underline" onclick="showTab('ranking')">
+                            <button class="{{ $btnSm }} bg-slate-50 text-slate-700 border-slate-200" onclick="showTab('ranking')">
                                 <span>Lihat Selengkapnya</span>
                                 <i class="bi bi-chevron-right" style="font-size: 11px;"></i>
                             </button>
@@ -2259,7 +2237,7 @@
                         <div class="flex items-center justify-between mb-3">
                             <div>
                                 <h6 class="font-bold mb-0 text-red-600" style="font-size: 14px; letter-spacing: -0.2px;">
-                                    <i class="bi bi-exclamation-octagon-fill me-2 text-red-600"></i>Perlu Perhatian!
+                                    <i class="bi bi-exclamation-octagon-fill mr-2 text-red-600"></i>Perlu Perhatian!
                                 </h6>
                                 <div class="text-slate-400" style="font-size: 10.5px; margin-top: 2px;">Mari saling memotivasi untuk meningkatkan kedisiplinan</div>
                             </div>
@@ -2287,7 +2265,7 @@
                                   }
                             ?>
                             <div class="flex items-center py-2 px-2 rounded-xl mb-2" style="{{ $rankBorder }}">
-                                <div class="relative me-3 shrink-0">
+                                <div class="relative mr-3 shrink-0">
                                     <img src="{{ $r->avatar }}" alt="{{ $rName }}" class="foto-orang shadow-sm" onerror="this.onerror=null;this.src='{{ \App\Services\AvatarService::cadangan() }}'">
                                     <div class="absolute bottom-0 end-0 rounded-full shadow-sm flex items-center justify-center" style="width: 20px; height: 20px; margin-bottom: -4px; margin-right: -4px; background: {{ $rankBadgeBg }}; color: {{ $rankBadgeColor }}; font-weight: 800; font-size: 10px; border: 1.5px solid #fff;">
                                         {{ $rank }}
@@ -2295,12 +2273,12 @@
                                 </div>
                                 <div class="grow min-w-0">
                                     <div class="flex justify-between items-start">
-                                        <div class="min-w-0 pe-2">
+                                        <div class="min-w-0 pr-2">
                                             <div class="font-bold text-slate-800 truncate" style="font-size: 13.5px;">{{ $rName }}</div>
                                             <div class="flex flex-wrap items-center text-slate-400 mt-1 gap-1" style="font-size: 11px;">
                                                 <?php if (($r->alpha ?? 0) > 0): ?>
                                                     <span class="text-red-600 font-semibold">
-                                                        <i class="bi bi-x-circle-fill me-1"></i>{{ $r->alpha }}x Alpha
+                                                        <i class="bi bi-x-circle-fill mr-1"></i>{{ $r->alpha }}x Alpha
                                                     </span>
                                                     <?php if (($r->late ?? 0) > 0): ?>
                                                         <span class="text-slate-400">•</span>
@@ -2308,7 +2286,7 @@
                                                 <?php endif; ?>
                                                 <?php if (($r->late ?? 0) > 0): ?>
                                                     <span class="text-amber-600 font-semibold">
-                                                        <i class="bi bi-alarm-fill me-1"></i>{{ $r->late }}x Telat ({{ $r->total_telat_menit ?? 0 }}m)
+                                                        <i class="bi bi-alarm-fill mr-1"></i>{{ $r->late }}x Telat ({{ $r->total_telat_menit ?? 0 }}m)
                                                     </span>
                                                 <?php endif; ?>
                                                 <?php if (($r->alpha ?? 0) === 0 && ($r->late ?? 0) === 0): ?>
@@ -2316,7 +2294,7 @@
                                                 <?php endif; ?>
                                             </div>
                                         </div>
-                                        <div class="text-right whitespace-nowrap shrink-0 ps-1">
+                                        <div class="text-right whitespace-nowrap shrink-0 pl-1">
                                             <div class="font-bold text-red-600" style="font-size: 15px; letter-spacing: -0.3px;">{{ number_format($r->score, 1) }}</div>
                                             <div class="text-slate-400" style="font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;">Skor</div>
                                             <?php if (($r->total_denda ?? 0) > 0): ?>
@@ -2341,23 +2319,23 @@
             <?php
             // Badge status mengikuti pengajuan hari ini, bukan label statis.
             $izinBadgeText  = 'Siap Diisi';
-            $izinBadgeClass = 'badge-secondary text-slate-500';
+            $izinBadgeClass = 'bg-slate-100 text-slate-600';
             if ($todayPermit && $permitStatus === 'pending') {
                 $izinBadgeText  = 'Menunggu';
-                $izinBadgeClass = 'badge-warning text-amber-700';
+                $izinBadgeClass = 'bg-amber-100 text-amber-700';
             } elseif ($todayPermit && $permitStatus === 'approved') {
                 $izinBadgeText  = 'Disetujui';
-                $izinBadgeClass = 'badge-success text-emerald-700';
+                $izinBadgeClass = 'bg-green-100 text-green-700';
             }
             ?>
             <div class="flex items-center justify-between mb-3 gap-2">
                 <div class="flex items-center gap-2 min-w-0">
-                    <button type="button" class="btn-tw btn-tw-sm btn-light btn-back text-slate-600 hover:text-slate-800" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
+                    <button type="button" class="{{ $btnKembali }}" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
                         <i class="bi bi-arrow-left text-lg" aria-hidden="true"></i>
                     </button>
                     <h5 class="font-bold mb-0 truncate">Pengajuan Izin</h5>
                 </div>
-                <span class="badge-tw {{ $izinBadgeClass }} rounded-full px-3 py-2 shrink-0" style="font-size: 10px;">{{ $izinBadgeText }}</span>
+                <span class="{{ $badgeDasar }} {{ $izinBadgeClass }} shrink-0" style="font-size: 10px;">{{ $izinBadgeText }}</span>
             </div>
 
             <div class="mb-4 flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-900" role="note">
@@ -2370,7 +2348,7 @@
             <div class="m3-card m3-card-elevated">
                  <form id="formIzin">
                     <div class="mb-3">
-                        <label class="form-label-tw text-sm font-bold">Kategori Izin</label>
+                        <label class="{{ $labelForm }}">Kategori Izin</label>
                         <select class="m3-input" name="jenis" id="jenisIzin" required onchange="updateLampiranLabel(); updateSisaKuota(); updateKategoriCuti(); updateBatasTanggalIzin()">
                             <option value="">Pilih Kategori...</option>
                             <option value="cuti">Cuti</option>
@@ -2391,7 +2369,7 @@
                         $opsiKategoriCuti = \App\Services\CutiKategoriService::opsiUntukUser((int) (auth()->id() ?? 0));
                     ?>
                     <div class="mb-3 hidden" id="wrapKategoriCuti">
-                        <label class="form-label-tw text-sm font-bold">Jenis Cuti</label>
+                        <label class="{{ $labelForm }}">Jenis Cuti</label>
                         <select class="m3-input" name="kategori_cuti" id="kategoriCuti" onchange="updateKetentuanCuti(); updateBatasTanggalIzin()">
                             <option value="">Pilih Jenis Cuti...</option>
                             <?php foreach ($opsiKategoriCuti as $optKat): ?>
@@ -2418,11 +2396,11 @@
                          data-min-dasar="{{ $minTglIzin }}" data-min-cuti="{{ $minTglCuti }}"
                          data-kategori-bebas-maju="{{ implode(' ', \App\Services\CutiKategoriService::KATEGORI_BEBAS_HARI_MAJU) }}">
                         <div>
-                            <label class="form-label-tw text-sm font-bold">Mulai Tanggal</label>
+                            <label class="{{ $labelForm }}">Mulai Tanggal</label>
                             <input type="date" class="m3-input" name="tgl_mulai" id="izinTglMulai" min="{{ $minTglIzin }}" required>
                         </div>
                         <div>
-                            <label class="form-label-tw text-sm font-bold">Sampai Tanggal</label>
+                            <label class="{{ $labelForm }}">Sampai Tanggal</label>
                             <input type="date" class="m3-input" name="tgl_selesai" id="izinTglSelesai" min="{{ $minTglIzin }}" required>
                         </div>
                     </div>
@@ -2431,12 +2409,12 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label-tw text-sm font-bold">Alasan Lengkap</label>
+                        <label class="{{ $labelForm }}">Alasan Lengkap</label>
                         <textarea class="m3-input" name="keterangan" rows="3" placeholder="Berikan alasan yang jelas..." required></textarea>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label-tw text-sm font-bold" id="lampiranLabel">Dokumen Pendukung (Foto/PDF)</label>
+                        <label class="{{ $labelForm }}" id="lampiranLabel">Dokumen Pendukung (Foto/PDF)</label>
                         <label class="block w-full cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-3 text-center">
                             <i class="bi bi-cloud-arrow-up text-3xl text-blue-500 opacity-50"></i>
                             <div class="mt-1 text-[13px] text-slate-500">Ketuk untuk pilih file</div>
@@ -2479,7 +2457,7 @@
         <div id="content-history" class="tab-content-tw hidden px-4 pb-5">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2.5">
-                    <button type="button" class="btn-tw btn-tw-sm btn-light btn-back text-slate-600 hover:text-slate-800 shadow-2xs" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
+                    <button type="button" class="{{ $btnKembali }} shadow-2xs" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
                         <i class="bi bi-arrow-left text-lg" aria-hidden="true"></i>
                     </button>
                     <div>
@@ -2534,14 +2512,14 @@
         <!-- Tab: Koreksi -->
         <div id="content-koreksi" class="tab-content-tw hidden px-4 pb-5">
              <div class="koreksi-head">
-                 <button type="button" class="btn-tw btn-tw-sm btn-light btn-back koreksi-back text-slate-600 hover:text-slate-800" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
+                 <button type="button" class="{{ $btnKembali }} koreksi-back" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
                      <i class="bi bi-arrow-left" aria-hidden="true"></i>
                  </button>
                  <div class="min-w-0 grow">
                      <h5>Koreksi Absensi</h5>
                      <p>Perbaiki jam absensi yang keliru</p>
                  </div>
-                 <span class="badge-tw badge-primary-subtle text-brand-600 rounded-full px-3 py-2 shrink-0" style="font-size: 10px;"><i class="bi bi-clock-history"></i>Review Admin</span>
+                 <span class="{{ $badgeDasar }} bg-brand-600/[0.08] text-brand-600 shrink-0" style="font-size: 10px;"><i class="bi bi-clock-history"></i>Review Admin</span>
              </div>
 
               <div class="koreksi-note" role="note">
@@ -2552,7 +2530,7 @@
              <div class="m3-card m3-card-elevated koreksi-card mb-4">
                 <form id="formKoreksi">
                     <div class="mb-3">
-                        <label class="form-label-tw"><i class="bi bi-calendar-event" aria-hidden="true"></i> Pilih Tanggal Absensi</label>
+                        <label class="{{ $labelKoreksi }}"><i class="bi bi-calendar-event text-[13px] text-slate-400" aria-hidden="true"></i> Pilih Tanggal Absensi</label>
                         <select class="m3-input" id="koreksiAttendanceId" required>
                             <option value="">Memuat data...</option>
                         </select>
@@ -2561,20 +2539,20 @@
 
                     <div class="grid grid-cols-2 gap-2 mb-3">
                         <div>
-                            <label class="form-label-tw">Jenis Koreksi</label>
+                            <label class="{{ $labelKoreksi }}">Jenis Koreksi</label>
                             <select class="m3-input" name="field_name" required>
                                 <option value="jam_masuk">Jam Masuk</option>
                                 <option value="jam_pulang">Jam Pulang</option>
                             </select>
                         </div>
                         <div>
-                            <label class="form-label-tw">Jam Baru</label>
+                            <label class="{{ $labelKoreksi }}">Jam Baru</label>
                             <input type="time" class="m3-input" name="new_value" required>
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label-tw">Alasan Perubahan</label>
+                        <label class="{{ $labelKoreksi }}">Alasan Perubahan</label>
                         <textarea class="m3-input" name="reason" rows="3" placeholder="Contoh: Lupa absen pulang atau kendala jaringan..." required></textarea>
                     </div>
 
@@ -2593,7 +2571,7 @@
         <div id="content-ranking" class="tab-content-tw hidden px-4 pb-5">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2">
-                    <button type="button" class="btn-tw btn-tw-sm btn-light btn-back text-slate-600 hover:text-slate-800" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
+                    <button type="button" class="{{ $btnKembali }}" onclick="showTab('home')" title="Kembali" aria-label="Kembali">
                         <i class="bi bi-arrow-left text-lg" aria-hidden="true"></i>
                     </button>
                     <div>
@@ -2682,15 +2660,15 @@
                             </div>
                             <div class="bg-white/75 rounded-xl p-2 my-1 border border-red-200" style="font-size: 10.5px;">
                                 <div class="flex justify-between items-center mb-1">
-                                    <span class="text-slate-400"><i class="bi bi-cash-stack me-1 text-emerald-600"></i>Bayar Cash</span>
+                                    <span class="text-slate-400"><i class="bi bi-cash-stack mr-1 text-emerald-600"></i>Bayar Cash</span>
                                     <span class="font-bold text-slate-800">Rp <span id="rd-denda-cash">0</span></span>
                                 </div>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-slate-400"><i class="bi bi-star-fill me-1 text-amber-500"></i>Bayar dari Point</span>
+                                    <span class="text-slate-400"><i class="bi bi-star-fill mr-1 text-amber-500"></i>Bayar dari Point</span>
                                     <span class="font-bold text-brand-600">Rp <span id="rd-denda-poin">0</span></span>
                                 </div>
                                 <div class="flex justify-between items-center mt-1" id="box-rd-denda-saldo" style="display: none;">
-                                    <span class="text-slate-400"><i class="bi bi-wallet2 me-1 text-sky-600"></i>Potong Saldo Denda</span>
+                                    <span class="text-slate-400"><i class="bi bi-wallet2 mr-1 text-sky-600"></i>Potong Saldo Denda</span>
                                     <span class="font-bold text-sky-600">Rp <span id="rd-denda-saldo">0</span></span>
                                 </div>
                             </div>
@@ -2714,7 +2692,7 @@
                     </div>
                 </div>
 
-                <button type="button" class="btn-tw btn-secondary w-full py-3 font-bold" data-tw-dismiss="modal">Tutup Detail</button>
+                <button type="button" class="{{ $btnDasar }} bg-slate-600 text-white border-slate-600 w-full" data-tw-dismiss="modal">Tutup Detail</button>
             </div>
         </div>
     </div>
@@ -2972,7 +2950,7 @@
             <div id="modalTeacherQr" class="p-2 bg-white rounded-xl shadow-xs border border-slate-200" style="width:196px;height:196px;display:flex;align-items:center;justify-content:center;"></div>
             <p class="text-[12px] font-extrabold text-slate-800 mt-2.5 font-mono mb-0">{{ $qrTeacherVal }}</p>
             <p class="text-[10px] text-purple-700 font-semibold mt-1 mb-0 text-center">
-                <i class="bi bi-info-circle-fill me-1"></i>Arahkan QR Code ini ke kamera Kiosk Scanner untuk absensi masuk &amp; pulang
+                <i class="bi bi-info-circle-fill mr-1"></i>Arahkan QR Code ini ke kamera Kiosk Scanner untuk absensi masuk &amp; pulang
             </p>
         </div>
 
@@ -3415,7 +3393,7 @@
                                  style="background: #fff5f5; border: 1.5px dashed #fca5a5; border-radius: 18px;">
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-slate-400" style="font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Sisa Denda Belum Lunas</span>
-                                    <span class="badge-tw badge-danger text-white rounded-full px-2 py-0" style="font-size: 9.5px;">Belum Lunas</span>
+                                    <span class="{{ $badgeDasar }} bg-red-100 text-red-700" style="font-size: 9.5px;">Belum Lunas</span>
                                 </div>
                                 <div class="font-bold text-red-600 my-1" style="font-size: 24px; letter-spacing: -0.5px;">Rp ${sisaDenda}</div>
                                 <div class="flex justify-between text-slate-400 pt-2 border-t" style="border-color: #fee2e2 !important; font-size: 11px;">
@@ -3433,13 +3411,13 @@
                         </div>
                     `,
                     showCancelButton: true,
-                    confirmButtonText: '<i class="bi bi-wallet2 me-1.5"></i> Lihat Rincian & Bayar',
+                    confirmButtonText: '<i class="bi bi-wallet2 mr-1.5"></i> Lihat Rincian & Bayar',
                     cancelButtonText: 'Nanti Saja',
                     buttonsStyling: false,
                     customClass: {
                         popup: 'rounded-3xl border-0 shadow-lg px-2 py-3',
-                        confirmButton: 'btn-tw btn-danger w-full py-2.5 rounded-full font-bold shadow-sm mb-2 order-1',
-                        cancelButton: 'btn-tw btn-light w-full py-2 rounded-full text-slate-400 font-semibold order-2',
+                        confirmButton: '{{ $btnDasar }} bg-red-600 text-white border-red-600 w-full shadow-[0_4px_6px_-1px_rgba(220,38,38,0.3)] mb-2 order-1',
+                        cancelButton: '{{ $btnDasar }} bg-slate-50 text-slate-700 border-slate-200 w-full order-2',
                         actions: 'flex flex-col w-full px-3 mt-1 gap-1'
                     },
                     focusConfirm: false,
@@ -3652,7 +3630,7 @@
 
             html += `
             <div class="activity-card m3-card-elevated mb-3 ${badgeClass}" onclick="showRankingDetail(${idx})" style="cursor:pointer">
-                <div class="relative me-3 shrink-0">
+                <div class="relative mr-3 shrink-0">
                     <img src="${avatar}" alt="${teks(name)}" class="foto-orang shadow-sm" onerror="this.onerror=null;this.src='${fotoCadangan}'">
                     <div class="absolute bottom-0 end-0 bg-white rounded-full shadow-sm flex items-center justify-center" style="width: 20px; height: 20px; margin-bottom: -5px; margin-right: -5px;">
                         <span class="font-bold text-slate-800" style="font-size: 10px;">${rank}</span>
@@ -3660,7 +3638,7 @@
                 </div>
                 <div class="grow min-w-0">
                     <div class="flex justify-between items-center gap-2">
-                        <div class="min-w-0 pe-2">
+                        <div class="min-w-0 pr-2">
                             <div class="font-bold text-slate-800 truncate" style="font-size: 13px;">${teks(name)}</div>
                             <div class="text-slate-400 truncate" style="font-size: 10px;">@${teks(r.username)}</div>
                         </div>
@@ -3671,7 +3649,7 @@
                         </div>
                     </div>
                 </div>
-                <i class="bi bi-chevron-right ms-2 opacity-25"></i>
+                <i class="bi bi-chevron-right ml-2 opacity-25"></i>
             </div>`;
         });
         $('#ranking-list-full').html(html);
@@ -4446,7 +4424,7 @@
                             <span style="display:block;font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${judul(s)}</span>
                             ${metaSesi(s) ? `<span style="display:block;font-size:11px;color:#64748b;">${metaSesi(s)}</span>` : ''}
                         </span>
-                        <span style="flex-shrink:0;font-size:11px;font-weight:800;color:#4f46e5;"><i class="bi bi-pencil-square me-1"></i> Isi</span>
+                        <span style="flex-shrink:0;font-size:11px;font-weight:800;color:#4f46e5;"><i class="bi bi-pencil-square mr-1"></i> Isi</span>
                     </a>`;
             };
             const rowValidasi = function (s) {
@@ -4462,7 +4440,7 @@
                             <span style="display:block;font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${judul(s)}</span>
                             <span style="display:block;font-size:11px;color:${warna};font-weight:700;">${ditolak ? 'Jurnal ditolak — perlu diperbaiki' : 'Menunggu validasi piket'}${metaSesi(s) ? ' · ' + metaSesi(s) : ''}</span>
                         </span>
-                        <span style="flex-shrink:0;font-size:11px;font-weight:800;color:${warna};"><i class="bi bi-eye me-1"></i> ${label}</span>
+                        <span style="flex-shrink:0;font-size:11px;font-weight:800;color:${warna};"><i class="bi bi-eye mr-1"></i> ${label}</span>
                     </a>`;
             };
 
@@ -4508,7 +4486,7 @@
                 buttonsStyling: false,
                 customClass: {
                     popup: 'rounded-3xl border-0 shadow-lg px-2 py-3',
-                    confirmButton: 'btn-tw btn-light w-full py-2.5 rounded-full font-bold text-slate-700 mt-2',
+                    confirmButton: '{{ $btnDasar }} bg-slate-50 text-slate-700 border-slate-200 w-full mt-2',
                     actions: 'flex flex-column w-100 px-3 mt-2'
                 }
             });

@@ -129,18 +129,18 @@
     ];
 @endphp
 
-<div class="space-y-4" x-data="permitsPage(@js($config))">
+<div class="fade-in-up space-y-5 px-4 pb-6 pt-4 md:px-6 md:pt-6" x-data="permitsPage(@js($config))">
 
     <x-ui.page-header title="Kelola &amp; Verifikasi Izin / Cuti" icon="bi-file-earmark-medical-fill" tone="blue"
         subtitle="Verifikasi pengajuan izin, sakit, cuti, dan dinas luar guru."
         :crumbs="['Presensi', 'Izin & Cuti']">
         <x-slot:actions>
             <button type="button" @click="bukaManual()"
-                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
                 <i class="bi bi-plus-circle-fill"></i> Input Izin Manual
             </button>
             <a href="{{ url('admin/presensi') }}"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                 <i class="bi bi-arrow-left"></i> Kembali
             </a>
         </x-slot:actions>
@@ -150,21 +150,21 @@
         <x-slot:actions>
             <form method="get" class="flex flex-wrap items-center gap-2">
                 <select name="bulan" @change="$el.form.submit()" aria-label="Filter bulan"
-                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                     <option value="all" {{ $bulanKey === 'all' ? 'selected' : '' }}>Semua Bulan</option>
                     @foreach ($namaBulan as $num => $nama)
                         <option value="{{ $num }}" {{ (string) $bulanKey === (string) $num ? 'selected' : '' }}>{{ $nama }}</option>
                     @endforeach
                 </select>
                 <select name="tahun" @change="$el.form.submit()" aria-label="Filter tahun"
-                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                     <option value="all" {{ $tahun === 'all' ? 'selected' : '' }}>Semua</option>
                     @for ($y = date('Y'); $y >= attendance_tahun_tertua(); $y--)
                         <option value="{{ $y }}" {{ (string) $tahun === (string) $y ? 'selected' : '' }}>{{ $y }}</option>
                     @endfor
                 </select>
                 <button type="submit"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700"
                     title="Terapkan filter periode">
                     <i class="bi bi-search"></i>
                 </button>
@@ -194,9 +194,9 @@
                 <div class="relative ml-0 min-w-[200px] md:ml-auto">
                     <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                     <input type="text" x-model="q" x-ref="cari" placeholder="Cari nama / NIP..." autocomplete="off"
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-8 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                     <button type="button" x-show="q !== ''" x-cloak @click="q = ''; $refs.cari.focus()"
-                        class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-slate-700"
+                        class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
                         title="Bersihkan pencarian">
                         <i class="bi bi-x text-xs"></i>
                     </button>
@@ -227,7 +227,7 @@
                                 x-text="rows.length ? 'Tidak ada data yang cocok dengan filter' : 'Belum ada data pengajuan pada periode ini'"></p>
                             <p class="text-xs" x-text="rows.length ? 'Coba ubah kata kunci atau filter status / jenis' : 'Periode: {{ $periodeLabel }}'"></p>
                             <button type="button" x-show="!rows.length" @click="bukaManual()"
-                                class="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                                class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100">
                                 <i class="bi bi-plus"></i> Input Izin Manual
                             </button>
                         </td>
@@ -287,7 +287,7 @@
                             <td class="px-3 py-2.5 text-center">
                                 <template x-if="row.bukti">
                                     <button type="button" @click="bukaBukti(row)"
-                                        class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                                        class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                                         title="Lihat lampiran bukti">
                                         <i class="bi bi-paperclip text-blue-600"></i> Bukti
                                     </button>
@@ -326,12 +326,12 @@
                                     <template x-if="row.status.kode === 'pending'">
                                         <div class="inline-flex items-center gap-1.5">
                                             <button type="button" @click="setujui(row)"
-                                                class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700"
+                                                class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700"
                                                 title="Setujui pengajuan">
                                                 <i class="bi bi-check-lg"></i> Setujui
                                             </button>
                                             <button type="button" @click="bukaTolak(row)"
-                                                class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-rose-600 transition-colors hover:bg-rose-50"
+                                                class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-600 transition-colors hover:border-rose-300 hover:bg-rose-50"
                                                 title="Tolak pengajuan">
                                                 <i class="bi bi-x-lg"></i> Tolak
                                             </button>
@@ -339,7 +339,7 @@
                                     </template>
                                     <template x-if="row.status.kode !== 'pending'">
                                         <button type="button" @click="hapus(row)"
-                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-500 transition-colors hover:bg-rose-50"
+                                            class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-500 transition-colors hover:border-rose-300 hover:bg-rose-50"
                                             title="Hapus data">
                                             <i class="bi bi-trash3"></i>
                                         </button>
@@ -372,7 +372,7 @@
                     Guru / Pegawai <span class="text-rose-500">*</span>
                 </label>
                 <select name="user_id" id="manualUserId" x-model="manual.user_id" required
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                     <option value="">— Pilih Guru —</option>
                     @foreach ($teachers as $tc)
                         @php
@@ -391,7 +391,7 @@
                     @foreach ($jenisOpts as $nilai => $opt)
                         <label class="block cursor-pointer">
                             <input type="radio" name="jenis" value="{{ $nilai }}" class="sr-only" x-model="manual.jenis">
-                            <span class="flex items-center gap-2.5 rounded-xl border-2 p-2.5 transition-colors"
+                            <span class="flex items-center gap-2.5 rounded-lg border-2 p-2.5 transition-colors"
                                 :class="manual.jenis === '{{ $nilai }}' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'">
                                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $opt['bg'] }}">
                                     <i class="bi {{ $opt['ikon'] }} {{ $opt['warna'] }} text-sm"></i>
@@ -412,14 +412,14 @@
                         Tanggal Mulai <span class="text-rose-500">*</span>
                     </label>
                     <input type="date" name="tgl_mulai" id="manualTglMulai" x-model="manual.tgl_mulai" required
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                        class="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                 </div>
                 <div>
                     <label for="manualTglSelesai" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">
                         Tanggal Selesai <span class="text-rose-500">*</span>
                     </label>
                     <input type="date" name="tgl_selesai" id="manualTglSelesai" x-model="manual.tgl_selesai" required
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                        class="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                 </div>
             </div>
             <p class="-mt-2 text-xs text-slate-400" x-text="durasiManual"></p>
@@ -428,7 +428,7 @@
                 <label for="manualKeterangan" class="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Keterangan / Alasan</label>
                 <textarea name="keterangan" id="manualKeterangan" rows="2" x-model="manual.keterangan"
                     placeholder="Keperluan keluarga / diagnosa dokter / surat tugas..."
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"></textarea>
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"></textarea>
             </div>
 
             <div>
@@ -436,11 +436,11 @@
                     Lampiran Dokumen <span class="font-normal text-slate-400">(opsional)</span>
                 </label>
                 <input type="file" name="bukti" id="manualBukti" accept="image/jpeg,image/png,application/pdf"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-600">
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-600">
                 <p class="mt-1 text-xs text-slate-400">PDF/JPG/PNG · maks. 2 MB</p>
             </div>
 
-            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5">
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3.5">
                 <input type="checkbox" name="langsung_approve" value="1" x-model="manual.langsung_approve"
                     class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                 <span>
@@ -457,11 +457,11 @@
 
         <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
             <button type="button" data-ui-dismiss="modal"
-                class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100">
+                class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50">
                 Batal
             </button>
             <button type="submit" :disabled="memproses"
-                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
+                class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60">
                 <i class="bi" :class="memproses ? 'bi-arrow-repeat animate-spin' : 'bi-check2-circle'"></i>
                 <span x-text="memproses ? 'Menyimpan...' : 'Simpan Izin'"></span>
             </button>
@@ -474,7 +474,7 @@
 <x-ui.modal id="rejectModal" title="Tolak Pengajuan Izin" icon="bi-x-circle-fill" tone="rose" size="max-w-md">
     <form @submit.prevent="kirimTolak()" class="flex min-h-0 flex-col">
         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-            <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                 <i class="bi bi-person-circle shrink-0 text-xl text-slate-400"></i>
                 <div>
                     <p class="text-sm font-semibold text-slate-800" x-text="tolak.nama || '—'"></p>
@@ -487,17 +487,17 @@
                 </label>
                 <input type="text" id="tolakAlasan" x-ref="tolakAlasan" x-model="tolak.alasan" required
                     placeholder="cth: Bukti surat tidak valid / Sudah ada jadwal piket"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                 <p class="mt-1 text-xs text-slate-400">Alasan ini akan terlihat oleh guru</p>
             </div>
         </div>
         <div class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
             <button type="button" data-ui-dismiss="modal"
-                class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100">
+                class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50">
                 Batal
             </button>
             <button type="submit" :disabled="memproses"
-                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-60">
+                class="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-60">
                 <i class="bi bi-x-circle-fill"></i> Tolak Pengajuan
             </button>
         </div>

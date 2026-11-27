@@ -9,6 +9,7 @@ use App\Models\SiswaPresensiModel;
 use App\Services\AttendancePolicy;
 use App\Services\PresensiBdrService;
 use App\Services\PresensiSiswaSyncService;
+use App\Services\SiswaDendaService;
 use App\Services\SiswaPoinService;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\DB;

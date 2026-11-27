@@ -1023,13 +1023,13 @@
         . ($modeAktif === 'bolakbalik' ? '&flip=' . $flipAktif : '')
         . ($desainAktif === 'duplex_portrait' ? '&template=' . $templateAktif : ''));
     // Kelas tab pilihan (desain / tata letak / template) supaya markup tidak berulang.
-    $tabClass = fn (bool $aktif) => 'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all no-underline '
+    $tabClass = fn (bool $aktif) => 'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-colors no-underline '
         . ($aktif
             ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
             : 'text-slate-500 hover:text-slate-700 hover:bg-white/70');
 ?>
 
-<div class="space-y-6"
+<div class="fade-in-up space-y-5 px-4 pb-6 pt-4 md:px-6 md:pt-6"
      x-data="kartuSiswaPage({ base: @js(url($basePath)), desain: @js($desainAktif), mode: @js($modeAktif), flip: @js($flipAktif), idKelas: @js((string) $id_kelas), idSiswa: @js((string) $id_siswa) })">
 
     <div class="space-y-3">
@@ -1040,11 +1040,11 @@
             :crumbs="['Presensi', 'Kartu Siswa']">
             <x-slot:actions>
                 <a :href="cetakUrl" target="_blank"
-                   class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                   class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white no-underline shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
                     <i class="bi bi-printer-fill"></i> Cetak Kartu
                 </a>
                 <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}"
-                   class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                   class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                     <i class="bi bi-camera-fill"></i> Buka Scanner QR
                 </a>
             </x-slot:actions>
@@ -1066,9 +1066,9 @@
     </div>
 
     <!-- Filter & Control Panel -->
-    <x-ui.card title="Opsi Cetak Kartu" icon="bi-sliders" subtitle="Pilih desain kartu dan tata letak cetak sebelum mencetak." bodyClass="p-5 space-y-5">
+    <x-ui.card title="Opsi Cetak Kartu" icon="bi-sliders" subtitle="Pilih desain kartu dan tata letak cetak sebelum mencetak." body-class="p-4 sm:p-5 space-y-5">
 
-        <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+        <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             <!-- Pilihan Desain Kartu -->
             <div>
                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Desain & Format Kartu</label>
@@ -1175,7 +1175,7 @@
                 </div>
             @endif
 
-            <div class="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-3 text-[11px] text-blue-800 lg:col-span-2">
+            <div class="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-[11px] text-blue-800 lg:col-span-2">
                 <i class="bi bi-lightbulb-fill mt-0.5 text-blue-500"></i>
                 <p class="m-0 font-semibold leading-relaxed">
                     Hasil cetak terbaik: gunakan skala <strong>100%</strong>, pilih kertas <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>, dan aktifkan <strong>Background graphics</strong>.
@@ -1197,7 +1197,7 @@
                 <div class="md:col-span-4">
                     <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Pilih Kelas</label>
                     <select name="id_kelas" x-model="idKelas" @change="idSiswa = '0'; $refs.filterForm.submit()"
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                         <option value="0">-- Semua Kelas --</option>
                         @foreach ($kelases as $k)
                             <option value="{{ $k->id_kelas }}" @selected($id_kelas == $k->id_kelas)>
@@ -1211,7 +1211,7 @@
                 <div class="md:col-span-4">
                     <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Pilih Siswa (Opsional / Per Orang)</label>
                     <select name="id_siswa" x-model="idSiswa" @change="$refs.filterForm.submit()"
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                         <option value="0">-- Semua Siswa di Kelas Ini --</option>
                         @foreach ($siswa_options as $so)
                             <option value="{{ $so->id_siswa }}" @selected($id_siswa == $so->id_siswa)>
@@ -1231,7 +1231,7 @@
                                aria-label="Cari nama, NIS, atau NISN siswa"
                                @keydown.enter.prevent
                                @keydown.escape.prevent="clearSearch()"
-                               class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-9 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                         <button type="button" x-show="query.trim() !== ''" x-cloak @click="clearSearch()"
                                 aria-label="Bersihkan pencarian"
                                 class="absolute right-2.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600">
@@ -1242,7 +1242,7 @@
 
                 <div class="flex items-center justify-end pt-1 md:col-span-12">
                     <a href="{{ $resetUrl }}"
-                       class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600 no-underline transition-colors hover:bg-slate-200">
+                       class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                         <i class="bi bi-arrow-counterclockwise"></i> Reset filter
                     </a>
                 </div>
@@ -1250,14 +1250,14 @@
         </div>
 
         @if (!empty($catatan))
-            <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
+            <div class="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
                 <i class="bi bi-exclamation-triangle-fill mt-0.5 text-amber-500"></i>
                 <p class="font-semibold leading-relaxed">{{ $catatan }}</p>
             </div>
         @endif
 
         @if (!empty($terpotong))
-            <div class="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+            <div class="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
                 <i class="bi bi-info-circle-fill mt-0.5 text-blue-500"></i>
                 <p class="font-semibold leading-relaxed">
                     Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama supaya halaman tidak macet.
@@ -1274,7 +1274,7 @@
                 :description="!empty($catatan) ? $catatan : 'Silakan pilih kelas lain atau periksa data penempatan kelas siswa pada Tahun Pelajaran aktif.'">
                 @if ($bisaSetelan)
                     <a href="{{ url('datasiswa') }}"
-                       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline transition-colors hover:bg-blue-700">
+                       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white no-underline transition-colors hover:bg-blue-700">
                         <i class="bi bi-people-fill"></i> Buka Data Siswa
                     </a>
                 @endif
@@ -1283,9 +1283,9 @@
     @else
         @if ($desainAktif === 'duplex')
             {{-- 1. DUPLEX LANDSCAPE PREVIEW (8.56 × 5.4 cm) --}}
-            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 @foreach ($siswa_list as $s)
-                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs"
+                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs"
                          x-show="matches($el)"
                          data-name="{{ strtolower($s->nama) }}"
                          data-nis="{{ strtolower($s->nis ?? '') }}"
@@ -1310,7 +1310,7 @@
                             </div>
                             <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex' . $qsSertaan . '&v=5') }}"
                                target="_blank"
-                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:bg-blue-100">
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:border-blue-300 hover:bg-blue-100">
                                 <i class="bi bi-printer"></i> Cetak Kartu
                             </a>
                         </div>
@@ -1330,9 +1330,9 @@
             </div>
         @elseif ($desainAktif === 'duplex_portrait')
             {{-- 2. DUPLEX PORTRAIT PREVIEW (5.4 × 8.56 cm) --}}
-            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div id="cardGrid" x-ref="grid" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 @foreach ($siswa_list as $s)
-                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs"
+                    <div class="student-card-item card-preview rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs"
                          x-show="matches($el)"
                          data-name="{{ strtolower($s->nama) }}"
                          data-nis="{{ strtolower($s->nis ?? '') }}"
@@ -1357,7 +1357,7 @@
                             </div>
                             <a href="{{ url($basePath . '/cetak?id_siswa=' . $s->id_siswa . '&id_kelas=' . $s->id_kelas . '&desain=duplex_portrait' . $qsSertaan . '&v=5') }}"
                                target="_blank"
-                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:bg-blue-100">
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:border-blue-300 hover:bg-blue-100">
                                 <i class="bi bi-printer"></i> Cetak
                             </a>
                         </div>
@@ -1381,7 +1381,7 @@
                 <x-ui.empty icon="bi-search" title="Tidak ada kartu yang cocok"
                     description="Ubah kata kunci pencarian nama, NIS, atau NISN siswa.">
                     <button type="button" @click="clearSearch()"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3.5 py-2 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100">
                         <i class="bi bi-arrow-counterclockwise"></i> Bersihkan pencarian
                     </button>
                 </x-ui.empty>

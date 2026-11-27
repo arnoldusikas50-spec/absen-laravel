@@ -723,12 +723,12 @@
     // URL reset filter: kembali ke semua guru dengan desain & tata letak yang aktif.
     $resetUrl = url($basePath . '?desain=' . $desainAktif . '&mode=' . $modeAktif);
     // Kelas tab pilihan (desain / tata letak) supaya markup tidak berulang.
-    $tabClass = fn (bool $aktif) => 'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all no-underline '
+    $tabClass = fn (bool $aktif) => 'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-colors no-underline '
         . ($aktif
             ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
             : 'text-slate-500 hover:text-slate-700 hover:bg-white/70');
 ?>
-<div class="space-y-6"
+<div class="fade-in-up space-y-5 px-4 pb-6 pt-4 md:px-6 md:pt-6"
      x-data="kartuGuruPage({ base: @js(url($basePath)), desain: @js($desainAktif), mode: @js($modeAktif), idGuru: @js((string) $id_guru) })">
 
     <div class="space-y-3">
@@ -741,11 +741,11 @@
             :crumbs="['Presensi', 'Kartu Guru']">
             <x-slot:actions>
                 <a :href="cetakUrl" target="_blank"
-                   class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
+                   class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white no-underline shadow-sm shadow-blue-500/20 transition-colors hover:bg-blue-700">
                     <i class="bi bi-printer-fill"></i> Cetak Kartu
                 </a>
                 <a href="{{ $bisaSetelan ? url('scanner') : url('guru/presensi-siswa' . (auth()->id() ? '?h=' . \App\Http\Controllers\Guru\PresensiSiswaQrController::generateHash((int) auth()->id()) : '')) }}"
-                   class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 no-underline transition-colors hover:bg-slate-200">
+                   class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                     <i class="bi bi-camera-fill"></i> Buka Scanner QR
                 </a>
             </x-slot:actions>
@@ -769,9 +769,9 @@
     <!-- Filter & Control Panel -->
     <x-ui.card title="Opsi Cetak Kartu" icon="bi-sliders"
               subtitle="Pilih desain kartu dan tata letak cetak sebelum mencetak."
-              bodyClass="p-5 space-y-5">
+              body-class="p-4 sm:p-5 space-y-5">
 
-        <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+        <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             <!-- Pilihan Desain Kartu -->
             <div>
                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Desain Kartu</label>
@@ -824,7 +824,7 @@
                 </p>
             </div>
 
-            <div class="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-3 text-[11px] text-blue-800 lg:col-span-2">
+            <div class="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-[11px] text-blue-800 lg:col-span-2">
                 <i class="bi bi-lightbulb-fill mt-0.5 text-blue-500"></i>
                 <p class="m-0 font-semibold leading-relaxed">
                     Hasil cetak terbaik: gunakan skala <strong>100%</strong>, pilih kertas <strong>{{ $modeAktif === 'ktp' ? 'Card Size / CR80' : 'A4' }}</strong>, dan aktifkan <strong>Background graphics</strong>.
@@ -846,7 +846,7 @@
                     <div class="md:col-span-6">
                         <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Pilih Guru / GTK</label>
                         <select name="id_guru" x-model="idGuru" @change="$refs.filterForm.submit()"
-                                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                             <option value="0">-- Semua Guru / GTK ({{ count($guru_options) }} Guru) --</option>
                             @foreach ($guru_options as $go)
                                 <option value="{{ $go->id_guru }}" @selected($id_guru == $go->id_guru)>
@@ -866,7 +866,7 @@
                                    aria-label="Cari nama, NIP, atau kode guru"
                                    @keydown.enter.prevent
                                    @keydown.escape.prevent="clearSearch()"
-                                   class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-9 text-xs font-semibold text-slate-800 transition-all hover:border-slate-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200">
                             <button type="button" x-show="query.trim() !== ''" x-cloak @click="clearSearch()"
                                     aria-label="Bersihkan pencarian"
                                     class="absolute right-2.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600">
@@ -877,7 +877,7 @@
 
                     <div class="flex items-center justify-end pt-1 md:col-span-12">
                         <a href="{{ $resetUrl }}"
-                           class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600 no-underline transition-colors hover:bg-slate-200">
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50">
                             <i class="bi bi-arrow-counterclockwise"></i> Reset filter
                         </a>
                     </div>
@@ -896,7 +896,7 @@
             @endphp
             <div>
                 <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Kartu Anda</label>
-                <div class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
                     <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-extrabold tracking-wide text-white">{{ $inisialSendiri }}</span>
                     <div class="min-w-0 flex-1">
                         <p class="m-0 truncate text-sm font-extrabold leading-tight text-slate-800">{{ $guruSendiri->nama_guru ?? '-' }}</p>
@@ -914,14 +914,14 @@
         @endif
 
         @if (!empty($catatan))
-            <div class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs text-amber-800">
+            <div class="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
                 <i class="bi bi-exclamation-triangle-fill mt-0.5 text-amber-500"></i>
                 <p class="font-semibold leading-relaxed">{{ $catatan }}</p>
             </div>
         @endif
 
         @if (!empty($terpotong))
-            <div class="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+            <div class="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
                 <i class="bi bi-info-circle-fill mt-0.5 text-blue-500"></i>
                 <p class="font-semibold leading-relaxed">
                     Daftar dipotong pada {{ (int) ($batas_cetak ?? 500) }} kartu pertama supaya halaman tidak macet.
@@ -938,7 +938,7 @@
                 :description="!empty($catatan) ? $catatan : 'Silakan periksa master data guru di menu Data Guru.'">
                 @if ($bisaSetelan)
                     <a href="{{ url('dataguru') }}"
-                       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white no-underline transition-colors hover:bg-blue-700">
+                       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white no-underline transition-colors hover:bg-blue-700">
                         <i class="bi bi-person-video3"></i> Buka Data Guru
                     </a>
                 @endif
@@ -951,9 +951,9 @@
             $previewBelakang = 'admin.presensi.kartu.partials.kartu_guru_'
                 . ($desainAktif === 'portrait' ? 'belakang' : 'landscape_belakang');
         @endphp
-        <div id="cardGrid" x-ref="grid" class="mx-auto grid grid-cols-1 gap-5 {{ $desainAktif === 'portrait' ? 'max-w-3xl' : 'max-w-4xl' }}">
+        <div id="cardGrid" x-ref="grid" class="mx-auto grid grid-cols-1 gap-4 {{ $desainAktif === 'portrait' ? 'max-w-3xl' : 'max-w-4xl' }}">
             @foreach ($guru_list as $g)
-                <div class="teacher-card-item card-preview overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs"
+                <div class="teacher-card-item card-preview overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs"
                      x-show="matches($el)"
                      data-name="{{ strtolower($g->nama_guru) }}"
                      data-nip="{{ strtolower($g->nip ?? '') }}"
@@ -978,7 +978,7 @@
                         </div>
                         <a href="{{ url($basePath . '/cetak?id_guru=' . $g->id_guru . '&desain=' . $desainAktif . '&mode=' . $modeAktif . '&v=1') }}"
                            target="_blank"
-                           class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-blue-200/60 bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:bg-blue-100">
+                           class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700 no-underline transition-colors hover:border-blue-300 hover:bg-blue-100">
                             <i class="bi bi-printer"></i> Cetak
                         </a>
                     </div>
@@ -1001,7 +1001,7 @@
                 <x-ui.empty icon="bi-search" title="Tidak ada kartu yang cocok"
                     description="Ubah kata kunci pencarian nama, NIP, atau kode guru.">
                     <button type="button" @click="clearSearch()"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-blue-200/60 bg-blue-50 px-3.5 py-2 text-[11px] font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100">
                         <i class="bi bi-arrow-counterclockwise"></i> Bersihkan pencarian
                     </button>
                 </x-ui.empty>
