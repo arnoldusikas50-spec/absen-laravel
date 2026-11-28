@@ -1,5 +1,17 @@
 @extends('layouts.main')
 
+@php
+    // Rantai utility bersama tombol dan badge (admin/main shim).
+    // Nilainya mengikuti definisi .btn-tw/.badge-tw di tailwind-admin.css
+    // (dimuat layouts/main) sebelum dimigrasi supaya gaya tetap sama.
+    $btnDasar = 'inline-flex items-center gap-1.5 rounded-[0.625rem] border-[1.5px] border-transparent px-4 py-2 text-[0.8125rem] font-semibold leading-[1.4] tracking-[0.01em] no-underline whitespace-nowrap cursor-pointer transition-all duration-150';
+    $btnPrimary = $btnDasar . ' bg-primary-600 text-white border-primary-600 shadow-[0_2px_8px_rgb(var(--primary-600-rgb)/0.25)] hover:bg-primary-700 hover:border-primary-700 hover:shadow-[0_4px_12px_rgb(var(--primary-600-rgb)/0.35)]';
+    $btnDanger = $btnDasar . ' bg-red-600 text-white border-red-600 shadow-[0_2px_8px_rgba(220,38,38,0.2)] hover:bg-red-700 hover:border-red-700';
+    $btnLight = $btnDasar . ' bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300';
+    $badgeDasar = 'inline-flex items-center gap-1 rounded-full px-[0.575rem] py-[0.2rem] text-[0.7rem] font-bold leading-[1.4] tracking-[0.015em]';
+    $badgeDanger = $badgeDasar . ' bg-red-100 text-red-700';
+@endphp
+
 @section('styles')
 <style>
 /* ── Status badge ── */
@@ -157,7 +169,7 @@
             <!-- Jam masuk & pulang -->
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="jam-card {{ $attendance && $attendance->jam_masuk ? 'masuk' : 'empty' }}">
-                    <span class="jam-label"><i class="bi bi-box-arrow-in-right me-1"></i>Jam Masuk</span>
+                    <span class="jam-label"><i class="bi bi-box-arrow-in-right mr-1"></i>Jam Masuk</span>
                     <span class="jam-value">
                         @if($attendance && $attendance->jam_masuk)
                             {{ date('H:i', strtotime($attendance->jam_masuk)) }}
@@ -169,7 +181,7 @@
                     @if($attendance && $attendance->jam_masuk)
                         @if(!empty($attendance->nama_lokasi_masuk))
                             <span class="text-xs text-slate-400 mt-0.5 truncate">
-                                <i class="bi bi-geo-alt me-0.5"></i>{{ $attendance->nama_lokasi_masuk }}
+                                <i class="bi bi-geo-alt mr-0.5"></i>{{ $attendance->nama_lokasi_masuk }}
                             </span>
                         @endif
                         @php
@@ -177,14 +189,14 @@
                         @endphp
                         @if($statusMasuk === 'LATE')
                             <span class="text-xs font-bold text-amber-500 mt-0.5">
-                                <i class="bi bi-clock me-0.5"></i>Terlambat
+                                <i class="bi bi-clock mr-0.5"></i>Terlambat
                                 @if(!empty($attendance->telat_menit))
                                     {{ $attendance->telat_menit }} mnt
                                 @endif
                             </span>
                         @elseif($statusMasuk === 'ONTIME')
                             <span class="text-xs font-bold text-emerald-500 mt-0.5">
-                                <i class="bi bi-check-circle me-0.5"></i>Tepat Waktu
+                                <i class="bi bi-check-circle mr-0.5"></i>Tepat Waktu
                             </span>
                         @endif
                     @else
@@ -193,7 +205,7 @@
                 </div>
 
                 <div class="jam-card {{ $attendance && $attendance->jam_pulang ? 'pulang' : 'empty' }}">
-                    <span class="jam-label"><i class="bi bi-box-arrow-right me-1"></i>Jam Pulang</span>
+                    <span class="jam-label"><i class="bi bi-box-arrow-right mr-1"></i>Jam Pulang</span>
                     <span class="jam-value">
                         @if($attendance && $attendance->jam_pulang)
                             {{ date('H:i', strtotime($attendance->jam_pulang)) }}
@@ -205,7 +217,7 @@
                     @if($attendance && $attendance->jam_pulang)
                         @if(!empty($attendance->nama_lokasi_pulang))
                             <span class="text-xs text-slate-400 mt-0.5 truncate">
-                                <i class="bi bi-geo-alt me-0.5"></i>{{ $attendance->nama_lokasi_pulang }}
+                                <i class="bi bi-geo-alt mr-0.5"></i>{{ $attendance->nama_lokasi_pulang }}
                             </span>
                         @endif
                         @php
@@ -213,11 +225,11 @@
                         @endphp
                         @if($statusPulang === 'EARLY')
                             <span class="text-xs font-bold text-amber-500 mt-0.5">
-                                <i class="bi bi-arrow-left-circle me-0.5"></i>Pulang Awal
+                                <i class="bi bi-arrow-left-circle mr-0.5"></i>Pulang Awal
                             </span>
                         @else
                             <span class="text-xs font-bold text-sky-500 mt-0.5">
-                                <i class="bi bi-check-circle me-0.5"></i>Tercatat
+                                <i class="bi bi-check-circle mr-0.5"></i>Tercatat
                             </span>
                         @endif
                     @else
@@ -238,14 +250,14 @@
             <!-- Camera preview -->
             <div class="mt-1 mb-3" id="cameraContainer" style="display:none;">
                 <video id="videoPreview" playsinline autoplay></video>
-                <button id="btnCapture" class="btn-tw btn-primary w-full mt-2 rounded-xl">
-                    <i class="bi bi-camera-fill me-1"></i> Ambil Foto Selfie
+                <button id="btnCapture" class="{{ $btnPrimary }} w-full mt-2 rounded-xl">
+                    <i class="bi bi-camera-fill mr-1"></i> Ambil Foto Selfie
                 </button>
             </div>
             <canvas id="canvasCapture" class="hidden"></canvas>
             <div id="capturedWrapper" class="hidden mb-3 text-center">
                 <img id="capturedImage" class="inline-block img-fluid rounded-xl" alt="foto absen">
-                <p class="text-xs text-slate-400 mt-1"><i class="bi bi-check-circle-fill text-emerald-500 me-1"></i>Foto berhasil diambil</p>
+                <p class="text-xs text-slate-400 mt-1"><i class="bi bi-check-circle-fill text-emerald-500 mr-1"></i>Foto berhasil diambil</p>
             </div>
 
             <!-- Action button -->
@@ -272,7 +284,7 @@
             </div>
 
             <p class="text-center text-xs text-slate-400 mt-3">
-                <i class="bi bi-info-circle me-1"></i>
+                <i class="bi bi-info-circle mr-1"></i>
                 Pastikan GPS aktif{{ $setting->foto_wajib ?? false ? ' dan kamera diizinkan' : '' }}
             </p>
         </div>
@@ -359,14 +371,14 @@
                                  style="width:64px;height:64px;background:#fee2e2;color:#dc2626;border-radius:22px;box-shadow:0 8px 24px rgba(220,38,38,.15)">
                                 <i class="bi bi-receipt-cutoff" style="font-size:30px"></i>
                             </div>
-                            <h5 class="fw-bold text-dark mb-1">Pemberitahuan Denda</h5>
+                            <h5 class="font-bold text-dark mb-1">Pemberitahuan Denda</h5>
                             <p class="text-muted small mb-3">Terdapat akumulasi denda absensi yang perlu diselesaikan.</p>
                             <div class="p-3 mb-3 text-start" style="background:#fff5f5;border:1.5px dashed #fca5a5;border-radius:18px">
                                 <div class="flex justify-content-between align-items-center mb-1">
                                     <span class="text-muted" style="font-size:10.5px;font-weight:600;text-transform:uppercase">Sisa Denda Belum Lunas</span>
-                                    <span class="badge-tw badge-danger text-white rounded-pill px-2 py-0" style="font-size:9.5px">Belum Lunas</span>
+                                    <span class="{{ $badgeDanger }} text-white px-2 py-0" style="font-size:9.5px">Belum Lunas</span>
                                 </div>
-                                <div class="fw-bold text-danger my-1" style="font-size:24px">Rp ${sisaDenda}</div>
+                                <div class="font-bold text-danger my-1" style="font-size:24px">Rp ${sisaDenda}</div>
                                 <div class="flex justify-content-between text-muted pt-2 border-top" style="border-color:#fee2e2 !important;font-size:11px">
                                     <span>Total: <strong>Rp ${totalDenda}</strong></span>
                                     <span>Terbayar: <strong class="text-success">Rp ${terbayar}</strong></span>
@@ -374,13 +386,13 @@
                             </div>
                         </div>`,
                     showCancelButton: true,
-                    confirmButtonText: '<i class="bi bi-wallet2 me-1"></i> Lihat Detail & Bayar',
+                    confirmButtonText: '<i class="bi bi-wallet2 mr-1"></i> Lihat Detail & Bayar',
                     cancelButtonText: 'Nanti Saja',
                     buttonsStyling: false,
                     customClass: {
                         popup: 'rounded-5 border-0 shadow-lg px-2 py-3',
-                        confirmButton: 'btn-tw btn-danger py-2 px-4 rounded-pill fw-bold shadow-sm me-2',
-                        cancelButton: 'btn-tw btn-light py-2 px-4 rounded-pill text-muted fw-semibold',
+                        confirmButton: '{{ $btnDanger }} py-2 px-4 shadow-sm mr-2',
+                        cancelButton: '{{ $btnLight }} py-2 px-4 text-slate-500 font-semibold',
                     },
                 }).then(result => {
                     if (result.isConfirmed) {

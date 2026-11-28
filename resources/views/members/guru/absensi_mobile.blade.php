@@ -99,13 +99,13 @@
 <!-- Hero -->
 <div class="presence-hero">
     <div class="flex items-center mb-3">
-        <a href="{{ url('dashboard') }}" class="text-white opacity-75 me-3"><i class="bi bi-arrow-left text-2xl"></i></a>
+        <a href="{{ url('dashboard') }}" class="text-white opacity-75 mr-3"><i class="bi bi-arrow-left text-2xl"></i></a>
         <div>
             <div class="hero-title">Absensi Saya</div>
             <div class="hero-subtitle">{{ $guru->nama_guru }}</div>
         </div>
-        <div class="ms-auto">
-             <div class="bg-white bg-opacity-25 rounded-full p-2">
+        <div class="ml-auto">
+             <div class="bg-white/25 rounded-full p-2">
                  <img src="{{ \App\Services\AvatarService::url($guru->foto) ?? url('assets/img/guru.png') }}" class="rounded-full" width="32" height="32" style="object-fit: cover;">
              </div>
         </div>
@@ -114,7 +114,7 @@
 
 <!-- Filter & Export -->
 <div class="month-filter-card">
-    <i class="bi bi-calendar-month text-emerald-600 ms-3 text-xl"></i>
+    <i class="bi bi-calendar-month text-emerald-600 ml-3 text-xl"></i>
     <form id="filterForm" action="" method="get" class="grow">
         <select name="bulan" class="month-select" onchange="this.form.submit()">
             <?php foreach ($bulan_ini as $k => $v): ?>
@@ -236,7 +236,7 @@
                     <?php if ($a->keterangan): ?>
                         <div class="mt-2 pt-2 border-t border-slate-100">
                             <small class="text-slate-400 italic block" style="font-size: 11px;">
-                                <i class="bi bi-info-circle me-1"></i> {{ $a->keterangan }}
+                                <i class="bi bi-info-circle mr-1"></i> {{ $a->keterangan }}
                             </small>
                         </div>
                     <?php endif; ?>

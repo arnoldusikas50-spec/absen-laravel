@@ -1,5 +1,15 @@
 @extends('layouts.mobile_tw')
 
+@php
+    // Rantai utility bersama badge, tombol, dan label form mobile.
+    // Nilainya mengikuti definisi .badge-tw/.btn-tw/.form-label-tw di
+    // layouts/mobile_tw sebelum dimigrasi supaya gaya tetap sama.
+    $btnDasar = 'inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-[1.1rem] py-[0.55rem] text-[0.8125rem] font-bold tracking-[0.01em] no-underline cursor-pointer select-none transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-60';
+    $glowBrand = 'shadow-[0_4px_6px_-1px_rgb(var(--brand-600-rgb)/0.3)]';
+    $btnBrand = $btnDasar . ' border-brand-600 bg-brand-600 text-white ' . $glowBrand;
+    $labelForm = 'block mb-1.5 text-[0.78rem] font-semibold text-slate-700';
+@endphp
+
 @section('styles')
 <style>
     /* Spinner tombol uji Telegram/WA: Bootstrap CSS tidak dimuat di layout mobile,
@@ -412,7 +422,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             <form id="formEditProfile" class="space-y-4">
                 <!-- Nama -->
                 <div>
-                    <label class="form-label-tw">Nama Lengkap</label>
+                    <label class="{{ $labelForm }}">Nama Lengkap</label>
                     <div class="relative">
                         <i class="bi bi-person absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" class="m3-input pl-9" name="nama_guru"
@@ -421,7 +431,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
                 <!-- Email -->
                 <div>
-                    <label class="form-label-tw">Alamat Surel</label>
+                    <label class="{{ $labelForm }}">Alamat Surel</label>
                     <div class="relative">
                         <i class="bi bi-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="email" class="m3-input pl-9" name="email"
@@ -432,7 +442,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 <input type="hidden" name="no_hp" value="{{ $guru->no_hp ?? '' }}">
                 <!-- Jabatan -->
                 <div>
-                    <label class="form-label-tw">Jabatan / Tugas</label>
+                    <label class="{{ $labelForm }}">Jabatan / Tugas</label>
                     <div class="relative">
                         <i class="bi bi-briefcase absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" class="m3-input pl-9" name="jabatan"
@@ -441,7 +451,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
                 <!-- ID Telegram -->
                 <div>
-                    <label class="form-label-tw">ID Telegram</label>
+                    <label class="{{ $labelForm }}">ID Telegram</label>
                     <div class="relative">
                         <i class="bi bi-telegram absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" inputmode="numeric" class="m3-input pl-9 font-mono" name="telegram_id"
@@ -459,7 +469,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
                 <!-- Nomor WhatsApp Notifikasi -->
                 <div>
-                    <label class="form-label-tw">Nomor WhatsApp</label>
+                    <label class="{{ $labelForm }}">Nomor WhatsApp</label>
                     <div class="relative">
                         <i class="bi bi-whatsapp absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="tel" inputmode="tel" class="m3-input pl-9 font-mono" name="wa_number"
@@ -485,7 +495,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
 
                 <button type="submit"
-                    class="btn-tw btn-brand w-full py-3 rounded-full font-bold text-sm mt-1">
+                    class="{{ $btnBrand }} w-full py-3 rounded-full font-bold text-sm mt-1">
                     <i class="bi bi-check2-circle"></i> Simpan
                 </button>
             </form>
@@ -522,7 +532,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             <form id="formEditLogin" class="space-y-4">
                 <!-- Username -->
                 <div>
-                    <label class="form-label-tw">Username Baru</label>
+                    <label class="{{ $labelForm }}">Username Baru</label>
                     <div class="relative">
                         <i class="bi bi-person-badge absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" class="m3-input pl-9" name="username"
@@ -531,7 +541,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
                 <!-- Password -->
                 <div>
-                    <label class="form-label-tw">Password Baru</label>
+                    <label class="{{ $labelForm }}">Password Baru</label>
                     <div class="relative">
                         <i class="bi bi-shield-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="password" class="m3-input pl-9" name="new_password"
@@ -540,7 +550,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
                 <!-- Konfirmasi Password -->
                 <div>
-                    <label class="form-label-tw">Konfirmasi Password</label>
+                    <label class="{{ $labelForm }}">Konfirmasi Password</label>
                     <div class="relative">
                         <i class="bi bi-shield-check absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="password" class="m3-input pl-9" name="confirm_password"
@@ -549,7 +559,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 </div>
 
                 <button type="submit"
-                    class="btn-tw btn-brand w-full py-3 rounded-full font-bold text-sm mt-1">
+                    class="{{ $btnBrand }} w-full py-3 rounded-full font-bold text-sm mt-1">
                     <i class="bi bi-shield-check"></i> Perbarui Kredensial
                 </button>
             </form>
@@ -564,7 +574,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
     <!-- Header -->
     <div class="reg-header">
         <button class="reg-close" onclick="closeRegCamera()"><i class="bi bi-x-lg"></i></button>
-        <h6 class="m-0 text-white text-sm font-bold"><i class="bi bi-camera me-1"></i> Daftarkan Wajah</h6>
+        <h6 class="m-0 text-white text-sm font-bold"><i class="bi bi-camera mr-1"></i> Daftarkan Wajah</h6>
         <span style="width:36px"></span>
     </div>
 
@@ -591,7 +601,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             <div class="fail-icon"><i class="bi bi-exclamation-triangle"></i></div>
             <h5 class="text-white font-bold m-0">Gagal Mendeteksi</h5>
             <p id="regFailMsg" class="text-white/70 text-sm m-0">Wajah tidak terdeteksi. Pastikan pencahayaan cukup.</p>
-            <button class="btn-retry" onclick="retryRegisterFace()"><i class="bi bi-arrow-clockwise me-1"></i> Coba Lagi</button>
+            <button class="btn-retry" onclick="retryRegisterFace()"><i class="bi bi-arrow-clockwise mr-1"></i> Coba Lagi</button>
             <button class="btn-dismiss" onclick="closeRegCamera()">Tutup</button>
         </div>
     </div>
@@ -846,7 +856,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
         $('#regSuccess').removeClass('show');
         $('#regFail').removeClass('show');
         $('#regFlash').removeClass('fire');
-        $('#regFaceStatus').html('<i class="bi bi-arrow-repeat me-1"></i> Mengakses kamera...');
+        $('#regFaceStatus').html('<i class="bi bi-arrow-repeat mr-1"></i> Mengakses kamera...');
         $('#regLoadingBar').hide();
         $('#regOval').removeClass('face-ok');
         updateRegDots(0);
@@ -872,7 +882,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             };
 
             if (!regModelsLoaded) {
-                $('#regFaceStatus').html('<i class="bi bi-arrow-repeat me-1"></i> Memuat model AI...');
+                $('#regFaceStatus').html('<i class="bi bi-arrow-repeat mr-1"></i> Memuat model AI...');
                 $('#regLoadingBar').show();
                 await preloadFaceModels();
                 $('#regLoadingBar').hide();
@@ -882,7 +892,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                 }
             }
 
-            $('#regFaceStatus').html('<i class="bi bi-phone me-1"></i> Arahkan wajah ke dalam bingkai');
+            $('#regFaceStatus').html('<i class="bi bi-phone mr-1"></i> Arahkan wajah ke dalam bingkai');
             startRegDetection(video, canvas, displaySize);
 
         } catch (e) {
@@ -927,7 +937,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
                     detectedCount++;
 
                     if (detectedCount === 1) {
-                        $('#regFaceStatus').html('<i class="bi bi-person-check me-1"></i> Wajah terdeteksi');
+                        $('#regFaceStatus').html('<i class="bi bi-person-check mr-1"></i> Wajah terdeteksi');
                     }
 
                     const dots = Math.min(Math.floor(stableFrames / 2) + 1, 5);
@@ -935,14 +945,14 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
 
                     if (stableFrames >= REQUIRED_STABLE && !regCaptureStarted) {
                         regCaptureStarted = true;
-                        $('#regFaceStatus').html('<i class="bi bi-check2-circle me-1"></i> Mengambil data wajah...');
+                        $('#regFaceStatus').html('<i class="bi bi-check2-circle mr-1"></i> Mengambil data wajah...');
                         captureRegFace(video);
                     }
                 } else {
                     stableFrames = 0;
                     $('#regOval').removeClass('face-ok');
                     if (detectedCount > 0) {
-                        $('#regFaceStatus').html('<i class="bi bi-phone me-1"></i> Wajah tidak terlihat, arahkan ke bingkai');
+                        $('#regFaceStatus').html('<i class="bi bi-phone mr-1"></i> Wajah tidak terlihat, arahkan ke bingkai');
                         updateRegDots(0);
                         detectedCount = 0;
                     }
@@ -981,7 +991,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
             const csrf = '_token';
             const hash = '{{ csrf_token() }}';
 
-            $('#regFaceStatus').html('<i class="bi bi-cloud-arrow-up me-1"></i> Menyimpan data...');
+            $('#regFaceStatus').html('<i class="bi bi-cloud-arrow-up mr-1"></i> Menyimpan data...');
 
             $.post('{{ url('presensi/register-face') }}',
                 { face_descriptor: descriptor, [csrf]: hash },
@@ -1027,7 +1037,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
     function showRegFail(msg) {
         $('#regFailMsg').text(msg);
         $('#regFail').addClass('show');
-        $('#regFaceStatus').html('<i class="bi bi-exclamation-circle me-1"></i> ' + msg);
+        $('#regFaceStatus').html('<i class="bi bi-exclamation-circle mr-1"></i> ' + msg);
         $('#regOval').removeClass('face-ok');
     }
 
@@ -1051,7 +1061,7 @@ $finalSrc = \App\Services\AvatarService::tampilan($guru->foto ?? '', $guru->nama
     function retryRegisterFace() {
         $('#regFail').removeClass('show');
         $('#regOval').removeClass('face-ok');
-        $('#regFaceStatus').html('<i class="bi bi-phone me-1"></i> Arahkan wajah ke dalam bingkai');
+        $('#regFaceStatus').html('<i class="bi bi-phone mr-1"></i> Arahkan wajah ke dalam bingkai');
         updateRegDots(0);
         regCaptureStarted = false;
         startRegDetection(
